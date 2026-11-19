@@ -145,3 +145,14 @@ Not legal advice. **LAWYER** marks items a licensed lawyer must settle.
 - **Personal codes:** propose never showing them, even masked (AKI warning; rule 4). Session 1 decides.
 - **Historical officers:** propose a retention limit for ended roles (AKI warning; rule 11).
 - **Blocked uses (US):** propose that the terms of use and the UI exclude credit, employment, insurance, licensing, investment and credit-servicing decisions (15 USC 1681b; rule 6).
+
+## Addendum: market data questions from `markets.md` (2026-11-20)
+
+Rule-based positions; the provider terms were not re-read for this answer. Not legal advice.
+
+1. **One cited market-cap figure per market, shipped in the repo:** allowed only as a derived number with its source and as-of date shown (rules 3 and 16), and only if the source's terms allow redistributing that figure. Until those terms are read: CAVEAT, not SHOW. **LAWYER** to confirm.
+2. **Oracle feed terms:** not verified. Use only through the user's own key (rule 17), never scraped where terms forbid it (rule 14). LATER until the terms are read.
+3. **EIA vendor-permission note:** not verified. Until it is read, use the CSV route only and show the source and date (rule 16).
+4. **Two exchanges' data terms:** not verified. User key, or LATER.
+
+Before any of these moves to SHOW, the provider's current terms page is read and its URL, date and exact redistribution clause are recorded (for coded commercial providers, in the maintainer's private notes, by code).
