@@ -81,7 +81,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/README.md` (conventions, section IDs) | coordinator | 1 | done |
 | `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | |
 | `docs/research/us.md` | data-us | 1 | |
-| `docs/research/markets.md` | data-markets | 1 | landed 2026-11-19 (`1c39fb8`); qa spot-check before session 1 |
+| `docs/research/markets.md` | data-markets | 1 | landed 2026-11-19 (`1c39fb8`); qa spot-check passed the measurements, 1 MUST-FIX in the probes being fixed |
 | `docs/research/osint.md` | data-osint | 1 | |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1 and 2) |
 | `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
@@ -107,6 +107,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 |---|---|---|---|---|
 | H1 | Code licence (and docs licence) | AGPL-3.0 for code, CC BY 4.0 for docs | 2026-11-19 | **Yes** (2026-11-19): code AGPL-3.0, docs and research text CC BY 4.0, data keeps its source licence. `LICENSE` added |
 | H2 | Paid per-use services for the agents: an LLM API and, if no free option is good enough, a web search API | Yes, bring-your-own-key, with a per-investigation cost cap enforced in code | 2026-11-19 | **Yes** (2026-11-19): own keys from a local `.env`, estimated cost shown before an investigation, per-investigation cap enforced in code, CI and tests on recorded fixtures only |
+| H4 | Two real ticker symbols in an early probe commit: fix forward, or rewrite branch history | Fix forward; symbols added to the private denylist; the code fix is a new commit | 2026-11-20 | |
 | H3 | Keys and accounts (human-task) | See the hub post | 2026-11-19 | Deferred to a separate key-testing round (human's hub reply). See "Keys: what each unlocks" below |
 
 ### By the coordinator
