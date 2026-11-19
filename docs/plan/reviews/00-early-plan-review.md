@@ -16,7 +16,7 @@ Status: **open** = still in the draft at `f0531fd`; **partly** = partly fixed; *
 | 6 | Slice order is not "walking skeleton first" | open | M2 = LV loader, API, explorer UI, runtime core, one specialist, rule-based verdict and a minimal one-command run; other countries after |
 | 7 | No milestone-gate script | open | `scripts/milestone-gate.mjs` reads `research/.cache/`, prints aggregates only; output goes into every `council/03-*.md` |
 | 8 | No check that keys stay out of the client bundle | fixed, one addition open | `import "server-only"` in `env.ts` and every seam file |
-| 9 | Fixture codes in real formats can collide with real entities | open | IDs with a check digit (LV, EE, LT, LEI): fixture codes fail the official checksum on purpose (documented fixture variant, accepted only in fixture mode). IDs without one (CIK, US state registry IDs): a documented reserved range. The plan states the rule per ID type, with a test each (qa follow-up) |
+| 9 | Fixture codes in real formats can collide with real entities | rule per ID type agreed | IDs with a check digit (LV, EE, LT, LEI): fixture codes fail the official checksum on purpose (documented fixture variant, accepted only in fixture mode). IDs without one (CIK, US state registry IDs): a documented reserved range. The plan states the rule per ID type, with a test each (qa follow-up) |
 | 10 | The sync pipeline has no package home | open | `packages/ingest` (domain, store, sources, resolve), used by the CLI and the server |
 | 11 | Timeout, retry and turn limits | fixed, values open | Max 40 turns and 80 tool calls per run, each tested with a machine code; retries follow N2 (each attempt settles), not "hold once, settle once" |
 | 12 | Findings are not pinned to an entity | open | `Finding.entityId` required; the verifier rejects citations of unrelated entities; tested |
@@ -37,7 +37,7 @@ Status: **open** = still in the draft at `f0531fd`; **partly** = partly fixed; *
 | 21 | Visual baselines vs the guard | Baselines from fixtures only; `guard review` on each changed image; small baseline set |
 | 22 | Fixture size vs the guard | The large test dataset is generated at test time from a seeded generator; only small layout fixtures are committed |
 | 23 | Timing criteria not reproducible | Relative regression budgets in CI; absolute budgets as recorded benchmarks in `docs/plan/benchmarks.md` |
-| N3 | The cap extension's scope is ambiguous: per agent run, six specialists could each add $0.50 | "Once per investigation", held on the investigation ledger; test: six runs reaching the cap together produce one question and at most +$0.50 (qa, open) |
+| N3 | The cap extension's scope is ambiguous: per agent run, six specialists could each add $0.50 | "Once per investigation", held on the investigation ledger; test: six runs reaching the cap together produce one question and at most +$0.50 (accepted by architect) |
 | N2 | Retries can under-count real spend | Settle each attempt (usage if returned, else its held worst case); new hold per retry; tested |
 
 ## NIT
@@ -54,3 +54,13 @@ Agreed between architect, designer, frontend and qa while the drafts were frozen
 - **Cap reached:** `paused_at_cap` with a `cap_reached` question: "Stop and write the report" (default) or "Allow up to $0.50 more", once per investigation (not per agent run, qa N3), clipped to the remaining daily cap; a second hit stops without asking. The coordinator reads this as within H2 (register C10).
 - **Viewports:** 390x844, 768x1024, 1280x800, 1920x1080, plus 1024 as the panel-to-sheet breakpoint.
 - **Crash monitor:** 60 s poll.
+
+### Contract details settled later (2026-11-20)
+
+- **Fixture IDs per type:** check digit present (LEI mod 97, EE registry code, LV and LT if data-baltics confirms a check digit): a fixture variant of the check, so fixture codes fail the real algorithm. No check digit: CIK in the reserved range `99xxxxxxxx`; US state IDs with the prefix `FX`; LV or LT codes without a check digit get a documented reserved prefix. The nightly live job asserts the reserved ranges stay unassigned. Test: `fixtures/ids.test.ts`.
+- **Question kinds:** `entity_choice | sanctions_match | scope | cap_reached | free_text`. `entity_choice` has no default and no countdown; on timeout the report shows "Not enough data: company not confirmed".
+- **Cap flow:** the first cap hit sets the run to `waiting` with a `cap_reached` question ("paused at cap" in the header); a second hit ends the investigation as `budget_exceeded` with no question.
+- **Verdict DTO:** `level` and `firedRules[]` are rule-based; `explanation.sentences[]` carry `generatedBy: "ai"`; `coverage: { ran, applicable, skipped: {check, reason}[] }` plus `sourceCount`.
+- **Section union:** `not_published{country} | checked_none{source, asOf} | not_checked{reason: later|error|skipped|paid_only|needs_key|needs_purpose|restricted} | disputed{disputeId} | data{value, freshness, asOf, completeness}`. `checked_none` is the section state; `none_found` is a finding rating.
+- **Store layout (cto's lean layout adopted):** integer keys, interned property names, `firstSyncId` / `lastSyncId` instead of per-row timestamps, a `records` table (`sourceId, recordKey, rowHash, lastSyncId`) so unchanged rows are skipped, indexes built after the first load. A statement is live while its record was seen in the source's latest complete sync; the R11 TTL counts from the latest successful check, so live officers never expire while a file is unchanged.
+- **Loader slices** carry cto's measured budgets as acceptance criteria (first load, daily refresh, database size, rows written on an unchanged reload), recorded on a named machine profile; CI uses relative regression budgets.

@@ -114,6 +114,14 @@ Decision 2 is withdrawn. The only format is the one in `docs/research/README.md`
 - Product requirement: each country becomes searchable as soon as its own load finishes.
 - Which US states load by default is a session 1 call, from data-us's fill rates.
 
+### Clarification 4: restricted sections and paid-only copy (2026-11-20)
+- **Restricted section:** a primary-job section whose data is HIDE on legal grounds renders a lock state: "Not shown in [country]: restricted by [legal basis]", where the basis is a case or rule number from `legal.md`, never the data. Contract: `not_checked{reason: "restricted", basis}`.
+  - **Guardrail:** the lock depends on the rule, never on the record. It shows for every entity the restriction covers (country and legal form), whether or not hidden records exist, so the lock itself can't leak that data exists. The HIDE negative test adds a case: two covered entities, one with hidden records and one without, render identical DOM and API output for that section.
+  - **Reasons:** "Not published" would be false; a blank section is banned; naming the legal basis keeps the gap honest.
+  - **What would change it:** legal saying that naming the restriction is itself a problem in some country; that country then shows a generic "Not shown in [country]". `legal` confirms the basis wording per restricted item when it adds the legal lights to the matrix.
+- **`paid_only` copy:** "Available as a paid register extract", plus where to order it. The order link goes only to the official register, never to a reseller or an incumbent portal; if no official ordering page exists, there is no link.
+- Chair clarification; panel not re-convened, so no dissent recorded. Session 1 can revisit it.
+
 ### Decision 4: verdict wording (accepted from the designer, `docs/design/display-options.md` §3.15)
 Levels: **No concerns found** / **Points to check** / **Serious concerns** / **Not enough data**, with per-agent outcomes and the "N agents · N tasks · N sources" header. "No concerns found" never appears without its coverage line; the rule-based level and the AI-written explanation never share a sentence.
 - **Guardrail 1:** the cost-cap extension is one-shot: at most one "allow $0.50 more" per run, never past the daily cap, and the daily cap can't be raised from inside a run.
