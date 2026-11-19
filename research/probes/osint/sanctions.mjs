@@ -93,13 +93,20 @@ export function loadEntries() {
     const h = eu[0];
     const col = (n) => h.indexOf(n);
     const [cId, cType, cName, cBirth, cIdent] = ["Entity_LogicalId", "Entity_SubjectType_ClassificationCode", "NameAlias_WholeName", "BirthDate_BirthDate", "Identification_Number"].map(col);
+    // The file has one row per entity x name x birth date x identifier, so identifiers are collected per entity first.
+    const dob = new Set();
+    const ident = new Set();
+    for (const r of eu.slice(1)) {
+      if (r[cBirth]) dob.add(r[cId]);
+      if (r[cIdent]) ident.add(r[cId]);
+    }
     const seen = new Set();
     for (const r of eu.slice(1)) {
       const kind = r[cType] === "person" ? "person" : r[cType] === "enterprise" ? "entity" : "other";
       const key = `${r[cId]}|${r[cName]}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      add("eu_fsf", r[cId], kind, r[cName], { hasDob: Boolean(r[cBirth]), hasRegNo: Boolean(r[cIdent]) });
+      add("eu_fsf", r[cId], kind, r[cName], { hasDob: dob.has(r[cId]), hasRegNo: ident.has(r[cId]) });
     }
   }
 
