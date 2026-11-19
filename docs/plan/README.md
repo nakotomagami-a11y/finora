@@ -148,7 +148,7 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 - data-baltics: LT has no people at all; LV tax-debt amounts are not open (rating C as the proxy, 5.4% of active companies).
 - data-us (`us.md`): FEC individual donors HIDE (no commercial use by statute); FINRA BrokerCheck per-query only with source, compile date and an error channel; CT principals' residence addresses and FMCSA emails and phones dropped at load. Florida's bulk licence can't be verified (pages refuse automated reads). CA and DE have no free bulk data.
 - Matrix row `S04.EE.01` combines members (open) and beneficial owners (R, rule 1): the call must split them.
-- cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6).
+- cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6). data-us's proposal (`us.md` §2.10): six states in bulk ≈ 18 GB, so query NY, CO, OR, CT, PA and WA live per search and profile (no key, median 0.66-1.05 s) and cache each entity looked up; FL bulk opt-in (≈ 5.5 GB, off by default); state network views (S17) wait for a bulk load.
 
 ## Keys: what each unlocks
 
@@ -157,8 +157,10 @@ For the key-testing round. Nothing here blocks phase 1. Values live only in the 
 | Env var | Account | Unlocks | Areas waiting on it |
 |---|---|---|---|
 | `SEC_USER_AGENT` | none, a contact string with a real email (SEC refuses no-reply addresses) | All live SEC EDGAR calls (submissions, companyfacts, filing index, 8-K items, EX-21, DEF 14A, Form D, 13D/G); EDGAR returns 403 without it | data-us: S01, S03, S06, S13, S14 for US public companies; data-markets: SEC XBRL fundamentals |
-| `COURTLISTENER_TOKEN` | free | US federal court search and dockets via API (bulk files may be keyless) | data-us: S10 (US) |
-| `SAM_GOV_API_KEY` | free | SAM.gov entity registrations and exclusions (debarment) | data-us: S11, S12 (US) |
+| `COURTLISTENER_TOKEN` | free | Docket search by party name, 125 searches a day (bulk dockets need no token) | data-us: S10 (US) |
+| `SAM_GOV_API_KEY` | free | Low value: the public extracts need no key | data-us: S11, S12 (US) |
+| `SOCRATA_APP_TOKEN` | free, optional | Avoids shared throttling on live state-registry queries | data-us: S01-S03 (US) |
+| `USPTO_ODP_KEY`, `FEC_API_KEY` | free | Only LATER items | data-us |
 | `FRED_API_KEY` | free | Not required (the CSV route works keyless); adds series metadata, licence notes and revision dates | data-markets: M01, M03, M07, M09 |
 | `EIA_API_KEY` | free | Not required; oil spot directly from EIA with release metadata | data-markets: M07 |
 | `KRX_API_KEY` | free | Korean broad index (self-hosted only) | data-markets: M03 |
