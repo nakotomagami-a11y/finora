@@ -1,6 +1,6 @@
 # Display options for council session 1
 
-> Designer's advice to the council, written before the display matrix and the legal memo are final. It offers **ways to show** each data item; the council decides **whether** to show it. Where the research changes a fact, the research wins and this page is updated.
+> Designer's advice to the council. Updated for the legal memo (`docs/research/legal.md`) and the council's session 0 framing (rubric, three empty states, v1 agents, banned verdict words). Written before the display matrix is final. It offers **ways to show** each data item; the council decides **whether** to show it. Where the research changes a fact, the research wins and this page is updated.
 
 The council's decision for each item (show / show with caveat / hide / later) maps onto one of the display states below. Picking the state also picks the UI, so a builder never has to invent one.
 
@@ -11,16 +11,17 @@ Every field in every section, for every country, ends in exactly one state. Empt
 | State | When | How it looks | Wording pattern |
 |---|---|---|---|
 | **Full** | Official source, loaded, fresh | Value in primary ink, source chip at the end of the row | the value |
+| **None found** | A check ran and found nothing (risk signals: tax arrears, insolvency, pledges, courts, sanctions, struck off) | Check-mark icon in `--ink-2`, never green; the source and date are part of the sentence | "Checked the debtor list as of 18 Nov 2026: none found" |
 | **Partial** | Some fields or years missing, or only a subset of the population (e.g. only filers above a threshold) | Value shown, plus a dotted underline; hover or tap explains the gap | "3 of 5 years published" |
 | **Stale** | Source older than its expected refresh interval | Value shown, date chip turns amber | "as of 14 Mar 2026 (source not updated for 40 days)" |
-| **Caveat** | Council says "show with caveat" | Value shown; a short caveat line in muted text right under it, never in a tooltip only | "Self-reported by the company, not audited" |
-| **Not published** | The country has no official source for this item | Muted row, dash icon, one line naming the gap | "Lithuania does not publish company officers" |
+| **Caveat** | Council says "show with caveat" | Value shown; a short caveat line in muted text right under it, never in a tooltip only | "Covers filers above the threshold only, as of 2025. Missing does not mean clean." |
+| **Not published** | The country has no official source for this item | Muted row, dash icon, one line naming the gap | "Not published in Lithuania" |
 | **Not shown** | Data exists but law or policy keeps it out (council "hide") | Muted row, lock icon, one line with the reason and a link to the policy page | "Not shown: restricted by a 2026 court ruling" |
 | **Paid only** | Official source exists but is not free (grade D, paid extract) | Muted row, one line naming where an official extract can be ordered; no price, no affiliate link | "Available as a paid register extract" |
 | **Disputed** | Someone objected through the correction channel (legal memo rule 10) | Value hidden, muted row, one line with the date; the source chip stays | "Under review after an objection, since 12 Nov" |
-| **Later** | Council "later" | Not rendered in the report at all; listed once on the coverage page | none in the report |
+| **Later** | Council "later" | Not rendered, unless a primary job needs it: then a muted gap row with the "Not checked" icon. Always listed on the Sources page with its trigger | "Not checked in this version" |
 | **Loading** | Source query in flight | Skeleton bar the width of a typical value; the agent card shows the live step | "Querying the register" |
-| **Error** | Source failed, timed out or was rate-limited | Muted row, warning icon, retry button | "Register did not answer. Retry" |
+| **Error** | Source failed, timed out or was rate-limited | Muted row, warning icon, retry button | "Not checked: the register did not answer. Retry" |
 | **Agent finding** | Came from an agent reading the open web, not an official record | Value with a source chip whose kind is "web", and a confidence badge | the finding, always with its citation |
 
 ### How research grades map to states
@@ -34,9 +35,10 @@ Every field in every section, for every country, ends in exactly one state. Empt
 | X | Not shown |
 
 Rules that follow from this:
-1. "Not published", "Paid only", "Not shown" and "Error" look different on purpose. A user must be able to tell "nothing bad found" from "nobody checked" from "we may not show it".
-2. A section where every field is "Not published" collapses to one line ("Lithuania publishes no ownership data") instead of a block of dashes.
-3. The country coverage strip (section 4) tells the user up front what this country can and cannot give.
+1. The council's three empty states stay distinct everywhere (session 0): **"Not published in [country]"**, **"Checked [source] as of [date]: none found"** and **"Not checked"** (Later, Error, or a check the run skipped). "Paid only", "Not shown" and "Disputed" are labelled variants of "Not published" and "Not checked", each with its own icon and reason. A user must be able to tell "nothing bad found" from "nobody checked" from "we may not show it".
+2. "None found" is never green and never says "clear". It reports a check, not a judgement.
+3. A section where every field is "Not published" collapses to one line ("Lithuania publishes no ownership data") instead of a block of dashes.
+4. The country coverage strip (section 4) tells the user up front what this country can and cannot give.
 
 ## 2. Provenance on every finding
 
@@ -131,20 +133,30 @@ Three outcomes only, and the UI never says "sanctioned" from a fuzzy match (lega
 - Review platforms: aggregate rating and count only where the platform's terms allow it; otherwise only the link.
 - Domain: registered date versus company registered date is a good one-line finding ("Domain registered 3 years before the company").
 - **Rec:** these are agent findings with "Single source" or "Corroborated" confidence, never "Official".
+- **Session 0:** v1 has one web, domain and news agent. Social media and reviews agents are LATER, so the review ratings above are not built in v1, and the report shows no reviews or social block at all (not a gap row), because no primary job depends on them.
 
 ### 3.14 S18 Score inputs (red-flag checks)
-- A list of named checks, each with Pass / Flag / Could not check, so the user sees what was checked, not just what was found.
+- A list of named checks, each with **None found / Flagged / Not checked**, so the user sees what was checked, not just what was found. The count feeds the verdict's coverage line ("8 of 11 checks ran").
 - **Rec:** this list, with the check definitions published (transparent scoring is a stated product goal).
 
 ### 3.15 The verdict
 
 S17 Network is covered by the network explorer screen: companies first, people only as nodes inside a company's network, never as a search entry point.
 
-The prototype used "Go / Caution / Avoid". Options:
-- A. Keep a three-step verdict on the company, worded as a research outcome: **"No concerns found" / "Points to check" / "Serious concerns"**, always followed by "based on N sources, checked on DATE".
-- B. No verdict, only key findings.
-- C. A numeric score with published weights.
-- **Rec: A now, C later** once the weights are agreed. Every key finding links to its evidence.
+The prototype used "Go / Caution / Avoid"; session 0 bans that wording. Under the council's frame (level set by deterministic rules on hard flags, explanation written by the model, coverage always shown, "not enough data" a valid outcome), the proposed final wording is:
+
+| Level | Wording | Colour and icon | When (rules owned by the runtime spec) |
+|---|---|---|---|
+| 1 | **No concerns found** | `--ink` text, neutral dot (never green) | the checks that ran raised no hard or soft flag |
+| 2 | **Points to check** | `--warn`, `!` | one or more soft flags |
+| 3 | **Serious concerns** | `--bad`, `×` | any hard flag (for example insolvency, struck off, a confirmed sanctions entry) |
+| 0 | **Not enough data** | `--muted`, `?` | too few checks ran to say anything |
+
+- Always one block: the level, then **coverage on the same line** ("8 of 11 checks ran · 46 sources · 19 Nov 2026"), so "No concerns found" is never read without how much was checked.
+- **"Why this level":** under the level, the rules that fired (or "No hard or soft flag in the checks that ran"), each linking to its finding. The level is labelled **rule-based**; the explanation paragraph carries the **AI-written** tag (memo rule 9). The two never share a sentence.
+- Per-agent outcomes use the same vocabulary as the checks: None found / Point to check / Concern / Not checked. "Clear", "Safe", "Avoid", "Scam", "Fraud", letter grades and score-like numbers never appear.
+- Every key finding links to its evidence and is pinned to the company's registry ID.
+
 - **Natural persons and sole traders** (legal memo rules 5 and 6): never a credit, character or eligibility verdict. Any other verdict on them is pending a lawyer, so until then the default is no verdict: the report shows sourced facts only, and the verdict block is replaced by "Facts only: no verdict is given on a private individual".
 - **Disclaimer** (memo rule 6): every page that shows a natural person carries the fixed "not a credit report" line at the top of the People section and in the report footer. Its wording is a token in the copy file, not free text.
 
@@ -164,8 +176,15 @@ The decision points the data creates, so the runtime and the UI agree on them:
 2. **Possible sanctions match.** Side-by-side comparison, "Same entity" / "Different" / "Not sure".
 3. **Same person?** Two officer records share a name across companies. Shown only inside the network, never as a person profile.
 4. **Scope.** "This company has 40 subsidiaries. Check all, or only the 5 largest?" with the cost of each.
+5. **Cost cap reached.** The run pauses at the per-investigation cap (session 0 default $1.50): "Stop here and write the report" (default) or "Allow up to $0.50 more". Agent cards show their cost live, and the header shows the total against the cap.
 
-Each question shows which agents are waiting on it, and has a default the run takes after a timeout, so an unattended run still finishes.
+Each question shows which agents are waiting on it, and has a default the run takes after a timeout, so an unattended run still finishes. "Which entity?" never times out into a guess: its default is to stop, because session 0 names the wrong company as the worst failure.
+
+**No LLM key.** The instant official profile works without one. The Investigate button stays visible and opens a short "Add your key to run agents" sheet, never a disabled button with no explanation.
+
+### Making parallel work visible with four agents
+
+Session 0 cuts the prototype's nine agents to four plus a verdict step. Four cards look less busy than nine, but the parallel work is real at the source level. So each agent lane shows its **source tasks as sub-rows**, all ticking at once: for example the legal agent checks 2 sanctions lists, insolvency, pledges and courts in parallel, each with its own status and timer. The header counts agents, tasks and sources ("4 agents · 17 tasks · 31 sources"). This shows parallelism more honestly than nine cards did, so the designer does not challenge the cut.
 
 ## 6. Crash monitor tiles (M01 to M09)
 
