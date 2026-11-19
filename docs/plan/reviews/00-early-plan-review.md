@@ -16,9 +16,9 @@ Status: **open** = still in the draft at `f0531fd`; **partly** = partly fixed; *
 | 6 | Slice order is not "walking skeleton first" | open | M2 = LV loader, API, explorer UI, runtime core, one specialist, rule-based verdict and a minimal one-command run; other countries after |
 | 7 | No milestone-gate script | open | `scripts/milestone-gate.mjs` reads `research/.cache/`, prints aggregates only; output goes into every `council/03-*.md` |
 | 8 | No check that keys stay out of the client bundle | fixed, one addition open | `import "server-only"` in `env.ts` and every seam file |
-| 9 | Fixture codes in real formats can collide with real entities | open | Fixture codes fail the official checksum on purpose (documented fixture variant, accepted only in fixture mode); tested |
+| 9 | Fixture codes in real formats can collide with real entities | open | IDs with a check digit (LV, EE, LT, LEI): fixture codes fail the official checksum on purpose (documented fixture variant, accepted only in fixture mode). IDs without one (CIK, US state registry IDs): a documented reserved range. The plan states the rule per ID type, with a test each (qa follow-up) |
 | 10 | The sync pipeline has no package home | open | `packages/ingest` (domain, store, sources, resolve), used by the CLI and the server |
-| 11 | Timeout, retry and turn limits | fixed, values open | Max 40 turns and 80 tool calls per run, each tested with a machine code; a retried call is tested for holds and settlements |
+| 11 | Timeout, retry and turn limits | fixed, values open | Max 40 turns and 80 tool calls per run, each tested with a machine code; retries follow N2 (each attempt settles), not "hold once, settle once" |
 | 12 | Findings are not pinned to an entity | open | `Finding.entityId` required; the verifier rejects citations of unrelated entities; tested |
 | 13 | A disambiguation question times out into a guess | open | Identity questions have no default; timeout ends as "Not enough data"; tested |
 | 14 | HIDE enforced only on the loader path | open | Display policy also in `record_finding`, follow-ups and documents; HIDE negative tests cover the agent path |
@@ -42,3 +42,14 @@ Status: **open** = still in the draft at `f0531fd`; **partly** = partly fixed; *
 ## NIT
 - 24: "Unknown env values" → "Invalid env values" (fixed).
 - 25: Fold the second profile template slice into the counterparty template slice (one template in v1).
+
+## Phase 3 notes from the architect's answers (2026-11-20)
+
+Agreed between architect, designer, frontend and qa while the drafts were frozen; they go into the first phase 3 revision.
+
+- **New slices:** a network explorer slice after S12 (one hop, `SourceRef` on every node and edge, person nodes behind the purpose gate, no agent runs on browse; list view is the default under 768 px). S04b lands every DTO schema in `api-contract` plus fixture-backed demo responses, so UI slices start against the real contract.
+- **Vocabulary:** finding severity `none_found | point_to_check | concern` (plus `not_checked`); verdict level `no_concerns_found | points_to_check | serious_concerns | not_enough_data`, with `coverage {ran, applicable}` and `sourceCount`. `level` and `firedRules[]` come from the rule table; `explanation` from synthesis, labelled AI-written. `VerdictBlock` renders level and explanation as separate children.
+- **Section DTO union:** `not_published | none_found{sourceId, asOf} | not_checked{reason: later|error|skipped|paid_only} | needs_purpose | disputed | data{freshness: current|stale, completeness: full|partial}`. `loading` is client-only; HIDE items have no row.
+- **Cap reached:** `paused_at_cap` with a `cap_reached` question: "Stop and write the report" (default) or "Allow up to $0.50 more", once per run, clipped to the remaining daily cap; a second hit stops without asking. The coordinator reads this as within H2 (register C10).
+- **Viewports:** 390x844, 768x1024, 1280x800, 1920x1080, plus 1024 as the panel-to-sheet breakpoint.
+- **Crash monitor:** 60 s poll.
