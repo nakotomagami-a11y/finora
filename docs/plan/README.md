@@ -81,7 +81,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/README.md` (conventions, section IDs) | coordinator | 1 | done |
 | `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | |
 | `docs/research/us.md` | data-us | 1 | |
-| `docs/research/markets.md` | data-markets | 1 | |
+| `docs/research/markets.md` | data-markets | 1 | landed 2026-11-19 (`1c39fb8`); qa spot-check before session 1 |
 | `docs/research/osint.md` | data-osint | 1 | |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1 and 2) |
 | `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
@@ -135,6 +135,13 @@ Session 0 (`docs/plan/council/00-framing.md`): the five session 1 gates; the dis
 
 Decision 4 (verdict wording, from the designer): No concerns found / Points to check / Serious concerns / Not enough data; one-shot cost-cap extension; "Not enough data" is a rule in the verdict table.
 
+## Session 1 agenda (collected from phase 1)
+
+- designer: the open questions in `docs/design/display-options.md` §8.
+- data-markets (`markets.md`, Open questions): legal on one cited market-cap figure per market, the oracle feed's terms, EIA's vendor-permission note, two exchanges' data terms; council on ETF proxies for M02-M04 and on seeding the Taiwan peak.
+- legal: the coordinator's three proposals in `legal.md` (no personal codes, retention for ended roles, blocked 15 USC 1681b uses); the legal light and basis wording per matrix row.
+- cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6).
+
 ## Keys: what each unlocks
 
 For the key-testing round. Nothing here blocks phase 1. Values live only in the main checkout's `.env`.
@@ -144,10 +151,14 @@ For the key-testing round. Nothing here blocks phase 1. Values live only in the 
 | `SEC_USER_AGENT` | none, a contact string | All live SEC EDGAR calls (submissions, companyfacts, filing index, 8-K items, EX-21, DEF 14A, Form D, 13D/G); EDGAR returns 403 without it | data-us: S01, S03, S06, S13, S14 for US public companies; data-markets: SEC XBRL fundamentals |
 | `COURTLISTENER_TOKEN` | free | US federal court search and dockets via API (bulk files may be keyless) | data-us: S10 (US) |
 | `SAM_GOV_API_KEY` | free | SAM.gov entity registrations and exclusions (debarment) | data-us: S11, S12 (US) |
-| `FRED_API_KEY` | free | FRED series for rates and macro tiles | data-markets: M09, possibly M08 |
+| `FRED_API_KEY` | free | Not required (the CSV route works keyless); adds series metadata, licence notes and revision dates | data-markets: M01, M03, M07, M09 |
+| `EIA_API_KEY` | free | Not required; oil spot directly from EIA with release metadata | data-markets: M07 |
+| `KRX_API_KEY` | free | Korean broad index (self-hosted only) | data-markets: M03 |
 | LLM provider key (name from data-osint) | paid per use, approved (H2) | Live agent runs, the measured cost per investigation, the pre-run estimate calibration | data-osint: agent pattern and cost |
 | Web search API key (name from data-osint) | free tier, then paid per use (H2) | The open-web agent's search | data-osint: S15, S16 |
-| Market price API keys (names from data-markets) | free tiers | Stock index, crypto and commodity price tiles | data-markets: M01-M07 |
+| One stock price key (provider S7, else S6; codes in `markets.md`) | free tier | M01-M04 via ETF proxies with 30-year history; S6 adds index futures | data-markets: M01-M04, S14 prices |
+| Commodity spot key (provider S3) | free tier | Daily gold and oil spot | data-markets: M05, M07 |
+| Crypto aggregator demo key (provider C1) | free | A stable monthly quota for the total-crypto tile | data-markets: M06 |
 | Estonian e-Business Register API agreement | free, contract | Full annual reports via API (the key figures are in the open files) | data-baltics: S06 (EE) |
 
 Data seats add rows here through their `result` posts; the coordinator keeps the table.
