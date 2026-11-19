@@ -1,0 +1,3 @@
+#!/bin/sh
+# Git passes "<local ref> <local sha> <remote ref> <remote sha>" lines on stdin.
+exec node scripts/guard/guard.mjs push

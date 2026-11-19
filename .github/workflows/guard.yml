@@ -1,0 +1,35 @@
+name: guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Guard tests
+        run: node --test "scripts/guard/*.test.mjs"
+      - name: Scan new commits
+        env:
+          FINORA_GUARD_DENYLIST: ${{ secrets.FINORA_GUARD_DENYLIST }}
+          # Pull requests from forks get no secrets; everything else must have the denylist.
+          FINORA_GUARD_REQUIRE_DENYLIST: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: >
+          node scripts/guard/guard.mjs range
+          "${{ github.event.pull_request.base.sha || github.event.before }}"
+          "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Audit every tracked file
+        env:
+          FINORA_GUARD_DENYLIST: ${{ secrets.FINORA_GUARD_DENYLIST }}
+        run: node scripts/guard/guard.mjs tree

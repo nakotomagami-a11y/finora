@@ -1,0 +1,3 @@
+#!/bin/sh
+# Publish guard: see docs/contributing/publishing-checklist.md. Never skip with --no-verify.
+exec node scripts/guard/guard.mjs staged
