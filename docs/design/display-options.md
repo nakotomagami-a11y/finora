@@ -183,6 +183,13 @@ Each question shows which agents are waiting on it, and has a default the run ta
 
 **No LLM key.** The instant official profile works without one. The Investigate button stays visible and opens a short "Add your key to run agents" sheet, never a disabled button with no explanation.
 
+**Cost states** (council answers to the designer; human decision H2: bring your own key, estimate before start, cap in code). Each is a phase 3 screen state:
+
+1. **Pre-run estimate.** Investigate opens a short sheet before anything runs. It shows the estimated range ("typically $0.40, at most $1.50 under the cap") with what drives it (the data-osint method), the per-investigation cap, and today's remaining daily spend. The primary button is "Start investigation".
+2. **Cap reached, first time.** Covered by question 5 above. If "Allow up to $0.50 more" would pass the daily cap, the card offers only the amount left, or drops the option when nothing is left.
+3. **Cap reached, extension already used.** The card offers only "Stop here and write the report" and says why: "Extension already used for this run".
+4. **Daily cap reached.** Investigate opens a sheet with spend against the daily cap and the time it resets. The instant official profile keeps working, because it costs nothing. The daily cap can't be raised from inside a run.
+
 ### Making parallel work visible with four agents
 
 Session 0 cuts the prototype's nine agents to four plus a verdict step. Four cards look less busy than nine, but the parallel work is real at the source level. So each agent lane shows its **source tasks as sub-rows**, all ticking at once: for example the legal agent checks 2 sanctions lists, insolvency, pledges and courts in parallel, each with its own status and timer. The header counts agents, tasks and sources ("4 agents · 17 tasks · 31 sources"). This shows parallelism more honestly than nine cards did, so the designer does not challenge the cut.
