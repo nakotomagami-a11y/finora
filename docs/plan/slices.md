@@ -27,8 +27,8 @@
 ## M1 Foundation
 
 ### S01 Workspace and toolchain
-- **Owner:** architect · **Depends on:** human answer H1 (licence)
-- **Scope:** pnpm workspace (`apps/*`, `packages/*`); `packageManager` pinned; Node ≥ 24 in `engines`; `packages/tooling` (tsconfig base with `strict`, ESLint flat config with the import rules of architecture §2, Vitest preset); root scripts `lint`, `typecheck`, `test`, `build`, `e2e`; `scripts/check-deps.mjs` holding the dependency table; `pnpm-workspace.yaml` with `minimumReleaseAge` and `allowBuilds`; `.env.example`; `LICENSE` and the `license` field in every `package.json`; `.data/` gitignored; `ci.yml` (architecture §14 steps 1-3 and 7; later slices add their steps).
+- **Owner:** architect · **Depends on:** nothing (licence decided: AGPL-3.0, `LICENSE` is committed)
+- **Scope:** pnpm workspace (`apps/*`, `packages/*`); `packageManager` pinned; Node ≥ 24 in `engines`; `packages/tooling` (tsconfig base with `strict`, ESLint flat config with the import rules of architecture §2, Vitest preset); root scripts `lint`, `typecheck`, `test`, `build`, `e2e`; `scripts/check-deps.mjs` holding the dependency table; `pnpm-workspace.yaml` with `minimumReleaseAge` and `allowBuilds`; `.env.example`; `"license": "AGPL-3.0-or-later"` in every `package.json`; `.data/` gitignored; `ci.yml` (architecture §14 steps 1-3 and 7; later slices add their steps).
 - **Acceptance:**
   1. A fresh clone runs `pnpm install && pnpm lint && pnpm typecheck && pnpm test` green on Windows and on Linux CI.
   2. `check-deps` fails when a package declares a dependency its table row forbids.
@@ -189,7 +189,8 @@ One slice per source group. Each slice meets S05's criteria 2-6 for its sources,
   8. An unknown model price refuses to start (`price_unknown`).
   9. A natural-person or sole-trader subject is refused with `subject_is_natural_person` (R5).
   10. Every finding, verdict and follow-up DTO carries `generatedBy: "ai"` (R9).
-- **Tests:** `agents/src/orchestrator.parallel.test.ts`, `agents/src/questions.test.ts`, `agents/src/citations.test.ts`, `agents/src/budget.test.ts`, `agents/src/runner.retry.test.ts`, `agents/src/runner.errors.test.ts`, `agents/src/runner.timeout.test.ts`, `agents/src/tools.errors.test.ts`, `agents/src/orchestrator.timeout.test.ts`, `agents/src/orchestrator.stop.test.ts`, `agents/src/recovery.test.ts` (kills a child process), `agents/src/orchestrator.subject.test.ts`, `server/src/routes/v1/investigations/**/route.contract.test.ts`, `server/src/sse.resume.test.ts`, `api-contract/src/investigations.test.ts`; a security-engineer review of tool and fetch paths.
+  11. `POST /investigations/estimate` returns low, typical and high USD with its basis (`defaults` until 10 investigations have settled, then `history`) (H2).
+- **Tests:** `agents/src/orchestrator.parallel.test.ts`, `agents/src/questions.test.ts`, `agents/src/citations.test.ts`, `agents/src/budget.test.ts`, `agents/src/runner.retry.test.ts`, `agents/src/runner.errors.test.ts`, `agents/src/runner.timeout.test.ts`, `agents/src/tools.errors.test.ts`, `agents/src/orchestrator.timeout.test.ts`, `agents/src/orchestrator.stop.test.ts`, `agents/src/recovery.test.ts` (kills a child process), `agents/src/orchestrator.subject.test.ts`, `agents/src/estimate.test.ts`, `server/src/routes/v1/investigations/**/route.contract.test.ts`, `server/src/sse.resume.test.ts`, `api-contract/src/investigations.test.ts`; a security-engineer review of tool and fetch paths.
 - **Demo:** `FINORA_DEMO=1 pnpm dev`; `curl -X POST .../api/v1/investigations` on a fixture company; `curl -N .../events` streams parallel runs; answer the question with `curl`; see the `verdict` event.
 
 ### S16 Agent tools and specialists
@@ -204,7 +205,7 @@ One slice per source group. Each slice meets S05's criteria 2-6 for its sources,
 
 ### S17 Investigation UI
 - **Owner:** frontend · **with:** designer, data-osint · **Depends on:** S14, S15
-- **Scope:** "Investigate" from a report and from free text (with a stated purpose); the live view (agent cards with status, current step, sources read, progress; overall progress and spend; skip to report); questions (highlighted card, options, dependants shown waiting); the report (verdict, per-agent ratings, key findings, advice, evidence by agent with citation chips that open the quoted span, dig deeper, re-run, `AiLabel` on all AI text); follow-up panel; library; stop; budget-exceeded, error and reconnect states. **[pending: screens from DESIGN.md]**
+- **Scope:** "Investigate" from a report and from free text (with a stated purpose, the cost estimate and the cap shown before Start); the live view (agent cards with status, current step, sources read, progress; overall progress and spend; skip to report); questions (highlighted card, options, dependants shown waiting); the report (verdict, per-agent ratings, key findings, advice, evidence by agent with citation chips that open the quoted span, dig deeper, re-run, `AiLabel` on all AI text); follow-up panel; library; stop; budget-exceeded, error and reconnect states. **[pending: screens from DESIGN.md]**
 - **Acceptance:**
   1. Every DESIGN.md screen and state for investigations matches its mockup at four viewports (empty, loading, streaming, partial, error, question, report).
   2. Events show within 500 ms of emission; a reload mid-run restores the same state.

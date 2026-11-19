@@ -321,7 +321,8 @@ Endpoints (v1):
 | `POST /api/v1/disputes` | Report a problem with a statement or section: correction or objection (R10) |
 | `GET /api/v1/companies/:id/export?format=json\|ftm` | Export of redistributable, non-personal statements only (R4) |
 | `GET /api/v1/sources` | Source registry: licence, attribution, freshness, last sync report |
-| `POST /api/v1/investigations` | Start an investigation (subject: a company ID or free text; locale; cost cap) |
+| `POST /api/v1/investigations/estimate` | Cost estimate (low, typical, high) before starting (§7.6) |
+| `POST /api/v1/investigations` | Start an investigation (subject: a company ID or free text; stated purpose; locale; cost cap) |
 | `GET /api/v1/investigations` | Library: list with verdicts |
 | `GET /api/v1/investigations/:id` | Snapshot: agents, findings, questions, verdict, spend |
 | `GET /api/v1/investigations/:id/events` | SSE event stream (§7.5), resumable with `Last-Event-ID` |
@@ -446,7 +447,7 @@ interface LlmProvider {
 
 - `anthropic`: the official TypeScript SDK on the Messages API, the user's own key (`ANTHROPIC_API_KEY`). Model per role is configuration (`AGENT_MODEL_LEAD`, `AGENT_MODEL_SPECIALIST`, `AGENT_MODEL_SYNTH`), with an effort level per role; defaults and measured costs come from `docs/plan/agents.md`. Prompt caching on the stable prefix (tool definitions + system prompt). Web search and web fetch, if `agents.md` chooses the provider's server tools, are declared per specialist with `max_uses` and domain allow or block lists.
 - `fake`: replays scripted transcripts from `fixtures/agents/*.json`. Used by every test and by `FINORA_DEMO=1`, so the full flow, e2e tests and a demo run with **no key and no spend**.
-- **[pending: H2, the human's answer on paid LLM and search APIs.]** Without a key, the explorer works fully and the Investigate button explains what is needed.
+- Paid LLM and search APIs are allowed with the user's own keys from a local `.env` (human decision H2). Without a key, the explorer works fully and the Investigate button explains what is needed.
 
 ### 7.4 Questions back to the human
 
@@ -466,6 +467,7 @@ interface LlmProvider {
 ### 7.6 Cost caps
 
 - Every investigation has a cap in USD (`AGENT_COST_CAP_USD` default, overridable per investigation up to `AGENT_COST_CAP_MAX_USD`).
+- **Estimate before start (human decision H2).** `POST /api/v1/investigations/estimate` returns `{ low, typical, high, basis }` in USD for the subject and the chosen specialists: per-role averages from this install's settled `cost_ledger` once it holds at least 10 finished investigations, else the per-role defaults in `docs/plan/agents.md` (`basis: "defaults"`). The UI shows it next to the cap before the user presses Start; the cap, not the estimate, is what the code enforces.
 - Before each model call the runner **holds** the call's worst case (input tokens × input price + `max_tokens` × output price + the server-tool fees it may incur) in `cost_ledger`; after the call it **settles** the real cost from the usage block. A call that would push held + settled spend over the cap is not made. Holding the worst case is what stops parallel agents from all passing the check at once.
 - An unknown price for a configured model refuses to start the investigation (`price_unknown`), never "free".
 - On reaching the cap the investigation ends `budget_exceeded`; finished findings are kept and the synthesis step runs if its own held cost still fits (it has a reserved share of the cap, `SYNTH_RESERVE`, default 15%).
@@ -684,4 +686,4 @@ The CLI (`apps/cli`) runs as `pnpm finora-cli <command>`: `data sync [source|--p
 | A4 | Models, effort per role, web tools, default caps | `docs/plan/agents.md`, human answer H2 |
 | A5 | Market connectors and which tiles need a key | `docs/research/markets.md` |
 | A6 | Tokens and component inventory | `DESIGN.md`, frontend plan |
-| A7 | Code licence header and `license` fields | human answer H1 |
+| A7 | ~~Code licence~~ decided: AGPL-3.0 code, CC BY 4.0 docs (H1); S01 adds the `license` fields | done |
