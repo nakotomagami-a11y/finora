@@ -24,6 +24,24 @@ Every field in every section, for every country, ends in exactly one state. Empt
 | **Error** | Source failed, timed out or was rate-limited | Muted row, warning icon, retry button | "Not checked: the register did not answer. Retry" |
 | **Agent finding** | Came from an agent reading the open web, not an official record | Value with a source chip whose kind is "web", and a confidence badge | the finding, always with its citation |
 
+### Display states in code (architect's section DTO union)
+
+Code, copy and mockups share one union (architect answer to designer and qa, phase 3 revision). How each display state above maps onto it:
+
+| Display state | DTO |
+|---|---|
+| Full / Partial / Stale | `data{freshness: current\|stale, completeness: full\|partial}` |
+| Caveat | `data{…}` plus the council's caveat key |
+| None found | `none_found{sourceId, asOf}` |
+| Not published | `not_published` |
+| Paid only | `not_checked{reason: paid_only}`, rendered with its own copy (where to order an extract), not the generic "Not checked" line |
+| Later / Error / skipped check | `not_checked{reason: later\|error\|skipped}` |
+| Purpose gate | `needs_purpose` |
+| Disputed | `disputed` |
+| Loading | client state only, not a DTO state |
+| Agent finding | a finding on the run, not a section state |
+| Not shown | **no row** for a HIDE item. Open for session 1: whether a primary-job section whose data is restricted (for example owners in a country where a court ruling restricts them) shows a labelled gap. The designer recommends yes, as a distinct `not_checked{reason: restricted}` with a lock icon and the legal basis. Otherwise the section would read as "Not published", which is false, or as blank, which is banned. The gap names only the reason, never the data. |
+
 ### How research grades map to states
 
 | Grade (`docs/research/README.md`) | Default state |
@@ -228,3 +246,4 @@ From `docs/research/legal.md`, product rules. Each one gets a fixed component, s
 4. Are natural-person court parties masked in all four jurisdictions (3.7)?
 5. Is "also officer in N other companies" (3.2 B) acceptable, or only inside the network explorer?
 6. Purpose gate (§7, rule 2): is "once per session, picked from a fixed list" enough, or must the purpose be asked per company?
+7. Restricted data in a primary-job section (§1, DTO table): a labelled gap ("Not shown in [country]: restricted by [basis]") as `not_checked{reason: restricted}`, or no row at all?
