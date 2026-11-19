@@ -102,3 +102,15 @@
 - **Reported, not read:** the Latvian Constitutional Court ruling (judgment not read); the Munich and US 2026 defamation rulings; the CCPA bill; the 2011 FTC report; the Lithuanian licence and scope; the Estonian beneficial-owner removal; the Latvian CC0 claim.
 - **Conflicts:** Latvian register licence (official: no licence named; third party: CC0). Lithuanian open-data scope (two sources disagree). Estonian beneficial-owner status (official page vs third party).
 - **Gaps:** Baltic DPA primary positions on register republication; social-platform terms; FTC primary text and 15 USC 1681b; other US state laws; the US federal public-domain basis; the Latvian Constitutional Court judgment text.
+
+## Addendum: the designer's display assumptions (round 2, item 5)
+
+Answers to `docs/design/display-options.md` §3.2, §3.11 and §3.15. Not legal advice.
+
+- **Sanctions wording (§3.15): confirmed.** A match is shown as "possible match, needs review" (rule 8). "Sanctioned" only with a primary list entry.
+- **Verdicts on natural persons and sole traders (§3.11): partly confirmed; the memo is narrower.** Rule 5 bars credit, character and eligibility scores on natural persons, and rule 6 requires the "not a credit report" disclaimer on any verdict about a person. The memo does not bar every verdict about a natural person; defamation exposure is a **LAWYER** item. Recommended default until a lawyer answers: no verdict on any natural person or sole trader; show sourced facts only.
+- **Standalone person pages (§3.2): not covered by the memo; LAWYER.** Person data appears only inside company pages. Shareholder personal data follows rule 1 (company level only, Latvia).
+
+Corrections for the display advice:
+1. Read "no verdict on natural persons" as "no credit, character or eligibility verdict on natural persons; any other verdict is LAWYER-pending, and the default is none".
+2. Keep the rule 6 disclaimer on every page that shows a natural person.
