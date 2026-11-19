@@ -313,7 +313,7 @@ Each value carries its own as-of date (observation date, or block time for on-ch
 | S7 | per probe | M01-M04 daily via ETFs, 30-year history: the main stock-tile unlock |
 | S6 | per probe | one index level and US futures (oil, gold, index futures for a premarket line) |
 | S3 | per probe | daily gold and oil spot |
-| C1 demo key | `COINGECKO_DEMO_API_KEY` | a stable 10k/month quota for the total-crypto tile instead of the shared keyless limit |
+| C1 demo key | `C1_DEMO_API_KEY` | a stable 10k/month quota for the total-crypto tile instead of the shared keyless limit |
 | C2, O7 | per probe | alternatives for the total-crypto history and ether supply |
 
 ## Open questions
