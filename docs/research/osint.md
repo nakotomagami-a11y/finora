@@ -14,7 +14,8 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 4. **News is thin and rate limited.** GDELT is free, redistributable with attribution, and covers Lithuanian, Latvian and Estonian media, but it searches only the last 3 months and allows one request every 5 seconds per IP (stated in its own error message). 🟢 It answered only 13 of 32 queries (rate limits and connection timeouts, even at 12 s spacing with retries); 5 returned articles, and 3 of those were other things with the same name. News needs a fallback (the provider's web search, restricted to news domains) and a relevance check before anything is cited. Commercial news APIs either exclude Baltic languages or forbid production use on their free tiers.
 5. **Reviews and social platform APIs are closed to this use.** Every major review API either bans feeding its content to a generative AI model, bans "creating content" from it, or is approval-only. The microblogging, social-network and professional-network platforms explicitly ban background checks, eligibility decisions or "investigating". The council's LATER call stands; the evidence is in §1.3-1.4. What is open: 🟢 41% of samples link at least one social profile from their own website, which costs nothing to read.
 6. **Regulator red-flag lists are small and mostly HTML.** Three publish files (Bank of Lithuania illegal websites, 145 rows; ESMA non-compliant crypto providers, 217; Lithuanian gambling regulator, 197 domains). Estonian and Latvian warning lists are HTML only. The US consumer-complaint database refuses non-browser clients (🟢 HTTP 403 on both the API and the bulk file).
-7. **Cost per investigation is modelled, not yet measured.** 🟡 About $0.46 typical and $0.92 worst case with a mid-tier model throughout, under the $1.50 cap. The measurement needs an LLM key, requested as a human-task. §4.6 gives the estimation method the council asked for.
+7. **EU-wide procurement (TED) joins cleanly.** Anonymous API and bulk XML, free reuse. 🟢 92-99% of Baltic winners are identified by their national register code, and 9 of 24 Baltic samples won at least one EU-wide award.
+8. **Cost per investigation is modelled, not yet measured.** 🟡 About $0.46 typical and $0.92 worst case with a mid-tier model throughout, under the $1.50 cap. The measurement needs an LLM key, requested as a human-task. §4.6 gives the estimation method the council asked for.
 
 ## 1. Source catalog
 
@@ -210,7 +211,15 @@ All lists downloaded 2026-11-19 with `sanctions.mjs`. Entries are distinct list 
 - Join keys: names; dates of birth; registration numbers in free text (OFAC remarks) or a column (UK).
 - Person identity: name plus date of birth, nationality and document numbers on most person entries.
 - **False positives** (🟢 `reality_check.mjs`): 5,000 random Estonian company names gave 11 exact normalised-name hits (0.22%). All 11 are one- or two-word generic names once legal-form words are removed, and the listed entities are registered in other countries; only a second identifier can settle them. 5,000 random Latvian officer names gave 3 exact hits (0.06%). Fuzzy matching at 0.9 similarity on the rarest shared token added none.
-- Verdict: use the official lists, loaded in bulk daily (owned with `data-baltics` and `data-us`, who already download the EU, UN and OFAC files; one loader, not three). A hit is shown as "possible match, needs review" (legal rule 8) and becomes a finding only with a second identifier: registration number or country for entities, date of birth or nationality for persons. Without one, the agent asks the human (§4.4).
+- **Which official identifiers the entries carry** (architect, for rule R8: a listing is confirmed only on an official-ID match). 🟢 Counted 2026-11-19:
+  - OFAC SDN entities (10,122): registration number 54%, tax ID 38%, IMO number 6%, LEI 2%. Persons (7,561): date of birth 99%, nationality 76%, passport 28%.
+  - OFAC non-SDN entities (368): registration number 68%, tax ID 60%, LEI 4%.
+  - EU (identifier rows per entry): registration number 682, other 539, passport 517, fiscal code 479, tax ID 309, national ID 212, IMO 41.
+  - UK: 693 of 2,379 entities and ships carry an IMO number; 37% of entities a business registration number; 83% of persons a date of birth.
+  - UN: no registration numbers; persons DOB 42%.
+  - So at most about half of listed companies can ever be confirmed by an official registration number; the rest stay "possible match, needs review" unless the human confirms. No list carries Baltic register codes in a dedicated field: registration numbers are free text with mixed country formats.
+- Rows for the store (cto): about 34,000 entries and 128,000 names across the four official sources; we would load all of them (sanctions are not filtered by country), keeping name, aliases, kind, list, programme, listing date, identifiers, birth dates and nationality: about 12 statements per entry, ~400,000 statements, ~50 MB at cto's 123 bytes each.
+- Verdict: use the official lists, loaded in bulk daily. Owner: `data-osint` (coordinator's split; `data-us` skips OFAC, `data-baltics` reports hits for its samples only). A hit is shown as "possible match, needs review" (legal rule 8) and becomes a finding only with a second identifier: registration number or country for entities, date of birth or nationality for persons. Without one, the agent asks the human (§4.4).
 
 #### PEP sources
 | Source | What it is | Licence | Verdict |
@@ -219,6 +228,23 @@ All lists downloaded 2026-11-19 with `sanctions.mjs`. Entries are distinct list 
 | Wikidata | officeholders with positions and dates | CC0 | later: query-time lookup of a person's public offices, company context only; needs a legal read on PEP flags for EU persons |
 | EU list of prominent public functions (OJ C/2023/724 and C/2023/611) | functions, not names | EU reuse decision | use as reference text for what PEP means per country |
 | Officials' declarations (LT, LV, EE, US) | LT needs API authentication; LV and EE search forms only; US federal disclosures may not be used "for any commercial purpose" or credit ratings (5 U.S.C. §13107(c)) | - | skip |
+
+### 1.7 EU-wide public procurement: TED (S12)
+
+#### TED (Tenders Electronic Daily) Search API and packages
+- Publisher and official URL: Publications Office of the EU. Search API `POST https://api.ted.europa.eu/v3/notices/search` ([docs](https://docs.ted.europa.eu/api/latest/index.html)); daily and monthly XML packages `https://ted.europa.eu/packages/daily/{yyyynnnnn}` and `https://ted.europa.eu/packages/monthly/{yyyy-n}`.
+- Access: API, anonymous ("The Search API does not require a key"); JSON; query language with fields such as `winner-country`, `winner-identifier`, `notice-type`, `publication-date`; up to 250 notices per page. Bulk XML packages for a full load.
+- Fields: publication number and date, notice type, buyer name and country, winner name, winner identifier, winner country, contract value (`total-value`, `result-value-notice`), links to the notice in every EU language (HTML, PDF, XML).
+- Rows and coverage: 🟢 award notices published in 2025 with a winner from LV 5,676, LT 6,136, EE 3,607. Covers contracts above the EU thresholds and notices buyers chose to publish; national below-threshold contracts are `data-baltics`' national sources.
+- Freshness: daily (one Official Journal S issue per working day).
+- Size and speed: 🟢 search p50 1.2 s, p95 1.6 s (30 calls).
+- Join keys: 🟢 the winner identifier is a national register code for 99% of LV winners (11 digits), 92% of LT (9 digits) and 99% of EE (8 digits), sampled from 250 award notices per country published in 2026. Some carry a country prefix (`LVA-…`), which the loader strips.
+- Person identity: winners are organisations; sole traders can appear with their trading name.
+- Licence: "the procurement notices published in the Supplement to the Official Journal ... can be freely reused, for commercial or non-commercial purposes" under the Commission's reuse decision of 12 December 2011; site editorial content CC BY 4.0; system metadata CC0 ([ted.europa.eu legal notice](https://ted.europa.eu/en/legal-notice)). TED logos may not be used. Verified 2026-11-20.
+- Keys, limits, cost: free, no key. Fair use from one IP: 700 requests a minute, 600 notice views or downloads in 6 minutes, 3 concurrent package downloads ([developers' corner](https://ted.europa.eu/en/simap/developers-corner-for-reusers)).
+- Legal constraints: none beyond attribution; the data names organisations.
+- Tested with: `ted.mjs` (volumes, identifier format, sample lookups).
+- Verdict: use. Bulk-load award notices for winners in LV, LT and EE (eForms notices since late 2023; older notices use the previous XML schema), keyed by register code. For the investigation, an agent tool can also look up a code live. 🟢 9 of 24 Baltic sample companies won at least one notice (EE 4/9, LV 2/8, LT 3/7).
 
 ## 2. Reality check
 
@@ -251,6 +277,9 @@ Sample sizes are small (7-9 per country). The rates below say what the agent can
 | S16 news articles, last 3 months (GDELT) | all | all | 32 | 5 | 16% | only 13 of 32 queries answered (41%): rate limits and connection timeouts despite 12 s spacing and 3 retries. Of the 5 hit sets, 3 are in languages with no tie to the company's country: name collisions |
 | S11 sanctions exact name hit | all | all | 32 | 0 | 0% | expected; see false-positive rates |
 | S11 regulator red-flag list hit | all | all | 32 | 0 | 0% | expected |
+| S12 EU-wide award notice won (TED) | EE | all sizes | 9 | 4 | 44% | live lookup by register code |
+| S12 EU-wide award notice won (TED) | LV | all sizes | 8 | 2 | 25% | |
+| S12 EU-wide award notice won (TED) | LT | all sizes | 7 | 3 | 43% | |
 
 **Population note.** 🟢 In the full EE register (2026-11-19), 20,944 of 372,137 active entities (5.6%) list a website contact. So for most EE companies the web agent also has to search, as in LV and LT.
 
@@ -265,6 +294,9 @@ Sample sizes are small (7-9 per country). The rates below say what the agent can
 | S11 | all | ESMA non-compliant crypto providers | A | 100% checked; 0% hits | bulk; licence verified Y |
 | S11 | US | SEC, Fed enforcement RSS; FTC actions CSV; DOJ press API | A | 100% checked | bulk; licence verified Y (public); CFPB: HTTP 403, later |
 | S11 | all | PEP (aggregated dataset) | D | - | user key; licence verified Y (CC BY-NC: connector only) |
+| S12 | LV | TED award notices (EU-wide) | A | 99% of winners keyed by register code; 25% of samples won one | API + bulk; licence verified Y; above-threshold contracts only |
+| S12 | LT | TED award notices (EU-wide) | A | 92% keyed; 43% of samples | API + bulk; licence verified Y |
+| S12 | EE | TED award notices (EU-wide) | A | 99% keyed; 44% of samples | API + bulk; licence verified Y |
 | S15 | EE | register website field → DNS, WHOIS, CT, Wayback, homepage | B | website 100% of sample (by selection); resolves 67% | per-query; licence verified Y (WHOIS: query time only); population share: see §2 |
 | S15 | LV | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates |
 | S15 | LT | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code |
@@ -340,7 +372,8 @@ Limits: at most 3 questions per investigation and 1 per agent; a question blocks
 - 🔴 LLM turns are unmeasured (no key yet). Assumed 3-8 s per turn on a mid-tier model at medium effort.
 - 🟡 Specialists run in parallel (architecture default: 6 at once; v1 starts 4). Registry-backed specialists: about 4 turns, 15-35 s. The web specialist is the long pole: about 8 turns plus GDELT and fetches, 60-120 s.
 - 🟡 **One investigation: about 1.5-3 minutes** wall time (lead 10-20 s, specialists in parallel, synthesis 15-30 s), plus the human's answer time if a question is asked.
-- Global limits the runtime must enforce across concurrent investigations: GDELT 1 request per 5 s; SEC 10 per second; WHOIS per-IP limits (one lookup per domain per investigation, cached for the investigation's lifetime); DOJ 4 per second; Cert Spotter 100 single-hostname queries per hour unauthenticated.
+- Global limits the runtime must enforce across concurrent investigations: GDELT 1 request per 5 s; SEC 10 per second; WHOIS per-IP limits (one lookup per domain per investigation, cached for the investigation's lifetime); DOJ 4 per second; Cert Spotter 100 single-hostname queries per hour unauthenticated; TED 700 requests a minute.
+- **Provider rate limits do not cap parallelism for one user** ([rate limits](https://platform.claude.com/docs/en/api/rate-limits), read 2026-11-20). The lowest standard tier ("Start") allows, per model, 4,000 requests, 2,000,000 uncached input tokens and 400,000 output tokens a minute for the current mid, small and top models; cached reads do not count toward the input limit. 🟡 One investigation uses about 96k uncached input and 20k output tokens over 1.5-3 minutes, so roughly 50 concurrent investigations fit before the limit. Two things can still return HTTP 429: new organisations may start in an "Evaluation" tier with lower, unpublished limits, and a "ramp limit" caps sudden jumps in usage. The runtime retries on 429 with `retry-after` and starts specialists a second apart. The Start tier also has a $500 monthly spend cap set by the provider; the app's own daily cap ($10) stays far below it.
 
 ### 4.6 Cost per investigation and the pre-run estimate
 
@@ -373,11 +406,31 @@ The web agent is about half of the cost at every tier; its search count and fetc
 3. Adjust before summing, with these drivers: specialists selected (each adds its role cost); country and website status (no known website: the web agent's search share rises; 🟢 LV and LT samples mostly had none); model tier and effort per role (linear in price); the number of officers to screen (no LLM cost: screening is deterministic).
 4. Show it as "Estimated $0.30-0.92, usually about $0.46. Cap $1.50. Today: $X of $10 left." The cap, not the estimate, is what the code enforces.
 
+**For cto:** the "typical" column is the modelled p50 and "worst" the modelled p95 of the council's v1 set (4 agents and the verdict step): $0.46 and $0.92 at the mid tier, against the $1.50 cap.
+
+**At the cap** (architect's decision on frontend #3, which this seat supports): the run pauses as `paused_at_cap` and asks one `cap` question, "Stop and write the report" (default) or "Allow up to $0.50 more", clipped to what is left of the daily cap and offered once per run. With the mid-tier default the cap is reached only in the worst case.
+
 **What the measured run will add:** real tokens, tool calls and wall time per agent at two model tiers, on 3 sample entities per country, replacing the defaults above. It needs an LLM key (human-task).
 
 ### 4.7 Provider
 
 **Anthropic Messages API**, as `docs/architecture.md` §7.3 already assumes: one key gives the model and the server-side web search and fetch tools with citations. Default model per role: `claude-sonnet-5-5` at medium effort for every role (the mid tier above); the small tier (`claude-haiku-5-5`) is the "cheap mode" option for specialists. Web search costs $10 per 1,000 searches; web fetch has no per-call fee.
+
+### 4.8 UI facts (designer's questions 12-14)
+
+| Agent | Typical run (🟡) | Sources read | Cost per run, mid tier (🟡) |
+|---|---|---|---|
+| Lead (resolve and plan) | 10-20 s | the local store | $0.02 |
+| Registry and people | 15-35 s | the local store (4-6 sections) | $0.06 |
+| Money and tax | 15-35 s | the local store (3-4 sections) | $0.06 |
+| Legal, insolvency and sanctions | 15-35 s | 4 official sanctions lists, 3-8 regulator lists, the local store | $0.07 |
+| Web, domain and news | 60-120 s | WHOIS/RDAP, DNS, CT, Wayback, the homepage, GDELT, up to 4 searches and 3 fetched pages: 8-15 sources | $0.20 |
+| Verdict step | 15-30 s | the findings only | $0.05 |
+
+- **Excerpts, per web source** (13): the store-or-show rule is §4.2. In short: sanctions and regulator lists, GDELT metadata, TED notices and US federal releases may be stored and excerpted. The company's own pages: a quote of up to 300 characters with a link. Press articles: headline, source, date and link, quoting at most 125 characters. WHOIS: derived facts only, at query time. Wayback: dates and a link. Reviews and social platforms: link only, or nothing.
+- **Sanctions fields for the side-by-side card** (14): §1.6, "Which official identifiers the entries carry". Every list gives the name, aliases, list name, programme or regime, and listing date. Then, per list: OFAC adds registration and tax IDs, IMO, addresses, and date of birth, nationality and passport for persons. EU adds identification rows (type and number), birth dates and addresses. UK adds business registration number, IMO, date of birth, nationality and passport. UN adds date of birth, nationality and document numbers for persons only.
+- **Dates and deep links:** every list entry carries its own listing date. GDELT carries the date it saw the article. TED carries the publication date and a stable notice URL (`https://ted.europa.eu/en/notice/-/detail/{publication-number}`). Wayback snapshot URLs are stable. WHOIS has no deep link; cite the registry's web lookup page instead.
+- **Attribution text:** GDELT: a citation and a link to gdeltproject.org. EU sanctions and TED: "© European Union", with the source named. UK: "Contains public sector information licensed under the Open Government Licence v3.0". US federal sources: name the agency. Bank of Lithuania: name it as the source. ESMA: credit ESMA.
 
 ## 5. Facts the architecture needs (architect's question)
 
@@ -393,13 +446,40 @@ The web agent is about half of the cost at every tier; its search count and fetc
 | UK | `Unique ID` (new); OFSI Group ID (historic, still valid) | business registration number (37% of entities) | Unique ID | name + DOB (83%) |
 | Bank of Lithuania list | domain | company name (free text) | row has no ID; derive from domain | none |
 | ESMA crypto list | LEI where given; else name + website | LEI | none; derive | none |
+| TED | publication number `NNNNNN-YYYY` | winner identifier = register code (LV 99%, LT 92%, EE 99% of winners) | publication number + lot | organisations only |
 
-No checksum applies to these IDs. None of these sources is reissued in a way we can detect; sanctions IDs persist across delistings in the list archives.
+No checksum applies to these IDs. Whether a list ever reuses an ID after a delisting is unknown; a daily diff of the lists would settle it.
 
 ## 6. Open items
 
-- **Human-task:** an LLM key in the main checkout's `.env` (`ANTHROPIC_API_KEY`) for the measured run (§4.6) and for the build. Spend for the measurement: about $5.
-- **Legal:** whether a due-diligence lookup fits the .lv and .ee WHOIS purpose clauses; the Internet Archive terms (page did not render); whether showing a map platform's rating and count without LLM processing is allowed.
-- **data-us:** the CFPB 403 (bot protection on API and bulk file); the CSL bulk file (not downloaded here).
-- **data-baltics:** share of active EE companies with a website contact (population figure in §2); the LV FIU national list download (HTTP 500).
-- **Re-run the GDELT measurement** off-peak if its rate limit distorted the sample (§2).
+**Keys: deferred, per the coordinator's rule C7** (what each would unlock):
+
+| Source | Env var | Unlocks |
+|---|---|---|
+| LLM provider (Anthropic) | `ANTHROPIC_API_KEY` | the measured cost run (§4.6) and every agent run, including the provider's web search and fetch. Human-task posted |
+| Cert Spotter | `CERTSPOTTER_API_KEY` (optional) | 10 full-domain and 100 single-hostname CT queries an hour, instead of an unstated unauthenticated quota |
+| A map platform's places API | (not proposed for v1) | rating and review count for consumer-facing businesses; needs a billing account and a legal read |
+| Video platform Data API | (later) | official channel videos |
+| A commercial web-safety lookup | (later) | phishing and malware flags for a domain |
+| Open aggregated sanctions/PEP dataset | (user's own licence) | PEP flags; connector only (CC BY-NC) |
+
+No paid service is needed for v1 beyond the LLM key. Web search runs on the same key at $10 per 1,000 searches.
+
+**Other open items**
+- **Legal:** whether a due-diligence lookup fits the .lv and .ee WHOIS purpose clauses; the Internet Archive terms (the page did not render); whether showing a map platform's rating and count without LLM processing is allowed; the UN list terms (403).
+- **data-osint, next round:** the US Consolidated Screening List bulk file (not downloaded); the LV FIU national list (download returned HTTP 500); a second GDELT run off-peak.
+- **data-us:** the CFPB 403 (bot protection on the API and the bulk file).
+
+## 7. Reproduce
+
+From a clean checkout, with the data seats' downloads in place (paths are arguments or env vars):
+
+```bash
+python -I research/probes/osint/select_samples.py --ee-dir <EE extract dir> --lv-dir <LV raw dir> --out research/.cache/osint/samples.json
+python -I research/probes/osint/select_samples_lt.py --out research/.cache/osint/samples.json
+FORMS345_DB=<path> python -I research/probes/osint/select_samples_us.py --sam <SAM extract zip> --out research/.cache/osint/samples.json
+LV_OFFICERS_CSV=<officers.csv> EE_SIMPLE_CSV=<lihtandmed.csv> node research/probes/osint/reality_check.mjs   # fill rates, latency, screening
+node research/probes/osint/ted.mjs                                                                          # TED volumes and joins
+```
+
+Counts were taken on 2026-11-19 and 2026-11-20. Outputs: `research/.cache/osint/{fillrates,timings,screening,ted}.json`. Websites for LV, LT and US public samples were found by web search and written into `samples.json` (`website_source`); a rerun needs that step again. `REUSE=1` re-runs only the failed GDELT queries and the screening on cached profiles.
