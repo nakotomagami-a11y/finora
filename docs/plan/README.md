@@ -82,7 +82,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | |
 | `docs/research/us.md` | data-us | 1 | |
 | `docs/research/markets.md` | data-markets | 1 | **done**: qa spot-check passed; MUST-FIX fixed in `2a2d70d` |
-| `docs/research/osint.md` | data-osint | 1 | |
+| `docs/research/osint.md` | data-osint | 1 | landed 2026-11-20 (`671dadc`); modelled cost, measured run deferred to the key round; qa spot-check before session 1 |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1 and 2) |
 | `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
 | `docs/research/cto-preread.md` (volumes, store benchmark, provisional technical calls) | cto (committed by coordinator) | 1 | done |
@@ -142,6 +142,7 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 - data-markets (`markets.md`, Open questions): legal on one cited market-cap figure per market, the oracle feed's terms, EIA's vendor-permission note, two exchanges' data terms; council on ETF proxies for M02-M04 and on seeding the Taiwan peak. Agreed with legal so far (`legal.md`, market addendum): oracle route LATER; EIA SHOW with source and date; X1 LATER; bitcoin price from X4 CAVEAT for a self-hosted instance (its clause covers derived figures; commercial use needs a data licence, so ask the exchange before any hosted build).
 - legal: the coordinator's three proposals in `legal.md` (no personal codes, retention for ended roles, blocked 15 USC 1681b uses); the legal light and basis wording per matrix row.
 - council + legal: ETF proxies (M02-M04) need real fund ticker symbols somewhere. Decide whether they live only in the user's local settings (never in the repo), since hard rule 2 bars real products as examples and the guard now blocks the probe tickers.
+- data-osint (`osint.md` §6): legal on the .lv and .ee WHOIS purpose clauses for due-diligence lookups, the web archive's terms, and showing a map platform's rating without LLM processing. Modelled cost: about $0.46 typical, $0.92 worst case per investigation on a mid-tier model (under the $1.50 cap). Sanctions name-only hits are generic names, so a second identifier is required before showing a match.
 - cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6).
 
 ## Keys: what each unlocks
@@ -156,8 +157,7 @@ For the key-testing round. Nothing here blocks phase 1. Values live only in the 
 | `FRED_API_KEY` | free | Not required (the CSV route works keyless); adds series metadata, licence notes and revision dates | data-markets: M01, M03, M07, M09 |
 | `EIA_API_KEY` | free | Not required; oil spot directly from EIA with release metadata | data-markets: M07 |
 | `KRX_API_KEY` | free | Korean broad index (self-hosted only) | data-markets: M03 |
-| LLM provider key (name from data-osint) | paid per use, approved (H2) | Live agent runs, the measured cost per investigation, the pre-run estimate calibration | data-osint: agent pattern and cost |
-| Web search API key (name from data-osint) | free tier, then paid per use (H2) | The open-web agent's search | data-osint: S15, S16 |
+| `ANTHROPIC_API_KEY` | paid per use, approved (H2) | Live agent runs, including the provider's web search and web fetch tools (no separate search key); the measured run of 3 sample companies per country at two model tiers (about $5), replacing the modelled cost | data-osint: agent pattern, cost, S15, S16 |
 | One stock price key (provider S7, else S6; codes in `markets.md`) | free tier | M01-M04 via ETF proxies with 30-year history; S6 adds index futures | data-markets: M01-M04, S14 prices |
 | Commodity spot key (provider S3) | free tier | Daily gold and oil spot | data-markets: M05, M07 |
 | Crypto aggregator demo key (provider C1) | free | A stable monthly quota for the total-crypto tile | data-markets: M06 |
