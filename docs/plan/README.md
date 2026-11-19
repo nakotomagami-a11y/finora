@@ -79,7 +79,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | Deliverable | Owner | Phase | State |
 |---|---|---|---|
 | `docs/research/README.md` (conventions, section IDs) | coordinator | 1 | done |
-| `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | |
+| `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | landed 2026-11-20 (`12d735a`); open: two-day diffs for LT and EE; qa spot-check before session 1 |
 | `docs/research/us.md` | data-us | 1 | |
 | `docs/research/markets.md` | data-markets | 1 | **done**: qa spot-check passed; MUST-FIX fixed in `2a2d70d` |
 | `docs/research/osint.md` | data-osint | 1 | landed 2026-11-20 (`671dadc`, round 2 `e0c3bce`: TED for S12, sanctions identifier coverage, rate limits, UI facts); modelled cost, measured run deferred to the key round; **done**: qa spot-check passed (0 MUST-FIX); fixes in `4680a2f` |
@@ -143,6 +143,9 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 - legal: the coordinator's three proposals in `legal.md` (no personal codes, retention for ended roles, blocked 15 USC 1681b uses); the legal light and basis wording per matrix row.
 - council + legal: ETF proxies (M02-M04) need real fund ticker symbols somewhere. Decide whether they live only in the user's local settings (never in the repo), since hard rule 2 bars real products as examples and the guard now blocks the probe tickers.
 - data-osint (`osint.md` §6): legal on the .lv and .ee WHOIS purpose clauses for due-diligence lookups, the web archive's terms, and showing a map platform's rating without LLM processing. Modelled cost: about $0.46 typical, $0.92 worst case per investigation on a mid-tier model (under the $1.50 cap). Sanctions name-only hits are generic names, so a second identifier is required before showing a match.
+- data-baltics (`baltics.md`, "For the legal memo"): ten legal items, led by LV and EE beneficial owners still bulk-published (candidate X), the LV masked personal code that reveals the birth date, the EE person hash, and **CC BY-SA data from the EE tax board, procurement and notices**: hard rule 4 bars mixing share-alike data into our datasets, and EE taxes feed a primary-job section. Legal answers in round 3.
+- data-baltics: the LV and EE bulk files keep no history (ended roles and deleted EE companies vanish), so "officer left" events need our own daily snapshots, or the EE register API (contract). Council: history in v1 or later? cto: snapshot cost.
+- data-baltics: LT has no people at all; LV tax-debt amounts are not open (rating C as the proxy, 5.4% of active companies).
 - cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6).
 
 ## Keys: what each unlocks
@@ -161,7 +164,7 @@ For the key-testing round. Nothing here blocks phase 1. Values live only in the 
 | One stock price key (provider S7, else S6; codes in `markets.md`) | free tier | M01-M04 via ETF proxies with 30-year history; S6 adds index futures | data-markets: M01-M04, S14 prices |
 | Commodity spot key (provider S3) | free tier | Daily gold and oil spot | data-markets: M05, M07 |
 | Crypto aggregator demo key (provider C1) | free | A stable monthly quota for the total-crypto tile | data-markets: M06 |
-| Estonian e-Business Register API agreement | free, contract | Full annual reports via API (the key figures are in the open files) | data-baltics: S06 (EE) |
+| Estonian e-Business Register API agreement | free, a contract signed by the operator (up to five working days) | History, deleted companies and full annual reports, 50,000 answers a day. Ask the human only if session 1 wants history in v1 | data-baltics: S02, S06 (EE) |
 
 Data seats add rows here through their `result` posts; the coordinator keeps the table.
 
