@@ -114,3 +114,33 @@ Answers to `docs/design/display-options.md` §3.2, §3.11 and §3.15. Not legal 
 Corrections for the display advice:
 1. Read "no verdict on natural persons" as "no credit, character or eligibility verdict on natural persons; any other verdict is LAWYER-pending, and the default is none".
 2. Keep the rule 6 disclaimer on every page that shows a natural person.
+
+## Round 2 (fetched 2026-11-19)
+
+Not legal advice. **LAWYER** marks items a licensed lawyer must settle.
+
+### Answers
+
+1. **15 USC 1681b (permissible purposes).** A user may obtain a consumer report only under the listed circumstances "and no other": court orders, the consumer's written instructions, or reason to believe the report will be used for credit, employment, insurance underwriting, a government licence, investment, servicing of credit, or "another legitimate business need". [LII](https://www.law.cornell.edu/uscode/text/15/1681b)
+   - Analysis from 15 USC 1681a(f): a free tool that never furnishes consumer reports to third parties is outside the consumer-reporting-agency definition on its face. Selling or furnishing reports on sole traders that bear on personal characteristics could bring it inside. **LAWYER.**
+   - The product must block the listed purposes as uses: credit, employment, insurance, licensing, investment and credit servicing.
+2. **US public domain.** 17 USC 105: no copyright in any work of the US Government ([LII](https://www.law.cornell.edu/uscode/text/17/105)). Federal court opinions are government works (inference from the statute). PACER charges fees; litigation on free access is reported, with no settled outcome found. A nonprofit runs a free public mirror of court filings ([free.law](https://free.law/pacer-facts/), secondary; its reuse terms not checked). SEC filings are written by the filers, so their copyright status is **unchecked**. **LAWYER.**
+3. **Baltic DPAs on board and officer data.**
+   - **LT (VDAI):** public availability does not waive the GDPR; each republisher needs its own legal basis. Manager data remains personal data; a company's own data is outside the GDPR. From a secondary Lithuanian source; VDAI decision 3R-1497 of 20 Aug 2026 was located but not read ([vdai.lrv.lt](https://vdai.lrv.lt/public/canonical/1787292327/1511/2026-08-20%20sprendimas%20Nr.%203R-1497%20(2.13-1.E).pdf)).
+   - **LV (DVI):** no opinion on board-member data found. **Gap.**
+   - **EE (AKI):** board members' names and personal codes go on the register card by statute, and publication there is lawful. Each later republisher needs its own legal basis (a 2024 letter). Supervision from April 2025 ended with a warning covering personal codes and indefinite publication of historical data. From a public mirror of AKI letters, not the official site.
+4. **The Latvian judgment, case 2024-01-01.** Not listed on the court's site. Press reports describe a ruling on shareholders only, with the norms losing force on the day the judgment is published. No report mentions board members or officers. Per the EU e-Justice summary, Latvian board members, representatives and senior staff with representation rights appear in the public part of the register (name, part of the personal code, post, registration date) ([e-Justice](https://e-justice.europa.eu/topics/registers-business-insolvency-land/business-registers-eu-countries/lv_en)). Judgment text unread. **LAWYER.**
+5. **The designer's assumptions.** See the addendum above; unchanged.
+6. **US state privacy laws.** About 20 comprehensive state laws were in force as of Aug 2026 in most trackers; some count 24 enacted, with conflicting 2027-2028 dates (secondary trackers). Exemptions for publicly available government records: **not found. Gap**; the primary text of each statute is needed.
+
+### Round 2 source quality
+
+- **Verified on primary text:** 15 USC 1681b (via LII); 17 USC 105 (opening clause).
+- **Not verified:** the Latvian court's site (no case listing); the official VDAI and AKI pages (mirror and secondary only); DVI; state privacy statutes; PACER and mirror terms; SEC filing copyright.
+- **Gaps:** the Latvian judgment text; a DVI opinion; the US state exemptions table.
+
+### Coordinator's reading, for session 1 (proposals, not rulings)
+
+- **Personal codes:** propose never showing them, even masked (AKI warning; rule 4). Session 1 decides.
+- **Historical officers:** propose a retention limit for ended roles (AKI warning; rule 11).
+- **Blocked uses (US):** propose that the terms of use and the UI exclude credit, employment, insurance, licensing, investment and credit-servicing decisions (15 USC 1681b; rule 6).

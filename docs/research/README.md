@@ -96,15 +96,21 @@ Unknowns stay visible: write "unknown" and what would settle it. Never fill a fi
 
 ## Display matrix rows
 
-Each area doc ends with its rows, in this exact table, one row per section (or tile) and country:
+Format set by council session 0 (`docs/plan/council/00-framing.md`, decision 2). Each area doc ends with its rows: **one row per item × country × source**. A row with an empty cell is decided LATER in session 1, so fill every cell; write "estimated" where a value can't be measured for real.
 
 ```markdown
-| Section | Country | Sources | Grade | Fill rate | Notes |
-|---|---|---|---|---|---|
-| S03 | LV | Enterprise Register officers | A | 98% | names + masked code |
+| item_id | Section | Country | Source | Access | Refresh and lag | Licence as stated | Attribution text | Verified (URL) | Fill rate (n/N) | Sample date | Feeds verdict | Effort | Load size, refresh time | Blocking dependency | Empty-state text | Proposed call | Draft caveat |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| S03.officers | S03 | LV | Enterprise Register officers | bulk | daily, 1 day | "..." | "..." | Y (url) | 49/50 | 2026-11-20 | Y | S | 40 MB, 2 min | none | Not published in LV | SHOW | - |
 ```
 
-Countries: `LT`, `LV`, `EE`, `US`, or `all` for cross-border sources. Tiles use `-` for country.
+- `item_id`: `<section>.<short-name>`, lower case (for example `S06.revenue`, `S08.tax-arrears`, `M05.gold`). The coordinator normalises ids across areas.
+- Access: bulk / API / per-query / paid / user key.
+- Effort: S, M or L, in slices.
+- Blocking dependency: none, or the key, contract or human-task it needs.
+- Proposed call: SHOW / CAVEAT / HIDE / LATER, against the gates in `docs/plan/council/00-framing.md`.
+- Country: `LT`, `LV`, `EE`, `US`, or `all` for cross-border sources. Tiles use `-`.
+- Legal light and personal-data class are added by `legal` after assembly; leave them out.
 
 ## Reality check
 

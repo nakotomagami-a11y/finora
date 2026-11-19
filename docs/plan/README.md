@@ -83,12 +83,13 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/us.md` | data-us | 1 | |
 | `docs/research/markets.md` | data-markets | 1 | |
 | `docs/research/osint.md` | data-osint | 1 | |
-| `docs/research/legal.md` | legal (committed by coordinator) | 1 | round 1 committed; round 2 (gaps) requested |
+| `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1 and 2) |
 | `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
 | `docs/design/display-options.md` (display states, advice for session 1) | designer | 1 | done |
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | |
+| `docs/plan/council/00-framing.md` (session 1 gates, matrix format, v1 frame) | council (committed by coordinator) | 1 | done |
 | `docs/plan/council/01-data.md` | council + cto (committed by coordinator) | 2 | |
-| `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | |
+| `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | early draft exists; frozen until phase 3 opens |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/*.md` | data seats | 3 | |
 | `docs/plan/agents.md` | data-osint | 3 | |
@@ -114,14 +115,17 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | C2 | GLEIF belongs to `data-us`; `data-baltics` measures LEI coverage of its samples | Same |
 | C3 | EU-wide procurement (TED) belongs to `data-osint`; national procurement and Kohesio to `data-baltics`; USAspending and SAM.gov to `data-us` | Same |
 | C4 | Report section and tile IDs are fixed in `docs/research/README.md`; every area doc uses them | So the display matrix can be assembled without guessing |
+| C5 | The display-matrix row format follows council session 0, decision 2 | One format, decided once, so session 1 runs in one pass |
+| C6 | The early `DESIGN.md` v0, `docs/architecture.md` and `docs/plan/slices.md` drafts stay on the branch but are frozen until phase 3 opens | Not reverted (no harm, saves work); revised against session 1's decisions |
 
 ### Open items for later phases
 - Guard test cleanup (`scripts/guard/guard.test.mjs`, the worktree test) should run in `finally`, so a failed assert can't leave a denylist behind (qa NIT). Fix in the foundation slice.
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 ### By the council
-None yet.
+Session 0 (`docs/plan/council/00-framing.md`): the five session 1 gates; the display-matrix intake format; the v1 frame (primary job, two speeds, deterministic verdict level, five v1 agents, social and reviews agents LATER, one-hop network, local-only hosting, cost-cap defaults $1.50 / $0.25 / $10 per day); kill criteria; and the gates session 2 will check.
 
 ## Council records
+- Session 0 (framing): `docs/plan/council/00-framing.md`, 2026-11-19
 - Session 1 (data): not yet convened
 - Session 2 (plan): not yet convened
