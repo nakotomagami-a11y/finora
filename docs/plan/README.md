@@ -155,7 +155,7 @@ For the key-testing round. Nothing here blocks phase 1. Values live only in the 
 
 | Env var | Account | Unlocks | Areas waiting on it |
 |---|---|---|---|
-| `SEC_USER_AGENT` | none, a contact string | All live SEC EDGAR calls (submissions, companyfacts, filing index, 8-K items, EX-21, DEF 14A, Form D, 13D/G); EDGAR returns 403 without it | data-us: S01, S03, S06, S13, S14 for US public companies; data-markets: SEC XBRL fundamentals |
+| `SEC_USER_AGENT` | none, a contact string with a real email (SEC refuses no-reply addresses) | All live SEC EDGAR calls (submissions, companyfacts, filing index, 8-K items, EX-21, DEF 14A, Form D, 13D/G); EDGAR returns 403 without it | data-us: S01, S03, S06, S13, S14 for US public companies; data-markets: SEC XBRL fundamentals |
 | `COURTLISTENER_TOKEN` | free | US federal court search and dockets via API (bulk files may be keyless) | data-us: S10 (US) |
 | `SAM_GOV_API_KEY` | free | SAM.gov entity registrations and exclusions (debarment) | data-us: S11, S12 (US) |
 | `FRED_API_KEY` | free | Not required (the CSV route works keyless); adds series metadata, licence notes and revision dates | data-markets: M01, M03, M07, M09 |
