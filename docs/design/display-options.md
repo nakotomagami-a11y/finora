@@ -76,7 +76,7 @@ Each family lists display options, with a recommendation. "Rec" is the designer'
 - A. A "People" table inside the company page: role, name, since, until. No links to a person page.
 - B. A, plus "also officer in N other companies" as a count that opens the network explorer scoped to this company.
 - C. Standalone person pages.
-- **Rec: B.** C is out: the feasibility research flags standalone person profiles as the main GDPR risk. Personal codes, even masked ones, are never shown. People never appear in search results or the library as subjects; search finds companies.
+- **Rec: B.** C is out: the feasibility research flags standalone person profiles as the main GDPR risk, and the legal memo leaves them to a lawyer, so person data appears only inside company pages. Personal codes, even masked ones, are never shown. People never appear in search results or the library as subjects; search finds companies.
 - Per country: LT shows "Not published" for names; US shows people only where a filing names them (filing chip says which form).
 
 ### 3.3 S04 Owners
@@ -114,7 +114,7 @@ Each family lists display options, with a recommendation. "Rec" is the designer'
 - **Rec:** LEI in the codes row; parent and ultimate parent as the first ring of the network.
 
 ### 3.11 S11 Sanctions and watchlists
-Three outcomes only, and the UI never says "sanctioned" from a fuzzy match:
+Three outcomes only, and the UI never says "sanctioned" from a fuzzy match (legal memo rule 8: "possible match, needs review"; "sanctioned" only with a primary list entry):
 - **No match** across the named lists (each list listed, with its as-of date).
 - **Possible match: needs your review**: a question card to the human (section 5), showing both records side by side with the matching fields highlighted.
 - **Confirmed match**: only on an exact identifier match (registration code, LEI) or after the human confirms.
@@ -143,7 +143,9 @@ The prototype used "Go / Caution / Avoid". Options:
 - A. Keep a three-step verdict on the company, worded as a research outcome: **"No concerns found" / "Points to check" / "Serious concerns"**, always followed by "based on N sources, checked on DATE".
 - B. No verdict, only key findings.
 - C. A numeric score with published weights.
-- **Rec: A now, C later** once the weights are agreed. Never a verdict on a natural person or sole trader (FCRA and defamation risk pending the legal memo); for those the report shows findings only. Every key finding links to its evidence.
+- **Rec: A now, C later** once the weights are agreed. Every key finding links to its evidence.
+- **Natural persons and sole traders** (legal memo rules 5 and 6): never a credit, character or eligibility verdict. Any other verdict on them is pending a lawyer, so until then the default is no verdict: the report shows sourced facts only, and the verdict block is replaced by "Facts only: no verdict is given on a private individual".
+- **Disclaimer** (memo rule 6): every page that shows a natural person carries the fixed "not a credit report" line at the top of the People section and in the report footer. Its wording is a token in the copy file, not free text.
 
 ## 4. Country coverage strip
 
