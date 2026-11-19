@@ -83,7 +83,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/us.md` | data-us | 1 | |
 | `docs/research/markets.md` | data-markets | 1 | |
 | `docs/research/osint.md` | data-osint | 1 | |
-| `docs/research/legal.md` | legal (committed by coordinator) | 1 | |
+| `docs/research/legal.md` | legal (committed by coordinator) | 1 | round 1 committed; round 2 (gaps) requested |
 | `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
 | `docs/design/display-options.md` (display states, advice for session 1) | designer | 1 | done |
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | |
