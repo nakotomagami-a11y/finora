@@ -16,7 +16,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, appendFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkPath, compileDenylist, explain, scanText } from "./rules.mjs";
 
@@ -36,10 +36,19 @@ function repoRoot() {
   return git(["rev-parse", "--show-toplevel"]).trim();
 }
 
+/** The local denylist: this checkout's, else the main checkout's (seat worktrees have no gitignored files). */
+function denylistFile() {
+  const own = join(repoRoot(), ".guard", "denylist.txt");
+  if (existsSync(own)) return own;
+  const commonDir = resolve(repoRoot(), git(["rev-parse", "--git-common-dir"]).trim());
+  const main = join(dirname(commonDir), ".guard", "denylist.txt");
+  return existsSync(main) ? main : null;
+}
+
 function loadDenylist() {
   const sources = [];
-  const file = join(repoRoot(), ".guard", "denylist.txt");
-  if (existsSync(file)) sources.push(readFileSync(file, "utf8"));
+  const file = denylistFile();
+  if (file) sources.push(readFileSync(file, "utf8"));
   if (process.env.FINORA_GUARD_DENYLIST) sources.push(process.env.FINORA_GUARD_DENYLIST.replace(/,/g, "\n"));
   if (sources.length === 0) {
     const message = "No private denylist found (.guard/denylist.txt or FINORA_GUARD_DENYLIST): names are NOT being checked.";

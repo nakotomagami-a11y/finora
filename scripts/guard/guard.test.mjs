@@ -39,6 +39,7 @@ before(() => {
   git("config", "core.autocrlf", "false");
   mkdirSync(join(repo, "scripts/guard"), { recursive: true });
   for (const f of ["guard.mjs", "rules.mjs"]) copyFileSync(join(HERE, f), join(repo, "scripts/guard", f));
+  git("add", "scripts/guard");
   commit("README.md", "# test\n", "Init");
 });
 
@@ -112,6 +113,23 @@ describe("guard.mjs", () => {
     const { code, out } = guard(["range", "0000000000000000000000000000000000000000", "HEAD"]);
     assert.equal(code, 1);
     assert.match(out, /personal:email/);
+  });
+
+  it("uses the main checkout's denylist inside a linked worktree", () => {
+    mkdirSync(join(repo, ".guard"), { recursive: true });
+    writeFileSync(join(repo, ".guard/denylist.txt"), "Example Corp\n");
+    const worktree = join(repo, ".worktrees", "seat");
+    git("worktree", "add", "-q", worktree);
+    const result = spawnSync(process.execPath, [join(worktree, "scripts/guard/guard.mjs"), "text", "-"], {
+      cwd: worktree,
+      input: "Compare with Example Corp",
+      encoding: "utf8",
+      env: { ...process.env, FINORA_GUARD_DENYLIST: "" },
+    });
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /denylist:entry-1/);
+    git("worktree", "remove", "--force", worktree);
+    rmSync(join(repo, ".guard"), { recursive: true, force: true });
   });
 
   it("audits every tracked file", () => {
