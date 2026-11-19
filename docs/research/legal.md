@@ -189,4 +189,8 @@ Not legal advice. Primary texts were not re-read this round; "not verified" item
 | 9 LV tax-debtor lookup | Purpose-limited by law, CAPTCHA-gated; automating it would bypass a control | LATER, no connector | R |
 | 10 LV official notices | Reuse needs a written agreement and fees | LATER | Y |
 
-**Estonian register API contract:** legal will not clear it from a summary; the full contract terms are read before anyone signs.
+**Item 11, the Estonian register API contract: not cleared; do not sign until the contract text is read.** No public term found bars display in an open-source app, but the governing contract was not read.
+- A contract is needed for the API and XML services. Limits: 50,000 answers per partner per day, one simultaneous query, 20 document requests per minute per IP ([register open-data page](https://avaandmed.ariregister.rik.ee/en/node/2)).
+- General conditions ([RIK](https://abiinfo.rik.ee/en/general-conditions-use-inquiry-systems-centre-registers-and-information-systems)): 4.1 use "in compliance with valid legislation, in good faith"; 4.2 personal data follows Estonian and EU rules, with no transfer abroad; 6.6 bans scripts, robots and automated tools in the web query systems (the API is the intended automation route; the contract must confirm it); 6.5 and 8.3 allow restriction or termination for security risk or breach.
+- Not found: any clause on publication, redistribution, commercial use, display in applications, or passing data to third parties.
+- Before signing, legal reads the contract form ([contract page](https://ariregister.rik.ee/eng/contract)) and the [conditions of use](https://www.rik.ee/en/asutusest/kasutustingimused). If either bans publication or redistribution, or conflicts with an open-source app, the API-sourced fields are HIDE and the contract is not signed.
