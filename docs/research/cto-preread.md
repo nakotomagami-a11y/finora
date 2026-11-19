@@ -42,3 +42,16 @@ LV + EE + LT basics (1,422,663 rows) loaded into SQLite with an FTS5 name index,
 ## 5. The missing number
 
 Every source above costs $0. The running cost is the agent runtime: LLM tokens and web-search calls per investigation. It is unmeasured, and without it the council can't set agent count, depth or cost caps. `data-osint` is asked to run one real investigation end to end and report tokens, tool calls and wall time per agent, priced at two or three model tiers plus a local open-weights option.
+
+## 6. Statement-store benchmark (2026-11-20)
+
+The LV company file, 490,496 rows → 4,975,756 statements, through `node:sqlite`. Probe scripts are local to the `cto` seat.
+
+| Statement layout | First load | Size | Reload of an unchanged file |
+|---|---|---|---|
+| As drafted: text hash key, ISO timestamps on every row, indexes built during the load, `last_seen` set on every statement | 1,039 s | 1,879 MB, 378 B/statement | rewrites ~5M rows |
+| Lean: integer keys, interned property names, load-run ids instead of timestamps, a row hash per source record so unchanged rows are skipped, indexes built after the load | 28.8 s | 612 MB, 123 B/statement | 8.9 s, 0 writes |
+
+- The statement model holds up; the drafted layout does not meet the load budgets once US states are in.
+- 🟡 NY + CO + OR at ~10 fields each ≈ 90M statements ≈ 11 GB at 123 B/statement: over the 10 GB budget before any Baltic data. data-us's active-row and field counts decide which states load by default.
+- Session 2 will check that loader slices carry measured budgets (first load, daily refresh, database size) and row-level diffs, not only fixture timings.

@@ -20,10 +20,10 @@ Status: **open** = still in the draft at `f0531fd`; **partly** = partly fixed; *
 | 10 | The sync pipeline has no package home | open | `packages/ingest` (domain, store, sources, resolve), used by the CLI and the server |
 | 11 | Timeout, retry and turn limits | fixed, values open | Max 40 turns and 80 tool calls per run, each tested with a machine code; retries follow N2 (each attempt settles), not "hold once, settle once" |
 | 12 | Findings are not pinned to an entity | open | `Finding.entityId` required; the verifier rejects citations of unrelated entities; tested |
-| 13 | A disambiguation question times out into a guess | open | Identity questions have no default; timeout ends as "Not enough data"; tested |
+| 13 | A disambiguation question times out into a guess | resolution accepted by qa | Identity questions have no default; timeout ends as "Not enough data"; tested |
 | 14 | HIDE enforced only on the loader path | open | Display policy also in `record_finding`, follow-ups and documents; HIDE negative tests cover the agent path |
 | 15 | Sole traders not modelled | partly | `Entity.naturalPerson` by legal form drives no verdict, the R6 disclaimer, noindex, the purpose gate, and title and search rules (title = registry code and legal form); one test per behaviour |
-| N1 | The R11 TTL deletes live officer data when a source file is unchanged for 35 days | open | TTL keyed on `lastSeen`, which a successful unchanged check also updates; TTL on ended roles and agent documents; test: an unchanged source for 40 days keeps its current officers |
+| N1 | The R11 TTL deletes live officer data when a source file is unchanged for 35 days | resolution accepted by qa | TTL keyed on `lastSeen`, which a successful unchanged check also updates; TTL on ended roles and agent documents; test: an unchanged source for 40 days keeps its current officers |
 
 ## SHOULD-FIX
 
@@ -37,6 +37,7 @@ Status: **open** = still in the draft at `f0531fd`; **partly** = partly fixed; *
 | 21 | Visual baselines vs the guard | Baselines from fixtures only; `guard review` on each changed image; small baseline set |
 | 22 | Fixture size vs the guard | The large test dataset is generated at test time from a seeded generator; only small layout fixtures are committed |
 | 23 | Timing criteria not reproducible | Relative regression budgets in CI; absolute budgets as recorded benchmarks in `docs/plan/benchmarks.md` |
+| N3 | The cap extension's scope is ambiguous: per agent run, six specialists could each add $0.50 | "Once per investigation", held on the investigation ledger; test: six runs reaching the cap together produce one question and at most +$0.50 (qa, open) |
 | N2 | Retries can under-count real spend | Settle each attempt (usage if returned, else its held worst case); new hold per retry; tested |
 
 ## NIT
@@ -50,6 +51,6 @@ Agreed between architect, designer, frontend and qa while the drafts were frozen
 - **New slices:** a network explorer slice after S12 (one hop, `SourceRef` on every node and edge, person nodes behind the purpose gate, no agent runs on browse; list view is the default under 768 px). S04b lands every DTO schema in `api-contract` plus fixture-backed demo responses, so UI slices start against the real contract.
 - **Vocabulary:** finding severity `none_found | point_to_check | concern` (plus `not_checked`); verdict level `no_concerns_found | points_to_check | serious_concerns | not_enough_data`, with `coverage {ran, applicable}` and `sourceCount`. `level` and `firedRules[]` come from the rule table; `explanation` from synthesis, labelled AI-written. `VerdictBlock` renders level and explanation as separate children.
 - **Section DTO union:** `not_published | none_found{sourceId, asOf} | not_checked{reason: later|error|skipped|paid_only} | needs_purpose | disputed | data{freshness: current|stale, completeness: full|partial}`. `loading` is client-only; HIDE items have no row.
-- **Cap reached:** `paused_at_cap` with a `cap_reached` question: "Stop and write the report" (default) or "Allow up to $0.50 more", once per run, clipped to the remaining daily cap; a second hit stops without asking. The coordinator reads this as within H2 (register C10).
+- **Cap reached:** `paused_at_cap` with a `cap_reached` question: "Stop and write the report" (default) or "Allow up to $0.50 more", once per investigation (not per agent run, qa N3), clipped to the remaining daily cap; a second hit stops without asking. The coordinator reads this as within H2 (register C10).
 - **Viewports:** 390x844, 768x1024, 1280x800, 1920x1080, plus 1024 as the panel-to-sheet breakpoint.
 - **Crash monitor:** 60 s poll.
