@@ -151,8 +151,10 @@ Not legal advice. **LAWYER** marks items a licensed lawyer must settle.
 Rule-based positions; the provider terms were not re-read for this answer. Not legal advice.
 
 1. **One cited market-cap figure per market, shipped in the repo:** allowed only as a derived number with its source and as-of date shown (rules 3 and 16), and only if the source's terms allow redistributing that figure. Until those terms are read: CAVEAT, not SHOW. **LAWYER** to confirm.
-2. **Oracle feed terms:** not verified. Use only through the user's own key (rule 17), never scraped where terms forbid it (rule 14). LATER until the terms are read.
+2. **Oracle feed terms:** the feeds are keyless public on-chain reads, so the user-key rule (17) does not apply. A display clause in the public RPC's terms does not clear the oracle's own data terms, which are unread. LATER until they are read and quoted (corrected 2026-11-20).
 3. **EIA vendor-permission note:** not verified. Until it is read, use the CSV route only and show the source and date (rule 16).
 4. **Two exchanges' data terms:** not verified. User key, or LATER.
+
+**Positions for session 1, pending the quoted clauses:** oracle route LATER; bitcoin price from the exchange API (X4) CAVEAT until its redistribution clause is quoted and confirms that the derived figure (not raw ticks) may be shown; EIA SHOW on the official "republished with permission" wording, with source and date on each figure (rule 16); O5 and X1 LATER until their terms are readable.
 
 Before any of these moves to SHOW, the provider's current terms page is read and its URL, date and exact redistribution clause are recorded (for coded commercial providers, in the maintainer's private notes, by code).
