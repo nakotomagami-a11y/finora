@@ -147,6 +147,7 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 - data-baltics: the LV and EE bulk files keep no history (ended roles and deleted EE companies vanish), so "officer left" events need our own daily snapshots, or the EE register API (contract). Council: history in v1 or later? cto: snapshot cost.
 - data-baltics: LT has no people at all; LV tax-debt amounts are not open (rating C as the proxy, 5.4% of active companies).
 - data-us (`us.md`): FEC individual donors HIDE (no commercial use by statute); FINRA BrokerCheck per-query only with source, compile date and an error channel; CT principals' residence addresses and FMCSA emails and phones dropped at load. Florida's bulk licence can't be verified (pages refuse automated reads). CA and DE have no free bulk data.
+- Matrix row `S04.EE.01` combines members (open) and beneficial owners (R, rule 1): the call must split them.
 - cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6).
 
 ## Keys: what each unlocks
