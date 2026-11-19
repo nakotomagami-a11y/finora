@@ -158,3 +158,14 @@ Rule-based positions; the provider terms were not re-read for this answer. Not l
 **Positions for session 1, pending the quoted clauses:** oracle route LATER; bitcoin price from the exchange API (X4) CAVEAT until its redistribution clause is quoted and confirms that the derived figure (not raw ticks) may be shown; EIA SHOW on the official "republished with permission" wording, with source and date on each figure (rule 16); O5 and X1 LATER until their terms are readable.
 
 Before any of these moves to SHOW, the provider's current terms page is read and its URL, date and exact redistribution clause are recorded (for coded commercial providers, in the maintainer's private notes, by code).
+
+## Round 3: the Baltic items (part 1, 2026-11-20)
+
+Positions on the first items in `baltics.md`, "For the legal memo". Rule-based positions, not a lawyer's advice. Not legal advice.
+
+1. **Beneficial owners, LV and EE:** HIDE. Public bulk access was invalidated in C-37/20 and C-601/20, and C-798/24 requires conditions for shareholder data. Neither case was decided on these exact registers: **LAWYER** per country. Until then the section shows "Not shown in [country]: restricted by rule 1" (council clarification 4).
+2. **LV masked personal code:** the birth date it reveals is personal data. The code is never shown, and no derived birth date or age is shown. Name and role only, in company context (rules 1 and 2).
+3. **EE person hash:** a pseudonym that links records across files is still personal data. Internal joins only; never rendered, exposed in the API or exported. **LAWYER.**
+4. **EE officer personal emails and home addresses:** dropped in the loader. Mandatory: no section needs them, so they fail the necessity test (rule 4).
+5. **Share-alike data and the UN list:** EE CC BY-SA data keeps its licence tag per record and is never merged into any dataset we publish (project hard rule 4). The UN list (no redistribution): agents fetch it live; no stored copy.
+6. **Our own daily snapshots of ended roles:** they need a retention limit before they are stored. Until a lawyer sets the period, keep no role history beyond what the session 1 matrix requires.
