@@ -144,14 +144,14 @@ Three outcomes only, and the UI never says "sanctioned" from a fuzzy match (lega
 
 S17 Network is covered by the network explorer screen: companies first, people only as nodes inside a company's network, never as a search entry point.
 
-The prototype used "Go / Caution / Avoid"; session 0 bans that wording. Under the council's frame (level set by deterministic rules on hard flags, explanation written by the model, coverage always shown, "not enough data" a valid outcome), the proposed final wording is:
+The prototype used "Go / Caution / Avoid"; session 0 bans that wording. Under the council's frame (level set by deterministic rules on hard flags, explanation written by the model, coverage always shown, "not enough data" a valid outcome), the wording below was **accepted by the council** (answer to the designer, session 0), with two guardrails folded in: the "Not enough data" rule and a one-shot cap extension (§5). If the first milestone demo shows "No concerns found" read as a clean bill despite the coverage line, level 1 becomes "Nothing found in N of M checks".
 
 | Level | Wording | Colour and icon | When (rules owned by the runtime spec) |
 |---|---|---|---|
 | 1 | **No concerns found** | `--ink` text, neutral dot (never green) | the checks that ran raised no hard or soft flag |
 | 2 | **Points to check** | `--warn`, `!` | one or more soft flags |
 | 3 | **Serious concerns** | `--bad`, `×` | any hard flag (for example insolvency, struck off, a confirmed sanctions entry) |
-| 0 | **Not enough data** | `--muted`, `?` | too few checks ran to say anything |
+| 0 | **Not enough data** | `--muted`, `?` | the entity is not pinned to a registry ID, or fewer than half the checks that apply in its country ran (provisional; session 1 sets the threshold) |
 
 - Always one block: the level, then **coverage on the same line** ("8 of 11 checks ran · 46 sources · 19 Nov 2026"), so "No concerns found" is never read without how much was checked.
 - **"Why this level":** under the level, the rules that fired (or "No hard or soft flag in the checks that ran"), each linking to its finding. The level is labelled **rule-based**; the explanation paragraph carries the **AI-written** tag (memo rule 9). The two never share a sentence.
@@ -177,7 +177,7 @@ The decision points the data creates, so the runtime and the UI agree on them:
 2. **Possible sanctions match.** Side-by-side comparison, "Same entity" / "Different" / "Not sure".
 3. **Same person?** Two officer records share a name across companies. Shown only inside the network, never as a person profile.
 4. **Scope.** "This company has 40 subsidiaries. Check all, or only the 5 largest?" with the cost of each.
-5. **Cost cap reached.** The run pauses at the per-investigation cap (session 0 default $1.50): "Stop here and write the report" (default) or "Allow up to $0.50 more". Agent cards show their cost live, and the header shows the total against the cap.
+5. **Cost cap reached.** The run pauses at the per-investigation cap (session 0 default $1.50): "Stop here and write the report" (default) or "Allow up to $0.50 more". The extension is offered once per run and never past the daily cap; after it, the run stops at the cap with no question. Agent cards show their cost live, and the header shows the total against the cap.
 
 Each question shows which agents are waiting on it, and has a default the run takes after a timeout, so an unattended run still finishes. "Which entity?" never times out into a guess: its default is to stop, because session 0 names the wrong company as the worst failure.
 
