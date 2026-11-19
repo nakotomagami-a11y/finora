@@ -40,7 +40,7 @@ No phase starts before the previous phase's exit criteria are met. No app code b
 4. A loader spec per source (`docs/plan/loaders/`).
 5. Agent runtime and tool specs (`docs/plan/agents.md`): parallel agents, questions to the human, citations, cost caps.
 6. `docs/plan/prototype.md`: what "fully working" means, daily-use scenarios, demo script, risk register, test and CI strategy.
-7. qa has reviewed the plan and web-qa the mockups, with no open MUST-FIX.
+7. qa has reviewed the plan against `docs/plan/qa-plan-checklist.md` and web-qa the mockups, with no open MUST-FIX.
 
 ### Phase 4: council session 2 (plan approval)
 1. `council` and `cto` approve the whole plan; `docs/plan/council/02-plan.md` records the red-team, the revisions and any dissent.
@@ -93,6 +93,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/agents.md` | data-osint | 3 | |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
+| `docs/plan/qa-plan-checklist.md` | qa (committed by coordinator) | 3 | done |
 
 ## Decisions
 
@@ -112,6 +113,10 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | C2 | GLEIF belongs to `data-us`; `data-baltics` measures LEI coverage of its samples | Same |
 | C3 | EU-wide procurement (TED) belongs to `data-osint`; national procurement and Kohesio to `data-baltics`; USAspending and SAM.gov to `data-us` | Same |
 | C4 | Report section and tile IDs are fixed in `docs/research/README.md`; every area doc uses them | So the display matrix can be assembled without guessing |
+
+### Open items for later phases
+- Guard test cleanup (`scripts/guard/guard.test.mjs`, the worktree test) should run in `finally`, so a failed assert can't leave a denylist behind (qa NIT). Fix in the foundation slice.
+- The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 ### By the council
 None yet.
