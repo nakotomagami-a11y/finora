@@ -1,6 +1,6 @@
 # Display matrix
 
-Assembled by the coordinator on 2026-11-20 from the "Display matrix rows" of the four area docs: `baltics.md` (61 rows), `us.md` (49), `osint.md` (20) and `markets.md` (16). The rows are copied unchanged, with two exceptions: where two areas measured the same cross-border source, their rows are merged into one so the council rules once (GLEIF relationships, `S05.ALL.01`; the UN list, `S11.ALL.05`), with both areas' evidence kept. Only the `item_id`, the `From` column and the two empty decision columns are added. 146 area rows, 144 matrix rows. Regenerated after each area fix; ids can shift within a section and country until session 1 starts. The evidence for every row is in its area doc.
+Assembled by the coordinator on 2026-11-20 from the "Display matrix rows" of the four area docs: `baltics.md` (64 rows), `us.md` (49), `osint.md` (20) and `markets.md` (16). The rows are copied unchanged, with two exceptions: where two areas measured the same cross-border source, their rows are merged into one so the council rules once (GLEIF relationships, `S05.ALL.01`; the UN list, `S11.ALL.05`), with both areas' evidence kept. Only the `item_id`, the `From` column and the two empty decision columns are added. 149 area rows, 147 matrix rows. Regenerated after each area fix; ids can shift within a section and country until session 1 starts. The evidence for every row is in its area doc.
 
 This is the input for council session 1 (`docs/plan/council/00-framing.md`: gates, calls, empty states).
 
@@ -17,13 +17,13 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | Grade | Rows |
 |---|---|
 | A | 53 |
-| B | 36 |
-| C (incl. one row graded C by one area and A by another) | 34 |
+| B | 35 |
+| C (incl. one row graded C by one area and A by another) | 37 |
 | D | 17 |
 | X | 2 |
-| X? (provisional) | 1 |
+| X? (provisional) | 2 |
 | none (tile not graded) | 1 |
-| **Total** | **144** |
+| **Total** | **147** |
 
 ## Rows
 
@@ -39,7 +39,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S01.US.05 | S01 | US | State registries: CA, DE | D | 0% | paid bulk order (CA) or $10-20 per status query (DE); ~40% of US LEIs are DE entities | us |  |  |
 | S01.US.06 | S01 | US | SAM.gov entity extract (UEI) | B | 0% (0/10) | bulk monthly; licence verified partial (US Government work); firms registered for federal work only | us |  |  |
 | S01.US.07 | S01 | US | FMCSA census, OR CCB, WA L&I licences | A | segment-specific (broker 1/1) | bulk daily; licence verified partial; carriers, brokers, contractors only | us |  |  |
-| S01.ALL.01 | S01 | all | GLEIF golden copy (LEI field) | A | LEI holders: LT 5,402, LV 4,452, EE 30,632 | bulk; licence verified Y; CC0; register code on 98-99.7% of LEI records, so joins are reliable; most small companies have no LEI | baltics |  |  |
+| S01.ALL.01 | S01 | all | GLEIF golden copy (LEI field) | A | LEI records by legal-address country in the golden copy of 2026-11-19 16:00 UTC, all registration statuses: LT 5,402, LV 4,452, EE 30,632 | bulk; licence verified Y; CC0; register code on 98-99.7% of LEI records, so joins are reliable; most small companies have no LEI | baltics |  |  |
 | S01.ALL.02 | S01 | all | GLEIF LEI | A | public 60% (3/5); private 40% (2/5) | bulk, 3 publishes a day; licence verified Y (CC0) | us |  |  |
 | S02.LT.01 | S02 | LT | JAR daily files; API change feed | A | 100% | bulk; licence verified Y; current status + since-date; no name or address history (keep our own from daily diffs) | baltics |  |  |
 | S02.LV.01 | S02 | LV | Register (status, terminated), liquidations, reorganizations, name history | A | 100% | bulk; licence verified Y; name history stale since 2025-04-02; no address history | baltics |  |  |
@@ -58,7 +58,8 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S04.LV.01 | S04 | LV | Enterprise Register members (SIA) | A | 91% (100% of SIA) | bulk; licence verified Y; personal data; members who leave vanish | baltics |  |  |
 | S04.LV.02 | S04 | LV | Enterprise Register beneficial owners | X? | 90% | bulk; licence verified Y; concealment on request since 2026-07-01; CJEU C-37/20, legal memo decides | baltics |  |  |
 | S04.LV.03 | S04 | LV | Joint-stock company shareholders | D | 0% | none; licence verified Y (dataset withdrawn, private in CKAN); Constitutional Court 9 Nov 2026 | baltics |  |  |
-| S04.EE.01 | S04 | EE | e-Business Register shareholders, beneficial owners | A | 99.1% | bulk; licence verified Y; members 97.3%, beneficial owners 95.0%; public limited company shareholders not in the register; BO display needs the legal memo (CJEU C-37/20), X candidate | baltics |  |  |
+| S04.EE.01 | S04 | EE | e-Business Register shareholders (members) | A | 97.3% | bulk; licence verified Y; current members of private limited companies; public limited company shareholders are not in the register (kept by the securities depository) | baltics |  |  |
+| S04.EE.02 | S04 | EE | e-Business Register beneficial owners | X? | 95.0% | bulk; licence verified Y; still published daily (412,802 rows, 2026-11-19) with name, country, control method and person hash; legal round 3 proposes HIDE (CJEU C-37/20, C-601/20) | baltics |  |  |
 | S04.US.01 | S04 | US | Schedules 13D/13G XML | A | deferred: User-Agent pending | per-filing XML; licence verified Y | us |  |  |
 | S04.US.02 | S04 | US | Forms 3/4/5 10% owners | A | 80% public (4/5) | bulk; licence verified Y | us |  |  |
 | S04.US.03 | S04 | US | Private-company owners | D | 0% (0/5) | not published by any US source | us |  |  |
@@ -73,13 +74,14 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S06.US.01 | S06 | US | SEC XBRL company facts | A | deferred: User-Agent pending (public); 0% private | API + bulk; licence verified Y | us |  |  |
 | S06.US.02 | S06 | US | FDIC call-report financials | A | banks only | API; licence verified partial | us |  |  |
 | S06.US.03 | S06 | US | Private-company financials | D | 0% (0/5) | not published | us |  |  |
-| S07.LT.01 | S07 | LT | Sodra daily insured; monthly averages | B | 48.6% insured; 18.8% avg wage | bulk; licence verified N (none stated, public by law); wage only if > 3 insured | baltics |  |  |
+| S07.LT.01 | S07 | LT | Sodra daily insured; monthly averages | C | 48.6% insured; 18.8% avg wage | bulk; licence verified N (none stated, public by law); wage only if > 3 insured | baltics |  |  |
 | S07.LV.01 | S07 | LV | VID quarterly employees; FS employees; salary derived from social contributions | B | 54-58% (salary 48%) | bulk; licence verified Y; average salary not published, derived estimate | baltics |  |  |
 | S07.EE.01 | S07 | EE | EMTA taxes paid, turnover, employees | B | 26.9% | bulk; licence verified Y (CC BY-SA 3.0, share-alike); quarterly employee count; no average salary (EMTA warns against deriving it) | baltics |  |  |
 | S07.US.01 | S07 | US | SBA PPP jobs reported | C | 20% public, 20% private | bulk, static since 2024-10; licence verified Y; 2020-21 headcount only | us |  |  |
 | S07.US.02 | S07 | US | FMCSA drivers and power units | A | carriers only | bulk daily; licence verified partial | us |  |  |
 | S07.US.03 | S07 | US | SEC dei:EntityNumberOfEmployees | B | deferred: User-Agent pending | API; licence verified Y | us |  |  |
-| S08.LT.01 | S08 | LT | VMI taxes paid; VMI arrears; Sodra debts | A | 76.5% taxes paid; debts list-based (22.0% of active have overdue debt) | API + bulk; licence verified Y (VMI), N (Sodra); daily arrears | baltics |  |  |
+| S08.LT.01 | S08 | LT | VMI taxes paid; VMI arrears | A | 76.5% taxes paid; arrears list-based: 11.8% of active companies have overdue tax arrears | API; licence verified Y (CC BY 4.0); daily arrears | baltics |  |  |
+| S08.LT.02 | S08 | LT | Sodra daily debts | C | list-based: 15.4% of active companies have a social-insurance debt | bulk; licence verified N (none stated, public by law, art. 15(3)); daily | baltics |  |  |
 | S08.LV.01 | S08 | LV | VID taxes paid (quarterly, yearly); VID taxpayer rating | B | taxes 56%; rating 92% | bulk; licence verified Y; debt amount only per-query behind CAPTCHA; rating C = 5.4% | baltics |  |  |
 | S08.EE.01 | S08 | EE | EMTA taxes paid; EMTA tax debtors | B | 39.1% | bulk; licence verified Y (CC BY-SA 3.0); taxes paid quarterly; debtor list daily, known for every company, 6.2% of active companies listed | baltics |  |  |
 | S08.US.01 | S08 | US | none | D | 0% | no public tax payments or tax-debt lists | us |  |  |
@@ -137,7 +139,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S15.LT.01 | S15 | LT | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code | osint |  |  |
 | S15.LV.01 | S15 | LV | Applicant website in EU funds; winner websiteURI in procurement | C | <3% | bulk; licence verified Y; incidental only, the web agent fills it | baltics |  |  |
 | S15.LV.02 | S15 | LV | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates | osint |  |  |
-| S15.EE.01 | S15 | EE | register contacts (WWW) | C | 6.3% | bulk; licence verified Y; register website field only; web data is the osint area | baltics |  |  |
+| S15.EE.01 | S15 | EE | register contacts (WWW) | C | 6.3% of active business-form companies (5.6% of all active entities, as in osint.md) | bulk; licence verified Y; register website field only; web data is the osint area | baltics |  |  |
 | S15.EE.02 | S15 | EE | register website field → DNS, WHOIS, CT, Wayback, homepage | B | website 100% of sample (by selection); resolves 67% | per-query; licence verified Y (WHOIS: query time only); population share: see §2 | osint |  |  |
 | S15.US.01 | S15 | US | SAM.gov URL or web search → DNS, RDAP, CT, Wayback, homepage | B | website 100% of sample; RDAP date 100%; registrant 0% | per-query; licence verified Y | osint |  |  |
 | S16.LV.01 | S16 | LV | (none) | D | 0% | n/a; osint area | baltics |  |  |
@@ -152,7 +154,8 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S17.EE.01 | S17 | EE | person hash across card, member and BO files | A | 97.2% | bulk; licence verified Y; links people across companies without personal codes; legal memo decides how far a person network may be shown | baltics |  |  |
 | S17.US.01 | S17 | US | Shared insiders across issuers (SEC insider CIK) | A | deferred: User-Agent pending | derived; exact person id | us |  |  |
 | S17.US.02 | S17 | US | Shared officers by name within a state (FL, CT, PA) | C | not measured | derived; name-only match, label "same name" | us |  |  |
-| S18.LT.01 | S18 | LT | status, arrears, Sodra debts, non-filer flags, statements, taxes | A | 100% | bulk + API; licence verified Y/N (Sodra); transparent inputs available | baltics |  |  |
+| S18.LT.01 | S18 | LT | status, VMI arrears, non-filer flags, statements, taxes paid | A | 100% | bulk + API; licence verified Y; transparent inputs available | baltics |  |  |
+| S18.LT.02 | S18 | LT | Sodra debts and insured counts | C | 15.4% debt; 46.4% insured | bulk; licence verified N (none stated, public by law) | baltics |  |  |
 | S18.LV.01 | S18 | LV | VID rating; FS; insolvency; suspensions; minimum-wage employer list | A | 92% | bulk; licence verified Y; all inputs open | baltics |  |  |
 | S18.EE.01 | S18 | EE | derived from S02, S06-S09 | B | - | bulk; licence verified Y; status, key figures, tax debt, taxes paid, pledges, insolvency notices are all machine-readable | baltics |  |  |
 | S18.US.01 | S18 | US | Status, UCC, exclusions, revocations, court cases, PPP charge-off | C | see sections | derived; the US has no tax-debt or payment-default data | us |  |  |

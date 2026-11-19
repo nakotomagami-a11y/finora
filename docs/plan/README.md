@@ -79,12 +79,12 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | Deliverable | Owner | Phase | State |
 |---|---|---|---|
 | `docs/research/README.md` (conventions, section IDs) | coordinator | 1 | done |
-| `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | landed 2026-11-20 (`12d735a`); qa spot-check passed (0 MUST-FIX), 3 fixes requested; open: two-day diffs for LT and EE |
-| `docs/research/us.md` | data-us | 1 | landed 2026-11-20 (`0a7be16`); SEC EDGAR deferred (key pending, C7); qa spot-check passed (0 MUST-FIX in the doc), 1 fix requested |
+| `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | landed 2026-11-20 (`12d735a`); **done**: qa spot-check passed (0 MUST-FIX); fixes in `09d9de1`; still adding LT round-2 answers and the LT/EE two-day diffs |
+| `docs/research/us.md` | data-us | 1 | landed 2026-11-20 (`0a7be16`); SEC EDGAR deferred (key pending, C7); **done**: qa spot-check passed; CT split in `268cc3c` |
 | `docs/research/markets.md` | data-markets | 1 | **done**: qa spot-check passed; MUST-FIX fixed in `2a2d70d` |
 | `docs/research/osint.md` | data-osint | 1 | landed 2026-11-20 (`671dadc`, round 2 `e0c3bce`: TED for S12, sanctions identifier coverage, rate limits, UI facts); modelled cost, measured run deferred to the key round; **done**: qa spot-check passed (0 MUST-FIX); fixes in `4680a2f` |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1-3, market addendum) |
-| `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | done 2026-11-20, 142 rows (qa MUST-FIX fixed: 4 US rows added, 2 duplicate sources merged); the council derives legal lights in session 1 from `legal.md` (amendment 1) |
+| `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | done 2026-11-20, 147 rows after the qa fixes (4 US rows added, 2 duplicate sources merged, CT, EE beneficial owners and LT social insurance split out); the council derives legal lights in session 1 from `legal.md` (amendment 1) |
 | `docs/research/cto-preread.md` (volumes, store benchmark, provisional technical calls) | cto (committed by coordinator) | 1 | done |
 | `docs/design/display-options.md` (display states, advice for session 1) | designer | 1 | done |
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | done 2026-11-20 |
@@ -149,7 +149,7 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 - data-us (`us.md`): FEC individual donors HIDE (no commercial use by statute); FINRA BrokerCheck per-query only with source, compile date and an error channel; CT principals' residence addresses and FMCSA emails and phones dropped at load. Florida's bulk licence can't be verified (pages refuse automated reads). CA and DE have no free bulk data.
 - **Share-alike storage (qa, blocking for the plan):** `docs/architecture.md` fails any share-alike source stored locally, while `legal.md` round 3 proposes a separate store tagged per record. Session 1 rules either a share-alike storage class (separate file, never exported or merged) or EE tax debt (S08), procurement (S12) and notices (S09) as agent-only. Otherwise S08 EE is unbuildable as decided.
 - `OUT.US.01` (FEC individual contributions, graded X): legal flags its light as "?" until the text of 52 U.S.C. 30111(a)(4) is read in session 1. The question is whether it restricts use (solicitation or commercial purposes) or publication. It is outside the counterparty job either way.
-- Matrix row `S04.EE.01` combines members (open) and beneficial owners (R, rule 1): the call must split them.
+- **Store size (cto):** at the proposed load rule, EE alone is ~77.9M statements (~9.6 GB) and LV ~35.8M (~4.4 GB), over the 10 GB budget before any US state. EE annual-report key figures stored one row per report cut that table from 23.8M to ~10.3M. EE deleted companies vanish from the daily files, so keeping struck-off companies searchable means retaining every entity ever seen. LV financial statements refresh weekly (~0.003% change per day).
 - cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6). data-us's proposal (`us.md` §2.10): six states in bulk ≈ 18 GB, so query NY, CO, OR, CT, PA and WA live per search and profile (no key, median 0.66-1.05 s) and cache each entity looked up; FL bulk opt-in (≈ 5.5 GB, off by default); state network views (S17) wait for a bulk load.
 
 ## Keys: what each unlocks
