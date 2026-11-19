@@ -138,7 +138,7 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 ## Session 1 agenda (collected from phase 1)
 
 - designer: the open questions in `docs/design/display-options.md` §8.
-- data-markets (`markets.md`, Open questions): legal on one cited market-cap figure per market, the oracle feed's terms, EIA's vendor-permission note, two exchanges' data terms; council on ETF proxies for M02-M04 and on seeding the Taiwan peak.
+- data-markets (`markets.md`, Open questions): legal on one cited market-cap figure per market, the oracle feed's terms, EIA's vendor-permission note, two exchanges' data terms; council on ETF proxies for M02-M04 and on seeding the Taiwan peak. Agreed with legal so far (`legal.md`, market addendum): oracle route LATER; EIA SHOW with source and date; X1 LATER; bitcoin price from X4 CAVEAT for a self-hosted instance (its clause covers derived figures; commercial use needs a data licence, so ask the exchange before any hosted build).
 - legal: the coordinator's three proposals in `legal.md` (no personal codes, retention for ended roles, blocked 15 USC 1681b uses); the legal light and basis wording per matrix row.
 - cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6).
 
