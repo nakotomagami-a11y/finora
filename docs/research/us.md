@@ -394,7 +394,8 @@ Size at the cto's lean layout (123 bytes per statement), keeping about 10 fields
 | S01 | all | GLEIF LEI | A | public 60% (3/5); private 40% (2/5) | bulk, 3 publishes a day; licence verified Y (CC0) |
 | S01 | US | SAM.gov entity extract (UEI) | B | 0% (0/10) | bulk monthly; licence verified partial (US Government work); firms registered for federal work only |
 | S01 | US | FMCSA census, OR CCB, WA L&I licences | A | segment-specific (broker 1/1) | bulk daily; licence verified partial; carriers, brokers, contractors only |
-| S02 | US | State status + history (NY status history, CO transactions, CT filings) | A | status 100% private; dated history 40% (2/5) | bulk; licence verified Y (NY, CO), partial (CT history) |
+| S02 | US | State status + history (NY status history, CO transactions) | A | status 100% private; dated history 40% (2/5, all samples combined) | bulk; licence verified Y |
+| S02 | US | CT business filing history | B | included in the 40% above | bulk daily; licence verified partial (no licence stated on this dataset; the CT master file says Public Domain) |
 | S02 | US | FDIC BankFind (failures, history) | A | banks only | API, no key; licence verified partial |
 | S03 | US | SEC Forms 3/4/5 officers and directors | A | 80% public (4/5) | bulk quarterly data sets + live XML; licence verified Y; name + insider CIK |
 | S03 | US | Form D related persons | B | deferred: User-Agent pending | bulk quarterly; licence verified Y; the only federal list of private-company officers |
@@ -423,7 +424,8 @@ Size at the cto's lean layout (123 bytes per statement), keeping about 10 fields
 | S12 | US | USAspending | A | 0% public, 20% private (1/5) | API, no key; licence verified partial |
 | S12 | US | SBA PPP loans | C | 20% public, 20% private | bulk, static; licence verified Y |
 | S13 | US | EDGAR filings, 8-K items (5.02) | A | deferred: User-Agent pending; item numbers on 100% of 1,042 8-Ks | API + daily index; licence verified Y |
-| S13 | US | State filing history (NY daily filings, CO transactions, CT filings) | A | 40% private (2/5) | bulk; licence verified Y/partial |
+| S13 | US | State filing history (NY daily filings, CO transactions) | A | 40% private (2/5, all samples combined) | bulk; licence verified Y |
+| S13 | US | CT business filing history | B | included in the 40% above | bulk daily; licence verified partial (no licence stated on this dataset) |
 | S14 | US | SEC Forms 3/4/5 trades | A | 100% public (5/5) | bulk quarterly + live; licence verified Y |
 | S14 | US | Tickers and exchanges | A | deferred: User-Agent pending | bulk JSON; licence verified Y |
 | S17 | US | Shared insiders across issuers (SEC insider CIK) | A | deferred: User-Agent pending | derived; exact person id |
