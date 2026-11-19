@@ -72,8 +72,9 @@ One entry per source, in this order:
 - Access: bulk file / API / per-query page; format; paging
 - Fields: the fields we would use, with types (full list in the data dictionary)
 - Rows and coverage: counted, not quoted; what share of the population it covers
-- Freshness: update cadence, and the latest date seen in the data on <date>
-- Join keys: registry code, LEI, CIK, VAT, and so on, with format and null rate
+- Freshness: stated cadence, cadence observed over two pulls, and the latest date seen in the data on <date>. "Current" means no older than 2x the stated cadence (council session 0, clarification 1)
+- Size and speed: bytes per full pull, parse time, rows changed between two consecutive pulls, validator support (ETag, Last-Modified, delta files)
+- Join keys: registry code, LEI, CIK, VAT, and so on, with format and fill rate
 - Person identity: how a person is identified (name only, masked code, birth date), if at all
 - Licence: exact licence name, quoted from the official page; URL; date verified
 - Keys, limits, cost:
@@ -96,21 +97,17 @@ Unknowns stay visible: write "unknown" and what would settle it. Never fill a fi
 
 ## Display matrix rows
 
-Format set by council session 0 (`docs/plan/council/00-framing.md`, decision 2). Each area doc ends with its rows: **one row per item × country × source**. A row with an empty cell is decided LATER in session 1, so fill every cell; write "estimated" where a value can't be measured for real.
+Final format (council session 0, amendment 1). Each area doc ends with its rows, one row per section (or tile) and country:
 
 ```markdown
-| item_id | Section | Country | Source | Access | Refresh and lag | Licence as stated | Attribution text | Verified (URL) | Fill rate (n/N) | Sample date | Feeds verdict | Effort | Load size, refresh time | Blocking dependency | Empty-state text | Proposed call | Draft caveat |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| S03.officers | S03 | LV | Enterprise Register officers | bulk | daily, 1 day | "..." | "..." | Y (url) | 49/50 | 2026-11-20 | Y | S | 40 MB, 2 min | none | Not published in LV | SHOW | - |
+| Section | Country | Sources | Grade | Fill rate | Notes |
+|---|---|---|---|---|---|
+| S03 | LV | Enterprise Register officers | A | 98% | bulk; licence verified Y; names + masked code |
 ```
 
-- `item_id`: `<section>.<short-name>`, lower case (for example `S06.revenue`, `S08.tax-arrears`, `M05.gold`). The coordinator normalises ids across areas.
-- Access: bulk / API / per-query / paid / user key.
-- Effort: S, M or L, in slices.
-- Blocking dependency: none, or the key, contract or human-task it needs.
-- Proposed call: SHOW / CAVEAT / HIDE / LATER, against the gates in `docs/plan/council/00-framing.md`.
-- Country: `LT`, `LV`, `EE`, `US`, or `all` for cross-border sources. Tiles use `-`.
-- Legal light and personal-data class are added by `legal` after assembly; leave them out.
+- **Notes:** always start with the access type (bulk / API / per-query / paid / user key) and "licence verified Y/N", then anything the grade doesn't say.
+- Countries: `LT`, `LV`, `EE`, `US`, or `all` for cross-border sources. Tiles use `-` for country.
+- The council derives the rest in session 1: the legal light (with `legal`), effort and cost (with `cto`), and whether the item feeds the verdict. Detailed measurements belong in the source entries above, not in the matrix.
 
 ## Reality check
 

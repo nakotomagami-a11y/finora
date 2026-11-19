@@ -85,6 +85,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/osint.md` | data-osint | 1 | |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1 and 2) |
 | `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
+| `docs/research/cto-preread.md` (volumes, store benchmark, provisional technical calls) | cto (committed by coordinator) | 1 | done |
 | `docs/design/display-options.md` (display states, advice for session 1) | designer | 1 | done |
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | |
 | `docs/plan/council/00-framing.md` (session 1 gates, matrix format, v1 frame) | council (committed by coordinator) | 1 | done |
@@ -115,7 +116,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | C2 | GLEIF belongs to `data-us`; `data-baltics` measures LEI coverage of its samples | Same |
 | C3 | EU-wide procurement (TED) belongs to `data-osint`; national procurement and Kohesio to `data-baltics`; USAspending and SAM.gov to `data-us` | Same |
 | C4 | Report section and tile IDs are fixed in `docs/research/README.md`; every area doc uses them | So the display matrix can be assembled without guessing |
-| C5 | The display-matrix row format follows council session 0, decision 2 | One format, decided once, so session 1 runs in one pass |
+| C5 | The display-matrix row format is the compact one (`Section | Country | Sources | Grade | Fill rate | Notes`), per council session 0 amendment 1, which withdrew decision 2. cto's measurement fields go in the source entry template | One format; the council derives the rest in session |
 | C6 | The early `DESIGN.md` v0, `docs/architecture.md` and `docs/plan/slices.md` drafts stay on the branch but are frozen until phase 3 opens | Not reverted (no harm, saves work); revised against session 1's decisions |
 
 ### Open items for later phases
@@ -123,7 +124,9 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 ### By the council
-Session 0 (`docs/plan/council/00-framing.md`): the five session 1 gates; the display-matrix intake format; the v1 frame (primary job, two speeds, deterministic verdict level, five v1 agents, social and reviews agents LATER, one-hop network, local-only hosting, cost-cap defaults $1.50 / $0.25 / $10 per day); kill criteria; and the gates session 2 will check.
+Session 0 (`docs/plan/council/00-framing.md`): the five session 1 gates; the display-matrix intake format; the v1 frame (primary job, two speeds, deterministic verdict level, five v1 agents, social and reviews agents LATER, one-hop network, local-only hosting, cost-cap defaults $1.50 / $0.25 / $10 per day); kill criteria; and the gates session 2 will check. Amendments: decision 2 withdrawn (one compact matrix format); "current" = no older than 2x the stated cadence; banned wording scope (own voice only, reject and regenerate, never rewrite); each country searchable as soon as its own load finishes.
+
+Decision 4 (verdict wording, from the designer): No concerns found / Points to check / Serious concerns / Not enough data; one-shot cost-cap extension; "Not enough data" is a rule in the verdict table.
 
 ## Council records
 - Session 0 (framing): `docs/plan/council/00-framing.md`, 2026-11-19

@@ -29,7 +29,7 @@ Applied in order. The first gate an item fails decides it.
 
 **What would change it:** the real fill-rate distribution. If most primary-job items land at 60-80%, session 1 revisits the 70% line.
 
-## Decision 2: the display-matrix intake format
+## Decision 2: the display-matrix intake format (withdrawn, see amendment 1)
 
 One row per item × country × source. Any row with an empty cell is decided LATER in session.
 
@@ -93,3 +93,29 @@ Each with the council's default; the mission runs on the default until the human
 6. SEC EDGAR contact for the User-Agent, set in a local env var.
 
 **Dissent:** CPO wanted the human to confirm the primary job and set the tax-arrears thresholds; the council keeps both under the charter and re-checks them at the first session 3 demo.
+
+## Amendments and clarifications (2026-11-19, chair; panel not re-convened, so no dissent recorded)
+
+### Amendment 1: one display-matrix format
+Decision 2 is withdrawn. The only format is the one in `docs/research/README.md`: `Section | Country | Sources | Grade | Fill rate | Notes`, plus the source-entry template. Notes carry the access type and "licence verified Y/N". The council derives the legal light (from `legal.md`), effort and cost (from `cto`), and "feeds verdict" in session. **Reason:** two formats on the hub cost more than the round-trips they save. **Dissent (COO):** the longer format would have let session 1 decide in one pass. **What would change it:** if the assembled matrix leaves more than a handful of rows undecidable, the council asks for the missing column on those rows only.
+
+### Clarification 1: "current for its cycle" (gate 4)
+- **Source level** (decides SHOW vs CAVEAT): a source with a set cadence is current if its latest file or record date is no older than 2x the cadence (daily 2 days, weekly 14, monthly 62, quarterly 184). Annual data is current if it includes the latest fiscal year whose filing deadline has passed; how many companies filed is the fill rate. No stated cadence: use the cadence observed over two pulls; if that can't be measured, CAVEAT.
+- **Record level** (decides the UI): a single value older than its source's cycle shows the Stale state with its as-of date.
+- **What would change it:** a source whose normal lag is longer than its stated cadence; the matrix then records the observed lag and the rule uses it.
+
+### Clarification 2: banned wording
+- Scope: Finora's own voice (labels, finding statements, message catalogues, all LLM prose). Exempt: verbatim excerpts from a cited source, shown in the quote component.
+- LLM prose with a banned term is rejected, regenerated once, and otherwise falls back to the sourced facts with no prose. Never silently rewritten.
+- UI controls avoid the banned words too ("Reset", not "Clear"), so the test runs case-insensitive and whole-word over every catalogue string with no exception list.
+
+### Clarification 3: noted for session 1
+- `cto`'s store and load calls (embedded SQLite, load budgets, content-hash refresh, a licence id required on every record) are technical calls owned by `cto`; no council objection.
+- Product requirement: each country becomes searchable as soon as its own load finishes.
+- Which US states load by default is a session 1 call, from data-us's fill rates.
+
+### Decision 4: verdict wording (accepted from the designer, `docs/design/display-options.md` §3.15)
+Levels: **No concerns found** / **Points to check** / **Serious concerns** / **Not enough data**, with per-agent outcomes and the "N agents · N tasks · N sources" header. "No concerns found" never appears without its coverage line; the rule-based level and the AI-written explanation never share a sentence.
+- **Guardrail 1:** the cost-cap extension is one-shot: at most one "allow $0.50 more" per run, never past the daily cap, and the daily cap can't be raised from inside a run.
+- **Guardrail 2:** "Not enough data" is a rule in the verdict rule table: it fires when the entity isn't pinned to a registry ID, or fewer than half the applicable checks ran. Session 1 sets the final threshold.
+- **Dissent:** none (designer's remit, granted in session 0). **What would change it:** the human reading "No concerns found" as a clean bill at the first session 3 demo; level 1 then becomes "Nothing found in N of M checks".
