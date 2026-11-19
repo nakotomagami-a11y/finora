@@ -45,11 +45,11 @@ Every source above costs $0. The running cost is the agent runtime: LLM tokens a
 
 ## 6. Statement-store benchmark (2026-11-20)
 
-The LV company file, 490,496 rows → 4,975,756 statements, through `node:sqlite`. Probe scripts are local to the `cto` seat.
+The LV company file, 490,496 rows → 4,975,756 statements, through `node:sqlite`. Probes: `research/probes/cto/` (README records both runs and which numbers to trust).
 
 | Statement layout | First load | Size | Reload of an unchanged file |
 |---|---|---|---|
-| As drafted: text hash key, ISO timestamps on every row, indexes built during the load, `last_seen` set on every statement | 1,039 s | 1,879 MB, 378 B/statement | rewrites ~5M rows |
+| As drafted: text hash key, ISO timestamps on every row, indexes built during the load, `last_seen` set on every statement | 1,039 s | 1,879 MB, 378 B/statement | 1,430 s, all 4,976,210 statements rewritten (measured; file grew to 2,045 MB) |
 | Lean: integer keys, interned property names, load-run ids instead of timestamps, a row hash per source record so unchanged rows are skipped, indexes built after the load | 28.8 s | 612 MB, 123 B/statement | 8.9 s, 0 writes |
 
 - The statement model holds up; the drafted layout does not meet the load budgets once US states are in.

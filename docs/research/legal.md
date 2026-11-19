@@ -169,3 +169,24 @@ Positions on the first items in `baltics.md`, "For the legal memo". Rule-based p
 4. **EE officer personal emails and home addresses:** dropped in the loader. Mandatory: no section needs them, so they fail the necessity test (rule 4).
 5. **Share-alike data and the UN list:** EE CC BY-SA data keeps its licence tag per record and is never merged into any dataset we publish (project hard rule 4). The UN list (no redistribution): agents fetch it live; no stored copy.
 6. **Our own daily snapshots of ended roles:** they need a retention limit before they are stored. Until a lawyer sets the period, keep no role history beyond what the session 1 matrix requires.
+
+## Round 3: the Baltic items (complete, 2026-11-20)
+
+Not legal advice. Primary texts were not re-read this round; "not verified" items need a source check before they are relied on.
+
+| Item | Position | Proposed call | Light |
+|---|---|---|---|
+| 1 LV and EE beneficial owners | Restricted (rule 1); LV concealment on request since 1 Jul 2026 (not verified) means bulk copies can't be relied on. **LAWYER** | HIDE, with the restricted-section lock | R |
+| 2 LV masked personal code | Personal; no code, birth date or age shown (rules 1, 2). **LAWYER** for scope | HIDE | R |
+| 3 EE person hash | Personal pseudonym; internal join key only. **LAWYER** | HIDE | R |
+| 4 EE officer personal emails and home addresses | Dropped in the loader, mandatory (rule 4) | drop | R |
+| 5a Sole-trader names | Natural person, company context only, with the purpose note (rules 2, 5) | CAVEAT | Y |
+| 5b LV natural-person procurement winners | Undecided | LATER | R |
+| 5c EE natural-person bankruptcy notices | Natural person; company bankruptcies unaffected. **LAWYER** | HIDE | R |
+| 6 CC BY-SA data (EE tax board, procurement, notices) | Hard rule 4 turns on publication; a local-only store is not clearly outside it. **LAWYER** | CAVEAT: a separate store, a licence tag per record, never merged into any dataset the app exports, publishes or serves in bulk; single facts in the UI carry attribution and the licence link | Y |
+| 7 LT social-insurance files, no stated licence | Public by law (not verified) | CAVEAT: source, as-of date and "no licence stated by the publisher"; verify with the publisher before SHOW | Y |
+| 8 UN sanctions list | Personal, non-commercial use; no redistribution | CAVEAT: agents fetch live, no stored copy, match shown with its citation | Y |
+| 9 LV tax-debtor lookup | Purpose-limited by law, CAPTCHA-gated; automating it would bypass a control | LATER, no connector | R |
+| 10 LV official notices | Reuse needs a written agreement and fees | LATER | Y |
+
+**Estonian register API contract:** legal will not clear it from a summary; the full contract terms are read before anyone signs.
