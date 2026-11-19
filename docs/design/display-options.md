@@ -263,10 +263,56 @@ From `docs/research/legal.md`, product rules. Each one gets a fixed component, s
 
 ## 8. Questions for the council
 
-1. Verdict wording and scale (3.15): accept "No concerns found / Points to check / Serious concerns"?
-2. Minimum headcount before showing average salary (3.5)?
-3. How long a cleared tax debt stays visible (3.6)?
-4. Are natural-person court parties masked in all four jurisdictions (3.7)?
-5. Is "also officer in N other companies" (3.2 B) acceptable, or only inside the network explorer?
-6. Purpose gate (§7, rule 2): is "once per session, picked from a fixed list" enough, or must the purpose be asked per company?
+Designer's recommended answers are in **bold**.
+
+1. ~~Verdict wording and scale~~: **decided** (council answer, session 0): §3.15.
+2. Minimum headcount before showing average salary (3.5)? **Follow the source's own threshold where it has one (LT: more than 3 insured). LV's salary is our own estimate from social contributions: show it only at 5 or more employees, labelled "Estimated by Finora" with its method. EE: no salary at all (the tax authority warns against deriving it), so no row.**
+3. How long a cleared tax debt stays visible (3.6)? **90 days, as "No longer on the debtor list since [date]", then the row returns to "Checked: none found".**
+4. Are natural-person court parties masked in all four jurisdictions (3.7)? **Yes, everywhere, as "a private individual".**
+5. Is "also officer in N other companies" (3.2 B) acceptable, or only inside the network explorer? **Only inside the network explorer, behind the purpose gate.** A count on the company page is a step towards a person profile.
+6. Purpose gate (§7, rule 2): once per session or per company? **Once per session, picked from a fixed list, shown above each person section with a change link; every access is still logged per company (architecture R2).**
 7. ~~Restricted data in a primary-job section~~: **decided** (council clarification 4): the lock state, keyed on the rule, never the record. See §1.
+
+## 9. Session 1: how each section appears, from the display matrix
+
+Advice on the UI treatment per section, keyed to `docs/research/display-matrix.md` and `reality-check.md`. The council makes the call; this says how each likely call renders. Defaults first, then the exceptions per country.
+
+### Two additions to the state model
+
+- **`not_checked{reason: manual_lookup}`**: the official source exists but only a person can read it (for example a per-query page behind a CAPTCHA). Copy: "Check manually at [official site]", with the official link. Agents never get around a CAPTCHA. Needed for LV tax debt amounts (S08.LV.01).
+- **"Derived by Finora" provenance.** Some values are computed by our own deterministic code, not read from a source and not written by a model: LV salary estimates, parent links derived from corporate members (S05.LV.01, S05.EE.01), and person links across companies (S17). Their source chip says "Derived by Finora", lists the input sources and links to the method. This is a separate confidence from "Inferred" (agent) and from "Official".
+
+### Field rows: core versus optional
+
+Each section marks fields as **core** (always rendered, in one of the §1 states) or **optional** (row omitted when absent). Optional examples: LEI, website, VAT number when the country has no VAT list. Core examples: status, and every risk-signal check. This keeps sections short without ever hiding a check.
+
+### Per section
+
+| Section | Default treatment | Exceptions |
+|---|---|---|
+| S01 Identity | Header block, all `data` | US: the chip names the state register. CA and DE (S01.US.05): `paid_only` with the official order page. Federal-only firms (SAM, S01.US.06) and licences (S01.US.07) appear as extra identity rows, never as the main record |
+| S02 Status and history | Status pill in the register's own words, translated; a timeline where dated history exists (LV, US NY, CO and CT) | LT, EE: if the council adopts our own snapshots, the timeline starts "Tracked by Finora since [date]"; before that, the current status and its since-date only. **Designer recommends snapshots**: "renamed two months ago" is one of the strongest scam signals |
+| S03 People | Purpose gate, then a role table with "since" dates | LT: no names exist, so the section shows the published facts ("Has a manager · board: yes") plus "Names not published in Lithuania". LV, EE: CAVEAT "Current roles only; past roles are not published". US: each row carries its form or state chip; name-only state matches are labelled "same name" |
+| S04 Owners | Purpose gate, then a holder table | LT: member counts plus "Names not published in Lithuania (available as a paid register extract)". LV joint-stock (S04.LV.03), and beneficial owners in LV and EE if HIDE: the `restricted` lock, keyed on country and legal form. US private: `not_published` "The US has no public owner register". US public: insiders over 10% and 13D/G holders |
+| S05 Group | One line per parent or subsidiary, with its chip | All countries (about 10% fill): CAVEAT "Parents appear only when a company member or an LEI record names them. Missing does not mean independent". With nothing found, the section collapses to that sentence |
+| S06 Financials | Key-figure table with sparklines, newest year first, currency and period end shown | Years not filed: `partial` "2024 not filed". EE reports filed as PDF: "Filed as a PDF, figures not machine-readable · open the filing". US private: `not_published`. US public, before the SEC user agent is set: `not_checked{needs_key}` |
+| S07 Workforce | Latest headcount plus a 24-month line where monthly or quarterly data exists | All Baltic rows: CAVEAT with the source's cadence. EE at 26.9%: if LATER, the section shows "Not checked in this version", never blank. US: CAVEAT "Headcount from 2020-21 loan data only" (S07.US.01) |
+| S08 Taxes and arrears | Risk signal: arrears as a check line ("Not on the tax arrears list as of [date]", or the debt with amount and date), then taxes paid by year | LV debt amount: `manual_lookup`. LV taxpayer rating: shown verbatim as "Tax authority's rating: [value]" with the authority's own explanation, never restyled as our score. EE: depends on the share-alike ruling (below). US: the whole section collapses to "The US publishes no tax payment or tax debt data" |
+| S09 Insolvency, pledges, notices | Risk signal: each check is a line, with an event list (newest first) when something exists | US: "Checked UCC filings in Colorado and Connecticut: none found. Other states not checked." The checks must never read as national. PACER: `paid_only`. FJC bankruptcy data has no debtor names, so it gets no row |
+| S10 Courts | Mostly agent-only | Instant profile: "Not checked here: the legal agent searches the court portal", with an Investigate action (LT, EE, LV). US federal name matches: "Possible match by name, needs review", never asserted |
+| S11 Sanctions and watchlists | Risk signal: a compact checklist, one line per list with its date (`checked_none`), and the §3.11 outcomes on a hit | EE national list (names only, no ID): a hit can only ever be "Possible match, needs review". PEP: `needs_key`, plus "A licensed dataset, connected with your own key" |
+| S12 Public money | Totals per year plus the top contracts and projects; neutral styling, never a risk colour | Nothing found: `checked_none`, still neutral. TED: CAVEAT "Contracts above EU thresholds only" |
+| S13 Filings and events | A filings timeline | LT non-filer lists and missed deadlines become a check line ("2025 annual report not filed; deadline passed") that feeds S18. US: 8-K item 5.02 as "Officer change (8-K item 5.02)" |
+| S14 Securities | US public: insider trades with a net buy and sell bar per quarter | Baltic: "Listed on [venue] since [date]" from the instrument register; prices `needs_key`. Companies with no listing get no row (optional field) |
+| S15, S16 Web, news | Agent-only; the instant profile shows "Found by agents" with an Investigate action | Social links from the company's own site: links only. News: name collisions appeared in 3 of 5 hit sets, so a news item is labelled "Mentions the name; not confirmed to be this company" unless the agent ties it to the code or domain, and an unconfirmed item can never be a key finding. Reviews and platform data (S16.ALL.03, S16.ALL.04): no row at all |
+| S17 Network | One hop in the network explorer, people behind the purpose gate | The edge style shows how sure a link is. Solid: "Same person (register identifier)" (EE hash, US insider CIK). Dashed: "Probably the same person (name and partial code)" (LV). Dotted: "Same name only" (US states). LT: shared addresses only, with "This address hosts [n] companies" and the list collapsed after 20 |
+| S18 Score inputs | The check list (None found / Flagged / Not checked) that feeds the verdict's coverage line | US: CAVEAT "The US has no public tax-debt or payment-default data", so US coverage counts fewer applicable checks |
+| OUT.US.01 | HIDE: no row, no API field, no export | Negative-tested |
+
+### Agenda items with a UI side
+
+- **Share-alike storage (EE S07, S08, S09, S12).** **Designer recommends the separate share-alike storage class over agent-only.** Agent-only would take the EE tax-debtor check, a primary-job risk signal, out of the free instant profile. In the UI the values look the same, with a "CC BY-SA" licence chip. Exports leave them out and say so: "3 values under a share-alike licence are left out of this export; see the Sources page".
+- **Struck-off EE companies searchable.** **Designer recommends yes, at least identity and status.** For the "is this company real?" job, "Removed from the register in 2021" is the answer the user needs. Without it, search shows "No match", which reads as "maybe it's new".
+- **US live state queries.** The section chip says "Fetched live from the [state] register · 2 min ago". The first open shows the loading state, and a failure shows the error state with Retry. In search, live states stream in as their own result group ("Searching NY, CO, OR, CT, PA, WA"), while bulk-loaded states answer instantly. A US search with no match lists the registers that were checked, so "No match" never means "no such company in the US".
+- **Kill-criterion flags.** The coverage strip carries each country's promise honestly: LT "People: roles only", US private "Owners, financials: not published in the US", EE "Workforce: partial". If the council re-scopes a country, the strip and the Sources page are where that shows.
+- **Markets.** Fund proxies: CAVEAT "via a US-listed fund, in USD, includes currency moves", with the fund symbols kept in local settings only. Taiwan peak: **designer prefers seeding once from a cited figure.** A peak "since first run" shows a 0% drawdown on day one, which reads as "no crash" and is wrong.
