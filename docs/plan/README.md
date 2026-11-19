@@ -85,10 +85,11 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/osint.md` | data-osint | 1 | |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | |
 | `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
+| `docs/design/display-options.md` (display states, advice for session 1) | designer | 1 | done |
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | |
 | `docs/plan/council/01-data.md` | council + cto (committed by coordinator) | 2 | |
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | |
-| `DESIGN.md`, mockups | designer | 3 | |
+| `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/*.md` | data seats | 3 | |
 | `docs/plan/agents.md` | data-osint | 3 | |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | |
