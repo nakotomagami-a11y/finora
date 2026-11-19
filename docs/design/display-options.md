@@ -34,14 +34,14 @@ Code, copy and mockups share one union (architect, contract settled for phase 3)
 | Caveat | `data{…}` plus the council's caveat key |
 | None found | `checked_none{source, asOf}` (the section state; `none_found` is the finding rating) |
 | Not published | `not_published{country}` |
-| Paid only | `not_checked{reason: paid_only}`, rendered with its own copy (where to order an extract), not the generic "Not checked" line |
+| Paid only | `not_checked{reason: paid_only}`, rendered with its own copy ("Available as a paid register extract"), not the generic "Not checked" line. The order link goes **only to the official register's ordering page**, never to a reseller or portal; without one, there is no link (council clarification 4) |
 | Later / Error / skipped check | `not_checked{reason: later\|error\|skipped}` |
 | Purpose gate | `not_checked{reason: needs_purpose}`, rendered as the purpose prompt, never as "Not checked" |
 | No key (agent-only or connector data) | `not_checked{reason: needs_key}`, rendered with an "Add your key" action |
 | Disputed | `disputed{disputeId}` |
 | Loading | client state only, not a DTO state |
 | Agent finding | a finding on the run, not a section state |
-| Not shown | **no row** for a HIDE item. Open for session 1: whether a primary-job section whose data is restricted (for example owners in a country where a court ruling restricts them) shows a labelled gap. The designer recommends yes, as a distinct `not_checked{reason: restricted}` with a lock icon and the legal basis. Otherwise the section would read as "Not published", which is false, or as blank, which is banned. The gap names only the reason, never the data. |
+| Not shown | **no row** for a HIDE item. A primary-job section whose data is HIDE on legal grounds renders `not_checked{reason: restricted, basis}`: a lock and "Not shown in [country]: restricted by [legal basis]", where the basis is a rule number from `legal.md` (council clarification 4). **The lock depends on the rule (country, legal form, section), never on the record**: it shows for every covered entity, whether or not hidden records exist, so the lock itself can't leak that data exists. |
 
 ### How research grades map to states
 
@@ -247,4 +247,4 @@ From `docs/research/legal.md`, product rules. Each one gets a fixed component, s
 4. Are natural-person court parties masked in all four jurisdictions (3.7)?
 5. Is "also officer in N other companies" (3.2 B) acceptable, or only inside the network explorer?
 6. Purpose gate (§7, rule 2): is "once per session, picked from a fixed list" enough, or must the purpose be asked per company?
-7. Restricted data in a primary-job section (§1, DTO table): a labelled gap ("Not shown in [country]: restricted by [basis]") as `not_checked{reason: restricted}`, or no row at all?
+7. ~~Restricted data in a primary-job section~~: **decided** (council clarification 4): the lock state, keyed on the rule, never the record. See §1.
