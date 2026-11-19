@@ -97,6 +97,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
 | `docs/plan/qa-plan-checklist.md` | qa (committed by coordinator) | 3 | done |
+| `docs/plan/reviews/00-early-plan-review.md` (qa's review of the early drafts; architect's committed fixes) | qa + architect (committed by coordinator) | 1 | done; 12 MUST-FIX open for phase 3 |
 
 ## Decisions
 
@@ -119,6 +120,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | C5 | The display-matrix row format is the compact one (`Section | Country | Sources | Grade | Fill rate | Notes`), per council session 0 amendment 1, which withdrew decision 2. cto's measurement fields go in the source entry template | One format; the council derives the rest in session |
 | C7 | Phase 1 researches every keyless source in full. Key-gated sources are recorded from their public docs and terms, marked "deferred: key pending", and never block. Keyless routes first (bulk files, the local SEC insider database, keyless endpoints). No live EDGAR calls until `SEC_USER_AGENT` is set | Matches the human's hub reply; costs nothing and keeps research moving |
 | C8 | No loader specs, agent specs or plan reviews before phase 3 opens; data seats finish their area docs first | Phase gate; the plan must rest on measured data |
+| C9 | Lean phase 1 (after the shared usage limit was hit): `council`, `cto`, `designer`, `architect`, `frontend`, `qa` and `web-qa` are paused by the human until phase 1 exits. qa's spot-checks of the area docs move to just before council session 1. The coordinator asks the human to resume them when phase 1's exit criteria are met. Short posts, no broadcasts | Quota; those seats have no phase 1 work |
 | C6 | The early `DESIGN.md` v0, `docs/architecture.md` and `docs/plan/slices.md` drafts stay on the branch but are frozen until phase 3 opens | Not reverted (no harm, saves work); revised against session 1's decisions |
 
 ### Open items for later phases
