@@ -26,18 +26,19 @@ Every field in every section, for every country, ends in exactly one state. Empt
 
 ### Display states in code (architect's section DTO union)
 
-Code, copy and mockups share one union (architect answer to designer and qa, phase 3 revision). How each display state above maps onto it:
+Code, copy and mockups share one union (architect, contract settled for phase 3). How each display state above maps onto it. Every `not_checked` reason has **its own icon and copy**; only `later`, `error` and `skipped` use the generic "Not checked" line.
 
 | Display state | DTO |
 |---|---|
-| Full / Partial / Stale | `data{freshness: current\|stale, completeness: full\|partial}` |
+| Full / Partial / Stale | `data{value, freshness: current\|stale, asOf, completeness: full\|partial}` |
 | Caveat | `data{…}` plus the council's caveat key |
-| None found | `none_found{sourceId, asOf}` |
-| Not published | `not_published` |
+| None found | `checked_none{source, asOf}` (the section state; `none_found` is the finding rating) |
+| Not published | `not_published{country}` |
 | Paid only | `not_checked{reason: paid_only}`, rendered with its own copy (where to order an extract), not the generic "Not checked" line |
 | Later / Error / skipped check | `not_checked{reason: later\|error\|skipped}` |
-| Purpose gate | `needs_purpose` |
-| Disputed | `disputed` |
+| Purpose gate | `not_checked{reason: needs_purpose}`, rendered as the purpose prompt, never as "Not checked" |
+| No key (agent-only or connector data) | `not_checked{reason: needs_key}`, rendered with an "Add your key" action |
+| Disputed | `disputed{disputeId}` |
 | Loading | client state only, not a DTO state |
 | Agent finding | a finding on the run, not a section state |
 | Not shown | **no row** for a HIDE item. Open for session 1: whether a primary-job section whose data is restricted (for example owners in a country where a court ruling restricts them) shows a labelled gap. The designer recommends yes, as a distinct `not_checked{reason: restricted}` with a lock icon and the legal basis. Otherwise the section would read as "Not published", which is false, or as blank, which is banned. The gap names only the reason, never the data. |
