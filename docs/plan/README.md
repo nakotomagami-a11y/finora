@@ -8,8 +8,8 @@ The single place to see where the mission stands. The coordinator keeps it curre
 
 | Phase | State | Started | Exit met |
 |---|---|---|---|
-| 1. Data research | **in progress** | 2026-11-19 | |
-| 2. Council session 1: data | waiting for phase 1 | | |
+| 1. Data research | **done** | 2026-11-19 | 2026-11-20 |
+| 2. Council session 1: data | **in progress** (seats resuming) | 2026-11-20 | |
 | 3. The plan | waiting for phase 2 | | |
 | 4. Council session 2: plan approval | waiting for phase 3 | | |
 | 5. Build, slice by slice | waiting for phase 4 | | |
@@ -18,6 +18,8 @@ The single place to see where the mission stands. The coordinator keeps it curre
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
 
 ## Exit criteria
+
+**Phase 1 exit check (2026-11-20):** 1 ✔ four area docs (SEC EDGAR, CourtListener and other key-gated sources recorded from their docs and deferred under C7); 2 ✔ open questions answered in each area doc; 3 ✔ reality checks, aggregates only; 4 ✔ `legal.md` rounds 1-3 with 18 product rules; 5 ✔ `display-matrix.md`, 147 rows; 6 ✔ `reality-check.md`; 7 ✔ licence (answered), paid services (answered), keys (deferred by the human); 8 ✔ `guard tree` clean. qa spot-checked all four area docs and the assembly; no MUST-FIX open. Still landing during session 1, not exit criteria: data-baltics' LT round-2 answers and the LT/EE two-day diffs.
 
 ### Phase 1: data research
 1. `docs/research/baltics.md` (+ `baltics-dictionary.md`), `us.md`, `markets.md` and `osint.md` are committed. Every source entry follows the template in `docs/research/README.md`: fields, rows, coverage, freshness, join keys, licence (verified on the official page, with URL and date), keys, limits, cost, legal constraints.
