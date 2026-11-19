@@ -1,12 +1,12 @@
 # Display matrix
 
-Assembled by the coordinator on 2026-11-20 from the "Display matrix rows" of the four area docs: `baltics.md` (61 rows), `us.md` (43), `osint.md` (20) and `markets.md` (16). The rows are copied unchanged; only the `item_id`, the `From` column and the two empty decision columns are added. The evidence for every row is in its area doc.
+Assembled by the coordinator on 2026-11-20 from the "Display matrix rows" of the four area docs: `baltics.md` (61 rows), `us.md` (47), `osint.md` (20) and `markets.md` (16). The rows are copied unchanged, with two exceptions: where two areas measured the same cross-border source, their rows are merged into one so the council rules once (GLEIF relationships, `S05.ALL.01`; the UN list, `S11.ALL.05`), with both areas' evidence kept. Only the `item_id`, the `From` column and the two empty decision columns are added. 144 area rows, 142 matrix rows. The evidence for every row is in its area doc.
 
 This is the input for council session 1 (`docs/plan/council/00-framing.md`: gates, calls, empty states).
 
 ## How to read it
 
-- **item_id:** `<section>.<country>.<nn>`. `ALL` = cross-border, `X` = Crash monitor tile (no country), `LTLVEE` = all three Baltic countries.
+- **item_id:** `<section>.<country>.<nn>`. `ALL` = cross-border, `X` = Crash monitor tile (no country), `LTLVEE` = all three Baltic countries. `OUT` = sources outside the report sections (US political donations, non-profits, trademarks), listed so a HIDE call still gets an id and a negative test.
 - **Section and tile IDs, grades:** see `docs/research/README.md`. A = official, structured, bulk, fresh, open; B = one limitation; C = partial, derived, unclear licence or query time only; D = not available free; X = legally restricted.
 - **Fill rate:** from the area's reality check or population count. "pending" = the source needs a key deferred under register C7 (mostly `SEC_USER_AGENT`).
 - **Legal:** the legal light (G / Y / R) with the memo rule number. The council derives it in session 1 from `legal.md` (council session 0, amendment 1), with `legal` advising on contested rows. The positions that already settle rows are `legal.md` rounds 2-3 and the market addendum: beneficial owners, LV masked codes, the EE person hash and EE natural-person bankruptcy notices are R; sole traders, CC BY-SA data, LT social-insurance files and the UN list are Y.
@@ -17,12 +17,13 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | Grade | Rows |
 |---|---|
 | A | 53 |
-| B | 33 |
-| C | 35 |
-| D | 16 |
-| X or X? | 2 |
+| B | 34 |
+| C (incl. one row graded C by one area and A by another) | 34 |
+| D | 17 |
+| X | 2 |
+| X? (provisional) | 1 |
 | none (tile not graded) | 1 |
-| **Total** | **140** |
+| **Total** | **142** |
 
 ## Rows
 
@@ -31,7 +32,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S01.LT.01 | S01 | LT | JAR daily files; tax-payer register; Sodra; GLEIF | A | 100% (activity 83.5%, VAT 64.4%, LEI 2.5%) | bulk; licence verified Y; full address text; activity from tax / social-insurance files | baltics |  |  |
 | S01.LV.01 | S01 | LV | Enterprise Register register; VID yearly (NACE); VID VAT payers; GLEIF | A | 100% (NACE 87%, VAT 50.5%, LEI ≤3%) | bulk; licence verified Y; daily; VAT = LV+code | baltics |  |  |
 | S01.EE.01 | S01 | EE | e-Business Register basic + general data | A | 98.3% | bulk; licence verified Y; name, code, form, address, activity 100% except address 98.3%; VAT 42.7%; no LEI in the register (GLEIF join) | baltics |  |  |
-| S01.US.01 | S01 | US | SEC submissions, tickers (public companies, Form D filers) | A | pending (expected ~100% of public) | API + bulk; licence verified Y; blocked on `SEC_USER_AGENT` | us |  |  |
+| S01.US.01 | S01 | US | SEC submissions, tickers (public companies, Form D filers) | A | deferred: User-Agent pending (expected ~100% of public) | API + bulk; licence verified Y; blocked on `SEC_USER_AGENT` | us |  |  |
 | S01.US.02 | S01 | US | State registries: NY, CO, CT | A | private 100% (5/5); public 40% (2/5) | bulk; licence verified Y; daily (NY: monthly master + daily filings) | us |  |  |
 | S01.US.03 | S01 | US | State registries: OR, PA | B | within the private 100% above | bulk; licence verified partial (OR: none on the main dataset) | us |  |  |
 | S01.US.04 | S01 | US | State registry: FL (Sunbiz) | B | not sampled | bulk SFTP; licence verified N (pages refuse automated reads); best free officer data | us |  |  |
@@ -49,27 +50,26 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S03.LV.01 | S03 | LV | Enterprise Register officers | A | 98% | bulk; licence verified Y; current roles only, no end dates; names + masked code (legacy code reveals birth date) | baltics |  |  |
 | S03.EE.01 | S03 | EE | e-Business Register persons on card | A | 97.4% | bulk; licence verified Y; current roles only; names + pseudonymous person hash (UUID v5), birth date only for foreigners; drop person emails and home addresses | baltics |  |  |
 | S03.US.01 | S03 | US | SEC Forms 3/4/5 officers and directors | A | 80% public (4/5) | bulk quarterly data sets + live XML; licence verified Y; name + insider CIK | us |  |  |
-| S03.US.02 | S03 | US | Form D related persons | B | pending | bulk quarterly; licence verified Y; the only federal list of private-company officers | us |  |  |
+| S03.US.02 | S03 | US | Form D related persons | B | deferred: User-Agent pending | bulk quarterly; licence verified Y; the only federal list of private-company officers | us |  |  |
 | S03.US.03 | S03 | US | State people: FL officers, CT principals, PA parties, NY CEO, OR representatives | B | 80% private (4/5, incl. FMCSA) | bulk; licence verified Y/partial/N by state; name only; drop CT residence addresses and agent contacts | us |  |  |
-| S03.US.04 | S03 | US | DEF 14A (ecd:PeoName) | C | pending | per-filing; licence verified Y; agent-read | us |  |  |
+| S03.US.04 | S03 | US | DEF 14A (ecd:PeoName) | C | deferred: User-Agent pending | per-filing; licence verified Y; agent-read | us |  |  |
 | S04.LT.01 | S04 | LT | JADIS member counts | C | 0% names (81.3% counts) | API; licence verified Y; counts by type only, last loaded 2025-09; owners and BO names paid | baltics |  |  |
 | S04.LV.01 | S04 | LV | Enterprise Register members (SIA) | A | 91% (100% of SIA) | bulk; licence verified Y; personal data; members who leave vanish | baltics |  |  |
 | S04.LV.02 | S04 | LV | Enterprise Register beneficial owners | X? | 90% | bulk; licence verified Y; concealment on request since 2026-07-01; CJEU C-37/20, legal memo decides | baltics |  |  |
 | S04.LV.03 | S04 | LV | Joint-stock company shareholders | D | 0% | none; licence verified Y (dataset withdrawn, private in CKAN); Constitutional Court 9 Nov 2026 | baltics |  |  |
 | S04.EE.01 | S04 | EE | e-Business Register shareholders, beneficial owners | A | 99.1% | bulk; licence verified Y; members 97.3%, beneficial owners 95.0%; public limited company shareholders not in the register; BO display needs the legal memo (CJEU C-37/20), X candidate | baltics |  |  |
-| S04.US.01 | S04 | US | Schedules 13D/13G XML | A | pending | per-filing XML; licence verified Y | us |  |  |
+| S04.US.01 | S04 | US | Schedules 13D/13G XML | A | deferred: User-Agent pending | per-filing XML; licence verified Y | us |  |  |
 | S04.US.02 | S04 | US | Forms 3/4/5 10% owners | A | 80% public (4/5) | bulk; licence verified Y | us |  |  |
 | S04.US.03 | S04 | US | Private-company owners | D | 0% (0/5) | not published by any US source | us |  |  |
 | S05.LT.01 | S05 | LT | GLEIF relationships only | D | 0% from LT registers | API; licence verified Y (GLEIF CC0, cross-border entry); no group data in LT open data | baltics |  |  |
 | S05.LV.01 | S05 | LV | Members with corporate holders (derived); GLEIF relationships | C | 11% | bulk; licence verified Y; LV-registered parents and subsidiaries only; foreign parents by name | baltics |  |  |
 | S05.EE.01 | S05 | EE | e-Business Register shareholders (legal-entity holders) | C | 9.8% | bulk; licence verified Y; derived: parent only via a corporate member; no subsidiary or consolidation links | baltics |  |  |
-| S05.US.01 | S05 | US | Exhibit 21 subsidiaries | C | pending | per-filing HTML; licence verified Y; names only, agent-matched | us |  |  |
-| S05.ALL.01 | S05 | all | GLEIF relationship records + reporting exceptions | C | 4.5% LT, 3.3% LV, 0.9% EE of LEI holders have a parent LEI | bulk; licence verified Y; only LEI holders, accounting-consolidation parents only; most exceptions say "natural persons" (owner not named) | baltics |  |  |
-| S05.ALL.02 | S05 | all | GLEIF relationship records | A | 0% (0/10); ~5% of US LEIs have a parent | bulk; licence verified Y (CC0) | us |  |  |
+| S05.US.01 | S05 | US | Exhibit 21 subsidiaries | C | deferred: User-Agent pending | per-filing HTML; licence verified Y; names only, agent-matched | us |  |  |
+| S05.ALL.01 | S05 | all | GLEIF relationship records + reporting exceptions | C (baltics) / A (us) | 4.5% LT, 3.3% LV, 0.9% EE of LEI holders have a parent LEI (baltics) · 0% (0/10); ~5% of US LEIs have a parent (us) | baltics: bulk; licence verified Y; only LEI holders, accounting-consolidation parents only; most exceptions say "natural persons" (owner not named) · us: bulk; licence verified Y (CC0) | baltics+us |  |  |
 | S06.LT.01 | S06 | LT | JAR financial statements | B | 72.7% (revenue 55.8%) | API; licence verified Y; key lines only, monthly loads; no employee count | baltics |  |  |
 | S06.LV.01 | S06 | LV | Annual report financial data | A | 74% (FY ≥ 2024) | bulk; licence verified Y; 2006-2026; check currency and rounding | baltics |  |  |
 | S06.EE.01 | S06 | EE | RIK annual-report key figures 2019-2025 | A | 71.6% | bulk; licence verified Y; monthly; non-consolidated XBRL figures only; PDF-filed reports have none (1.3% of all FY2025 reports, 38% of large companies) | baltics |  |  |
-| S06.US.01 | S06 | US | SEC XBRL company facts | A | pending (public); 0% private | API + bulk; licence verified Y | us |  |  |
+| S06.US.01 | S06 | US | SEC XBRL company facts | A | deferred: User-Agent pending (public); 0% private | API + bulk; licence verified Y | us |  |  |
 | S06.US.02 | S06 | US | FDIC call-report financials | A | banks only | API; licence verified partial | us |  |  |
 | S06.US.03 | S06 | US | Private-company financials | D | 0% (0/5) | not published | us |  |  |
 | S07.LT.01 | S07 | LT | Sodra daily insured; monthly averages | B | 48.6% insured; 18.8% avg wage | bulk; licence verified N (none stated, public by law); wage only if > 3 insured | baltics |  |  |
@@ -77,7 +77,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S07.EE.01 | S07 | EE | EMTA taxes paid, turnover, employees | B | 26.9% | bulk; licence verified Y (CC BY-SA 3.0, share-alike); quarterly employee count; no average salary (EMTA warns against deriving it) | baltics |  |  |
 | S07.US.01 | S07 | US | SBA PPP jobs reported | C | 20% public, 20% private | bulk, static since 2024-10; licence verified Y; 2020-21 headcount only | us |  |  |
 | S07.US.02 | S07 | US | FMCSA drivers and power units | A | carriers only | bulk daily; licence verified partial | us |  |  |
-| S07.US.03 | S07 | US | SEC dei:EntityNumberOfEmployees | B | pending | API; licence verified Y | us |  |  |
+| S07.US.03 | S07 | US | SEC dei:EntityNumberOfEmployees | B | deferred: User-Agent pending | API; licence verified Y | us |  |  |
 | S08.LT.01 | S08 | LT | VMI taxes paid; VMI arrears; Sodra debts | A | 76.5% taxes paid; debts list-based (22.0% of active have overdue debt) | API + bulk; licence verified Y (VMI), N (Sodra); daily arrears | baltics |  |  |
 | S08.LV.01 | S08 | LV | VID taxes paid (quarterly, yearly); VID taxpayer rating | B | taxes 56%; rating 92% | bulk; licence verified Y; debt amount only per-query behind CAPTCHA; rating C = 5.4% | baltics |  |  |
 | S08.EE.01 | S08 | EE | EMTA taxes paid; EMTA tax debtors | B | 39.1% | bulk; licence verified Y (CC BY-SA 3.0); taxes paid quarterly; debtor list daily, known for every company, 6.2% of active companies listed | baltics |  |  |
@@ -105,11 +105,10 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S11.US.03 | S11 | US | FINRA BrokerCheck | C | not run | per-query only; licence verified Y (permitted-uses terms: attribution, compile date, error channel) | us |  |  |
 | S11.US.04 | S11 | US | SEC, Fed enforcement RSS; FTC actions CSV; DOJ press API | A | 100% checked | bulk; licence verified Y (public); CFPB: HTTP 403, later | osint |  |  |
 | S11.ALL.01 | S11 | all | EU consolidated financial sanctions list | A | official-ID match possible for 48.9% of entities, 75.0% of persons | bulk; licence verified Y; CC BY 4.0 / Commission reuse notice; 0 Baltic entities and 11 Baltic-linked persons listed; personal data, legal memo | baltics |  |  |
-| S11.ALL.02 | S11 | all | UN Security Council consolidated list | C | official ID for 10.6% of entities, 63.8% of persons | bulk; licence verified Y; UN site terms: personal non-commercial use, no redistribution; 95% also in the EU list; fetch at query time only | baltics |  |  |
-| S11.ALL.03 | S11 | all | OFAC SDN + non-SDN, EU FSF, UK Sanctions List | A | 100% screened; 0% hits | bulk; licence verified Y; name + second identifier required; "possible match, needs review" | osint |  |  |
-| S11.ALL.04 | S11 | all | UN Security Council consolidated list | C | 100% screened; 0% hits | bulk; licence verified N (terms page returned 403); 🟢 1,002 of 1,007 UN entries have a name that also appears on the EU, UK or OFAC lists, so leaving UN out loses almost nothing | osint |  |  |
-| S11.ALL.05 | S11 | all | ESMA non-compliant crypto providers | A | 100% checked; 0% hits | bulk; licence verified Y | osint |  |  |
-| S11.ALL.06 | S11 | all | PEP (aggregated dataset) | D | - | user key; licence verified Y (CC BY-NC: connector only) | osint |  |  |
+| S11.ALL.02 | S11 | all | OFAC SDN + non-SDN, EU FSF, UK Sanctions List | A | 100% screened; 0% hits | bulk; licence verified Y; name + second identifier required; "possible match, needs review" | osint |  |  |
+| S11.ALL.03 | S11 | all | ESMA non-compliant crypto providers | A | 100% checked; 0% hits | bulk; licence verified Y | osint |  |  |
+| S11.ALL.04 | S11 | all | PEP (aggregated dataset) | D | - | user key; licence verified Y (CC BY-NC: connector only) | osint |  |  |
+| S11.ALL.05 | S11 | all | UN Security Council consolidated list | C | official ID for 10.6% of entities, 63.8% of persons (baltics) · 100% screened; 0% hits (osint) | licence verified Y: the UN site terms were read by baltics (personal, non-commercial use, no redistribution); osint's terms page returned 403. baltics: bulk; licence verified Y; UN site terms: personal non-commercial use, no redistribution; 95% also in the EU list; fetch at query time only · osint: bulk; licence verified N (terms page returned 403); 🟢 1,002 of 1,007 UN entries have a name that also appears on the EU, UK or OFAC lists, so leaving UN out loses almost nothing | baltics+osint |  |  |
 | S12.LT.01 | S12 | LT | VPT reports (to 2023); EU funds 2014-2020 | C | 4.5% tenderers; 3.2% EU funds | API; licence verified Y (catalogue); current procurement not open by supplier | baltics |  |  |
 | S12.LT.02 | S12 | LT | Kohesio projects + beneficiaries | B | 98.4% of beneficiaries joinable by register code | bulk; licence verified Y; CC BY 4.0; slow refresh (2021-27 rows unchanged March to October 2026) | baltics |  |  |
 | S12.LT.03 | S12 | LT | TED award notices (EU-wide) | A | 92% keyed; 43% of samples | API + bulk; licence verified Y | osint |  |  |
@@ -124,12 +123,12 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S13.LT.01 | S13 | LT | JAR documents; statement filing dates; non-filer lists | B | 87.9% | API; licence verified Y; document type and date only, since 2024 | baltics |  |  |
 | S13.LV.01 | S13 | LV | FS filing years; memorandum dates | B | 74% | bulk; licence verified Y; documents themselves per-query at info.ur.gov.lv | baltics |  |  |
 | S13.EE.01 | S13 | EE | annual-report list, registry-card entries, rulings | A | 83.3% | bulk; licence verified Y; filing dates and entry types; full reports via contract API | baltics |  |  |
-| S13.US.01 | S13 | US | EDGAR filings, 8-K items (5.02) | A | pending; item numbers on 100% of 1,042 8-Ks | API + daily index; licence verified Y | us |  |  |
+| S13.US.01 | S13 | US | EDGAR filings, 8-K items (5.02) | A | deferred: User-Agent pending; item numbers on 100% of 1,042 8-Ks | API + daily index; licence verified Y | us |  |  |
 | S13.US.02 | S13 | US | State filing history (NY daily filings, CO transactions, CT filings) | A | 40% private (2/5) | bulk; licence verified Y/partial | us |  |  |
 | S14.LV.01 | S14 | LV | (none in LV open data) | D | 0% | none; licence verified N; exchange data not researched for LV | baltics |  |  |
 | S14.EE.01 | S14 | EE | none in this area | D | - | listed securities not researched here | baltics |  |  |
 | S14.US.01 | S14 | US | SEC Forms 3/4/5 trades | A | 100% public (5/5) | bulk quarterly + live; licence verified Y | us |  |  |
-| S14.US.02 | S14 | US | Tickers and exchanges | A | pending | bulk JSON; licence verified Y | us |  |  |
+| S14.US.02 | S14 | US | Tickers and exchanges | A | deferred: User-Agent pending | bulk JSON; licence verified Y | us |  |  |
 | S14.US.03 | S14 | US | SEC XBRL `dei` facts; price with user key | B | deferred | API; licence verified Y; key pending (`SEC_USER_AGENT`) | markets |  |  |
 | S14.LTLVEE.01 | S14 | LT, LV, EE | ESMA FIRDS | A | 73/73 LEI and ISIN | API; licence verified Y; reference data only, no prices | markets |  |  |
 | S14.LTLVEE.02 | S14 | LT, LV, EE | prices | D | 0 | no free reusable source found | markets |  |  |
@@ -149,7 +148,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S17.LT.01 | S17 | LT | shared addresses only | C | 100% address, 0% people | bulk; licence verified Y; no person links possible | baltics |  |  |
 | S17.LV.01 | S17 | LV | Officers + members + beneficial owners, linked by name + masked code (derived) | B | 49% | bulk; licence verified Y; collisions possible; person data only in company context | baltics |  |  |
 | S17.EE.01 | S17 | EE | person hash across card, member and BO files | A | 97.2% | bulk; licence verified Y; links people across companies without personal codes; legal memo decides how far a person network may be shown | baltics |  |  |
-| S17.US.01 | S17 | US | Shared insiders across issuers (SEC insider CIK) | A | pending | derived; exact person id | us |  |  |
+| S17.US.01 | S17 | US | Shared insiders across issuers (SEC insider CIK) | A | deferred: User-Agent pending | derived; exact person id | us |  |  |
 | S17.US.02 | S17 | US | Shared officers by name within a state (FL, CT, PA) | C | not measured | derived; name-only match, label "same name" | us |  |  |
 | S18.LT.01 | S18 | LT | status, arrears, Sodra debts, non-filer flags, statements, taxes | A | 100% | bulk + API; licence verified Y/N (Sodra); transparent inputs available | baltics |  |  |
 | S18.LV.01 | S18 | LV | VID rating; FS; insolvency; suspensions; minimum-wage employer list | A | 92% | bulk; licence verified Y; all inputs open | baltics |  |  |
@@ -168,3 +167,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | M07.X.01 | M07 | - | EIA spot via FRED | B | 2/2 | CSV/API; licence verified Y; 2-day lag; licence caveat: vendor-permission note (open question 3), A once legal clears it | markets |  |  |
 | M08.X.01 | M08 | - | Treasury Fiscal Data, Debt to the Penny | A | 1/1 | API; licence verified Y; daily, ticker is an estimate | markets |  |  |
 | M09.X.01 | M09 | - | FRED `DGS10`, `UNRATE` (proposal) | A | 2/2 | CSV/API; licence verified Y; both public domain | markets |  |  |
+| OUT.US.01 | - | US | FEC individual contributions | X | n/a | 52 U.S.C. 30111(a)(4): no commercial use; never list donors | us |  |  |
+| OUT.US.02 | - | US | FEC company PAC | B | not run | bulk; licence verified Y; later (not in the counterparty job) | us |  |  |
+| OUT.US.03 | - | US | IRS 990 / EO BMF (non-profits) | A | not run | bulk monthly; licence verified partial; later | us |  |  |
+| OUT.US.04 | - | US | USPTO trademarks and patents | D | not run | key required for every endpoint; terms not read; later | us |  |  |

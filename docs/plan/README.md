@@ -79,12 +79,12 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | Deliverable | Owner | Phase | State |
 |---|---|---|---|
 | `docs/research/README.md` (conventions, section IDs) | coordinator | 1 | done |
-| `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | landed 2026-11-20 (`12d735a`); open: two-day diffs for LT and EE; qa spot-check before session 1 |
-| `docs/research/us.md` | data-us | 1 | landed 2026-11-20 (`0a7be16`); SEC EDGAR deferred (key pending, C7); qa spot-check before session 1 |
+| `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | landed 2026-11-20 (`12d735a`); qa spot-check passed (0 MUST-FIX), 3 fixes requested; open: two-day diffs for LT and EE |
+| `docs/research/us.md` | data-us | 1 | landed 2026-11-20 (`0a7be16`); SEC EDGAR deferred (key pending, C7); qa spot-check passed (0 MUST-FIX in the doc), 1 fix requested |
 | `docs/research/markets.md` | data-markets | 1 | **done**: qa spot-check passed; MUST-FIX fixed in `2a2d70d` |
 | `docs/research/osint.md` | data-osint | 1 | landed 2026-11-20 (`671dadc`, round 2 `e0c3bce`: TED for S12, sanctions identifier coverage, rate limits, UI facts); modelled cost, measured run deferred to the key round; **done**: qa spot-check passed (0 MUST-FIX); fixes in `4680a2f` |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1-3, market addendum) |
-| `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | done 2026-11-20, 140 rows; the council derives legal lights in session 1 from `legal.md` (amendment 1) |
+| `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | done 2026-11-20, 142 rows (qa MUST-FIX fixed: 4 US rows added, 2 duplicate sources merged); the council derives legal lights in session 1 from `legal.md` (amendment 1) |
 | `docs/research/cto-preread.md` (volumes, store benchmark, provisional technical calls) | cto (committed by coordinator) | 1 | done |
 | `docs/design/display-options.md` (display states, advice for session 1) | designer | 1 | done |
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | done 2026-11-20 |
@@ -147,6 +147,7 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 - data-baltics: the LV and EE bulk files keep no history (ended roles and deleted EE companies vanish), so "officer left" events need our own daily snapshots, or the EE register API (contract). Council: history in v1 or later? cto: snapshot cost.
 - data-baltics: LT has no people at all; LV tax-debt amounts are not open (rating C as the proxy, 5.4% of active companies).
 - data-us (`us.md`): FEC individual donors HIDE (no commercial use by statute); FINRA BrokerCheck per-query only with source, compile date and an error channel; CT principals' residence addresses and FMCSA emails and phones dropped at load. Florida's bulk licence can't be verified (pages refuse automated reads). CA and DE have no free bulk data.
+- **Share-alike storage (qa, blocking for the plan):** `docs/architecture.md` fails any share-alike source stored locally, while `legal.md` round 3 proposes a separate store tagged per record. Session 1 rules either a share-alike storage class (separate file, never exported or merged) or EE tax debt (S08), procurement (S12) and notices (S09) as agent-only. Otherwise S08 EE is unbuildable as decided.
 - Matrix row `S04.EE.01` combines members (open) and beneficial owners (R, rule 1): the call must split them.
 - cto: which US states load by default, against the 10 GB budget (`cto-preread.md` §6). data-us's proposal (`us.md` §2.10): six states in bulk ≈ 18 GB, so query NY, CO, OR, CT, PA and WA live per search and profile (no key, median 0.66-1.05 s) and cache each entity looked up; FL bulk opt-in (≈ 5.5 GB, off by default); state network views (S17) wait for a bulk load.
 
