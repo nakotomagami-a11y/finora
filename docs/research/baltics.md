@@ -9,7 +9,7 @@ Phase 1 research by the `data-baltics` seat. Every number here was measured on r
    - EE: the register files (companies, officers, members, beneficial owners, pledges, annual-report key figures 2019-2025) are CC BY 4.0. The tax board's quarterly taxes and daily tax-debtor list are **CC BY-SA 3.0**, and procurement and official notices are CC BY-SA. Share-alike data must stay licence-tagged and out of any CC0 or CC BY export.
 2. **Lithuania is strong on money and weak on people.** The register publishes daily files with no names of managers, members or owners anywhere: only a "has a manager" flag, a since-date, gender and member counts. Taxes paid, daily tax arrears, daily social-insurance debts and insured counts, monthly average wages and statement key lines are all open. The government data portal's datasets are CC BY 4.0. The social-insurance files state no licence; they are public by law.
 3. **People are identified differently in each country.**
-   - LV: name + masked personal code. For 91-97% of rows the masked code still reveals the birth date.
+   - LV: name + masked personal code. For 97.1% of person rows that carry a masked code, the code still reveals the birth date.
    - EE: name + a pseudonymous hash, the same across all files. Personal codes were removed on 1 Nov 2024.
    - LT: no people at all.
 4. **Owners.**
@@ -18,7 +18,7 @@ Phase 1 research by the `data-baltics` seat. Every number here was measured on r
    - **Beneficial owners are still published in bulk** in LV (200,800 rows, daily) and EE (412,802 rows, daily). Whether we may show them is a legal call (CJEU C-37/20, C-601/20).
    - LT: counts only, last loaded 2025-09.
 5. **Tax debt.**
-   - LT: daily arrears list (tax) plus social-insurance debts. 22.0% of active companies have some overdue debt.
+   - LT: daily arrears list (tax) plus social-insurance debts. 22.0% of active companies have some overdue debt: 11.8% tax arrears, 15.4% social-insurance debt, 5.2% both.
    - EE: daily debtor list, debts of EUR 100 and over. 6.2% of active companies are on it.
    - **LV: amounts are not open.** The lookup needs name + code and sits behind a CAPTCHA. The open proxy is the tax-authority rating C, which covers 5.4% of active companies.
 6. **No history in the LV and EE bulk files.** They carry current roles only: ended roles vanish, and deleted EE companies vanish. Finora must keep its own daily snapshots to show changes ("CEO left", "owner changed").
@@ -51,8 +51,8 @@ Details are in the display matrix at the end.
 | S04 Owners | C · counts only | A members 90.8% · BO X? 90.4% · JSC D | A members 97.3% · BO X? 95.0% · AS shareholders D |
 | S05 Group | D | C · 11.0% | C · 9.8% |
 | S06 Financials | B · 72.7% | A · 74.1% | A · 71.6% |
-| S07 Workforce | B · 48.6% (wage 18.8%) | B · 57.8% (wage derived) | B · 26.9% (no wage) |
-| S08 Taxes and arrears | A · taxes 76.5%, arrears daily | B · taxes 56%, rating 91.8%, no debt amounts | B · taxes 39.1%, debtors daily |
+| S07 Workforce | C · 48.6% (wage 18.8%; licence unstated) | B · 57.8% (wage derived) | B · 26.9% (no wage) |
+| S08 Taxes and arrears | A · taxes 76.5%, tax arrears daily; social-insurance debts C | B · taxes 56%, rating 91.8%, no debt amounts | B · taxes 39.1%, debtors daily |
 | S09 Insolvency, pledges, notices | B | A · 12.3% have an event | A · pledges 1.6%, notices |
 | S10 Courts | D | C · metadata only, not joinable | D |
 | S11 Sanctions | A (EU) · C (UN, national) | A (EU, national) · C (UN) | A (EU) · C (UN, national) |
@@ -61,7 +61,7 @@ Details are in the display matrix at the end.
 | S17 Network | C · addresses only | B · 49.1% (name + masked code) | A · 97.2% (person hash) |
 | S18 Score inputs | A | A | B |
 
-S14 (securities), S15 (web) and S16 (news) are not in the Baltic registers. S15 has incidental website fields only: LV under 3%, EE 6.3%. These sections belong to the osint area.
+S14 (securities), S15 (web) and S16 (news) are not in the Baltic registers. S15 has incidental website fields only: LV under 3%, EE 6.3% of active business-form companies (5.6% of all active entities). These sections belong to the osint area.
 
 ## Answers to the feasibility doc's open questions
 
@@ -98,7 +98,7 @@ S14 (securities), S15 (web) and S16 (news) are not in the Baltic registers. S15 
 These items need a legal call before display. The data layer should enforce each per field:
 
 1. **Beneficial owners, LV and EE:** bulk-published and CC0 / CC BY, yet CJEU C-37/20 and C-601/20 ended general public access under the AML directive. LV allows concealment on request since 1 July 2026. Candidate grade X.
-2. **LV masked personal code:** for 91-97% of person rows the visible first six digits are the date of birth.
+2. **LV masked personal code:** for 97.1% of person rows that carry a masked code (91-97% of all person rows, depending on the file), the visible first six digits are the date of birth.
 3. **EE person hash:** pseudonymous, not anonymous; it links one person across companies. Never reverse it.
 4. **EE officer rows:** 2.8% carry a personal email and 4.2% a home address. The loader must drop both.
 5. **Sole-trader names** are personal names in all three countries:
@@ -161,7 +161,7 @@ Asked by `architect`. Per-source answers are under each entry below (lines a-k);
 | LEI (GLEIF, register code on 98-99.7% of LEI records) | `RA000430`; 2.5% of active | `RA000423`; at most 2.9% of active | `RA000181`; 30,632 LEI records |
 | Same key in tax, social-insurance and statement files | yes; the API's taxes-paid table uses the register's internal UUID (98.9% resolve) | yes: 98.6% (quarterly taxes), 100% (rating, statements) | yes, 100% |
 | Row IDs for people, owners, pledges | none: one management row per company | `id` per officer, member, beneficial owner and measure row (stable across two pulls; 12 duplicate member ids) | `kirje_id` per person, pledge and card row; `pandi_id`; `maaruse_nr` |
-| Person identity | none | name + masked code `DDMMYY-*****` (birth date for 91-97%); foreigners: birth date; same format in every file | name + `isikukood_hash` (UUID v5 of the personal code), the same across the card, member and beneficial-owner files; foreigners: birth date |
+| Person identity | none | name + masked code `DDMMYY-*****` (birth date for 97.1% of coded rows); foreigners: birth date; same format in every file | name + `isikukood_hash` (UUID v5 of the personal code), the same across the card, member and beneficial-owner files; foreigners: birth date |
 | Natural-person legal forms | individual enterprise, general and limited partnerships of natural persons; self-employed people are not in the register | `IK`, `ZEM`, `ZVJ`, `IND`, `GIM` | FIE (sole trader) |
 | Change feed | daily full files; the API has a `/:changes` feed | daily full snapshots, no deltas | daily full snapshots; the change list is only in the contract API |
 | Terminated entities | move to the deregistered file | stay, with a terminated date and closure code | stay while in liquidation or bankruptcy; **vanish when deleted** |
@@ -361,6 +361,7 @@ Asked by `architect`. Per-source answers are under each entry below (lines a-k);
 - Join keys: `ja_kodas` 100%.
 - Licence: "Creative Commons Attribution 4.0", data.gov.lt page 1202, verified 2026-11-19.
 - Legal constraints: includes sole proprietorships (names contain personal names).
+- Tested with: `fetch_uapi.py`; the split between tax arrears (11.8% of active companies), social-insurance debt (15.4%) and both (5.2%) with `python -I research/probes/baltics/lt/debt_split.py`.
 - Verdict: **use** (grade A).
 - f. Current list only; a company that pays leaves the list (delete in the change feed). Keep our own history.
 
@@ -1062,7 +1063,7 @@ One row per section and country, in the README's final format. Grades follow the
 
 | Section | Country | Sources | Grade | Fill rate | Notes |
 |---|---|---|---|---|---|
-| S01 | all | GLEIF golden copy (LEI field) | A | LEI holders: LT 5,402, LV 4,452, EE 30,632 | bulk; licence verified Y; CC0; register code on 98-99.7% of LEI records, so joins are reliable; most small companies have no LEI |
+| S01 | all | GLEIF golden copy (LEI field) | A | LEI records by legal-address country in the golden copy of 2026-11-19 16:00 UTC, all registration statuses: LT 5,402, LV 4,452, EE 30,632 | bulk; licence verified Y; CC0; register code on 98-99.7% of LEI records, so joins are reliable; most small companies have no LEI |
 | S01 | LT | JAR daily files; tax-payer register; Sodra; GLEIF | A | 100% (activity 83.5%, VAT 64.4%, LEI 2.5%) | bulk; licence verified Y; full address text; activity from tax / social-insurance files |
 | S01 | LV | Enterprise Register register; VID yearly (NACE); VID VAT payers; GLEIF | A | 100% (NACE 87%, VAT 50.5%, LEI ≤3%) | bulk; licence verified Y; daily; VAT = LV+code |
 | S01 | EE | e-Business Register basic + general data | A | 98.3% | bulk; licence verified Y; name, code, form, address, activity 100% except address 98.3%; VAT 42.7%; no LEI in the register (GLEIF join) |
@@ -1076,7 +1077,8 @@ One row per section and country, in the README's final format. Grades follow the
 | S04 | LV | Enterprise Register members (SIA) | A | 91% (100% of SIA) | bulk; licence verified Y; personal data; members who leave vanish |
 | S04 | LV | Enterprise Register beneficial owners | X? | 90% | bulk; licence verified Y; concealment on request since 2026-07-01; CJEU C-37/20, legal memo decides |
 | S04 | LV | Joint-stock company shareholders | D | 0% | none; licence verified Y (dataset withdrawn, private in CKAN); Constitutional Court 9 Nov 2026 |
-| S04 | EE | e-Business Register shareholders, beneficial owners | A | 99.1% | bulk; licence verified Y; members 97.3%, beneficial owners 95.0%; public limited company shareholders not in the register; BO display needs the legal memo (CJEU C-37/20), X candidate |
+| S04 | EE | e-Business Register shareholders (members) | A | 97.3% | bulk; licence verified Y; current members of private limited companies; public limited company shareholders are not in the register (kept by the securities depository) |
+| S04 | EE | e-Business Register beneficial owners | X? | 95.0% | bulk; licence verified Y; still published daily (412,802 rows, 2026-11-19) with name, country, control method and person hash; legal round 3 proposes HIDE (CJEU C-37/20, C-601/20) |
 | S05 | all | GLEIF relationship records + reporting exceptions | C | 4.5% LT, 3.3% LV, 0.9% EE of LEI holders have a parent LEI | bulk; licence verified Y; only LEI holders, accounting-consolidation parents only; most exceptions say "natural persons" (owner not named) |
 | S05 | LT | GLEIF relationships only | D | 0% from LT registers | API; licence verified Y (GLEIF CC0, cross-border entry); no group data in LT open data |
 | S05 | LV | Members with corporate holders (derived); GLEIF relationships | C | 11% | bulk; licence verified Y; LV-registered parents and subsidiaries only; foreign parents by name |
@@ -1084,10 +1086,11 @@ One row per section and country, in the README's final format. Grades follow the
 | S06 | LT | JAR financial statements | B | 72.7% (revenue 55.8%) | API; licence verified Y; key lines only, monthly loads; no employee count |
 | S06 | LV | Annual report financial data | A | 74% (FY ≥ 2024) | bulk; licence verified Y; 2006-2026; check currency and rounding |
 | S06 | EE | RIK annual-report key figures 2019-2025 | A | 71.6% | bulk; licence verified Y; monthly; non-consolidated XBRL figures only; PDF-filed reports have none (1.3% of all FY2025 reports, 38% of large companies) |
-| S07 | LT | Sodra daily insured; monthly averages | B | 48.6% insured; 18.8% avg wage | bulk; licence verified N (none stated, public by law); wage only if > 3 insured |
+| S07 | LT | Sodra daily insured; monthly averages | C | 48.6% insured; 18.8% avg wage | bulk; licence verified N (none stated, public by law); wage only if > 3 insured |
 | S07 | LV | VID quarterly employees; FS employees; salary derived from social contributions | B | 54-58% (salary 48%) | bulk; licence verified Y; average salary not published, derived estimate |
 | S07 | EE | EMTA taxes paid, turnover, employees | B | 26.9% | bulk; licence verified Y (CC BY-SA 3.0, share-alike); quarterly employee count; no average salary (EMTA warns against deriving it) |
-| S08 | LT | VMI taxes paid; VMI arrears; Sodra debts | A | 76.5% taxes paid; debts list-based (22.0% of active have overdue debt) | API + bulk; licence verified Y (VMI), N (Sodra); daily arrears |
+| S08 | LT | VMI taxes paid; VMI arrears | A | 76.5% taxes paid; arrears list-based: 11.8% of active companies have overdue tax arrears | API; licence verified Y (CC BY 4.0); daily arrears |
+| S08 | LT | Sodra daily debts | C | list-based: 15.4% of active companies have a social-insurance debt | bulk; licence verified N (none stated, public by law, art. 15(3)); daily |
 | S08 | LV | VID taxes paid (quarterly, yearly); VID taxpayer rating | B | taxes 56%; rating 92% | bulk; licence verified Y; debt amount only per-query behind CAPTCHA; rating C = 5.4% |
 | S08 | EE | EMTA taxes paid; EMTA tax debtors | B | 39.1% | bulk; licence verified Y (CC BY-SA 3.0); taxes paid quarterly; debtor list daily, known for every company, 6.2% of active companies listed |
 | S09 | LT | JAR status; AVNT bankruptcy reports | B | 100% status; bankruptcy reports to 2025-10 | API + bulk; licence verified Y; no open pledges, arrests or notices |
@@ -1114,13 +1117,14 @@ One row per section and country, in the README's final format. Grades follow the
 | S14 | LV | (none in LV open data) | D | 0% | none; licence verified N; exchange data not researched for LV |
 | S14 | EE | none in this area | D | - | listed securities not researched here |
 | S15 | LV | Applicant website in EU funds; winner websiteURI in procurement | C | <3% | bulk; licence verified Y; incidental only, the web agent fills it |
-| S15 | EE | register contacts (WWW) | C | 6.3% | bulk; licence verified Y; register website field only; web data is the osint area |
+| S15 | EE | register contacts (WWW) | C | 6.3% of active business-form companies (5.6% of all active entities, as in osint.md) | bulk; licence verified Y; register website field only; web data is the osint area |
 | S16 | LV | (none) | D | 0% | n/a; osint area |
 | S16 | EE | none in this area | - | - | osint area |
 | S17 | LT | shared addresses only | C | 100% address, 0% people | bulk; licence verified Y; no person links possible |
 | S17 | LV | Officers + members + beneficial owners, linked by name + masked code (derived) | B | 49% | bulk; licence verified Y; collisions possible; person data only in company context |
 | S17 | EE | person hash across card, member and BO files | A | 97.2% | bulk; licence verified Y; links people across companies without personal codes; legal memo decides how far a person network may be shown |
-| S18 | LT | status, arrears, Sodra debts, non-filer flags, statements, taxes | A | 100% | bulk + API; licence verified Y/N (Sodra); transparent inputs available |
+| S18 | LT | status, VMI arrears, non-filer flags, statements, taxes paid | A | 100% | bulk + API; licence verified Y; transparent inputs available |
+| S18 | LT | Sodra debts and insured counts | C | 15.4% debt; 46.4% insured | bulk; licence verified N (none stated, public by law) |
 | S18 | LV | VID rating; FS; insolvency; suspensions; minimum-wage employer list | A | 92% | bulk; licence verified Y; all inputs open |
 | S18 | EE | derived from S02, S06-S09 | B | - | bulk; licence verified Y; status, key figures, tax debt, taxes paid, pledges, insolvency notices are all machine-readable |
 
