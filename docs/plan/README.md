@@ -106,7 +106,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 |---|---|---|---|---|
 | H1 | Code licence (and docs licence) | AGPL-3.0 for code, CC BY 4.0 for docs | 2026-11-19 | **Yes** (2026-11-19): code AGPL-3.0, docs and research text CC BY 4.0, data keeps its source licence. `LICENSE` added |
 | H2 | Paid per-use services for the agents: an LLM API and, if no free option is good enough, a web search API | Yes, bring-your-own-key, with a per-investigation cost cap enforced in code | 2026-11-19 | **Yes** (2026-11-19): own keys from a local `.env`, estimated cost shown before an investigation, per-investigation cap enforced in code, CI and tests on recorded fixtures only |
-| H3 | Keys and accounts (human-task) | See the hub post | 2026-11-19 | open |
+| H3 | Keys and accounts (human-task) | See the hub post | 2026-11-19 | Deferred to a separate key-testing round (human's hub reply). See "Keys: what each unlocks" below |
 
 ### By the coordinator
 
@@ -117,6 +117,8 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | C3 | EU-wide procurement (TED) belongs to `data-osint`; national procurement and Kohesio to `data-baltics`; USAspending and SAM.gov to `data-us` | Same |
 | C4 | Report section and tile IDs are fixed in `docs/research/README.md`; every area doc uses them | So the display matrix can be assembled without guessing |
 | C5 | The display-matrix row format is the compact one (`Section | Country | Sources | Grade | Fill rate | Notes`), per council session 0 amendment 1, which withdrew decision 2. cto's measurement fields go in the source entry template | One format; the council derives the rest in session |
+| C7 | Phase 1 researches every keyless source in full. Key-gated sources are recorded from their public docs and terms, marked "deferred: key pending", and never block. Keyless routes first (bulk files, the local SEC insider database, keyless endpoints). No live EDGAR calls until `SEC_USER_AGENT` is set | Matches the human's hub reply; costs nothing and keeps research moving |
+| C8 | No loader specs, agent specs or plan reviews before phase 3 opens; data seats finish their area docs first | Phase gate; the plan must rest on measured data |
 | C6 | The early `DESIGN.md` v0, `docs/architecture.md` and `docs/plan/slices.md` drafts stay on the branch but are frozen until phase 3 opens | Not reverted (no harm, saves work); revised against session 1's decisions |
 
 ### Open items for later phases
@@ -124,9 +126,28 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 ### By the council
+Requirement (after H2): the estimated cost is shown before an investigation starts, as a range (typical to worst case under the cap) next to the cap and today's remaining daily spend. Owners: data-osint (estimation method), designer (pre-run state).
+
 Session 0 (`docs/plan/council/00-framing.md`): the five session 1 gates; the display-matrix intake format; the v1 frame (primary job, two speeds, deterministic verdict level, five v1 agents, social and reviews agents LATER, one-hop network, local-only hosting, cost-cap defaults $1.50 / $0.25 / $10 per day); kill criteria; and the gates session 2 will check. Amendments: decision 2 withdrawn (one compact matrix format); "current" = no older than 2x the stated cadence; banned wording scope (own voice only, reject and regenerate, never rewrite); each country searchable as soon as its own load finishes.
 
 Decision 4 (verdict wording, from the designer): No concerns found / Points to check / Serious concerns / Not enough data; one-shot cost-cap extension; "Not enough data" is a rule in the verdict table.
+
+## Keys: what each unlocks
+
+For the key-testing round. Nothing here blocks phase 1. Values live only in the main checkout's `.env`.
+
+| Env var | Account | Unlocks | Areas waiting on it |
+|---|---|---|---|
+| `SEC_USER_AGENT` | none, a contact string | All live SEC EDGAR calls (submissions, companyfacts, filing index, 8-K items, EX-21, DEF 14A, Form D, 13D/G); EDGAR returns 403 without it | data-us: S01, S03, S06, S13, S14 for US public companies; data-markets: SEC XBRL fundamentals |
+| `COURTLISTENER_TOKEN` | free | US federal court search and dockets via API (bulk files may be keyless) | data-us: S10 (US) |
+| `SAM_GOV_API_KEY` | free | SAM.gov entity registrations and exclusions (debarment) | data-us: S11, S12 (US) |
+| `FRED_API_KEY` | free | FRED series for rates and macro tiles | data-markets: M09, possibly M08 |
+| LLM provider key (name from data-osint) | paid per use, approved (H2) | Live agent runs, the measured cost per investigation, the pre-run estimate calibration | data-osint: agent pattern and cost |
+| Web search API key (name from data-osint) | free tier, then paid per use (H2) | The open-web agent's search | data-osint: S15, S16 |
+| Market price API keys (names from data-markets) | free tiers | Stock index, crypto and commodity price tiles | data-markets: M01-M07 |
+| Estonian e-Business Register API agreement | free, contract | Full annual reports via API (the key figures are in the open files) | data-baltics: S06 (EE) |
+
+Data seats add rows here through their `result` posts; the coordinator keeps the table.
 
 ## Council records
 - Session 0 (framing): `docs/plan/council/00-framing.md`, 2026-11-19

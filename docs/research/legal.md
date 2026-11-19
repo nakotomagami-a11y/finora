@@ -85,6 +85,7 @@
 15. Map data: cache only lat/lng, for up to 30 days, until the provider's terms are verified.
 16. Each source's licence and attribution are shown in the UI.
 17. Market data from licensed feeds comes only through user-supplied keys.
+18. The source code link is visible in the UI and the API (AGPL-3.0 s.13: a modified version run as a network service must offer its source to its users). Added after the human chose AGPL-3.0.
 
 ## Questions for a lawyer
 
