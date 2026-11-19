@@ -224,6 +224,20 @@ The tile states depend on the markets research. Expected options:
 
 Every tile shows its source and "as of" time, like every report finding.
 
+### What the markets research changes (`docs/research/markets.md`, UI facts)
+
+Measured: with zero keys, 7 of 20 series are official; keyless on-chain and exchange reads bring it to 10 of 20; one free stock key (the user's own) is estimated to reach 20 of 20. So the zero-key screen is **half full, not empty**, and every tile needs a mixed state:
+
+- **Coarse official value, finer with a key.** M01 shows the quarterly total US equity value with "Quarterly · as of Q2 2026" and an "Add a key for daily" link inside the tile. M05 shows the last month-end gold drawdown the same way. The tile is never blank and never claims to be live.
+- **Key-only tiles** (M02, M04): the "Add your key" state from above, with the tile's shape and no number.
+- **Full with no key:** M07 oil (with its 2-day lag in the as-of chip), M08 debt, M09, and M06 bitcoin and ether.
+- **Peak caveat.** Where history doesn't reach the peak start date (Taiwan has the current month only), the drawdown reads "from the highest close since [first run date]" until the council decides how to seed it.
+- **Proxy caveat.** If the council accepts ETF proxies for M02 to M04, the tile carries "via a US-listed fund, in USD, includes currency moves".
+- **Attribution.** Each tile's footer carries its required line (for example "U.S. Treasury, Fiscal Data"). On-chain values have no per-value link, so their chip links to the Sources page instead.
+- **Key data stays local.** The connectors page says that data from a user's key is stored only on this machine and deleted when the key is removed.
+- **Ticking debt.** M08's live ticker is an estimate between official daily figures. It is labelled "estimate" next to the official figure and its date, never shown alone.
+- **S14 for Baltic listed companies:** "Listed on [venue] since [date]" from the official instrument register. Price only appears with a user key that covers the venue.
+
 ## 7. Legal memo rules that shape the UI
 
 From `docs/research/legal.md`, product rules. Each one gets a fixed component, so no screen can forget it.
