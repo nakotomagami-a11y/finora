@@ -13,7 +13,7 @@
 
 | Item | Value | Source |
 |---|---|---|
-| Latvian register open-data licence | The official page says "distribution of open data is allowed without restriction" and names no licence. A third party says CC0. **Conflict, unresolved.** | [ur.gov.lv open data](https://www.ur.gov.lv/en/open-data-sets-register-open-data-portal-latvia); third-party claim from a search summary |
+| Latvian register open-data licence | The Enterprise Register's own open-data page names no licence ("distribution of open data is allowed without restriction"). data.gov.lv dataset metadata states CC0-1.0 for the datasets checked (retrieved 2026-11-20, per dataset, with the metadata URL). Datasets not checked are not covered by this statement. **Closed 2026-11-20.** | [ur.gov.lv open data](https://www.ur.gov.lv/en/open-data-sets-register-open-data-portal-latvia); third-party claim from a search summary |
 | Estonian register open-data licence | The official page links "License information" to the CC BY 4.0 legal code; the licence is named by URL only. Downloads require accepting licence terms. API reuse needs a contract. | [avaandmed.ariregister.rik.ee](https://avaandmed.ariregister.rik.ee/en/node/2) |
 | Estonian beneficial-owner open data | Official page: changes from 1 Sep 2023 are in the detailed service. A third-party summary says beneficial-owner data left open data from 10 Jul 2026. **Not verified.** | Official page as above; third-party summary |
 | Lithuanian register open-data licence | Third-party sources say CC BY 4.0. The official page was **not retrieved**. | Search summaries only |
@@ -101,7 +101,7 @@
 
 - **Verified on primary text:** C-398/15, C-37/20 and C-601/20, C-798/24 (EUR-Lex); Decision 2011/833/EU; 15 USC 1681a(d) and (f); GDPR Art 14; AGPL s.13; ODbL (partial); the EDGAR access page; the Estonian and Latvian register open-data pages; the aggregated sanctions dataset's licence pages.
 - **Reported, not read:** the Latvian Constitutional Court ruling (judgment not read); the Munich and US 2026 defamation rulings; the CCPA bill; the 2011 FTC report; the Lithuanian licence and scope; the Estonian beneficial-owner removal; the Latvian CC0 claim.
-- **Conflicts:** Latvian register licence (official: no licence named; third party: CC0). Lithuanian open-data scope (two sources disagree). Estonian beneficial-owner status (official page vs third party).
+- **Conflicts:** Latvian register licence: closed 2026-11-20 (CC0-1.0 per data.gov.lv dataset metadata, for the datasets checked only). Lithuanian open-data scope (two sources disagree). Estonian beneficial-owner status (official page vs third party).
 - **Gaps:** Baltic DPA primary positions on register republication; social-platform terms; FTC primary text and 15 USC 1681b; other US state laws; the US federal public-domain basis; the Latvian Constitutional Court judgment text.
 
 ## Addendum: the designer's display assumptions (round 2, item 5)
@@ -194,3 +194,7 @@ Not legal advice. Primary texts were not re-read this round; "not verified" item
 - General conditions ([RIK](https://abiinfo.rik.ee/en/general-conditions-use-inquiry-systems-centre-registers-and-information-systems)): 4.1 use "in compliance with valid legislation, in good faith"; 4.2 personal data follows Estonian and EU rules, with no transfer abroad; 6.6 bans scripts, robots and automated tools in the web query systems (the API is the intended automation route; the contract must confirm it); 6.5 and 8.3 allow restriction or termination for security risk or breach.
 - Not found: any clause on publication, redistribution, commercial use, display in applications, or passing data to third parties.
 - Before signing, legal reads the contract form ([contract page](https://ariregister.rik.ee/eng/contract)) and the [conditions of use](https://www.rik.ee/en/asutusest/kasutustingimused). If either bans publication or redistribution, or conflicts with an open-source app, the API-sourced fields are HIDE and the contract is not signed.
+
+## Share-alike storage (answer to qa, 2026-11-20)
+
+Not legal advice. The architecture's CI test (fail any share-alike source stored locally) is the stricter position and stays the default. Relax it only through an explicit share-alike storage class with the three round 3 conditions enforced in code: a separate store, a licence tag per record, and never merged into anything exported, published or served in bulk, with a negative test for export. Without that class, EE tax debt (S08) can't be built as decided. Session 1 chooses: (a) the storage class, or (b) EE tax debt agent-only, queried live, nothing stored. Whether a separate local store is within project rule 4 remains a **LAWYER** item.

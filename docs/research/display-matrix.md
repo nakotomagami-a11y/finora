@@ -1,6 +1,6 @@
 # Display matrix
 
-Assembled by the coordinator on 2026-11-20 from the "Display matrix rows" of the four area docs: `baltics.md` (61 rows), `us.md` (47), `osint.md` (20) and `markets.md` (16). The rows are copied unchanged, with two exceptions: where two areas measured the same cross-border source, their rows are merged into one so the council rules once (GLEIF relationships, `S05.ALL.01`; the UN list, `S11.ALL.05`), with both areas' evidence kept. Only the `item_id`, the `From` column and the two empty decision columns are added. 144 area rows, 142 matrix rows. The evidence for every row is in its area doc.
+Assembled by the coordinator on 2026-11-20 from the "Display matrix rows" of the four area docs: `baltics.md` (61 rows), `us.md` (49), `osint.md` (20) and `markets.md` (16). The rows are copied unchanged, with two exceptions: where two areas measured the same cross-border source, their rows are merged into one so the council rules once (GLEIF relationships, `S05.ALL.01`; the UN list, `S11.ALL.05`), with both areas' evidence kept. Only the `item_id`, the `From` column and the two empty decision columns are added. 146 area rows, 144 matrix rows. Regenerated after each area fix; ids can shift within a section and country until session 1 starts. The evidence for every row is in its area doc.
 
 This is the input for council session 1 (`docs/plan/council/00-framing.md`: gates, calls, empty states).
 
@@ -17,13 +17,13 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | Grade | Rows |
 |---|---|
 | A | 53 |
-| B | 34 |
+| B | 36 |
 | C (incl. one row graded C by one area and A by another) | 34 |
 | D | 17 |
 | X | 2 |
 | X? (provisional) | 1 |
 | none (tile not graded) | 1 |
-| **Total** | **142** |
+| **Total** | **144** |
 
 ## Rows
 
@@ -44,8 +44,9 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S02.LT.01 | S02 | LT | JAR daily files; API change feed | A | 100% | bulk; licence verified Y; current status + since-date; no name or address history (keep our own from daily diffs) | baltics |  |  |
 | S02.LV.01 | S02 | LV | Register (status, terminated), liquidations, reorganizations, name history | A | 100% | bulk; licence verified Y; name history stale since 2025-04-02; no address history | baltics |  |  |
 | S02.EE.01 | S02 | EE | e-Business Register general data, registry-card entries | B | 100% | bulk; licence verified Y; current status and its start date only; no name/address history and deleted companies vanish (history via contract API or our own daily snapshots) | baltics |  |  |
-| S02.US.01 | S02 | US | State status + history (NY status history, CO transactions, CT filings) | A | status 100% private; dated history 40% (2/5) | bulk; licence verified Y (NY, CO), partial (CT history) | us |  |  |
-| S02.US.02 | S02 | US | FDIC BankFind (failures, history) | A | banks only | API, no key; licence verified partial | us |  |  |
+| S02.US.01 | S02 | US | State status + history (NY status history, CO transactions) | A | status 100% private; dated history 40% (2/5, all samples combined) | bulk; licence verified Y | us |  |  |
+| S02.US.02 | S02 | US | CT business filing history | B | included in the 40% above | bulk daily; licence verified partial (no licence stated on this dataset; the CT master file says Public Domain) | us |  |  |
+| S02.US.03 | S02 | US | FDIC BankFind (failures, history) | A | banks only | API, no key; licence verified partial | us |  |  |
 | S03.LT.01 | S03 | LT | JAR management bodies | C | 0% names (99.9% roles only) | bulk; licence verified Y; no names: manager flag, since-date, gender, board flags only | baltics |  |  |
 | S03.LV.01 | S03 | LV | Enterprise Register officers | A | 98% | bulk; licence verified Y; current roles only, no end dates; names + masked code (legacy code reveals birth date) | baltics |  |  |
 | S03.EE.01 | S03 | EE | e-Business Register persons on card | A | 97.4% | bulk; licence verified Y; current roles only; names + pseudonymous person hash (UUID v5), birth date only for foreigners; drop person emails and home addresses | baltics |  |  |
@@ -124,7 +125,8 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S13.LV.01 | S13 | LV | FS filing years; memorandum dates | B | 74% | bulk; licence verified Y; documents themselves per-query at info.ur.gov.lv | baltics |  |  |
 | S13.EE.01 | S13 | EE | annual-report list, registry-card entries, rulings | A | 83.3% | bulk; licence verified Y; filing dates and entry types; full reports via contract API | baltics |  |  |
 | S13.US.01 | S13 | US | EDGAR filings, 8-K items (5.02) | A | deferred: User-Agent pending; item numbers on 100% of 1,042 8-Ks | API + daily index; licence verified Y | us |  |  |
-| S13.US.02 | S13 | US | State filing history (NY daily filings, CO transactions, CT filings) | A | 40% private (2/5) | bulk; licence verified Y/partial | us |  |  |
+| S13.US.02 | S13 | US | State filing history (NY daily filings, CO transactions) | A | 40% private (2/5, all samples combined) | bulk; licence verified Y | us |  |  |
+| S13.US.03 | S13 | US | CT business filing history | B | included in the 40% above | bulk daily; licence verified partial (no licence stated on this dataset) | us |  |  |
 | S14.LV.01 | S14 | LV | (none in LV open data) | D | 0% | none; licence verified N; exchange data not researched for LV | baltics |  |  |
 | S14.EE.01 | S14 | EE | none in this area | D | - | listed securities not researched here | baltics |  |  |
 | S14.US.01 | S14 | US | SEC Forms 3/4/5 trades | A | 100% public (5/5) | bulk quarterly + live; licence verified Y | us |  |  |
