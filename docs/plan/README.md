@@ -1,0 +1,121 @@
+# Finora v1: mission register
+
+The single place to see where the mission stands. The coordinator keeps it current. The hub is the open draft PR labelled `ao-mission`.
+
+**Goal:** a fully working, free, open-source, agentic company-intelligence app that the maintainer uses every day. Main flow: a company explorer (everything official data says about a company) combined with agentic search (research agents dig further, in parallel and visibly, and end in a sourced verdict). Second tool: Crash monitor (markets). Scope: USA, Lithuania, Latvia, Estonia.
+
+## Status
+
+| Phase | State | Started | Exit met |
+|---|---|---|---|
+| 1. Data research | **in progress** | 2026-11-19 | |
+| 2. Council session 1: data | waiting for phase 1 | | |
+| 3. The plan | waiting for phase 2 | | |
+| 4. Council session 2: plan approval | waiting for phase 3 | | |
+| 5. Build, slice by slice | waiting for phase 4 | | |
+| 6. Done | | | |
+
+No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
+
+## Exit criteria
+
+### Phase 1: data research
+1. `docs/research/baltics.md` (+ `baltics-dictionary.md`), `us.md`, `markets.md` and `osint.md` are committed. Every source entry follows the template in `docs/research/README.md`: fields, rows, coverage, freshness, join keys, licence (verified on the official page, with URL and date), keys, limits, cost, legal constraints.
+2. Every open question in `docs/research/00-feasibility.md` is answered with evidence, or marked unresolvable with the reason.
+3. Each area doc has a reality check: real profiles built for sample entities, committed as aggregate fill rates only. Entity-level output stays in `research/.cache/`.
+4. `docs/research/legal.md` is committed (from the legal seat's post) and ends with numbered product rules.
+5. `docs/research/display-matrix.md` covers every report section by country and every Crash monitor tile, with sources and quality grades.
+6. `docs/research/reality-check.md` summarises fill rates across areas.
+7. The human-only questions for the build (code licence, paid services, keys and accounts) have been asked.
+8. `node scripts/guard/guard.mjs tree` is clean.
+
+### Phase 2: council session 1 (data)
+1. `docs/plan/council/01-data.md` records, for every display-matrix item: show / show with caveat / hide / later, the reasons, how it appears in the UI, the dissent, and what would change the decision.
+2. `council` and `cto` have both posted; legal and designer advice is cited.
+
+### Phase 3: the plan
+1. `docs/architecture.md` and `docs/plan/slices.md`: every slice has acceptance criteria, tests and a demo step.
+2. `DESIGN.md` and HTML mockups for every screen and state, checked in a real browser.
+3. Component inventory and UI build plan (frontend, inside the slice plan).
+4. A loader spec per source (`docs/plan/loaders/`).
+5. Agent runtime and tool specs (`docs/plan/agents.md`): parallel agents, questions to the human, citations, cost caps.
+6. `docs/plan/prototype.md`: what "fully working" means, daily-use scenarios, demo script, risk register, test and CI strategy.
+7. qa has reviewed the plan and web-qa the mockups, with no open MUST-FIX.
+
+### Phase 4: council session 2 (plan approval)
+1. `council` and `cto` approve the whole plan; `docs/plan/council/02-plan.md` records the red-team, the revisions and any dissent.
+2. The code licence is decided by the human.
+
+### Phase 5: build
+Slices land in the approved order. Each slice: tests green, qa review with no open MUST-FIX, web-qa pass for UI slices. A council session 3 record (`docs/plan/council/03-*.md`) at each milestone demo.
+
+### Phase 6: done
+1. One documented command runs the app locally with real data for LV, EE, LT and US companies.
+2. The explorer + agentic search flow works end to end with sourced verdicts.
+3. Crash monitor works.
+4. Tests and CI are green.
+5. The council signs off that it is fully working. Then the human merges the hub PR.
+
+## Roster
+
+| Seat | Role | Phase 1 job |
+|---|---|---|
+| `coordinator` | orchestrator | Runs the phases, keeps this register, commits posts of seats that can't write files, assembles the display matrix and reality-check summary |
+| `data-baltics` | developer | LT, LV, EE registers, tax, social insurance, procurement, Kohesio; LEI coverage of Baltic samples |
+| `data-us` | developer | SEC EDGAR, state registries, federal courts, other federal sources, GLEIF |
+| `data-markets` | developer | Market data for Crash monitor and company profiles |
+| `data-osint` | developer | Open-web sources, all sanctions and PEP lists, the agent pattern and its cost |
+| `legal` | web-researcher | Legal memo (posted; committed by the coordinator) |
+| `council` | cs-boardroom | Decides in sessions 1-3 |
+| `cto` | cs-cto | Technical member of the council; owns build and scaling calls |
+| `designer` | designer | Advises session 1; DESIGN.md and screens in phase 3 |
+| `architect` | developer | Architecture and slice plan in phase 3; builds the foundation and core |
+| `frontend` | frontend-craftsman | Component inventory in phase 3; builds the UI |
+| `qa` | qa-code-review | Phase 1: spot-checks research claims. Then reviews the plan and every slice |
+| `web-qa` | web-qa | Checks mockups (phase 3) and every UI slice |
+
+## Deliverables
+
+| Deliverable | Owner | Phase | State |
+|---|---|---|---|
+| `docs/research/README.md` (conventions, section IDs) | coordinator | 1 | done |
+| `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | |
+| `docs/research/us.md` | data-us | 1 | |
+| `docs/research/markets.md` | data-markets | 1 | |
+| `docs/research/osint.md` | data-osint | 1 | |
+| `docs/research/legal.md` | legal (committed by coordinator) | 1 | |
+| `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
+| `docs/research/reality-check.md` | coordinator, from the area docs | 1 | |
+| `docs/plan/council/01-data.md` | council + cto (committed by coordinator) | 2 | |
+| `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | |
+| `DESIGN.md`, mockups | designer | 3 | |
+| `docs/plan/loaders/*.md` | data seats | 3 | |
+| `docs/plan/agents.md` | data-osint | 3 | |
+| `docs/plan/prototype.md` | coordinator, with architect | 3 | |
+| `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
+
+## Decisions
+
+### For the human (asked, not yet answered)
+
+| # | Question | Recommendation | Asked | Answer |
+|---|---|---|---|---|
+| H1 | Code licence (and docs licence) | AGPL-3.0 for code, CC BY 4.0 for docs | 2026-11-19 | |
+| H2 | Paid per-use services for the agents: an LLM API and, if no free option is good enough, a web search API | Yes, bring-your-own-key, with a per-investigation cost cap enforced in code | 2026-11-19 | |
+| H3 | Keys and accounts (human-task) | See the hub post | 2026-11-19 | |
+
+### By the coordinator
+
+| # | Decision | Why |
+|---|---|---|
+| C1 | All sanctions and PEP lists (EU, UN, OFAC, UK) belong to `data-osint`; `data-us` skips OFAC; `data-baltics` only measures sample hits | One owner per source, no duplicate work |
+| C2 | GLEIF belongs to `data-us`; `data-baltics` measures LEI coverage of its samples | Same |
+| C3 | EU-wide procurement (TED) belongs to `data-osint`; national procurement and Kohesio to `data-baltics`; USAspending and SAM.gov to `data-us` | Same |
+| C4 | Report section and tile IDs are fixed in `docs/research/README.md`; every area doc uses them | So the display matrix can be assembled without guessing |
+
+### By the council
+None yet.
+
+## Council records
+- Session 1 (data): not yet convened
+- Session 2 (plan): not yet convened
