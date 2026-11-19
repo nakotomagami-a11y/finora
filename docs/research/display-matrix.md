@@ -9,7 +9,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 - **item_id:** `<section>.<country>.<nn>`. `ALL` = cross-border, `X` = Crash monitor tile (no country), `LTLVEE` = all three Baltic countries.
 - **Section and tile IDs, grades:** see `docs/research/README.md`. A = official, structured, bulk, fresh, open; B = one limitation; C = partial, derived, unclear licence or query time only; D = not available free; X = legally restricted.
 - **Fill rate:** from the area's reality check or population count. "pending" = the source needs a key deferred under register C7 (mostly `SEC_USER_AGENT`).
-- **Legal:** the legal light (G / Y / R) with the memo rule number, added by `legal`. Round 3 in `legal.md` already sets the Baltic person and licence items.
+- **Legal:** the legal light (G / Y / R) with the memo rule number. The council derives it in session 1 from `legal.md` (council session 0, amendment 1), with `legal` advising on contested rows. The positions that already settle rows are `legal.md` rounds 2-3 and the market addendum: beneficial owners, LV masked codes, the EE person hash and EE natural-person bankruptcy notices are R; sole traders, CC BY-SA data, LT social-insurance files and the UN list are Y.
 - **Call:** SHOW / CAVEAT / HIDE / LATER, decided by the council in session 1.
 
 ## Grade counts

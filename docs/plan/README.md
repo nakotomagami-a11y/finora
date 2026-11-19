@@ -84,7 +84,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/markets.md` | data-markets | 1 | **done**: qa spot-check passed; MUST-FIX fixed in `2a2d70d` |
 | `docs/research/osint.md` | data-osint | 1 | landed 2026-11-20 (`671dadc`, round 2 `e0c3bce`: TED for S12, sanctions identifier coverage, rate limits, UI facts); modelled cost, measured run deferred to the key round; **done**: qa spot-check passed (0 MUST-FIX); fixes in `4680a2f` |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1-3, market addendum) |
-| `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | assembled 2026-11-20, 140 rows; legal lights pending |
+| `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | done 2026-11-20, 140 rows; the council derives legal lights in session 1 from `legal.md` (amendment 1) |
 | `docs/research/cto-preread.md` (volumes, store benchmark, provisional technical calls) | cto (committed by coordinator) | 1 | done |
 | `docs/design/display-options.md` (display states, advice for session 1) | designer | 1 | done |
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | done 2026-11-20 |
