@@ -123,8 +123,8 @@ Asked by `cto`. "Current" follows council clarification 1 (no older than 2x the 
 | LT statements (2024+) | weekly / monthly | 2026-10-28 load | no (annual data) | 126 + 226 MB | 1.7 + 3.1 s | change feed | ETag, Last-Modified |
 | LT taxpayer register | daily / daily | 2026-11-19 | yes | 351 MB | 4.7 s | 2,000-22,000 patches | ETag, Last-Modified |
 | LT taxes paid | monthly / monthly | Oct 2026 | yes | 236 MB | 2.9 s | monthly | Last-Modified |
-| LT tax arrears | daily / daily | 2026-11-19 | yes | 6.8 MB | 0.1 s | 6,700-7,400 | ETag, Last-Modified |
-| LT social insurance | daily + monthly | 2026-11-19 | yes | 2.6 MB zipped daily; 12 MB yearly | 1.8 s | pending second pull | ETag; Last-Modified unreliable |
+| LT tax arrears | daily / daily | 2026-11-19 | yes | 6.8 MB | 0.1 s | 6,700-7,400 change-feed operations; 18 → 19 Nov: 875 inserts, 1,379 deletes, 4,498 patches (about 21% of rows touched) | ETag, Last-Modified |
+| LT social insurance | daily + monthly | 2026-11-19 | yes | 2.6 MB zipped daily; 12 MB yearly | 1.8 s | insured file: 32 added, 43 removed, 1,493 changed (1.45%), 19 → 20 Nov | ETag; Last-Modified unreliable |
 | LT bankruptcy reports | quarterly / quarterly load | event 2025-10-03 | load yes, content a year behind | small | - | - | ETag, Last-Modified |
 | LT member counts | monthly / last load 2025-09 | 2025-09-04 | **no** | 40 MB | 0.4 s | - | ETag, Last-Modified |
 | LV register | daily / nightly ~21:26 UTC | 2026-11-17 | yes | 129 MB | 28 s | 43 added, 56 changed | ETag + Last-Modified, but both change every night: diff by content |
@@ -167,7 +167,7 @@ Asked by `architect`. Per-source answers are under each entry below (lines a-k);
 | Terminated entities | move to the deregistered file | stay, with a terminated date and closure code | stay while in liquidation or bankruptcy; **vanish when deleted** |
 | As-of date | `formavimo_data` column; social-insurance files have an as-of line | not stated: CKAN `last_modified` or max date in the data | HTTP Last-Modified only; annual reports carry the cut-off in the file name |
 | History | current name, address and status only | current roles only (ended roles vanish); name history file stale; statements back to 2006 | current roles only; no deleted companies; statements 2019-2025 |
-| Deep link to an official page | none (the search form needs a check number) | unknown (the official lookup site is a single-page app) | `https://ariregister.rik.ee/eng/company/<code>`, given per entity |
+| Deep link to an official page | none (the search form needs a check number) | `https://info.ur.gov.lv/#/legal-entity/<code>` (the register's free portal; linking terms not stated) | `https://ariregister.rik.ee/eng/company/<code>`, given per entity |
 | Labels in English | legal forms and statuses yes; activity labels Lithuanian | role and type enums in English; legal forms Latvian | Estonian only in the files; NACE codes next to EMTAK give English via Eurostat |
 
 **What this means for the loader:**
@@ -248,7 +248,7 @@ Asked by `architect`. Per-source answers are under each entry below (lines a-k);
   did not throttle sequential requests. `count()` on the largest table was blocked once by a WAF page.
 - Fields: 20 models. Used: JuridinisAsmuo (code, name, dates, form, status refs; address columns 100% null),
   Buveine (address refs to the address register), ValdymoOrganas (**no company key**, unusable), ja_kapitalas,
-  Dokumentas (documents filed since 2024: type, subtype, document date), fa_dokumentu_nepateike / fa_veluojantys /
+  Dokumentas (founding documents filed since 2024: articles of association, deeds, regulations; type, subtype, document date), fa_dokumentu_nepateike / fa_veluojantys /
   fa_nepateike_auditoriu_isvadu (non-filers of statements, late filers, missing audit opinions), classifiers.
 - Rows and coverage: JuridinisAsmuo 550,482 (all ever registered), Buveine 239,318, Dokumentas 202,306 (70,368
   companies), non-filers 113,081 rows (36,884 companies), late filers 19,987.
@@ -953,6 +953,434 @@ Measured 2026-11-19 and 2026-11-20 with the probes in `research/probes/baltics/c
 - **LT:** Financial Crime Investigation Service (FNTT), https://fntt.lrv.lt/en/international-financial-sanctions/a-list-of-sanctioned-subjects/: one HTML list of 16 legal entities owned or controlled by sanctioned subjects, each with a company code; "last updated 12-01-2026"; no download, no licence statement. Terrorism-related designations under UNSCR 1373 are a separate page. Verdict: use with caveat (grade C): per-query HTML, agents fetch and cite at query time.
 - **EE:** Ministry of Foreign Affairs, list of subjects of the Government's national sanctions (regulation of 13 March 2025), https://www.vm.ee/en/list-subjects-sanction-government-republic-protect-estonias-security-and-interests-and-against: HTML only, four natural persons, names only (no birth dates or codes), no licence statement. Verdict: use with caveat (grade C): agents fetch at query time; a confirmed match is impossible under R8 (no official ID).
 
+## Load volume and refresh
+
+Asked by `cto` (Session 1). The proposed load rule:
+- all entities, terminated ones included;
+- current role rows;
+- financial statements for the last 5 fiscal years;
+- taxes for the last 8 quarters or 3 years.
+
+"Fields kept" are the fields mapped to a canonical field, plus keys and dates. The size is the statement count × 123 B, cto's measured lean layout. Deviations from the rule are stated per country.
+
+| Country | Statements | Est. size | Largest part | Measured ways to shrink it |
+|---|---|---|---|---|
+| LT | 78.5 M | 9.7 GB | statement key lines, 65% (one row per line item) | one wide row per company-year cuts the statement tables by about 6x; 3 fiscal years instead of 5 halves them; Sodra monthly (12.6 M, estimated) to 12 months halves it |
+| LV | 35.8 M | 4.4 GB | register 4.9 M; statements 13.7 M over four files | weekly refresh for statements and tax files; daily only for the ~230 MB of register and risk files |
+| EE | 77.9 M | 9.6 GB | annual-report key figures, 23.8 M (one row per element) | one row per report: 10.3 M instead of 23.8 M; rulings since 2021 only (9.1 M instead of 20.3 M) |
+| **Baltics** | **192.2 M** | **23.6 GB** | | over cto's 10 GB database budget before any US data: the load design needs wide rows for financials and time series, not one statement per line item (a decision for `cto` and `architect` in phase 3) |
+
+### Lithuania
+
+Rule applied as proposed: all entities including deregistered ones, current management-body rows, statements for
+the last 5 fiscal years (periods ending 2021 or later), taxes paid for 3 years (2024-2026), social insurance for
+24 months. "Fields kept" = fields mapped to a canonical field in the dictionary, plus keys and dates.
+
+| Source | Rows total | Rows we would load | Fields kept | Statements | MB at 123 B | Note |
+|---|---|---|---|---|---|---|
+| JAR daily: registered + deregistered | 552,531 | 552,531 | 9 | 4,972,779 | 612 | all entities |
+| JAR daily: management bodies | 235,095 | 235,095 | 10 | 2,350,950 | 289 | one row per company; flags, dates, board counts |
+| JAR daily: share capital | 102,641 | 102,641 | 4 | 410,564 | 50 | |
+| JAR API: P&L key lines | 6,643,810 | 3,236,907 | 6 | 19,421,442 | 2,389 | periods ending 2021+ |
+| JAR API: balance-sheet key lines | unknown (full count blocked by WAF) | 5,226,601 | 6 | 31,359,606 | 3,857 | periods ending 2021+ |
+| JAR API: founding documents | 202,306 | 202,306 | 5 | 1,011,530 | 124 | since 2024 only |
+| JAR API: non-filers + late filers | 133,068 | 133,068 | 3 | 399,204 | 49 | |
+| JADIS member counts | 172,845 | 172,845 | 5 | 864,225 | 106 | |
+| VMI tax-payer register | 931,744 | 297,097 | 6 | 1,782,582 | 219 | **deviation:** collapsed to one row per company (VAT + main activity) |
+| VMI taxes paid | 744,645 | 389,482 | 4 | 1,557,928 | 192 | 3 years; data is annual (year to date), not quarterly |
+| VMI tax arrears | 31,989 | 31,989 | 6 | 191,934 | 24 | current list |
+| Sodra daily insured | 108,024 | 108,024 | 3 | 324,072 | 40 | |
+| Sodra daily debts | 37,592 | 37,592 | 4 | 150,368 | 18 | |
+| Sodra monthly | 945,868 (2026, 9 months) | about 2,522,000 | 5 | about 12,611,575 | about 1,551 | **estimate:** 9 months scaled to 24 |
+| AVNT bankruptcy reports | 5,937 | 5,937 | 10 | 59,370 | 7 | |
+| AVNT intentional bankruptcies | 835 | 835 | 5 | 4,175 | 1 | |
+| EU funds 2014-2020 contracts | 25,981 | 25,981 | 6 | 155,886 | 19 | |
+| VPT tenderers (to 2023-05) | 226,557 | 226,557 | 4 | 906,228 | 111 | |
+| **Total** | | | | **78,534,418** | **9,660** | |
+
+Statements dominate: the two financial-statement tables are 65% of the total. Cutting statements to 3 fiscal years
+(periods ending 2023+) would roughly halve them; storing one wide row per company-year (revenue, profit before tax,
+net profit, assets, equity, liabilities) instead of one row per line would cut them by about 6x.
+
+#### Freshness of every LT dataset we use (2026-11-19)
+
+| Dataset | Stated cadence | HTTP Last-Modified | Newest change-log entry | Age (days) | As-of inside the data |
+|---|---|---|---|---|---|
+| JAR daily files (5) | daily | none sent | n/a | 0 | `formavimo_data` = pull date |
+| JAR API register (JuridinisAsmuo) | monthly | 2026-10-22 | 2026-10-22 | 28 | newest registration 2026-10-02 |
+| JAR API management bodies | monthly | 2026-10-26 | 2026-10-26 | 24 | since-dates |
+| JAR API addresses (Buveine) | monthly | 2026-10-23 | 2026-10-23 | 27 | `adresas_nuo` |
+| JAR API share capital | monthly | 2026-10-23 | 2026-10-23 | 27 | `data_nuo` |
+| JAR API founding documents | unknown | 2026-10-23 | 2026-10-23 | 27 | `dok_data`, `dok_reg_data` |
+| JAR API non-filers | unknown | 2026-10-23 | 2026-10-23 | 27 | `nepateikta_iki` (year) |
+| JAR API late filers | unknown | 2026-10-23 | 2026-10-23 | 27 | none (`veluojantis_iki` empty) |
+| JAR API P&L lines | weekly | 2026-10-28 | change log answers HTTP 500 | 22 | period from / to, `reg_date` |
+| JAR API balance-sheet lines | weekly | 2026-10-26 | 2026-10-26 | 24 | period from / to, `reg_date` |
+| JAR classifiers (forms, statuses, document types) | unknown | 2024-12-20 to 2026-08-20 | same | 91-699 | n/a |
+| JADIS member counts | monthly | 2025-09-04 | 2025-09-04 | 441 | none |
+| VMI tax-payer register | daily | 2026-11-19 | 2026-11-19 | 0 | VAT and activity dates |
+| VMI taxes paid | monthly | 2026-11-17 | change log answers HTTP 500 | 2 | year + month, `atnaujinta` |
+| VMI tax arrears | daily | 2026-11-19 | 2026-11-19 | 0 | `atnaujinta` per row |
+| Sodra daily insured, debts | daily | unreliable (later than server time) | n/a | 0 | first line of each file |
+| Sodra monthly averages | monthly | unreliable | n/a | 25 | line 4 (month) |
+| Sodra yearly monthly file | monthly | 2026-10-26 | n/a | 24 | `month` column (to 2026-09) |
+| AVNT bankruptcy reports | quarterly | 2026-09-19 | 2026-09-19 | 61 | newest event 2025-10-03 |
+| AVNT intentional bankruptcies | quarterly | 2025-11-05 | 2025-11-05 | 379 | newest event 2025-09-22 |
+| EU funds 2014-2020 contracts | not updated | 2026-11-01 | 2026-11-01 | 18 | project dates to 2023 |
+| VPT tenderers | not updated | 2023-05-22 | 2023-05-22 | 1,277 | `insert_date` to 2023-05-22 |
+| GLEIF LT records | daily (golden copy) | n/a (API) | n/a | 0 | per-record dates |
+
+#### Day-over-day change (second pull, 2026-11-20 about 02:00 Lithuanian time, `diff_pulls.py`)
+
+| File | As-of day 1 → day 2 | Added | Removed | Changed | Share of rows touched |
+|---|---|---|---|---|---|
+| Sodra daily insured | 2026-11-19 → 2026-11-20 | 32 | 43 | 1,493 | 1.45% of 108,024 |
+| Sodra daily debts | 2026-11-18 → 2026-11-18 (not yet regenerated) | 0 | 0 | 0 | n/a |
+| JAR daily register, management bodies | 2026-11-19 → 2026-11-19 (not yet regenerated at 02:00) | 0 | 0 | 0 | n/a |
+| VMI arrears (API change feed instead) | 2026-11-18 → 2026-11-19 | 875 inserts | 1,379 deletes | 4,498 patches | about 21% of 31,989 |
+
+So the register and debt files regenerate later in the Lithuanian day than midnight; a loader should run after
+the tax authority's load (observed 07:03 UTC, about 09:00 local; the register file's generation time is unknown) and check the as-of date inside each file before replacing yesterday's data.
+
+#### The address join on the API copy
+
+Of 231,716 active register entities (status "no legal proceedings" in the daily file):
+- 99.1% exist in the API copy of the register;
+- 94.3% have an address row in `buveines`, and 90.2% have a non-empty address-register reference;
+- the reference is only an address-object ID: turning it into text needs the address register
+  (`datasets/gov/rc/ar`, 2,354,750 address rows) and further joins to street, settlement and building tables
+  (not built);
+- the daily file has a full-text address for 100%.
+Verdict: take the address from the daily file; use the address-register ID only if we later want coordinates or
+address-level grouping.
+
+### Latvia
+
+Load rule: all entities, including terminated ones; current role rows (the files hold nothing else); financial statements for fiscal years 2022-2026; all published tax periods; all procurement winners since Oct 2023. "Fields" means canonical-mapped fields plus keys and dates. MB is statements × 123 B.
+
+| Source | Rows total | Rows we load | Fields | Statements | Est. MB | Note |
+|---|---|---|---|---|---|---|
+| Register | 490,496 | 490,496 | 10 | 4,904,960 | 603.3 | all registers, terminated kept |
+| Name history | 90,974 | 90,974 | 3 | 272,922 | 33.6 | stale since 2025-04-02 |
+| Officers | 283,330 | 283,330 | 11 | 3,116,630 | 383.3 | current roles only |
+| Members (SIA) | 186,535 | 186,535 | 11 | 2,051,885 | 252.4 | |
+| Beneficial owners | 200,800 | 200,800 | 9 | 1,807,200 | 222.3 | only if legal allows display |
+| Insolvency | 18,070 | 18,070 | 10 | 180,700 | 22.2 | |
+| Securing measures | 34,337 | 34,337 | 7 | 240,359 | 29.6 | |
+| Suspensions | 10,602 | 10,602 | 5 | 53,010 | 6.5 | |
+| Liquidations | 9,651 | 9,651 | 5 | 48,255 | 5.9 | |
+| Reorganisations | 10,930 | 10,930 | 5 | 54,650 | 6.7 | |
+| Equity capital | 144,550 | 144,550 | 5 | 722,750 | 88.9 | |
+| Sanctions links | 63 | 63 | 8 | 504 | 0.1 | |
+| FS statements | 1,986,890 | 548,424 | 9 | 4,935,816 | 607.1 | FY 2022-2026 |
+| FS balance sheets | 1,862,399 | 495,283 | 10 | 4,952,830 | 609.2 | FY 2022-2026 |
+| FS income statements | 1,753,345 | 465,124 | 8 | 3,720,992 | 457.7 | FY 2022-2026 |
+| FS cash flow | 181,124 | 18,866 | 4 | 75,464 | 9.3 | FY 2022-2026 |
+| Tax authority, quarterly taxes | 462,376 | 462,376 | 7 | 3,236,632 | 398.1 | only 3 quarters published (2026 Q1-Q3), not 8 |
+| Tax authority, yearly taxes | 291,512 | 291,512 | 8 | 2,332,096 | 286.8 | only 2 years published (2023, 2024), not 3 |
+| Tax authority, rating | 145,690 | 145,690 | 3 | 437,070 | 53.8 | |
+| Tax authority, VAT payers | 285,909 | 285,909 | 5 | 1,429,545 | 175.8 | |
+| Tax authority, suspensions | 72,990 | 72,990 | 5 | 364,950 | 44.9 | |
+| EU projects 2014-20 + 2021-27 | 5,016 | 5,016 | 9 | 45,144 | 5.5 | |
+| EU project partners | 8,287 | 8,287 | 3 | 24,861 | 3.1 | |
+| Procurement winners | ≈93,300 | ≈93,300 | 8 | ≈746,000 | ≈91.8 | estimate: 27,337 winner rows in 321 days of 2026, × 3 years |
+| **Total** | | | | **≈35.8 M** | **≈4,398** | |
+
+**Deviations from the proposed load rule.** The tax authority publishes fewer periods than the proposal assumes: 3 quarters and 2 years, not 8 quarters and 3 years. Finora must keep its own history from now on. The financial statements file takes 5 fiscal years (2022-2026). FY 2026 holds only early filers (99 active companies).
+
+**Weekly refresh: confirmed for financials, not for risk signals.**
+- Financial statements change by about 55 added and 6 removed rows per day, out of 1.99 M. That is 0.003% per day, or about 400 rows a week, so a weekly pull is enough.
+- Keep a daily pull for the register, officers, insolvency, securing measures, suspensions and the tax authority's suspension list. They are small (about 230 MB together) and they carry the alert-worthy events: 3 new insolvency proceedings, 61 new securing measures and 102 removed officer roles in one day.
+- The tax authority's quarterly, rating and VAT files did not change in 24 h, so a weekly pull is enough for them too.
+
+### Estonia
+
+Rules applied: current role rows only (the files hold nothing else), financial statements for the last 5 fiscal years (2021-2025), taxes for the last 8 quarters (2024 Q4 to 2026 Q3), rulings since 1 Jan 2021. "Fields kept" = canonical fields + keys + dates, as listed in `KEPT` in `round2.py`.
+
+| Source / table | Rows total | Rows we would load | Fields kept | Statements | Est. MB at 123 B |
+|---|---|---|---|---|---|
+| Register: entities (general + basic data) | 381,685 | 381,685 | 18 | 6,870,330 | 845.1 |
+| Register: officers (persons on the card) | 528,064 | 528,064 | 10 | 5,280,640 | 649.5 |
+| Register: members (shareholders file) | 394,812 | 394,812 | 14 | 5,527,368 | 679.9 |
+| Register: beneficial owners | 412,802 | 412,802 | 8 | 3,302,416 | 406.2 |
+| Register: commercial pledges | 8,078 | 8,078 | 9 | 72,702 | 8.9 |
+| Register: rulings | 2,897,669 | 1,307,076 | 7 | 9,149,532 | 1,125.4 |
+| Annual reports: report list | 1,687,349 | 1,250,237 | 9 | 11,252,133 | 1,384.0 |
+| Annual reports: key figures (9 elements kept of about 16) | 24,740,508 | 7,936,737 | 3 | 23,810,211 | 2,928.7 |
+| EMTA taxes paid / turnover / employees (one row per company-quarter) | 3,474,062 | 1,544,398 | 8 | 12,355,184 | 1,519.7 |
+| EMTA tax debtors | 19,908 | 19,908 | 7 | 139,356 | 17.1 |
+| Procurement awards, 12 months (Estonian winners) | 19,660 | 19,660 | 5 | 98,300 | 12.1 |
+| Official notices, bankruptcy, legal persons, 6 months | 188 | 188 | 5 | 940 | 0.1 |
+| **Total** | | | | **77,859,112** | **9,576.7** |
+
+Deviations from the proposal:
+1. **Terminated entities cannot be loaded from the files.** Deleted companies are absent (`kustutamise_kpv` is empty on every row; only 2 rows carry status K, deleted). To keep struck-off companies searchable we must keep every entity we have ever seen (a tombstone when it drops out of the daily file), or use the contract API change list.
+2. Key figures are long-format (one row per element), so the 3-field figure table carries the largest volume. Pivoting the 9 kept elements into one row per report (12 fields) gives about 0.85 M rows x 12 = 10.3 M statements instead of 23.8 M.
+3. Rulings: the proposal is since 2021. All years would be 2.9 M rows (20.3 M statements). The report-filing warnings and fines inside them are risk signals (see B.6).
+
+**Annual-report zip URLs (tested 20 Nov 2026).** The file names carry the cut-off date and a Drupal duplicate counter, for example `1.aruannete_yldandmed_kuni_31102026_1.zip`.
+- No stable or "latest" alias: the name without date or counter returns 404.
+- No listing API: `/jsonapi`, `/sitemap.xml` and the files directories return 404.
+- The counter is not predictable (`_0` for one month, `_1` for the next), so the name cannot be built from the date.
+- Old monthly files stay online (the September file still returns 200).
+
+So the loader must parse the download page (EN or ET) and take the hrefs matching `^/sites/default/files/(\d)\.(.+)_kuni_(\d{8})_\d+\.zip$`, choosing the newest cut-off date per file family. The nine daily register files do have stable URLs (`/sites/default/files/avaandmed/ettevotja_rekvisiidid__<name>.json.zip`).
+
+## UI facts
+
+Asked by `designer`. Items 1-11 follow the designer's list: as-of dates, cadence, deep links, attribution, labels, vocabularies, history, money, gaps, field sizes and search. Deep-link examples use made-up codes.
+
+### Lithuania
+
+| # | Fact | Lithuania |
+|---|---|---|
+| 1 | Per-record as-of | Register: current status since-date (`stat_data_nuo`), registration date, file date. Management bodies: since-dates per body. Statements: period from / to and filing-registered date. Taxes paid: year + month to which the sum runs. Arrears: `atnaujinta` (update date) per row. Sodra: one date per file (first line). Bankruptcy: event dates. Member counts: none (file date only). |
+| 2 | Cadence and lag | Register daily (lag about 1 day). Statements: filed yearly, loaded about monthly (newest load 22-24 days old). Taxes paid: monthly, data to the previous month. Arrears and Sodra: daily, lag 1 day. Average wage: monthly, previous month. Bankruptcy reports: quarterly loads, content about a year behind. Member counts: 441 days old. |
+| 3 | Deep links (made-up codes) | Register: no per-company page; the free search page `https://www.registrucentras.lt/jar/p/index.php?kod=<code>` opens the search form (100 searches per day, check number required). Open-data record: `https://get.data.gov.lt/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?ja_kodas=<code>` (HTML or JSON). Social insurance: `https://atvira.sodra.lt/imones/detaliai/index.html?code=<insurer code>` where `code` is the Sodra insurer code (mapped from the registry code in the daily files). No statement forbids linking on the pages read; terms for linking not stated. |
+| 4 | Attribution | CC BY 4.0 datasets: no attribution wording found on the dataset pages (licence name and link only). Proposed: "Source: Registrų centras, Register of Legal Entities (open data), CC BY 4.0", "Source: State Tax Inspectorate (VMI), <dataset>, CC BY 4.0", "Source: Sodra, public insurer data (Law on State Social Insurance, art. 15(3))", "Source: AVNT, bankruptcy reports, CC BY 4.0". |
+| 5 | Labels | Legal forms (93 in use) and statuses (31): Lithuanian and English in the API classifiers (`Forma.name`, `Statusas.name`); the daily file has Lithuanian only, so join by code. Document types and subtypes: LT + EN. Activity codes (EVRK 2): Lithuanian only in the tax and Sodra files; EVRK 2 follows NACE Rev. 2 to 4 digits, so EU English labels cover 4 digits (an official LT→EN table: unknown; settle on the Statistics Lithuania classifier page). |
+| 6 | Vocabularies | See the tables below. |
+| 7 | History depth | Statements: periods from 2015 (earliest period end in the API is 2015-01-01). Taxes paid: 2021-2026. Sodra monthly files: 2018 onwards (2017 not found). Arrears and Sodra debts: today only (keep our own history). Name, address and status changes: not kept (current values only; the free search page can search former names, not open data). Documents: 2024 onwards. |
+| 8 | Money | EUR. Statements: `laikotarpis_nuo` / `laikotarpis_iki`; 1.7% of the 170,934 companies with a 2024+ statement have a period not ending 31 December. Taxes paid: calendar year to date. |
+| 9 | Gaps | See the gap table below. |
+| 10 | Field sizes | Longest legal name 205 characters; longest address 102. Officers: no person rows; board size where a board exists p50 4 / p95 8 / max 33 (16,540 companies). Members (counts only): p50 1 / p95 3 / max 700 (172,703 companies). Beneficial owners: not published. |
+| 11 | Search | Searchable in open data: current name, registry code, VAT code (via the tax-payer register), LEI (via GLEIF). Former names: not available. Normalised name (casefold, accents and punctuation stripped, legal-form words removed) shared with at least one other company: 6.6% of active companies among active ones, 9.4% when deregistered companies are included; 12,952 active names are empty after normalising (the name is only a legal-form phrase), so search must fall back to the full name. |
+
+#### Vocabularies (counts from the daily files of 2026-11-19)
+
+Register status (registered entities):
+
+| Code | Register word | English (official) | Entities |
+|---|---|---|---|
+| 0 | Teisinis statusas neįregistruotas | No legal proceedings | 231,716 |
+| 7 | Likviduojamas | Under liquidation | 2,144 |
+| 26 | Likviduojamas dėl bankroto | Liquidation due to bankruptcy | 1,292 |
+| 5 | Bankrutuojantis | Going bankrupt | 454 |
+| 3 | Pertvarkomas | Under reformation | 309 |
+| 9 | Inicijuojamas likvidavimas | Liquidation being initiated | 164 |
+| 1 | Reorganizuojamas | Under reorganization | 134 |
+| 2 | Dalyvaujantis reorganizavime | Participating in reorganization | 74 |
+| 4 | Restruktūrizuojamas | Under restructuring | 58 |
+| 8 | Dalyvaujantis atskyrime | Participating in division | 56 |
+| 6 | Bankrutavęs | Bankrupt | 48 |
+| 28, 27, 23, 30, 16 | cross-border merger / division / European company statuses | (official labels) | 6 |
+| - | (separate file) | Deregistered | 316,076; the daily file has no status or reason column (statuses 10 Removed, 11 Liquidated, 12 Not re-registered and a 25-reason classifier exist, but no open per-company reason) |
+
+Legal forms (registered + deregistered, top 10 of 93): private limited company (UAB) 205,728; individual
+enterprise (IĮ, sole proprietorship) 166,087; small partnership (MB) 86,026; association 23,782; public institution
+18,370; community 10,469; agricultural company 5,469; budget institution 4,079; UAB branch 3,364; charity fund 3,017.
+
+Management bodies (company counts; no person rows exist): manager (vadovas) 225,308; other bodies (kiti valdymo
+organai) 216,619; board (valdyba) 17,177; council (taryba) 2,872; supervisory board (stebėtojų taryba) 191.
+The role classifier `Pareigos` (84 roles, LT + EN) exists but no open file uses it per company.
+
+Founding documents (2024+): incorporation documents 124,312; articles of association or deed 77,994. Top subtypes:
+regulations (nuostatai) 68,772; deed of incorporation 65,894; articles of association (įstatai) 55,292;
+memorandum of association 12,093.
+
+Bankruptcy initiator (AVNT reports): company manager 1,929; tax authority 1,443; Sodra 1,248; other creditors
+891; employees 184; owners 134; liquidator 48; Ministry of Finance 14; empty 46.
+
+#### Gaps (sections not published as open data in Lithuania)
+
+| Section | Reason | Where a paid or restricted extract is ordered |
+|---|---|---|
+| S03 People (names) | The register publishes only flags, since-dates and gender | Registrų centras extracts (paid; self-service at registrucentras.lt, or by contract) |
+| S04 Owners and beneficial owners | Member names are in JADIS and beneficial owners in JANGIS; both are provided for a fee to persons entitled by law | Registrų centras self-service (exact order page: unknown); beneficial-owner access is narrowing under a 2026 draft law |
+| S05 Group | No group or parent data in LT registers | GLEIF only (cross-border entry) |
+| S09 Pledges, live arrests, official notices | Open TAAR data is pseudonymised and stale; pledges and arrests are paid register services; notices not found as open data | Registrų centras (paid) |
+| S10 Courts | No bulk court data | Courts' search portal, per query (agents only) |
+| S14 Securities | Not researched for LT (exchange data is a market-data question) | n/a |
+| Person profiles | Not built (legal rules 1, 2, 5: natural-person data behind a stated purpose; sole traders are natural persons) | n/a |
+
+### Latvia
+
+| # | Fact | Latvia |
+|---|---|---|
+| 1 | As-of per record | **Register:** `registered`, `terminated`. **Officers, members, beneficial owners:** `registered_on` and `last_modified_at`, plus `date_from` for members. **Insolvency:** `proceeding_started_on` / `ended_on`. **Securing measures, suspensions, liquidations:** `date_from`. **Financial statements:** `year_started_on` / `year_ended_on`, plus `created_at` (filing date). **Tax authority, quarterly:** the quarter label. **Rating:** `Informacijas_atjaunosanas_datums` (one date for the whole file). **VAT:** `Registrets` / `Izslegts`. **Procurement:** `decisionDate`. **EU funds:** `PedejasDatuAtjauninasanasDatums`. **Files** carry no as-of date of their own. |
+| 2 | Cadence and lag | **Register files:** regenerated nightly around 21:26 UTC; the newest record is 1-2 days old. **Financial statements:** daily; reports arrive 4-7 months after year end. **Tax authority:** quarterly taxes arrive about 1 month after the quarter (Q3 file dated 2026-11-03); the rating file was dated 2026-11-11, cadence observed about monthly; VAT daily. **Procurement:** daily at 04:00 EET, about 1 day of lag. **EU funds:** daily. **Name history:** stopped at 2025-04-02. |
+| 3 | Deep link | **Register:** `https://info.ur.gov.lv/#/legal-entity/<code>` (11-digit registry code). The app's routes also have `/legal-entity/:regNumber/insolvency/:proceedingId`, `/pledge/:pledgeId`, `/liquidation/:liquidationId` and `/changes/history/:changeId`. This is the register's free public portal. Its linking terms are not stated (unknown); plain links to a public government page are the low-risk default. **Tax authority:** no per-entity page; the debtor form at `https://www.vid.gov.lv/lv/nodoklu-paradnieki` takes no URL parameters. **Procurement and EU funds:** per-notice and per-project URL patterns unknown. Dataset pages: `https://data.gov.lv/dati/lv/dataset/<slug>`. |
+| 4 | Attribution | Every source is CC0-1.0 on data.gov.lv, which requires no attribution, and no dataset page states a wording. Proposed: "Source: Register of Enterprises of the Republic of Latvia, <dataset>, data.gov.lv, CC0 1.0". Likewise "State Revenue Service", "Procurement Monitoring Bureau" and "Central Finance and Contracts Agency". |
+| 5 | Labels | **Register:** legal forms and register types in Latvian only. **Officers:** roles and bodies as English enums. **Securing measures, suspensions, liquidations, reorganisations, equity:** English enum plus Latvian text. **Insolvency:** form in English enums; resolutions as code (e.g. `M06`) plus Latvian text. **Rating:** letter plus Latvian text. **NACE:** code only, with no label (use the Eurostat NACE Rev. 2 English labels). We found no official translation table in the open data. |
+| 6 | Vocabularies | See the tables below. |
+| 7 | History depth | **Financials:** FY 2006-2026; an active company has 10 years at the median and 17 at p95. **Workforce:** 3 quarters (2026 Q1-Q3) plus 2 tax years; financial-statement employees per year back to 2006. **Name changes:** kept, with `date_to`, but the file is stale. **Address changes:** not kept. **Status:** current only (`terminated` date plus closed code). **Officers, members, beneficial owners:** ended rows vanish. **Insolvency:** kept, with end dates since 2008. **Securing measures:** lifted ones vanish. |
+| 8 | Money | **Currency:** EUR; 410 active companies' latest statement is still in LVL (pre-2014). Rounding flag: 12 statements are in THOUSANDS. Period fields: `year_started_on`, `year_ended_on`. **Non-calendar fiscal year:** 7.3% of active companies (latest statement). **Tax amounts** are in thousand EUR. |
+| 9 | Gaps | See the table below. |
+| 10 | Field sizes | **Longest legal name:** 192 characters (p95 is 66). **Longest address:** 120. **Officers per company:** p50 1, p95 2, max 27. **Members:** p50 1, p95 3, max 398. **Beneficial owners:** p50 1, p95 2, max 16. |
+| 11 | Search | **Searchable:** name, registry code, former names (name history, stale), VAT (`LV` + code), LEI (GLEIF `registeredAs`, about 2.9% coverage), address. **Name collisions:** an active company's normalised name (casefolded, accents and punctuation stripped, legal-form words removed, quoted part used when present) is shared with another active company for 0.82% of active companies, and with any company, including terminated ones, for 7.74%. |
+
+**Vocabularies, with counts** (register enum | register's own word, English gloss):
+
+| Field | Values (count) |
+|---|---|
+| Status (`closed`) | active, blank (222,868 rows); `L` likvidēts, liquidated/struck off (259,230); `R` reorganizēts, reorganised (8,398) |
+| Register type | Komercreģistrs, commercial (318,129); Uzņēmumu reģistra žurnāls, enterprise journal (127,426); Biedrību un nodibinājumu reģistrs, associations and foundations (32,676); MIL, media (4,287); Sabiedrisko organizāciju, public organisations (3,641); Pārstāvniecību, representative offices (2,528); Reliģisko organizāciju, religious (1,375); Šķīrējtiesu, arbitration courts (228); Politisko partiju, parties (111); Politisko organizāciju, political organisations (71); Arodbiedrību, trade unions (19); EEIG (5) |
+| Legal form (active, commercial) | SIA, limited company (140,485); IK, sole trader (12,146); AS, joint-stock company (765); PS, general partnership (535); AKF, foreign company branch (484); KS, limited partnership (166); FIL, branch (114); SE, European company (9) |
+| Officer role (`position`) | BOARD_MEMBER (132,570); empty (82,238; mostly association executive bodies and sole traders); CHAIR_OF_BOARD (31,870); OWNER (24,366); LIQUIDATOR (8,777); MEMBER (1,181); REPRESENTATIVE_MANAGER (1,003); ADMINISTRATOR (756); CO_OWNER (238); AUTHORISED_REPRESENTATIVE (189); PRESIDENT (90); MANAGER (24); ESTATE_TRUSTEE (21); MANAGING_DIRECTOR (5); CHAIR_OF_SUPERVISORY_BOARD (1); REPRESENTATIVE_OF_THE_LIQUIDATOR (1) |
+| Governing body | EXECUTIVE_BOARD (168,968); EXECUTIVE_BODY (63,901); empty (49,079); MANAGEMENT_BODY (1,315); LIQUIDATION_COMMITTEE (39); DIRECTORATE (9); EXECUTIVE_COMMITTEE (9); SUPERVISORY_BOARD (4); STAFF_COMMITTEE (3); SENATE (2); AUDITOR (1) |
+| Liquidation type | LIQUIDATION, Likvidācijas process (8,719); ACTIVITY_TERMINATED, Darbības izbeigšana (781); ACTIVITY_TERMINATED_BY_COURT, by court decision (121); NON_REREGISTRATION (15); REFORM_OF_POLITICAL_PARTIES (14); REFORM_OF_ASSOCIATIONS (1) |
+| Reorganisation | ACQUISITION, merged into (6,320); TRANSFORMATION, converted to (1,856); SEPARATION, split off (1,745); REORGANISATION (514); DIVISION, split up (271); MERGER, merged by fusion (224) |
+| Securing measure | PROHIBITION, Aizliegums, ban on registrations (33,033); LIEN, Apķīlājums, attachment of shares or property (1,008); ATTACHMENT, Arests, arrest (218); empty (78) |
+| Suspension | ECONOMIC_ACTIVITY_SUSPENDED (10,413); ACTIVITY_SUSPENDED (188); PROHIBITION_ON_PUBLIC_ACTIVITY (1) |
+| Equity capital | PAID_UP_EQUITY (141,323); REGISTERED_EQUITY (3,015); INVESTMENT (166); CONDITIONAL_EQUITY (26); EQUITY_KB, cooperative (19); MINIMUM_RESERVES (1) |
+| Insolvency form | INSOLVENCY, national (15,391); LEGAL_PROTECTION, court restructuring (2,153); OUT_OF_COURT_LEGAL_PROTECTION (460); INSOLVENCY, cross-border (66). There are 35 resolution codes: top M06, bankruptcy completed (6,014); M09, creditor plan fulfilled (4,116); M08, ended for lack of assets (3,785); T14, restructuring plan rejected by creditors (1,164); M01, application rejected (672); empty (1,058) |
+| Tax rating | A, Laba saistību izpilde, good compliance (25,770); B, Jāuzlabo, needs improvement (63,935); C, Pārkāpumi, violations (8,699); N, Neaktīvs, inactive (42,038); J, Jaunreģistrēts, newly registered (5,248) |
+
+**Gaps** (sections not published in Latvia):
+
+| Section | Reason | Where / legal basis |
+|---|---|---|
+| S04 joint-stock shareholders | dataset made private after the Constitutional Court judgment of 9 Nov 2026 | grade D/X; legal.md rule 1 (company-level facts only) |
+| S04 beneficial owners | published, but display is restricted | candidate X; legal.md rules 2 and 4; CJEU C-37/20 |
+| S08 tax-debt amount | per query only, behind a CAPTCHA, purpose-limited | grade C; www.vid.gov.lv/lv/nodoklu-paradnieki (free manual check) |
+| S09 commercial pledges | not in open data | grade D; per entity at info.ur.gov.lv (`/legal-entity/:regNumber/pledge/:pledgeId`); the register's paid services: https://www.ur.gov.lv/lv/maksas-pakalpojumi (page not re-read) |
+| S09 official notices | reuse needs a written agreement and fee | grade D; https://www.vestnesis.lv/atkalizmantosana |
+| S10 courts | anonymised rulings carry no party IDs | grade C; agent full-text search later |
+| S14 securities | not in Latvian open data | grade D; out of scope |
+| S16 news | not a registry item | osint area |
+
+### Estonia
+
+#### e-Business Register files (RIK), CC BY 4.0
+1. **As-of date per record:** start date on every role, pledge, address, name and status row (`algus_kpv`); ruling date and date in force on rulings; first-entry date on the entity. The file itself has no as-of date: only the HTTP `Last-Modified` (daily).
+2. **Cadence and lag:** daily; the 19 Nov 2026 files held entries dated 19 Nov 2026 (same day). Register entries per weekday: 380-590.
+3. **Deep link:** `https://ariregister.rik.ee/eng/company/<code>` (8-digit registry code) (also `/est/`); given per entity in the basic CSV. No term restricts linking.
+4. **Attribution:** the publisher states no wording. Proposed: "Source: Centre of Registers and Information Systems (RIK), e-Business Register open data, CC BY 4.0".
+5. **Labels:** Estonian only in the files. English for legal forms, statuses, roles and other classifiers comes only from the classifier query of the contract API (language `est` or `eng`, per https://avaandmed.ariregister.rik.ee/en/open-data-api/classifiers-used-web-services). Activities carry the NACE code next to EMTAK, so English activity labels can come from the Eurostat NACE tables.
+6. **Vocabularies (counts on 19 Nov 2026):**
+   - Status (all 381,685 entities): R registrisse kantud (registered) 372,136; L likvideerimisel (in liquidation) 8,870; N pankrotis (in bankruptcy) 677; K kustutatud (deleted) 2.
+   - Legal forms: osaühing (private limited company) 296,678; korteriühistu (apartment association) 25,708; füüsilisest isikust ettevõtja (sole trader) 24,545; mittetulundusühing (non-profit association) 23,200; usaldusühing (limited partnership) 3,673; aktsiaselts (public limited company) 2,014; tulundusühistu (cooperative) 1,529; kohaliku omavalitsuse asutus (municipal body) 1,522; täisühing (general partnership) 1,112; sihtasutus (foundation) 782; välismaa äriühingu filiaal (foreign company branch) 477; ametiühing (trade union) 162; state body 141; maaparandusühistu (land-improvement association) 57; public-law body 38; European economic interest grouping 19; Societas Europaea 14; erakond (political party) 13; European cooperative 1.
+   - Officer roles on the card (current rows): JUHL juhatuse liige (board member) 453,805; FIE (sole trader) 23,360; KISIK kontaktisik (contact person) 14,677; LIKV likvideerija (liquidator) 8,301; TOSAN täisosanik (general partner) 5,940; ORP osade registripidaja (keeper of the share register) 3,591; UOSAN usaldusosanik (limited partner) 2,960; ARP aktsiaraamatu pidaja (keeper of the share book) 1,991; PROK prokurist (procurator) 1,985; ASES (representative of a public body) 1,709; KOAS (superior body) 1,527; MDKPI (person to receive procedural documents) 1,468; VALIT (administrator) 1,391; SJESI (statutory representative) 947; LIKVJ (board member as liquidator) 898; PANKR pankrotihaldur (bankruptcy trustee) 683; EUSOS and EUSOS2 (authorised limited partner) 796; ETTEV (entrepreneur) 539; VFILJ (branch manager) 522; JUHJ (managing board member) 416; FV (fund manager) 148; AJUTPH (interim trustee) 115; YHL (cooperative member) 78; ESIS and ESIS2 (authorised representative) 70; AJPH (interim trustee as liquidator) 66; YHLLV (cooperative member with extra liability) 29; JUHE (board chair) 28; HNKL (administrative council member) 15; JUHA (sole board member) 3.
+   - Persons off the card: A asutaja (founder) 372,270; B founder without contribution 35,452; N nõukogu liige (supervisory board member) 10,652; D audiitorettevõtja (audit firm) 9,167; S aktsionär (founding shareholder) 3,306; E nõukogu esimees (supervisory board chair) 2,241; J revident (auditor of a non-profit) 1,372; M auditor of a non-cash contribution 696; L liikmeskogudus (member congregation) 457; P pankrotitoimkonna liige (bankruptcy committee member) 367; V volitatud isik (authorised person) 281; R revisjonikomisjoni liige (audit committee member) 220.
+   - Members file: OSAN osanik (member) 371,299; O osanik (member, alternative code) 23,513.
+   - Beneficial-owner control method: O otsene osalus (direct holding) 278,530; J member of the highest management body 56,307; C board member(s) 47,611; K kaudne osalus (indirect holding) 23,712; F other control (contract, family) 2,283; Z founder-rights holder, council or board member 1,960; X over 50% of votes in a consolidated entity 1,151; Y right to appoint the management 940; S soodustatud isik (beneficiary) 307.
+   - Ruling kinds (84 kinds, 2,897,669 rulings): kanne (entry) 1,940,029; defect-correction order 257,830; **warning of deletion for an unfiled annual report 110,398; fine warning for an unfiled annual report 107,566; report fine 57,820**; positive entry decision 55,660; procedural order 54,031; activity deleted from the card 39,062; negative entry ruling, defects not corrected 37,004; public delivery via official notices 27,979; and 74 smaller kinds (repeat report fine 17,433; warning of compulsory dissolution for insufficient net assets 5,349; deletion for an unfiled report 2,722; and others).
+   - Entry types: muutmiskanne (amendment) 1,742,428; esmakanne (first entry) 408,328; none 402,733; amendment under Commercial Code s. 525(2) 90,166; amendment under Code of Civil Procedure s. 595(1) 55,834; file check 22,647; lõpetamiskanne (dissolution) 13,203; non-profit card closed 12,012; apartment-association card opened 11,961; ümberkujundamiskanne (conversion) 11,598; commercial pledge opened 10,672; and smaller types including kustutamiskanne (deletion) 4,269 and restoration to the register 3,590.
+7. **History depth:** none for people, names, addresses or status in the files (0 role rows with an end date; current rows only). Events: the registry-card entry list and rulings. Financials: 2019-2025 (7 years). Workforce: 19 quarters (2022 Q1 to 2026 Q3).
+8. **Money:** EUR (pledge and capital rows carry a currency field). Financial year end: `majandusaastad[].maj_aasta_lopp`; period start and end per annual report. 7.2% of the latest reports (24,048 of 333,988) do not end on 31 Dec.
+9. **Gaps:** see the list after the per-source tables.
+10. **Field sizes:** longest legal name 320 characters, longest normalised address 124. Per entity with at least one: board-type officers p50 1, p95 3, max 25 (360,317 entities); members p50 1, p95 2, max 628 (296,654); beneficial owners p50 1, p95 3, max 51 (311,418).
+11. **Search:** registry code, current name, VAT number and address are in the files. Former names: not in the files (only current `arinimed` rows); the free autocomplete service returns `historical_names`. LEI: not in the files (GLEIF). Normalised-name collisions (casefold, legal-form words and punctuation removed): 0.2% of active companies share their name with another current entity, 0.1% with another active company (business names must be unique).
+
+#### Annual reports open data (RIK), CC BY 4.0
+1. Per record: report year, period start and end, submission date.
+2. Monthly; cut-off 31 Oct 2026, published 9 Nov 2026 (lag 3-6 weeks).
+3. Same company link; no per-report link.
+4. Proposed: "Source: RIK, e-Business Register annual-report open data, CC BY 4.0".
+5. Element names in English and Estonian (`elemendi_nimetus`, `elemendi_label`).
+7. 2019-2025.
+8. EUR; non-consolidated figures; reports filed as PDF have no figures (1.3% of FY2025 reports, 38% of large-company reports).
+
+#### EMTA taxes paid, turnover, employees, CC BY-SA 3.0
+1. Year and quarter per row, plus `Andmete seis` (data as of).
+2. Quarterly, on the 10th of the month after the quarter (Q3 2026 published 10 Oct 2026).
+3. No entity page.
+4. The publisher states no wording. Proposed: "Source: Estonian Tax and Customs Board, taxes paid, turnover and employees, CC BY-SA 3.0".
+5. Estonian only.
+7. 19 quarters.
+8. EUR, calendar quarters; turnover is the VAT-return total of the three months before publication, not the quarter itself.
+
+#### EMTA tax debtors, CC BY-SA 3.0
+1. `Andmed on seisuga` (as of) per row; due date of the oldest unpaid claim per row.
+2. Daily, as of the publication day.
+3. Real-time lookup page `https://apps.emta.ee/saqu/public/taxdebt` (the code is typed in; no deep-link parameter verified).
+4. Proposed: "Source: Estonian Tax and Customs Board, list of tax debtors, CC BY-SA 3.0".
+7. Current only (no history; we must snapshot).
+8. EUR.
+
+#### Procurement register, CC BY-SA 3.0
+1. Notice dates and award per lot.
+2. Monthly files; October was available by 19 Nov.
+3. Unknown: the notice URL pattern is not verified (settle by opening one notice in the register UI).
+4. Proposed: "Source: Estonian public procurement register, CC BY-SA 3.0".
+5. eForms codes (EU, multilingual); notice text in Estonian.
+7. Open data from 2017 (portal temporal coverage).
+8. EUR, contract value per winning tender.
+
+#### Official notices, CC BY-SA 4.0
+1. Publication date per notice.
+2. Daily.
+3. Each notice carries its own URL: `https://www.ametlikudteadaanded.ee/ee/<publisher>/<type>/<subtype>/<yyyy>/<mm>/<dd>/<notice number>`.
+4. Proposed: "Source: Ametlikud Teadaanded (official notices), CC BY-SA 4.0".
+5. Estonian.
+7. Open data since 2015; archived notices are excluded by law.
+
+#### Gaps in Estonia (B.9)
+- **S02 history (names, addresses, ended roles, deleted companies):** not in the open files; the contract API has it (free contract): https://ariregister.rik.ee/eng/contract
+- **S04 public limited company shareholders:** not in the register (kept by the securities depository). Grade D; ordering terms not researched.
+- **S04 beneficial owners:** published in bulk today (412,802 rows, file of 19 Nov 2026). This contradicts the third-party claim in the legal memo that they left open data on 10 Jul 2026. Display is a legal call: candidate X under legal.md rules 2 and 4 (CJEU C-37/20).
+- **S07 average salary:** not published; EMTA states the figures cannot be used to compute one.
+- **S10 court cases:** not in these sources (register rulings are registration decisions). Not researched here.
+- **S14 securities:** not researched here.
+
+## Re-running the headline counts
+
+For `qa`: the exact commands from a clean checkout (Python 3.12+, stdlib only). Counts move with every daily file, by roughly the per-day change measured above.
+
+### Lithuania
+
+From a clean checkout (Python 3.12+, no packages):
+
+1. `python -I research/probes/baltics/lt/fetch_all.py` (downloads about 1.7 GB into the cache; counts below follow
+   the day you pull, so they will differ slightly from the 2026-11-19 values).
+2. `python -I research/probes/baltics/lt/build_profiles.py` (about 4 minutes).
+
+| Headline in baltics.md | Command | Output line |
+|---|---|---|
+| 231,716 active register entities (status "no legal proceedings"), 188,099 of business forms | `build_profiles.py` | `"n_population": 231716` and `"n_population_companies": 188099` |
+| 22.0% of active companies have some overdue tax or social-insurance debt | `build_profiles.py` | `"has_overdue_tax_or_social_debt": 22.0` |
+| LEI for 2.5% of active business-form companies | `build_profiles.py` | `"lei": 2.5` inside `population_companies` |
+| Insured persons for 48.6% of active business-form companies (average wage 18.8%) | `build_profiles.py` | `"employees_current": 48.6` and `"avg_salary": 18.8` inside `population_companies` |
+| The API copy of the register is 28 days old (newest registration 2026-10-02) | `python -I research/probes/baltics/lt/freshness.py out.tsv datasets/gov/rc/jar` | row `datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo`, columns `last_change` and `age_days` |
+
+Round-2 numbers above: `python -I research/probes/baltics/lt/round2.py`, lines prefixed `[volume]`, `[address]`,
+`[vocab]`, `[fiscal]`, `[sizes]`, `[names]`.
+
+### Latvia
+
+From a clean checkout, with Python 3.12+, stdlib only:
+
+```bash
+python -I research/probes/baltics/lv/01_ckan_download.py research/.cache/baltics/lv --org ur
+python -I research/probes/baltics/lv/01_ckan_download.py research/.cache/baltics/lv --dataset gada-parskatu-finansu-dati nodoklu-maksataju-reitings pvn-maksataji nodoklu-maksataju-taksacijas-ceturksni-samaksato-vid-administreto-nodoklu-kopsummas komersantu-ieprieksejos-tris-taksacijas-gados-samaksato-vid-administreto-nodoklu-kopsummas saimnieciskas-darbibas-apturesana es-lidzfinansetie-projekti eiropas-savienibas-fondu-21-27-perioda-lidzfinansetie-projekti
+python -I research/probes/baltics/lv/02_iub_notices.py research/.cache/baltics/lv 2026/01 2026/02 2026/03 2026/04 2026/05 2026/06 2026/07 2026/08 2026/09 2026/10 2026/11
+python -I research/probes/baltics/lv/09_round2.py research/.cache/baltics/lv
+```
+
+| Headline in baltics.md | Output line of `09_round2.py` |
+|---|---|
+| 154,704 active Commercial Register entities | `C active_commercial_register: 154704` |
+| 200,800 beneficial-owner rows | `C bo_rows: 200800` |
+| Rating C covers 5.4% of active companies | `C active_rating_c_pct: 5.4` |
+| Joint-stock shareholders withdrawn: 0 of 765 active AS have member rows | `C active_as: 765` and `C active_as_with_member_rows: 0` |
+| The masked code reveals the birth date (legacy codes) | `C legacy_birthdate_code_pct: 97.1` (share of the 619,274 person rows that carry a masked code; 91-97% when rows without a code are included, per file) |
+
+Runtime: about 1 min after the downloads (about 1.4 GB). Counts drift daily, by about 0.01-0.2% per file, so a later run gives slightly different numbers.
+
+### Estonia
+
+From a clean checkout (about 30 min, 0.7 GB download, 14 GB disk):
+
+```
+python -I research/probes/baltics/ee/fetch_ariregister.py
+python -I research/probes/baltics/ee/fetch_emta.py
+(cd research/.cache/baltics/ee/raw/ariregister && mkdir -p x && for z in *.zip; do unzip -o -q "$z" -d x; done)
+python -I research/probes/baltics/ee/build_index.py
+python -I research/probes/baltics/ee/procurement.py 2025-11 2026-10
+python -I research/probes/baltics/ee/official_notices.py 2026-05 2026-10
+python -I research/probes/baltics/ee/round2.py
+```
+
+| Headline count in baltics.md | Value (19 Nov 2026 pull) | Output line |
+|---|---|---|
+| Entities in every register file | 381,685 | `HEADLINE entities_in_register_files` (round2.py); also `ettevotja_rekvisiidid__yldandmed.json 381685 records` (build_index.py stderr) |
+| Active companies (population) | 296,057 | `HEADLINE active_companies_population` |
+| Current role rows on registry cards | 528,064 | `HEADLINE current_board_and_card_role_rows` |
+| Beneficial-owner rows | 412,802 | `HEADLINE beneficial_owner_rows` |
+| Active companies on the tax-debtor list | 6.2% | `HEADLINE active_companies_on_debtor_list_pct` |
+
+The values move with every daily file. `reality_check.py` prints the section fill rates (`sections.*.population_pct` in `fillrates.json`).
+
 ## Reality check
 
 We built 8 real company profiles per country, the way the app would, from the sources above. The profiles stay in `research/.cache/baltics/<country>/profiles/`; only the aggregates are here.
@@ -1111,7 +1539,7 @@ One row per section and country, in the README's final format. Grades follow the
 | S12 | LV | Kohesio projects + beneficiaries | C | 32.1% of beneficiaries joinable; 0% of 2014-20 projects | bulk; licence verified Y; CC BY 4.0; most LV rows match by name only |
 | S12 | EE | public procurement register (award notices) | B | 1.2% | bulk; licence verified Y (CC BY-SA 3.0); 1.2% of active companies won a contract in 12 months; 3,821 Estonian suppliers; EU funds via Kohesio (cross-border) |
 | S12 | EE | Kohesio projects + beneficiaries | B | 97.3% of beneficiaries joinable | bulk; licence verified Y; CC BY 4.0; slow refresh |
-| S13 | LT | JAR documents; statement filing dates; non-filer lists | B | 87.9% | API; licence verified Y; document type and date only, since 2024 |
+| S13 | LT | JAR founding documents; statement filing dates; non-filer lists | B | 87.9% | API; licence verified Y; founding documents only (articles, deeds, regulations), type and date, since 2024; not all filings |
 | S13 | LV | FS filing years; memorandum dates | B | 74% | bulk; licence verified Y; documents themselves per-query at info.ur.gov.lv |
 | S13 | EE | annual-report list, registry-card entries, rulings | A | 83.3% | bulk; licence verified Y; filing dates and entry types; full reports via contract API |
 | S14 | LV | (none in LV open data) | D | 0% | none; licence verified N; exchange data not researched for LV |
@@ -1136,7 +1564,7 @@ One row per section and country, in the README's final format. Grades follow the
    - It adds history, deleted companies and full annual reports. The bulk files cover everything else.
    - Needs a contract signed by the operator. Deferred under register decision C7 ("key pending").
 3. **Latvian beneficial-owner concealment:** we can't yet see whether concealed owners leave the bulk file. Settle by diffing pulls weekly.
-4. **Latvian deep links:** the per-company URL pattern of the official lookup site is unknown. Settle by opening it in a browser.
+4. **Latvian deep links:** found (`https://info.ur.gov.lv/#/legal-entity/<code>`, see UI facts). The portal states no linking terms.
 5. **LT API internal IDs:** unknown whether they survive a full reload. Key on the registry code after the join.
 6. **LT post-2017 procurement licence page:** not read. Low priority, since that data has no supplier codes.
 7. **Registry-code reuse after deletion:** not observed in LT or LV. Only the registers can confirm it.
