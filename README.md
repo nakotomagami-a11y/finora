@@ -32,4 +32,6 @@ node scripts/guard/install.mjs
 
 ## License
 
-To be decided before the first code lands.
+- **Code:** [GNU AGPL-3.0](LICENSE). If you run a modified version as a service, you must offer its source to its users.
+- **Docs and research text** (`docs/`): [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- **Data** loaded from public sources keeps its source's licence; Finora never relicenses it. Each source's licence is recorded in `docs/research/`.

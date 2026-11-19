@@ -44,7 +44,7 @@ No phase starts before the previous phase's exit criteria are met. No app code b
 
 ### Phase 4: council session 2 (plan approval)
 1. `council` and `cto` approve the whole plan; `docs/plan/council/02-plan.md` records the red-team, the revisions and any dissent.
-2. The code licence is decided by the human.
+2. The code licence is decided by the human (done: AGPL-3.0).
 
 ### Phase 5: build
 Slices land in the approved order. Each slice: tests green, qa review with no open MUST-FIX, web-qa pass for UI slices. A council session 3 record (`docs/plan/council/03-*.md`) at each milestone demo.
@@ -99,13 +99,13 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 
 ## Decisions
 
-### For the human (asked, not yet answered)
+### For the human
 
 | # | Question | Recommendation | Asked | Answer |
 |---|---|---|---|---|
-| H1 | Code licence (and docs licence) | AGPL-3.0 for code, CC BY 4.0 for docs | 2026-11-19 | |
-| H2 | Paid per-use services for the agents: an LLM API and, if no free option is good enough, a web search API | Yes, bring-your-own-key, with a per-investigation cost cap enforced in code | 2026-11-19 | |
-| H3 | Keys and accounts (human-task) | See the hub post | 2026-11-19 | |
+| H1 | Code licence (and docs licence) | AGPL-3.0 for code, CC BY 4.0 for docs | 2026-11-19 | **Yes** (2026-11-19): code AGPL-3.0, docs and research text CC BY 4.0, data keeps its source licence. `LICENSE` added |
+| H2 | Paid per-use services for the agents: an LLM API and, if no free option is good enough, a web search API | Yes, bring-your-own-key, with a per-investigation cost cap enforced in code | 2026-11-19 | **Yes** (2026-11-19): own keys from a local `.env`, estimated cost shown before an investigation, per-investigation cap enforced in code, CI and tests on recorded fixtures only |
+| H3 | Keys and accounts (human-task) | See the hub post | 2026-11-19 | open |
 
 ### By the coordinator
 
