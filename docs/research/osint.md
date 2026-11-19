@@ -30,9 +30,9 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 - Size and speed: 🟢 p50 84 ms, p95 129 ms; 1.5 KB median response.
 - Join keys: 🟢 .lv and .ee registrant code equals the register code for 5 of 21 sample sites (LV 1/2, EE 4/9).
 - Person identity: none shown for natural persons.
-- Licence: no open licence. .lv: "only for technical or administrative needs associated with the operation of the Internet"; "not permitted to obtain (including copying) or re-use in any form" ([nic.lv](https://nic.lv/en/nic-whois-policy)). .ee: "may not be used for business, advertising, reproduction, recompilation, redistribution, reuse"; not "as a backend for a search engine" ([internet.ee](https://www.internet.ee/domains/whois-terms-and-conditions)). .lt: "used only for the information on a specific .lt domain and its holder" ([domreg.lt](https://www.domreg.lt/en/services/whois/)). .com RDAP: no "high volume, automated" processes ([verisign.com](https://www.verisign.com/en_US/domain-names/registration-data-access-protocol/terms-service/index.xhtml)). Verified 2026-11-19.
+- Licence: no open licence. .lv: "It is permitted to use the WHOIS service only for technical or administrative needs associated with the operation of the Internet or in order to contact the domain name holder over legal problems"; "It is not permitted to obtain (including copying) or re-use in any form or by any means all or quantitatively or qualitatively significant part of the WHOIS without NIC.LV's express permission" (a database-right clause about substantial parts, so one lookup per investigation is not covered by it) ([nic.lv](https://nic.lv/en/nic-whois-policy)). .ee: "may not be used for business, advertising, reproduction, recompilation, redistribution, reuse"; not "as a backend for a search engine" ([internet.ee](https://www.internet.ee/domains/whois-terms-and-conditions)). .lt: "used only for the information on a specific .lt domain and its holder" ([domreg.lt](https://www.domreg.lt/en/services/whois/)). .com RDAP: no "high volume, automated" processes ([verisign.com](https://www.verisign.com/en_US/domain-names/registration-data-access-protocol/terms-service/index.xhtml)). Verified 2026-11-19.
 - Keys, limits, cost: free, no key. Per-IP limits without numbers (.lv, .ee). rdap.org redirector: 10 requests per 10 s.
-- Legal constraints: one lookup for one domain the user is investigating fits the stated purposes best; bulk lookups or building a domain-to-company table does not. The .lv purpose clause is the tightest: **legal to confirm** whether a due-diligence lookup is an "administrative need".
+- Legal constraints: one lookup for one domain the user is investigating fits the stated purposes best; bulk lookups or building a domain-to-company table does not. The .lv purpose clause is the tightest: **legal to confirm** whether a due-diligence lookup fits "technical or administrative needs" or "to contact the domain name holder over legal problems". Its reuse clause covers only all or a significant part of the WHOIS, which a single lookup is not.
 - Tested with: `domain.mjs` `registration()`, via `reality_check.mjs`.
 - Verdict: use with caveat. Query time only, one domain per investigation, show the derived facts (registered on, registrant is an organisation, registrant code matches), keep the raw text only in the investigation's documents (TTL), never in shared datasets or exports.
 
@@ -252,7 +252,7 @@ All lists downloaded 2026-11-19 with `sanctions.mjs`. Entries are distinct list 
 - EE (9): active companies listing a website in the register contacts, two per annual-report size class (large, medium, small, micro), plus one in liquidation or bankruptcy.
 - LV (8): active limited companies by latest net turnover (≥€50M, €5-50M, €0.5-5M, <€0.5M) plus one terminated company.
 - LT (7): companies by 2024 sales revenue in the same bands. The late-filer list gave no distressed pick.
-- US (8): three public companies by public float (≥$10B, $300M-2B, <$100M) and five small private businesses from the SAM.gov entity extract that list a website (building contractor, coffee roaster, payroll services, freight broker, electrical/solar installer).
+- US (8): three public companies by public float (≥$10B, $300M-2B, <$100M) and five small private businesses from the SAM.gov entity extract that list a website (one per trade, five trades).
 
 Websites: from the register (EE, US private), else found by web search as the web agent would (LV, LT, US public). Each probe then ran exactly as the agent tool would. Entity-level profiles are in `research/.cache/osint/profiles/`.
 
@@ -287,7 +287,8 @@ Sample sizes are small (7-9 per country). The rates below say what the agent can
 
 | Section | Country | Sources | Grade | Fill rate | Notes |
 |---|---|---|---|---|---|
-| S11 | all | OFAC SDN + non-SDN, EU FSF, UN SC, UK Sanctions List | A | 100% screened; 0% hits | bulk; licence verified Y (UN: N); name + second identifier required; "possible match, needs review" |
+| S11 | all | OFAC SDN + non-SDN, EU FSF, UK Sanctions List | A | 100% screened; 0% hits | bulk; licence verified Y; name + second identifier required; "possible match, needs review" |
+| S11 | all | UN Security Council consolidated list | C | 100% screened; 0% hits | bulk; licence verified N (terms page returned 403); 🟢 1,002 of 1,007 UN entries have a name that also appears on the EU, UK or OFAC lists, so leaving UN out loses almost nothing |
 | S11 | LT | Bank of Lithuania illegal websites; gambling regulator domains | B | 100% checked; 0% hits | bulk; licence verified Y (gambling list: none stated); domain and name match |
 | S11 | LV | Latvijas Banka warnings page; consumer centre lists | C | 100% checked at query time | per-query; licence verified Y (all rights reserved: link and short quote only) |
 | S11 | EE | Finantsinspektsioon alerts; consumer protection list | C | 100% checked at query time | per-query; licence verified N (no terms found) |
@@ -358,11 +359,11 @@ The worst failure is the wrong company (council). So:
 | Trigger | Kind | Example wording (fictional) | Default if unanswered |
 |---|---|---|---|
 | Several register entries match the subject | `choose_one` with up to 5 entries (name, code, status, city) | "Three registered companies are called Example Trading. Which one do you mean?" | stop the investigation: "Not enough data" |
-| A website was found but no anchor ties it to the pinned company | `confirm` | "Is examplefirm.lv the website of Example Trading SIA (code …)?" | treat as unconfirmed; findings labelled "linked by name only" |
+| A website was found but no anchor ties it to the pinned company | `confirm` | "Is example-trading.example the website of Example Trading SIA (code …)?" | treat as unconfirmed; findings labelled "linked by name only" |
 | A sanctions or list entry matches the name, with no second identifier to confirm or rule out | `choose_one`: same / different / not sure, with the list entry's details | "A sanctioned entity in the UK list is also called Example Trading (registered in another country). Is this the same company?" | "possible match, needs review" stays visible |
-| The user's free text names a person or a website that conflicts with the register | `confirm` | "You mentioned examplefirm.com; the register lists examplefirm.lv. Check both?" | check the register's one only |
+| The user's free text names a person or a website that conflicts with the register | `confirm` | "You mentioned example-trading.test; the register lists example-trading.example. Check both?" | check the register's one only |
 
-Limits: at most 3 questions per investigation and 1 per agent; a question blocks only its own agent and the agents that depend on it. 🟡 Cost note: a question unanswered for more than 5 minutes lets the prompt cache expire, so resuming re-reads the agent's context at the full input price (about $0.02-0.08 at the mid tier). The estimate's high end includes one such resume.
+Limits: at most 3 questions per investigation and 1 per agent; a question blocks only its own agent and the agents that depend on it. 🟡 Cost note: a question unanswered for more than 5 minutes lets the prompt cache (5-minute TTL) expire, so resuming re-reads the agent's context at the full input price (about $0.02-0.08 at the mid tier). The estimate's high end includes one such resume.
 
 ### 4.5 Parallelism and latency
 
@@ -377,7 +378,7 @@ Limits: at most 3 questions per investigation and 1 per agent; a question blocks
 
 ### 4.6 Cost per investigation and the pre-run estimate
 
-**Model (🟡, to be replaced by measured runs).** Inputs: the measured tool summary sizes above; provider prices as of 2026-11 (small $0.10/$0.50, mid $2/$10, top $4/$20 per million input/output tokens; cache reads 0.05-0.1x input; cache writes 1.25x; web search $10 per 1,000); prompt caching on the system prompt and tools; thinking tokens counted as output.
+**Model (🟡, to be replaced by measured runs).** Inputs: the measured tool summary sizes above; provider list prices as of 2026-11, per million input/output tokens: small `claude-haiku-5-5` $0.10/$0.50 (doubles for prompts over 100k tokens, which no role reaches), mid `claude-sonnet-5-5` $2/$10, top `claude-opus-5-5` $4/$20 (a costlier top tier at $8-10/$40-50 exists and is not proposed); cache reads 0.05-0.1x input; cache writes 1.25x for the 5-minute cache the runtime uses (the 1-hour cache writes at 2x); web search $10 per 1,000; prompt caching on the system prompt and tools; thinking tokens counted as output.
 
 | Role | Typical: turns, new input, output, searches | Worst: turns, new input, output, searches |
 |---|---|---|
@@ -391,11 +392,11 @@ Limits: at most 3 questions per investigation and 1 per agent; a question blocks
 
 | Model choice | Typical | Worst |
 |---|---|---|
-| Small model throughout | $0.06 | $0.13 |
+| Small model throughout (`claude-haiku-5-5`) | $0.06 | $0.13 |
 | Small specialists, mid lead and synthesis | $0.15 | $0.29 |
-| **Mid model throughout (proposed default)** | **$0.46** | **$0.92** |
+| **Mid model throughout, `claude-sonnet-5-5` (proposed default)** | **$0.46** | **$0.92** |
 | Mid specialists, top synthesis | $0.53 | $1.05 |
-| Top model throughout | $0.88 | $1.76 (over the $1.50 cap) |
+| Top model throughout (`claude-opus-5-5`) | $0.88 | $1.76 (over the $1.50 cap) |
 | Local open-weights model (OpenAI-compatible server) | $0 | $0 (quality and speed unmeasured) |
 
 The web agent is about half of the cost at every tier; its search count and fetch size are the levers. The mid-tier default keeps the worst case under the $1.50 cap with room for the one-shot $0.50 extension (council guardrail 1).
@@ -408,7 +409,7 @@ The web agent is about half of the cost at every tier; its search count and fetc
 
 **For cto:** the "typical" column is the modelled p50 and "worst" the modelled p95 of the council's v1 set (4 agents and the verdict step): $0.46 and $0.92 at the mid tier, against the $1.50 cap.
 
-**At the cap** (architect's decision on frontend #3, which this seat supports): the run pauses as `paused_at_cap` and asks one `cap` question, "Stop and write the report" (default) or "Allow up to $0.50 more", clipped to what is left of the daily cap and offered once per run. With the mid-tier default the cap is reached only in the worst case.
+**At the cap** (architect's decision on frontend #3, which this seat supports): the run pauses as `paused_at_cap` and asks one `cap` question, "Stop and write the report" (default) or "Allow up to $0.50 more", clipped to what is left of the daily cap and offered once per investigation (register C10). With the mid-tier default the cap is reached only in the worst case.
 
 **What the measured run will add:** real tokens, tool calls and wall time per agent at two model tiers, on 3 sample entities per country, replacing the defaults above. It needs an LLM key (human-task).
 
