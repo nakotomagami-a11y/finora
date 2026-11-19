@@ -13,7 +13,7 @@ Every field in every section, for every country, ends in exactly one state. Empt
 | **Full** | Official source, loaded, fresh | Value in primary ink, source chip at the end of the row | the value |
 | **None found** | A check ran and found nothing (risk signals: tax arrears, insolvency, pledges, courts, sanctions, struck off) | Check-mark icon in `--ink-2`, never green; the source and date are part of the sentence | "Checked the debtor list as of 18 Nov 2026: none found" |
 | **Partial** | Some fields or years missing, or only a subset of the population (e.g. only filers above a threshold) | Value shown, plus a dotted underline; hover or tap explains the gap | "3 of 5 years published" |
-| **Stale** | Source older than its expected refresh interval | Value shown, date chip turns amber | "as of 14 Mar 2026 (source not updated for 40 days)" |
+| **Stale** | This record is older than its source's cycle (council session 0 clarification: record level; the source-level "current" rule is 2× cadence and decides SHOW vs CAVEAT, not this state) | Value shown, date chip turns amber | "as of 14 Mar 2026, older than this source's monthly cycle" |
 | **Caveat** | Council says "show with caveat" | Value shown; a short caveat line in muted text right under it, never in a tooltip only | "Covers filers above the threshold only, as of 2025. Missing does not mean clean." |
 | **Not published** | The country has no official source for this item | Muted row, dash icon, one line naming the gap | "Not published in Lithuania" |
 | **Not shown** | Data exists but law or policy keeps it out (council "hide") | Muted row, lock icon, one line with the reason and a link to the policy page | "Not shown: restricted by a 2026 court ruling" |
@@ -37,8 +37,9 @@ Every field in every section, for every country, ends in exactly one state. Empt
 Rules that follow from this:
 1. The council's three empty states stay distinct everywhere (session 0): **"Not published in [country]"**, **"Checked [source] as of [date]: none found"** and **"Not checked"** (Later, Error, or a check the run skipped). "Paid only", "Not shown" and "Disputed" are labelled variants of "Not published" and "Not checked", each with its own icon and reason. A user must be able to tell "nothing bad found" from "nobody checked" from "we may not show it".
 2. "None found" is never green and never says "clear". It reports a check, not a judgement.
-3. A section where every field is "Not published" collapses to one line ("Lithuania publishes no ownership data") instead of a block of dashes.
-4. The country coverage strip (section 4) tells the user up front what this country can and cannot give.
+3. Banned verdict words are banned in every string Finora writes, controls included ("Reset", not "Clear"). The only exemption is a verbatim excerpt in the quote component, with its citation.
+4. A section where every field is "Not published" collapses to one line ("Lithuania publishes no ownership data") instead of a block of dashes.
+5. The country coverage strip (section 4) tells the user up front what this country can and cannot give.
 
 ## 2. Provenance on every finding
 
