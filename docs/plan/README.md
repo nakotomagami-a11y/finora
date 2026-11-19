@@ -82,7 +82,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/baltics.md`, `baltics-dictionary.md` | data-baltics | 1 | |
 | `docs/research/us.md` | data-us | 1 | |
 | `docs/research/markets.md` | data-markets | 1 | **done**: qa spot-check passed; MUST-FIX fixed in `2a2d70d` |
-| `docs/research/osint.md` | data-osint | 1 | landed 2026-11-20 (`671dadc`); modelled cost, measured run deferred to the key round; qa spot-check before session 1 |
+| `docs/research/osint.md` | data-osint | 1 | landed 2026-11-20 (`671dadc`, round 2 `e0c3bce`: TED for S12, sanctions identifier coverage, rate limits, UI facts); modelled cost, measured run deferred to the key round; qa spot-check before session 1 |
 | `docs/research/legal.md` | legal (committed by coordinator) | 1 | done (rounds 1 and 2) |
 | `docs/research/display-matrix.md` | coordinator, from the area docs | 1 | |
 | `docs/research/cto-preread.md` (volumes, store benchmark, provisional technical calls) | cto (committed by coordinator) | 1 | done |
