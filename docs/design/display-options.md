@@ -16,13 +16,24 @@ Every field in every section, for every country, ends in exactly one state. Empt
 | **Caveat** | Council says "show with caveat" | Value shown; a short caveat line in muted text right under it, never in a tooltip only | "Self-reported by the company, not audited" |
 | **Not published** | The country has no official source for this item | Muted row, dash icon, one line naming the gap | "Lithuania does not publish company officers" |
 | **Not shown** | Data exists but law or policy keeps it out (council "hide") | Muted row, lock icon, one line with the reason and a link to the policy page | "Not shown: restricted by a 2026 court ruling" |
+| **Paid only** | Official source exists but is not free (grade D, paid extract) | Muted row, one line naming where an official extract can be ordered; no price, no affiliate link | "Available as a paid register extract" |
 | **Later** | Council "later" | Not rendered in the report at all; listed once on the coverage page | none in the report |
 | **Loading** | Source query in flight | Skeleton bar the width of a typical value; the agent card shows the live step | "Querying the register" |
 | **Error** | Source failed, timed out or was rate-limited | Muted row, warning icon, retry button | "Register did not answer. Retry" |
 | **Agent finding** | Came from an agent reading the open web, not an official record | Value with a source chip whose kind is "web", and a confidence badge | the finding, always with its citation |
 
+### How research grades map to states
+
+| Grade (`docs/research/README.md`) | Default state |
+|---|---|
+| A | Full (Stale when past its refresh interval) |
+| B | Full or Partial, plus a Caveat naming the limitation |
+| C | Agent finding, or Caveat |
+| D | Not published (absent) or Paid only (paid extract) |
+| X | Not shown |
+
 Rules that follow from this:
-1. "Not published", "Not shown" and "Error" look different on purpose. A user must be able to tell "nothing bad found" from "nobody checked" from "we may not show it".
+1. "Not published", "Paid only", "Not shown" and "Error" look different on purpose. A user must be able to tell "nothing bad found" from "nobody checked" from "we may not show it".
 2. A section where every field is "Not published" collapses to one line ("Lithuania publishes no ownership data") instead of a block of dashes.
 3. The country coverage strip (section 4) tells the user up front what this country can and cannot give.
 
@@ -55,76 +66,79 @@ An "Inferred" finding can never be a key finding on its own; it must cite the fi
 
 Each family lists display options, with a recommendation. "Rec" is the designer's pick; the council decides.
 
-### 3.1 Company basics (name, codes, status, address, activity, dates)
+### 3.1 S01 Identity and S02 Status and history
 - A. Header block: name, status pill, country flag-free code (`LV 40003…`), registered date, activity, address.
 - B. A plus a timeline of status changes (renamed, re-registered, liquidation started).
 - **Rec: B.** Status history is where the risk lives (renames after trouble, recent re-registration).
 - Status pill wording is the register's own, translated, never our judgement: "Active", "In liquidation", "Removed from register".
 
-### 3.2 People in the company (officers, board, signatories)
+### 3.2 S03 People
 - A. A "People" table inside the company page: role, name, since, until. No links to a person page.
 - B. A, plus "also officer in N other companies" as a count that opens the network explorer scoped to this company.
 - C. Standalone person pages.
 - **Rec: B.** C is out: the feasibility research flags standalone person profiles as the main GDPR risk. Personal codes, even masked ones, are never shown. People never appear in search results or the library as subjects; search finds companies.
 - Per country: LT shows "Not published" for names; US shows people only where a filing names them (filing chip says which form).
 
-### 3.3 Shareholders and beneficial owners
+### 3.3 S04 Owners
 - A. Ownership table: holder, share %, since. Companies and people mixed, with a type icon.
 - B. A, rendered as a small ownership tree when there are layers.
 - **Rec: A in the report, B in the network explorer.** Expect many "Not shown" rows here (restricted shareholder and owner data in parts of the EU). The "Not shown" line must name the reason so the user knows to request an official extract.
 
-### 3.4 Financial statements
+### 3.4 S06 Financials
 - A. Key figures table (revenue, profit, equity, assets, employees) by year, newest left.
 - B. A plus a sparkline per figure and a year-on-year change with arrow and sign.
 - C. Full statements (every line item) behind "All line items".
 - **Rec: B, with C behind a disclosure.** Currency and the period end date are always shown. Missing years are "Partial", not zero. Never colour alone: every change has a sign and an arrow.
 
-### 3.5 Employees and salary
+### 3.5 S07 Workforce
 - A. Latest headcount with the quarter or month.
 - B. A plus a 24-month line.
 - **Rec: B where the source is monthly or quarterly (LT, LV, EE); A for US (annual report text, "Caveat: from the annual report").** Average salary only where officially published and only for companies above a minimum headcount (council to set; small companies leak individual salaries).
 
-### 3.6 Taxes paid and tax debts
+### 3.6 S08 Taxes and arrears
 - A. Taxes paid per year; tax debt as a flag with amount and "as of" date.
 - **Rec: A.** A tax debt is a red-flag finding with the debtor-list source chip. When a debt disappears from the list, show "No longer on the debtor list since …" for a limited window (council to set), then drop it.
 
-### 3.7 Insolvency, pledges, securing measures, court cases
+### 3.7 S09 Insolvency, pledges and notices; S10 Courts
 - A. An "Events" list, newest first: date, type, status, amount if any, source.
 - **Rec: A**, with each event's status in the register's words ("Proceedings closed"). Court cases name parties that are companies; natural-person parties are masked as "a private individual".
 
-### 3.8 Public contracts and EU funds
+### 3.8 S12 Public money
 - A. Totals per year plus the top five contracts or projects with buyer and value.
 - **Rec: A.** Positive signal; usually green-neutral, never a risk colour.
 
-### 3.9 VAT status
+### 3.9 VAT status (part of S01)
 - **Rec:** one row in the header block: "VAT registered since …" or "Not VAT registered". US: the row is not rendered (n/a, not "Not published").
 
-### 3.10 Legal entity identifier and parent companies
+### 3.10 S05 Group
 - **Rec:** LEI in the codes row; parent and ultimate parent as the first ring of the network.
 
-### 3.11 Sanctions and watch lists
+### 3.11 S11 Sanctions and watchlists
 Three outcomes only, and the UI never says "sanctioned" from a fuzzy match:
 - **No match** across the named lists (each list listed, with its as-of date).
 - **Possible match: needs your review**: a question card to the human (section 5), showing both records side by side with the matching fields highlighted.
 - **Confirmed match**: only on an exact identifier match (registration code, LEI) or after the human confirms.
 - **Rec:** this exact pattern. It doubles as the clearest "agent asks the human" moment in the product.
 
-### 3.12 US securities filings (insider trades, 5% holders, officer changes)
+### 3.12 S13 Filings and events; S14 Securities
 - A. A filings timeline with form type chips (3, 4, 5, 13D/G, 8-K 5.02).
 - B. A plus a net insider buying/selling bar per quarter.
 - **Rec: B for public companies.** "CEO left" style events come from 8-K item detection and are labelled with the item number.
 
-### 3.13 Open web: news, reviews, social, website and domain
+### 3.13 S15 Web presence; S16 News and reputation
 - Display-only where terms forbid storing: the report keeps our summary sentence and the link, not the third-party text. The chip says "display only, not stored" and the excerpt is re-fetched on open, or replaced by "Open source to read".
 - Review platforms: aggregate rating and count only where the platform's terms allow it; otherwise only the link.
 - Domain: registered date versus company registered date is a good one-line finding ("Domain registered 3 years before the company").
 - **Rec:** these are agent findings with "Single source" or "Corroborated" confidence, never "Official".
 
-### 3.14 Red flags
+### 3.14 S18 Score inputs (red-flag checks)
 - A list of named checks, each with Pass / Flag / Could not check, so the user sees what was checked, not just what was found.
 - **Rec:** this list, with the check definitions published (transparent scoring is a stated product goal).
 
 ### 3.15 The verdict
+
+S17 Network is covered by the network explorer screen: companies first, people only as nodes inside a company's network, never as a search entry point.
+
 The prototype used "Go / Caution / Avoid". Options:
 - A. Keep a three-step verdict on the company, worded as a research outcome: **"No concerns found" / "Points to check" / "Serious concerns"**, always followed by "based on N sources, checked on DATE".
 - B. No verdict, only key findings.
@@ -150,7 +164,7 @@ The decision points the data creates, so the runtime and the UI agree on them:
 
 Each question shows which agents are waiting on it, and has a default the run takes after a timeout, so an unattended run still finishes.
 
-## 6. Crash monitor tiles
+## 6. Crash monitor tiles (M01 to M09)
 
 The tile states depend on the markets research. Expected options:
 
