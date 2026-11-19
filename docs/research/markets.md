@@ -25,6 +25,7 @@ python research/probes/markets/onchain.py         # bitcoin height, public RPC, 
 ```
 
 - Python 3.12+ standard library only. Each script prints one line per probe and writes a summary (status, latency, row count, first and last date, rate-limit headers, no values) to `research/.cache/markets/<script>.json`.
+- Single-stock probes need `PROBE_STOCK_SYMBOL` (a US ticker, no default: the repo names no real company); without it they record "skipped".
 - Optional keys, read from the environment and never written: `FRED_API_KEY`, `EIA_API_KEY`, `SEC_USER_AGENT`, and one variable per commercial provider (named in each probe). Without a key, the probe records the provider's refusal.
 - Python 3.13+ rejects the TWSE certificate under its strict X.509 flag; the probe relaxes only that flag (chain still verified).
 - **Two providers were measured once and then removed from the probes:** an unofficial keyless chart endpoint (S1), whose terms bar automated access, and a CSV download site (S2), which now sits behind a browser check. Their numbers below are from that single run.
@@ -340,7 +341,7 @@ Each value carries its own as-of date (observation date, or block time for on-ch
 | M05 | - | O5 oracle via O3; S3 or S6 with user key | C | 1/1 | API (on-chain) / user key; licence verified N for the oracle |
 | M06 | - | O3 height (computed supply), O5 oracle, X4 candles | C | 2/2 (bitcoin, ether price) | keyless API; licence verified Y (O3, X4), N (O5); ether cap needs C1 supply |
 | M06 | - | C1 global, C3 peak | C | 1/1 (total market) | keyless API; licence verified Y; attribution; C3 personal use only |
-| M07 | - | EIA spot via FRED | A | 2/2 | CSV/API; licence verified Y; 2-day lag; vendor-permission caveat |
+| M07 | - | EIA spot via FRED | B | 2/2 | CSV/API; licence verified Y; 2-day lag; licence caveat: vendor-permission note (open question 3), A once legal clears it |
 | M08 | - | Treasury Fiscal Data, Debt to the Penny | A | 1/1 | API; licence verified Y; daily, ticker is an estimate |
 | M09 | - | FRED `DGS10`, `UNRATE` (proposal) | A | 2/2 | CSV/API; licence verified Y; both public domain |
 | S14 | LT, LV, EE | ESMA FIRDS | A | 73/73 LEI and ISIN | API; licence verified Y; reference data only, no prices |
@@ -353,8 +354,8 @@ The "entities" for Crash monitor are its 20 series (M01 3, M02 1, M03 7, M04 2, 
 
 | Section | Country | Segment | Sample size | Filled | Fill rate | Notes |
 |---|---|---|---|---|---|---|
-| M01-M08 | - | A: official only, no key | 20 | 7 | 35% | debt, Brent, WTI, Japan; plus quarterly US value, monthly gold, Taiwan without backfill |
-| M01-M08 | - | A + D: official plus keyless on-chain/exchange/aggregator | 20 | 10 | 50% | adds bitcoin, ether, total crypto |
+| M01-M08 | - | A: official only, no key | 20 | 7 (strict: 6) | 35% (strict: 30%) | debt, Brent, WTI, Japan; plus quarterly US value, monthly gold, Taiwan without backfill. Strict count excludes Taiwan: it can't show a drawdown from the 2025-01-01 peak until seeded |
+| M01-M08 | - | A + D: official plus keyless on-chain/exchange/aggregator | 20 | 10 (strict: 9) | 50% (strict: 45%) | adds bitcoin, ether, total crypto; strict count excludes Taiwan |
 | M01-M08 | - | A + D + one stock key (S7) | 20 | 20 (estimated) | 100% (estimated) | stock tiles via ETF proxies; not measured: key pending |
-| M01-M08 | - | strictly hostable in public (open licences only) | 20 | 6 | 30% | Japan drops out (redistribution needs the owner's permission); crypto too, until oracle and exchange licences are confirmed |
+| M01-M08 | - | strictly hostable in public (open licences only) | 20 | 6 (strict: 5) | 30% (strict: 25%) | Japan drops out (redistribution needs the owner's permission); crypto too, until oracle and exchange licences are confirmed |
 | S14 | LT, LV, EE | listed-share records with ISIN and LEI | 73 | 73 | 100% | FIRDS reference data; no prices |

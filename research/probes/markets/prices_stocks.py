@@ -10,6 +10,10 @@ anywhere: the raw responses in research/.cache/ hold no request URLs.
 Not probed here on purpose: an unofficial keyless chart endpoint and a CSV download site. Both were
 called once on 2026-11-19 to record shape and latency (see docs/research/markets.md), then dropped:
 the first's terms bar automated access, the second now sits behind a browser check.
+
+Single-stock probes need PROBE_STOCK_SYMBOL (a US ticker, no default): the repo names no real company.
+Demo keys only answer for each provider's own sample symbols; they are listed in the maintainer's
+private notes. Without the variable those probes record "skipped".
 """
 import urllib.parse
 
@@ -99,11 +103,26 @@ def eodhd(symbol):
     return probe
 
 
+def with_symbol(make):
+    """Build the probe at run time from PROBE_STOCK_SYMBOL; skip when it is not set."""
+    def probe(probe_id):
+        symbol = env("PROBE_STOCK_SYMBOL")
+        if not symbol:
+            return {"probe": probe_id, "status": "skipped: no PROBE_STOCK_SYMBOL"}
+        return make(symbol)(probe_id)
+    return probe
+
+
 def keyed(label, url, env_name, param=None, header=None):
-    """Providers with no demo access: call with the user's key if present, else record the refusal."""
+    """Providers with no demo access: call with the user's key if present, else record the refusal.
+    A "{symbol}" in the URL is filled from PROBE_STOCK_SYMBOL."""
     def probe(probe_id):
         key = env(env_name)
-        full, headers = url, {}
+        if "{symbol}" in url:
+            symbol = env("PROBE_STOCK_SYMBOL")
+            if not symbol:
+                return {"probe": probe_id, "status": "skipped: no PROBE_STOCK_SYMBOL"}
+        full, headers = url.replace("{symbol}", urllib.parse.quote(symbol)) if "{symbol}" in url else url, {}
         if key and param:
             full += ("&" if "?" in url else "?") + f"{param}={key}"
         if key and header:
@@ -114,21 +133,21 @@ def keyed(label, url, env_name, param=None, header=None):
 
 
 PROBES = [
-    ("alphavantage_daily_demo", alphavantage("TIME_SERIES_DAILY", "IBM")),
+    ("alphavantage_daily_demo", with_symbol(lambda sym: alphavantage("TIME_SERIES_DAILY", sym))),
     ("alphavantage_index_spx", alphavantage("TIME_SERIES_DAILY", "SPX", "compact")),
     ("alphavantage_wti", alphavantage("WTI")),
-    ("twelvedata_aapl_demo", twelvedata("AAPL")),
+    ("twelvedata_stock_demo", with_symbol(twelvedata)),
     ("twelvedata_spx", twelvedata("SPX")),
-    ("fmp_aapl_demo", fmp("AAPL")),
+    ("fmp_stock_demo", with_symbol(fmp)),
     ("fmp_gspc", fmp("^GSPC")),
-    ("eodhd_aapl_demo", eodhd("AAPL.US")),
+    ("eodhd_stock_demo", with_symbol(lambda sym: eodhd(sym if "." in sym else f"{sym}.US"))),
     ("eodhd_gspc", eodhd("GSPC.INDX")),
-    ("finnhub_quote", keyed("quote", "https://finnhub.io/api/v1/quote?symbol=SPY", "FINNHUB_API_KEY", param="token")),
-    ("polygon_aggs", keyed("aggs prev", "https://api.polygon.io/v2/aggs/ticker/SPY/prev", "POLYGON_API_KEY", param="apiKey")),
-    ("tiingo_daily", keyed("daily prices", "https://api.tiingo.com/tiingo/daily/spy/prices", "TIINGO_API_KEY", param="token")),
-    ("marketstack_eod", keyed("eod latest", "https://api.marketstack.com/v2/eod/latest?symbols=SPY", "MARKETSTACK_API_KEY", param="access_key")),
+    ("finnhub_quote", keyed("quote", "https://finnhub.io/api/v1/quote?symbol={symbol}", "FINNHUB_API_KEY", param="token")),
+    ("polygon_aggs", keyed("aggs prev", "https://api.polygon.io/v2/aggs/ticker/{symbol}/prev", "POLYGON_API_KEY", param="apiKey")),
+    ("tiingo_daily", keyed("daily prices", "https://api.tiingo.com/tiingo/daily/{symbol}/prices", "TIINGO_API_KEY", param="token")),
+    ("marketstack_eod", keyed("eod latest", "https://api.marketstack.com/v2/eod/latest?symbols={symbol}", "MARKETSTACK_API_KEY", param="access_key")),
     ("nasdaqdatalink", keyed("datatable", "https://data.nasdaq.com/api/v3/datatables/QDL/BCHAIN.json?code=MKPRU", "NASDAQ_DATA_LINK_API_KEY", param="api_key")),
-    ("alpaca_bars", keyed("stock bars", "https://data.alpaca.markets/v2/stocks/bars?symbols=SPY&timeframe=1Day", "ALPACA_API_KEY", header="APCA-API-KEY-ID")),
+    ("alpaca_bars", keyed("stock bars", "https://data.alpaca.markets/v2/stocks/bars?symbols={symbol}&timeframe=1Day", "ALPACA_API_KEY", header="APCA-API-KEY-ID")),
 ]
 
 if __name__ == "__main__":

@@ -6,10 +6,12 @@ Optional environment: FRED_API_KEY (free FRED account), EIA_API_KEY (free EIA re
 SEC_USER_AGENT ("Name contact" as SEC fair access requires). Probes that need a missing variable
 record "skipped: no key" instead of failing.
 """
+import datetime as dt
+import json
 import re
 import urllib.parse
 
-from common import age_hours, as_json, env, get, run, summarise
+from common import age_hours, as_json, env, get, now_utc, run, summarise
 
 FRED_GONE = {"WILL5000INDFC", "GOLDAMGBD228NLBM"}
 TREASURY = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
@@ -154,12 +156,12 @@ def twse_swagger(probe_id):
 
 
 def json_text(value):
-    import json
     return json.dumps(value, ensure_ascii=False)
 
 
 def krx(probe_id):
-    status, body, hdrs, s = get(probe_id, "https://data-dbg.krx.co.kr/svc/apis/idx/kospi_dd_trd?basDd=20261118")
+    yesterday = (now_utc() - dt.timedelta(days=1)).strftime("%Y%m%d")
+    status, body, hdrs, s = get(probe_id, f"https://data-dbg.krx.co.kr/svc/apis/idx/kospi_dd_trd?basDd={yesterday}")
     return summarise(probe_id, "krx open api kospi_dd_trd (no key)", status, body, hdrs, s)
 
 
