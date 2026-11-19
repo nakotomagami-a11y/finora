@@ -17,6 +17,7 @@ Every field in every section, for every country, ends in exactly one state. Empt
 | **Not published** | The country has no official source for this item | Muted row, dash icon, one line naming the gap | "Lithuania does not publish company officers" |
 | **Not shown** | Data exists but law or policy keeps it out (council "hide") | Muted row, lock icon, one line with the reason and a link to the policy page | "Not shown: restricted by a 2026 court ruling" |
 | **Paid only** | Official source exists but is not free (grade D, paid extract) | Muted row, one line naming where an official extract can be ordered; no price, no affiliate link | "Available as a paid register extract" |
+| **Disputed** | Someone objected through the correction channel (legal memo rule 10) | Value hidden, muted row, one line with the date; the source chip stays | "Under review after an objection, since 12 Nov" |
 | **Later** | Council "later" | Not rendered in the report at all; listed once on the coverage page | none in the report |
 | **Loading** | Source query in flight | Skeleton bar the width of a typical value; the agent card shows the live step | "Querying the register" |
 | **Error** | Source failed, timed out or was rate-limited | Muted row, warning icon, retry button | "Register did not answer. Retry" |
@@ -177,10 +178,26 @@ The tile states depend on the markets research. Expected options:
 
 Every tile shows its source and "as of" time, like every report finding.
 
-## 7. Questions for the council
+## 7. Legal memo rules that shape the UI
+
+From `docs/research/legal.md`, product rules. Each one gets a fixed component, so no screen can forget it.
+
+| Rule | UI |
+|---|---|
+| 2. Natural-person data behind a stated purpose, logged | **Purpose gate**: the People and Owners sections stay collapsed until the user picks a purpose from a short list (for example "checking a business partner"). It's asked once per session and shown in a small "Purpose: …" line above those sections, with a change link. |
+| 3, 16. Source, licence, retrieval date and access tier on every record | The **source chip** (§2) gains an access-tier word ("open data", "API with key", "display only"). The licence links to the Sources page. |
+| 6. Disclaimer on every verdict about a person | A fixed **disclaimer line** in the People section and the report footer (§3.15). |
+| 7. Unsourced claims are not rendered | KeyFinding and FindingItem render nothing without at least one source. A verdict with zero sourced claims falls back to "Not enough evidence for a verdict". |
+| 8. Sanctions wording | §3.11. |
+| 9. AI-written text labelled on every surface | An **"AI-written" tag** on the verdict, every agent finding summary, chat answers and exports. Official values never carry it. This also separates register facts from agent prose at a glance. |
+| 10. Correction and objection channel on every entity page | A **"Report an error or object"** link in every company header and on every finding's overflow menu. It opens a short form. An objected statement switches to the **Disputed** state (§1). |
+| 1, 4, 11 | Data rules with no UI beyond the **Not shown** state (§1). |
+
+## 8. Questions for the council
 
 1. Verdict wording and scale (3.15): accept "No concerns found / Points to check / Serious concerns"?
 2. Minimum headcount before showing average salary (3.5)?
 3. How long a cleared tax debt stays visible (3.6)?
 4. Are natural-person court parties masked in all four jurisdictions (3.7)?
 5. Is "also officer in N other companies" (3.2 B) acceptable, or only inside the network explorer?
+6. Purpose gate (§7, rule 2): is "once per session, picked from a fixed list" enough, or must the purpose be asked per company?
