@@ -5,7 +5,7 @@ Owner: `data-us`. Measured 2026-11-19 and 2026-11-20 unless a line says otherwis
 ## Summary
 
 - **The US splits in two.** Public companies get deep, free, redistributable data from SEC EDGAR (filings, XBRL financials, insiders, 8-K events, large holders). Small private businesses get only what their state registry publishes, plus federal side-signals (federal contracts, pandemic loans, trucking authority, federal court dockets).
-- **SEC EDGAR is not measured yet.** EDGAR answers 403 unless the User-Agent carries a real contact address; GitHub no-reply addresses are refused too. The probes are written (`edgar_probe.py`) and run as soon as `SEC_USER_AGENT` is set in the main checkout's `.env` (coordinator's human-task, item 1). Every EDGAR line below marked *pending* is from SEC's own documentation, not from a measurement.
+- **SEC EDGAR is not measured yet.** EDGAR answers 403 unless the User-Agent carries a real contact address; GitHub no-reply addresses are refused too. The probes are written (probe `edgar_probe.py`) and run as soon as `SEC_USER_AGENT` is set in the main checkout's `.env` (coordinator's human-task, item 1). Every EDGAR line below marked *deferred: `SEC_USER_AGENT` pending* is from SEC's own documentation, not from a measurement.
 - **Five states publish free bulk people data:** FL (six officer slots), CT (principals), PA (parties), NY (chief executive of corporations only) and OR (authorised representative). CO publishes only the registered agent; WA publishes contractor-licence principals. **CA and DE have no free bulk data:** CA sells bulk orders, DE charges per status query.
 - **No US source publishes private-company financials, owners or employees.** The reality check confirms it: S04 Owners, S05 Group and S06 Financials are empty for all five private samples.
 - **Courts:** the federal Integrated Database is free and bulk, but only civil cases carry party names; bankruptcy records carry no debtor name at all. CourtListener has 73 M dockets in free bulk files; its API needs a free token and allows 125 requests a day. PACER costs $0.10 a page.
@@ -35,16 +35,16 @@ Common to every EDGAR source:
 - Publisher and URL: SEC, `https://data.sec.gov/submissions/CIK##########.json`; ticker map `https://www.sec.gov/files/company_tickers_exchange.json`; nightly bulk `submissions.zip`.
 - Access: JSON API per company, plus nightly bulk zip (republished around 3 a.m. ET).
 - Fields (SEC documentation): CIK, name, former names with dates, tickers, exchanges, SIC code and description, state of incorporation, fiscal year end, business and mailing address, phone, EIN, filer category, and the filing list (accession, form, filing and acceptance time, report date, **8-K item numbers**, primary document, XBRL flags).
-- Rows, fill, sizes, latency: *pending* (`edgar_probe.py bulk`, `edgar_probe.py submissions 300`).
-- Join keys: CIK (10 digits, zero-padded, never reissued) ↔ ticker (company_tickers_exchange); CIK ↔ EIN (in submissions; fill *pending*); CIK ↔ LEI only through GLEIF (no LEI in submissions).
+- Rows, fill, sizes, latency: *deferred: `SEC_USER_AGENT` pending* (probe `edgar_probe.py bulk`, `edgar_probe.py submissions 300`).
+- Join keys: CIK (10 digits, zero-padded, never reissued) ↔ ticker (company_tickers_exchange); CIK ↔ EIN (in submissions; fill *deferred: `SEC_USER_AGENT` pending*); CIK ↔ LEI only through GLEIF (no LEI in submissions).
 - Tested with: `research/probes/us/edgar_probe.py` (written, not yet run).
 - Verdict: **use** for every public company and Form D filer. Grade A once measured.
 
 ### 1.2 XBRL company facts (financials)
 - URL: `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`, `companyconcept`, `frames`; nightly bulk `companyfacts.zip`.
-- Taxonomies served: us-gaap, ifrs-full, dei, srt (SEC page names these four; whether `ecd` pay-versus-performance tags are included is *pending*).
+- Taxonomies served: us-gaap, ifrs-full, dei, srt (SEC page names these four; whether `ecd` pay-versus-performance tags are included is *deferred: `SEC_USER_AGENT` pending*).
 - Fields: every reported concept by period, unit, form, filing date and accession. History back to 2009 for large filers.
-- Fill of revenue, net income, assets, equity, cash, operating cash flow, shares outstanding, public float, employees: *pending* (`edgar_probe.py companyfacts 300`).
+- Fill of revenue, net income, assets, equity, cash, operating cash flow, shares outstanding, public float, employees: *deferred: `SEC_USER_AGENT` pending* (probe `edgar_probe.py companyfacts 300`).
 - Money: USD; fiscal years differ from calendar years (field `fy`, `fp`, `start`, `end` per fact).
 - Verdict: **use** (S06 for public companies).
 
@@ -63,7 +63,7 @@ Common to every EDGAR source:
 | Transactions | 3,057,075; price filled 93.2%; codes S 878k, A 633k, F 484k, M 447k, P 310k |
 | 10b5-1 plan flag | set on 64,843 filings, "no" on 572,838, blank before the field existed (July 2025 data-set change) |
 
-- Rebuild cost for the open-source app (the local store can't ship): 40 quarterly zips; the latest is 8.26 MB, so roughly 300-400 MB in total (**estimated**; exact sizes *pending* a HEAD per file). One pass, then quarterly.
+- Rebuild cost for the open-source app (the local store can't ship): 40 quarterly zips; the latest is 8.26 MB, so roughly 300-400 MB in total (**estimated**; exact sizes *deferred: `SEC_USER_AGENT` pending* a HEAD per file). One pass, then quarterly.
 - Person identity: reporting owner CIK. Roles and titles as filed.
 - Legal: insiders are natural persons, but filing is a statutory public disclosure; show only in the company's context (R2-R4).
 - Verdict: **use** (S03 officers and directors of public companies, S14 insider trades, S04 10% owners).
@@ -71,28 +71,28 @@ Common to every EDGAR source:
 ### 1.4 Form D (exempt offerings, including private companies)
 - URL: quarterly **Form D Data Sets**, https://www.sec.gov/data-research/sec-markets-data/form-d-data-sets (latest 2026 Q3, 3.48 MB; page updated 2026-09-30; files back to 2008 Q1; verified 2026-11-19).
 - Tables (from the data-set documentation): FORMDSUBMISSION, ISSUERS, OFFERING, RELATEDPERSONS (executive officers, directors and promoters by name, with relationship and city/state), RECIPIENTS (sales compensation).
-- Rows, fill of related persons, revenue range ("decline to disclose" share), issuers per quarter: *pending* (`edgar_probe.py formd 2026q3`).
+- Rows, fill of related persons, revenue range ("decline to disclose" share), issuers per quarter: *deferred: `SEC_USER_AGENT` pending* (probe `edgar_probe.py formd 2026q3`).
 - Why it matters: Form D is the only free federal source that names the **officers of private companies** that raise money, and it gives a revenue band.
 - Verdict: **use** once measured.
 
 ### 1.5 Schedules 13D and 13G (large holders)
 - Structured XML has been required since 2024-12-18 for the whole cover page; exhibits stay HTML (SEC beneficial-ownership rule amendments; technical specification v2.x on https://www.sec.gov/submit-filings/technical-specifications).
-- Fields to measure: issuer CIK and CUSIP, reporting person name and CIK, citizenship or place of organisation, shares, percent of class, type of reporting person. Fill: *pending* (`edgar_probe.py sched13 <dates>`).
+- Fields to measure: issuer CIK and CUSIP, reporting person name and CIK, citizenship or place of organisation, shares, percent of class, type of reporting person. Fill: *deferred: `SEC_USER_AGENT` pending* (probe `edgar_probe.py sched13 <dates>`).
 - Verdict: **use** (S04 for public companies).
 
 ### 1.6 8-K item 5.02 (officer and director changes)
 - **Feasibility question answered:** EDGAR does carry 8-K item numbers. On the local store (copied from EDGAR's submissions feed), all 1,042 8-Ks filed 2026-11-04 to 2026-11-06 carried item numbers, and 90 (8.6%) included item 5.02.
-- Item 5.02 covers departures, elections, appointments and compensation of directors and officers in one item. Telling "CEO left" from "new director" needs the filing text: keyword rates (resign, retire, appoint, elect, terminat) are *pending* (`edgar_probe.py items <dates>`).
+- Item 5.02 covers departures, elections, appointments and compensation of directors and officers in one item. Telling "CEO left" from "new director" needs the filing text: keyword rates (resign, retire, appoint, elect, terminat) are *deferred: `SEC_USER_AGENT` pending* (probe `edgar_probe.py items <dates>`).
 - Verdict: **use** for S13 events; the "who left" sentence is an agent task with a citation to the filing.
 
 ### 1.7 DEF 14A (proxy statements)
 - Since fiscal 2022, the pay-versus-performance table is tagged inline XBRL (`ecd:` taxonomy), including the principal executive officer's name (`ecd:PeoName`) and pay.
-- Share of companies with a DEF 14A since June 2025, and share with `ecd` tags: *pending* (`edgar_probe.py def14a 300`).
+- Share of companies with a DEF 14A since June 2025, and share with `ecd` tags: *deferred: `SEC_USER_AGENT` pending* (probe `edgar_probe.py def14a 300`).
 - Verdict: **use** as an agent-read document for board and pay; structured part only after measurement.
 
 ### 1.8 Exhibit 21 (subsidiaries)
 - Free-form HTML or text attached to the 10-K: subsidiary name and jurisdiction, no identifiers.
-- Share of 10-K filers with an EX-21 and typical length: *pending* (`edgar_probe.py ex21 300`).
+- Share of 10-K filers with an EX-21 and typical length: *deferred: `SEC_USER_AGENT` pending* (probe `edgar_probe.py ex21 300`).
 - Verdict: **use with caveat** (S05 for public companies): names only, matched to registries by an agent, never auto-linked.
 
 ---
@@ -162,6 +162,40 @@ All except Florida are published on Socrata open-data portals: SoQL API, no key 
 ### 2.8 Delaware — Division of Corporations
 - No bulk data. Entity status costs $10 (status) or $20 (status with tax and history) per query (official site, quoted in search results; the fee page was not fetched). Officer names are filed in annual reports but are not published. About 40% of US LEI holders are Delaware entities (GLEIF, below), so most large companies have no free registry record beyond SEC.
 - Verdict: **skip** (grade D).
+
+### 2.10 Volumes, change feeds and how to load (cto's asks)
+
+Measured 2026-11-20 with `research/probes/us/states/socrata_volumes.py 2` (rows whose Socrata system field `:updated_at` changed in the last 2 days) and the FL probe above.
+
+| State | Dataset | Rows | Rows we'd load | Distinct entities | Columns | Rows changed in 2 days | Change feed |
+|---|---|---|---|---|---|---|---|
+| NY | Active Corporations | 4,284,155 | 4,284,155 (file is active-only) | 4,284,155 | 30 | 4,284,155 (full re-publish) | daily filings dataset (`k4vb-judh`, 160,952 rows) |
+| CO | Business Entities | 3,140,873 | 2,214,539 (good standing, exists, delinquent) | 3,140,873 | 35 | 3,629 | **row-level**: `:updated_at` filter works |
+| OR | Active Businesses | 1,592,149 name rows | 1,592,149 | 570,794 | 19 | 0 (weekly; last 2026-11-17) | weekly full; new-businesses dataset monthly |
+| CT | Business Master | 1,308,957 | 460,495 (active) | 1,308,957 | 59 | 1,308,957 (full re-publish) | none: full daily |
+| CT | Principals | 1,805,128 | for active businesses only | 1,101,102 businesses | 26 | 1,805,128 (full re-publish) | none |
+| PA | Registered Businesses | 4,200,322 party rows | 4,200,322 | 2,386,129 | 17 | 0 (about monthly) | none |
+| WA | Contractor licences | 161,872 | 161,872 | 161,872 | 23 | 161,872 (full re-publish) | none |
+| FL | Quarterly corporate file | 12,987,601 | 3,818,699 (active) | 12,987,601 | 1,440-byte records | n/a | **daily delta files** (~3,000 records a day) |
+
+Size at the cto's lean layout (123 bytes per statement), keeping about 10 fields per entity (id, name, status, type, formation date, address, county, agent) plus one statement per person:
+
+| State | Entities loaded | Statements (estimated) | Size (estimated) |
+|---|---|---|---|
+| NY | 4.28 M | ~45 M | ~5.5 GB |
+| CO | 2.21 M | ~22 M | ~2.7 GB |
+| FL | 3.82 M | ~38 M + ~6.5 M officers | ~5.5 GB |
+| PA | 2.39 M | ~26 M | ~3.2 GB |
+| OR | 0.57 M | ~6 M | ~0.7 GB |
+| CT | 0.46 M | ~5 M + ~0.7 M principals | ~0.7 GB |
+
+**All six together are about 18 GB: well over the 10 GB budget before any Baltic data.**
+
+**The alternative measured here: query live, cache what was looked up.** Every Socrata registry (NY, CO, OR, CT, PA, WA) answers a name-prefix query with no key in a median of 0.66-1.05 s (5 queries per portal, max 1.72 s; no rate-limit headers returned; a free Socrata app token, `SOCRATA_APP_TOKEN`, is the documented way to avoid shared throttling). So:
+- **Proposal:** US state registries are queried live per search and per profile, and each entity looked up is cached in the store with its source and retrieval date. No bulk state load by default.
+- **FL is the exception:** no API, only SFTP files. Proposal: opt-in bulk load of active FL entities (about 5.5 GB), refreshed from the daily delta files, off by default.
+- **Trade-off:** live queries need the network and leave the portals' uptime in our path; search across all states at once becomes 5-6 parallel requests (about 1-2 s). Network-of-officers within a state (S17) needs the bulk file, so it stays LATER for the live states.
+- Council session 1 decides which states load by default, as it planned.
 
 ### 2.9 Other states
 - Texas: the "Active Franchise Taxpayers" dataset (`9cir-efmm`) did not answer the count query; not usable as tested.
@@ -321,6 +355,22 @@ All except Florida are published on Socrata open-data portals: SoQL API, no key 
 
 - **EDGAR bulk zip sizes, per-company latency, Forms 3/4/5 rebuild cost:** pending the User-Agent, except the rebuild estimate (~300-400 MB, 40 quarterly files).
 - **FL, CA, DE bulk sizes and terms:** FL quarterly 1.79 GB + daily 3-5 MB, licence unverified; CA paid bulk order, price not public; DE none.
+- **Load facts per bulk source** (bytes per full pull · parse time · validators · observed cadence):
+  - FL quarterly: 1,793,034,019 bytes zipped, 18.7 GB unzipped · 4 min 35 s to profile all records · SFTP directory dates only · quarterly; daily delta files nightly.
+  - GLEIF golden copy: 510,551,864 bytes (LEI) + 24,532,211 (relationships) · not timed · per-publish file names with a timestamp · three publishes a day.
+  - SAM.gov: entity extract 149,557,066 bytes monthly; exclusions 11,898,264 bytes daily · not timed separately · dated file names.
+  - PPP: 13 files, 5.2 GB in total · one streaming pass, not timed separately · static since 2024-10.
+  - FJC civil: 329,665,474 bytes zipped · the FJC civil and SAM passes together took about 5 min · Last-Modified · about quarterly.
+  - FJC bankruptcy: 887,034,431 bytes zipped · one pass over 10 min (stopped at the 10-min tool limit, finished in the background) · Deflate64.
+  - Socrata states: no full pull needed under the live-query proposal (section 2.10); Socrata exports full CSVs if needed.
+- **EDGAR change feed (architect):** the daily index files (`form.YYYYMMDD.idx`, nightly) list every filing by form, CIK and date; the submissions JSON carries `formerNames` (with from/to dates) and both business and mailing addresses, and `submissions.zip` holds the same JSON for every CIK (SEC documentation; not measured, deferred: `SEC_USER_AGENT` pending).
+- **Keys deferred (C7), and what each unlocks:**
+  - `SEC_USER_AGENT` (not a key, a contact string): all of EDGAR: submissions, XBRL financials, Form D related persons, 13D/G, 8-K 5.02 text, DEF 14A, EX-21, and the exact rebuild size for Forms 3/4/5. Without it, US public companies have no S06 financials and weak S01.
+  - `COURTLISTENER_TOKEN`: docket search by party name (125 a day). The bulk dockets need no token.
+  - `SAM_GOV_API_KEY`: live entity look-up by UEI (10 a day without a SAM role). The public extracts need no key, so this is low value.
+  - `USPTO_ODP_KEY`: trademarks and patents (LATER anyway).
+  - `FEC_API_KEY`: higher rate limit than `DEMO_KEY` for company PAC look-ups (LATER anyway).
+  - `SOCRATA_APP_TOKEN` (optional, free): avoids shared throttling on live state queries.
 - **Change feeds:** NY daily filings dataset; CO, CT, FMCSA daily full refresh (Socrata `rowsUpdatedAt`); FL daily files; GLEIF three publishes a day with deltas; SAM exclusions daily, entities monthly; FJC and CourtListener quarterly; PPP static.
 - **As-of dates:** Socrata gives `rowsUpdatedAt` per dataset, not per record; records carry their own filing or status dates (NY `initial_dos_filing_date`, CO `entityformdate`, CT `date_registration`). FL records carry file date and last-transaction date. SAM and GLEIF carry per-record registration and last-update dates.
 - **Terminated entities:** CO, CT and FMCSA keep them with a status; NY's master file drops them (status history keeps them); OR's dataset is active businesses only.
@@ -336,7 +386,7 @@ All except Florida are published on Socrata open-data portals: SoQL API, no key 
 
 | Section | Country | Sources | Grade | Fill rate | Notes |
 |---|---|---|---|---|---|
-| S01 | US | SEC submissions, tickers (public companies, Form D filers) | A | pending (expected ~100% of public) | API + bulk; licence verified Y; blocked on `SEC_USER_AGENT` |
+| S01 | US | SEC submissions, tickers (public companies, Form D filers) | A | deferred: User-Agent pending (expected ~100% of public) | API + bulk; licence verified Y; blocked on `SEC_USER_AGENT` |
 | S01 | US | State registries: NY, CO, CT | A | private 100% (5/5); public 40% (2/5) | bulk; licence verified Y; daily (NY: monthly master + daily filings) |
 | S01 | US | State registries: OR, PA | B | within the private 100% above | bulk; licence verified partial (OR: none on the main dataset) |
 | S01 | US | State registry: FL (Sunbiz) | B | not sampled | bulk SFTP; licence verified N (pages refuse automated reads); best free officer data |
@@ -347,20 +397,20 @@ All except Florida are published on Socrata open-data portals: SoQL API, no key 
 | S02 | US | State status + history (NY status history, CO transactions, CT filings) | A | status 100% private; dated history 40% (2/5) | bulk; licence verified Y (NY, CO), partial (CT history) |
 | S02 | US | FDIC BankFind (failures, history) | A | banks only | API, no key; licence verified partial |
 | S03 | US | SEC Forms 3/4/5 officers and directors | A | 80% public (4/5) | bulk quarterly data sets + live XML; licence verified Y; name + insider CIK |
-| S03 | US | Form D related persons | B | pending | bulk quarterly; licence verified Y; the only federal list of private-company officers |
+| S03 | US | Form D related persons | B | deferred: User-Agent pending | bulk quarterly; licence verified Y; the only federal list of private-company officers |
 | S03 | US | State people: FL officers, CT principals, PA parties, NY CEO, OR representatives | B | 80% private (4/5, incl. FMCSA) | bulk; licence verified Y/partial/N by state; name only; drop CT residence addresses and agent contacts |
-| S03 | US | DEF 14A (ecd:PeoName) | C | pending | per-filing; licence verified Y; agent-read |
-| S04 | US | Schedules 13D/13G XML | A | pending | per-filing XML; licence verified Y |
+| S03 | US | DEF 14A (ecd:PeoName) | C | deferred: User-Agent pending | per-filing; licence verified Y; agent-read |
+| S04 | US | Schedules 13D/13G XML | A | deferred: User-Agent pending | per-filing XML; licence verified Y |
 | S04 | US | Forms 3/4/5 10% owners | A | 80% public (4/5) | bulk; licence verified Y |
 | S04 | US | Private-company owners | D | 0% (0/5) | not published by any US source |
 | S05 | all | GLEIF relationship records | A | 0% (0/10); ~5% of US LEIs have a parent | bulk; licence verified Y (CC0) |
-| S05 | US | Exhibit 21 subsidiaries | C | pending | per-filing HTML; licence verified Y; names only, agent-matched |
-| S06 | US | SEC XBRL company facts | A | pending (public); 0% private | API + bulk; licence verified Y |
+| S05 | US | Exhibit 21 subsidiaries | C | deferred: User-Agent pending | per-filing HTML; licence verified Y; names only, agent-matched |
+| S06 | US | SEC XBRL company facts | A | deferred: User-Agent pending (public); 0% private | API + bulk; licence verified Y |
 | S06 | US | FDIC call-report financials | A | banks only | API; licence verified partial |
 | S06 | US | Private-company financials | D | 0% (0/5) | not published |
 | S07 | US | SBA PPP jobs reported | C | 20% public, 20% private | bulk, static since 2024-10; licence verified Y; 2020-21 headcount only |
 | S07 | US | FMCSA drivers and power units | A | carriers only | bulk daily; licence verified partial |
-| S07 | US | SEC dei:EntityNumberOfEmployees | B | pending | API; licence verified Y |
+| S07 | US | SEC dei:EntityNumberOfEmployees | B | deferred: User-Agent pending | API; licence verified Y |
 | S08 | US | none | D | 0% | no public tax payments or tax-debt lists |
 | S09 | US | UCC filings: CO, CT | B | 0% (checked for the CO and CT samples: none found) | bulk daily; licence verified Y; 2 states only |
 | S09 | US | FJC bankruptcy IDB | D | n/a | bulk, but no debtor names, so a case can't be tied to a company |
@@ -372,11 +422,11 @@ All except Florida are published on Socrata open-data portals: SoQL API, no key 
 | S11 | US | FINRA BrokerCheck | C | not run | per-query only; licence verified Y (permitted-uses terms: attribution, compile date, error channel) |
 | S12 | US | USAspending | A | 0% public, 20% private (1/5) | API, no key; licence verified partial |
 | S12 | US | SBA PPP loans | C | 20% public, 20% private | bulk, static; licence verified Y |
-| S13 | US | EDGAR filings, 8-K items (5.02) | A | pending; item numbers on 100% of 1,042 8-Ks | API + daily index; licence verified Y |
+| S13 | US | EDGAR filings, 8-K items (5.02) | A | deferred: User-Agent pending; item numbers on 100% of 1,042 8-Ks | API + daily index; licence verified Y |
 | S13 | US | State filing history (NY daily filings, CO transactions, CT filings) | A | 40% private (2/5) | bulk; licence verified Y/partial |
 | S14 | US | SEC Forms 3/4/5 trades | A | 100% public (5/5) | bulk quarterly + live; licence verified Y |
-| S14 | US | Tickers and exchanges | A | pending | bulk JSON; licence verified Y |
-| S17 | US | Shared insiders across issuers (SEC insider CIK) | A | pending | derived; exact person id |
+| S14 | US | Tickers and exchanges | A | deferred: User-Agent pending | bulk JSON; licence verified Y |
+| S17 | US | Shared insiders across issuers (SEC insider CIK) | A | deferred: User-Agent pending | derived; exact person id |
 | S17 | US | Shared officers by name within a state (FL, CT, PA) | C | not measured | derived; name-only match, label "same name" |
 | S18 | US | Status, UCC, exclusions, revocations, court cases, PPP charge-off | C | see sections | derived; the US has no tax-debt or payment-default data |
 | - | US | FEC individual contributions | X | n/a | 52 U.S.C. 30111(a)(4): no commercial use; never list donors |
