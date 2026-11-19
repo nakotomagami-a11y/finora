@@ -133,6 +133,8 @@ type Statement = {
   sourceId: SourceId;      // registry entry in packages/sources, carries the licence
   sourceRecord: string;    // the row/record key inside the source, for "show me the original"
   sourceUrl: string | null;// deep link to the official page when one exists
+  accessTier: AccessTier;  // "open" | "purpose" (natural-person data: shown only after a stated purpose, R2)
+  personal: boolean;       // true when the value is about a natural person or a sole trader (R4, R5, R11)
   firstSeen: string;       // ISO timestamp the value first appeared in a load
   lastSeen: string;        // ISO timestamp of the latest load that still had it
   retrievedAt: string;     // when the raw file was downloaded
@@ -140,6 +142,20 @@ type Statement = {
 ```
 
 The licence is not copied onto each row: `sourceId` is a foreign key to the source registry, which carries the licence (§4.2). The store refuses a statement whose `sourceId` is unknown, so **no value can exist without a licence**.
+
+**Provenance survives every hop (R3).** Each value leaves the store as a `SourcedValue`:
+
+```ts
+type SourceRef = { sourceId; sourceName; licenceId; licenceUrl; attribution; retrievedAt; sourceUrl; accessTier };
+type SourcedValue<T> = { value: T; sources: SourceRef[] };   // sources.length >= 1, enforced by the Zod schema
+```
+
+| Hop | Where | Test |
+|---|---|---|
+| loader → store | `StatementInput` schema requires `sourceId`, `retrievedAt`; FK to `sources` | `packages/store/src/statements.test.ts` |
+| store → report DTO | `assembleReport` builds `SourcedValue` for every field | `packages/domain/src/report/assemble.test.ts` |
+| DTO → API / MCP | response schemas in `api-contract` require `sources.min(1)` | `apps/server/src/routes/**/route.contract.test.ts`, `apps/mcp/src/tools.contract.test.ts` |
+| API → UI | `SourceChip` renders from `SourceRef`; a value without one is not rendered | `apps/web/e2e/report-sources.spec.ts` |
 
 ### 3.2 Facts (time series)
 
@@ -190,6 +206,8 @@ Person IDs are opaque hashes on purpose: no name or personal code appears in a U
 | `links` | Official-ID links between entities from different sources (§6) |
 | `judgements` | Resolution decisions: same / different / unsure, by rule, agent or human |
 | `suppressions` | Data-subject restrictions applied at read time (§10) |
+| `disputes` | Corrections and objections from the entity page; open disputes suppress their statements (R10) |
+| `purpose_log` | Every access to `purpose`-tier data: actor, entity, section, stated purpose, surface (UI, API, MCP, agent), time (R2) |
 | `investigations`, `agent_runs`, `run_events`, `questions`, `findings`, `citations`, `documents`, `cost_ledger` | Agent runtime (§7) |
 | `jobs` | Scheduled and queued background work |
 | `settings` | Key-value app settings (no secrets in v1) |
@@ -299,8 +317,9 @@ Endpoints (v1):
 | `GET /api/v1/health` | Liveness, store version, source freshness summary |
 | `GET /api/v1/search?q=&country=&limit=` | Company search (FTS + trigram, ranked; §6.3) |
 | `GET /api/v1/companies/:id` | The company report: sections S01-S18 assembled from statements and facts, each value with its sources |
-| `GET /api/v1/companies/:id/sections/:section` | One section, paginated where long (officers, filings, network) |
-| `GET /api/v1/companies/:id/export?format=json\|ftm` | Export of redistributable statements only |
+| `GET /api/v1/companies/:id/sections/:section?purpose=` | One section, paginated where long (officers, filings, network). Sections holding `purpose`-tier data (S03, S04, S17) need `purpose` from the fixed list in `domain/config/purposes.ts`, else `428 purpose_required` (R2) |
+| `POST /api/v1/disputes` | Report a problem with a statement or section: correction or objection (R10) |
+| `GET /api/v1/companies/:id/export?format=json\|ftm` | Export of redistributable, non-personal statements only (R4) |
 | `GET /api/v1/sources` | Source registry: licence, attribution, freshness, last sync report |
 | `POST /api/v1/investigations` | Start an investigation (subject: a company ID or free text; locale; cost cap) |
 | `GET /api/v1/investigations` | Library: list with verdicts |
@@ -324,7 +343,7 @@ Built on the official MCP TypeScript SDK. Read-only tools, generated from `packa
 |---|---|
 | `search_companies` | Ranked candidates with ID, name, country, status, registry code |
 | `get_company` | Sections S01-S02 with sources |
-| `get_company_section` | Any one section S03-S18 for a company |
+| `get_company_section` | Any one section S03-S18 for a company; S03, S04 and S17 require a `purpose` input, logged (R2) |
 | `get_financials` | Facts by concept and year |
 | `screen_sanctions` | Matches against the official lists, with match scores and list entries |
 | `list_sources` | Source registry with licences |
@@ -452,6 +471,18 @@ interface LlmProvider {
 - On reaching the cap the investigation ends `budget_exceeded`; finished findings are kept and the synthesis step runs if its own held cost still fits (it has a reserved share of the cap, `SYNTH_RESERVE`, default 15%).
 - Per-run limits on top: max model turns, max tool calls, wall-clock timeout.
 
+### 7.6a Timeouts, retries and cancel
+
+| Event | Rule | Test |
+|---|---|---|
+| A model call takes too long | per-call timeout `AGENT_CALL_TIMEOUT` (default 120 s, streaming keeps it alive while tokens arrive); counts as retryable | `packages/agents/src/runner.timeout.test.ts` |
+| Retryable error (429, 5xx, overloaded, network, timeout) | up to 3 retries per call with exponential backoff and jitter, honouring `retry-after`; the hold is kept across retries and settled once | `packages/agents/src/runner.retry.test.ts` |
+| Non-retryable error (400, 401, 403, 404, refusal) | the run ends `failed` with a machine code (`model_bad_request`, `model_auth`, `model_refused`, ...); the hold is released; other runs continue | `packages/agents/src/runner.errors.test.ts` |
+| A tool call fails | returned to the model as an error tool result (`is_error`), never dropped; three consecutive tool failures end the run `failed` | `packages/agents/src/tools.errors.test.ts` |
+| A run exceeds its wall clock (`AGENT_RUN_TIMEOUT`, default 10 min) | the run ends `failed: run_timeout`; its findings so far are kept | `packages/agents/src/runner.timeout.test.ts` |
+| The investigation exceeds `INVESTIGATION_TIMEOUT` (default 30 min, questions' waiting time excluded) | open runs stop, synthesis runs on what exists | `packages/agents/src/orchestrator.timeout.test.ts` |
+| The user presses Stop | every in-flight request is aborted through its `AbortSignal` within 5 s; runs end `stopped`; in-flight calls settle at their held worst case; synthesis is offered, not automatic | `packages/agents/src/orchestrator.stop.test.ts` |
+
 ### 7.7 Citations are enforced
 
 - A finding without at least one citation is rejected by `record_finding` (tool error back to the agent).
@@ -498,24 +529,35 @@ interface MarketConnector {
 
 ## 10. Legal product rules, enforced in code
 
-**[pending: the numbered rules in `docs/research/legal.md` and the decisions in `docs/plan/council/01-data.md`. The rules below come from the desk research and will be renumbered to match the memo.]** Each rule names where it is enforced and the test that proves it.
+`R1`-`R17` are the numbered product rules of `docs/research/legal.md` (same numbers). `L1`-`L6` are further rules from the desk research and the legal addendum that the council confirms or drops in session 1 **[pending: 01-data.md]**. Each rule has exactly one enforcement point and at least one named test. A rule that only lives in docs does not count.
 
-| # | Rule | Enforced in | Test |
+| # | Rule (short) | Enforcement point | Test |
 |---|---|---|---|
-| L1 | Every displayed value has a source and a licence | `statements.source_id` NOT NULL FK; report DTO requires `sources[]` per value | store rejects an unknown source; contract test on every report field |
-| L2 | No share-alike or non-commercial data in our store; no redistribution of licensed feeds | licence registry invariants (§4.2); export filters `redistribution = false` | registry unit test; export test with a connector-cache fixture |
-| L3 | People appear only in a company's context: no person pages, no person search, no person API or MCP tool | no route, no endpoint, no tool; search indexes companies only | route-table test asserts no person path; MCP tool-list snapshot; search test that a person name returns no person result |
-| L4 | No search-engine indexing of people | person names never in `<title>`, URL or metadata; `X-Robots-Tag: noindex` and `robots` meta on report and investigation pages | e2e asserts headers and that the title holds the company name only |
-| L5 | Hidden data is never stored (data minimisation) | policy filter in the loader pipeline drops `hide` items from `display-policy.ts` | fixture with hidden fields → not in the store, counted in the sync report |
-| L6 | Legally restricted owner data (for example joint-stock shareholders, beneficial owners where rulings restrict them) is excluded | `display-policy.ts` entries marked `hide` with the memo reference | same as L5 |
-| L7 | Personal codes are never stored unmasked | loader normalisation masks or drops them; a store-level check rejects a value matching a full personal-code pattern | unit test per country pattern |
-| L8 | Restriction requests are honoured | `suppressions` applied in report assembly, search, export, MCP and agent tools; `finora suppress` CLI | test per surface |
-| L9 | Removed upstream means removed here | purge after each complete load (§4.1 step 6) | loader pipeline test |
-| L10 | Agent claims are cited and phrased as attributed facts | §7.7; verdict vocabulary fixed; findings use "source says" form; no rating of people | runtime tests with the fake provider |
-| L11 | Required attribution is shown | Sources page + per-section source chips render `attribution` | e2e on a CC BY fixture source |
-| L12 | Respect source terms and rate limits | polite fetcher, per-source host allowlist, SEC `User-Agent` from env | fetcher unit tests |
+| R1 | Latvian shareholders who are natural persons are not shown; company-level facts only | `display-policy.ts`: LV member/shareholder properties of `Person` owners are `hide`, so the loader policy filter drops them before the store | `packages/sources/src/lv/policy.test.ts` (fixture with a person shareholder → not stored, counted as `policy_hide`) |
+| R2 | Natural-person register data behind a stated purpose, logged per access, purpose shown | `purpose`-tier statements are returned only by `readPurposeSection(entityId, section, purpose, actor)` in `packages/store`, which writes `purpose_log` first; the API returns `428 purpose_required` without `?purpose=`; MCP tools for S03/S04 require a `purpose` input; an investigation's stated purpose is logged for its agents; the UI shows the chosen purpose on the section | `packages/store/src/purpose.test.ts`; `apps/server/src/routes/v1/companies/[id]/sections/[section]/route.contract.test.ts`; `apps/mcp/src/purpose.test.ts`; `apps/web/e2e/people-purpose.spec.ts` |
+| R3 | Every record carries source name, licence, retrieval date and access tier | `SourcedValue` (§3.1) and its Zod schema with `sources.min(1)` | the hop tests in §3.1 |
+| R4 | No bulk redistribution of natural-person data | export (`companies/:id/export`, any future bulk dump) filters `personal = true`; no list endpoint or MCP tool returns persons across companies; fixtures hold only made-up people | `packages/domain/src/export/export.test.ts`; MCP tool-list snapshot |
+| R5 | Sole traders are natural persons; no credit, character or eligibility score for a natural person | `isNaturalPerson(entity)` in `packages/domain/src/policy/persons.ts` (sole-trader legal forms per country); report assembly omits S18 and the verdict for them; the orchestrator refuses a person or sole-trader subject with `subject_is_natural_person` and offers the facts-only report (legal addendum default: no verdict on any natural person) | `packages/domain/src/policy/persons.test.ts`; `packages/agents/src/orchestrator.subject.test.ts` |
+| R6 | "Not a credit report. Not for credit, employment, tenancy or insurance decisions." on any page about a person | `PersonDisclaimer` in `packages/ui`, rendered by every layout whose DTO has `containsPersonalData: true` (the report, investigation and export views) | `apps/web/e2e/disclaimer.spec.ts` |
+| R7 | Every verdict claim links to a primary source; unsourced claims are not rendered | `record_finding` rejects uncited findings; the citation verifier (§7.7); `VerdictText` renders only sentences with citations | `packages/agents/src/citations.test.ts`; `apps/web/src/components/verdict-text.test.tsx` |
+| R8 | A sanctions match reads "possible match, needs review"; "sanctioned" only with a primary list entry | `screenSanctions` returns `status: "possible_match"` unless an official ID matches a primary list entry; the i18n key for `sanctioned` is only reachable from `status: "listed"` | `packages/resolve/src/sanctions.test.ts` |
+| R9 | AI-written text labelled AI-generated on every surface | DTOs for findings, verdicts and follow-ups carry `generatedBy: "ai"`, required by schema; `AiLabel` renders from it; API, MCP and export include it | `packages/api-contract/src/investigations.test.ts`; `apps/web/e2e/ai-label.spec.ts` |
+| R10 | A correction and objection channel on every entity page; disputed statements suppressed pending review | "Report a problem" on every report section → `POST /api/v1/disputes`; open disputes join `suppressions` at read time after `DISPUTE_SUPPRESS_AFTER` (default immediately; window **[pending: lawyer]**) | `packages/store/src/disputes.test.ts`; `apps/web/e2e/dispute.spec.ts` |
+| R11 | The natural-person cache has a TTL | job `purge-personal` deletes `personal = true` statements whose `retrievedAt` is older than `PERSON_DATA_TTL_DAYS` (default 35 **[pending: lawyer]**), and documents of finished investigations after the same TTL | `packages/store/src/retention.test.ts` |
+| R12 | Only official sanctions lists are bundled, with attribution; aggregated non-commercial datasets are connector-only | licence-registry invariants (§4.2): `nonCommercial` ⇒ not `storage: "store"` | `packages/sources/src/licences.test.ts` |
+| R13 | CC BY-NC and ODbL data are never committed or published | same invariants; the guard blocks data files; fixtures are synthetic | `packages/sources/src/licences.test.ts`; `scripts/guard` tests |
+| R14 | No scraping where terms forbid; official APIs within limits; EDGAR User-Agent from env, ≤ 10 requests/s | polite fetcher: per-source host allowlist and rate limit; boot refuses SEC sources without `SEC_USER_AGENT` | `packages/sources/src/fetcher.test.ts`; `apps/server/src/env.test.ts` |
+| R15 | Map data: cache only lat/lng, at most 30 days | no maps in v1. If a map slice is added, its geocode cache stores lat/lng only with a 30-day TTL, tested like R11 | n/a in v1 (a test lands with any map slice) |
+| R16 | Each source's licence and attribution shown in the UI | `SourceChip` and the Sources page render `licenceId`, `attribution` | `apps/web/e2e/report-sources.spec.ts`, `apps/web/e2e/sources-page.spec.ts` |
+| R17 | Licensed market data only through user-supplied keys | `MarketConnector` with `redistribution = false` needs a key from env and writes only to `connector-cache.db` | `packages/markets/src/connectors.test.ts` |
+| L1 | Hidden data is never stored (data minimisation) | loader policy filter (§4.1 step 3) | `packages/sources/src/pipeline.test.ts` |
+| L2 | People appear only in a company's context: no person pages, person search, person endpoint or person MCP tool | no route, endpoint or tool exists; search indexes companies only | `apps/server/src/route-table.test.ts` (no person path); `apps/mcp/src/tools.contract.test.ts` (snapshot); `packages/store/src/search.test.ts` |
+| L3 | No search-engine indexing of people | `X-Robots-Tag: noindex` and `robots` meta on report and investigation pages; person names never in `<title>`, URLs or metadata | `apps/web/e2e/seo-headers.spec.ts` |
+| L4 | Personal codes are never stored unmasked | loaders mask or drop; the store rejects values matching a full personal-code pattern per country | `packages/store/src/personal-codes.test.ts` |
+| L5 | Restriction requests honoured on every surface | `suppressions` applied in report assembly, search, export, MCP and agent tools; `finora suppress` CLI | `packages/store/src/suppressions.test.ts` + one assertion per surface test |
+| L6 | Removed upstream means removed here | purge after each complete load (§4.1 step 6) | `packages/sources/src/pipeline.test.ts` |
 
-`packages/domain/src/policy/display-policy.ts` is generated from the council's decision table (one row per source property: `show`, `caveat` + caveat key, `hide`, `later`), and a test fails if a loader emits a property that has no policy row. That makes "the council decided X" executable.
+`packages/domain/src/policy/display-policy.ts` is generated from the council's decision table (one row per source property: `show`, `caveat` + caveat key, `hide`, `later`, plus `accessTier` and `personal`), and `packages/sources/src/policy-coverage.test.ts` fails if any loader emits a property that has no policy row. That makes "the council decided X" executable.
 
 ---
 
@@ -528,7 +570,7 @@ Hosting needs the human's decision (publishing outside the repo). Options, recom
 | Option | Fit | Notes |
 |---|---|---|
 | A. One small VM or container host with a persistent volume, running `pnpm server` + `next start` (or the combined process) | Best | Long-lived process for agents and SSE, SQLite on a volume, nightly loader jobs. Add auth (passkey or email link), per-user investigations, per-user BYOK keys encrypted at rest, rate limits |
-| B. Public read-only explorer, agents only in local installs | Good first public step | No user keys held by us; the cheapest legal surface. Requires the person rules (L3, L4) and a published restriction contact |
+| B. Public read-only explorer, agents only in local installs | Good first public step | No user keys held by us; the cheapest legal surface. Requires the person rules (R2, R6, L2, L3) and the correction channel (R10) |
 | C. Serverless platform | Poor | Agent runs outlive request limits, SSE fights the platform, SQLite needs a network database |
 
 The MCP HTTP endpoint and the API share the same auth in hosted mode (bearer tokens per user). Local stdio MCP needs no auth.
@@ -542,7 +584,7 @@ The MCP HTTP endpoint and the API share the same auth in hosted mode (bearer tok
 | A web page calling the local API (DNS rebinding, CSRF) to spend the user's key | Host allowlist (`localhost`, `127.0.0.1`, `[::1]`) on every request, pages and API; on unsafe methods an `Origin` that is present must match `Host`; bind `127.0.0.1` in every launch script |
 | Prompt injection from fetched pages | §7.8: no side-effect tools, delimited untrusted content, citations verified against stored text, cost and turn caps |
 | SSRF through agent fetches or loaders | Public-address check after DNS resolution; per-source host allowlists for loaders |
-| Secrets leaking | Keys only from the environment (`.env.local`, gitignored; `.env.example` documents names); never logged, never returned (status endpoint reports presence only); the guard blocks committed secrets |
+| Secrets leaking | Keys only from the environment (`.env.local`, gitignored; `.env.example` documents names); never logged, never returned (status endpoint reports presence only); the guard blocks committed secrets. **Bundle check:** CI builds with sentinel values (`ANTHROPIC_API_KEY=sentinel-key-do-not-ship`, the same for every key) and `scripts/check-bundle-secrets.mjs` fails if any sentinel appears under `.next/static` or in any client chunk; only `NEXT_PUBLIC_*` names on an allowlist may reach the client |
 | XSS from data or model output | React escaping; model text rendered as Markdown with HTML disabled and a link allowlist (`http`, `https`); strict CSP (`default-src 'self'`, nonce-based scripts) and security headers, asserted by an e2e test |
 | Oversized or malicious inputs | Zod on every boundary; body size caps; FTS query sanitising (no raw `MATCH` syntax from users) |
 | Personal data in logs | Structured logger with a redaction list; logs carry entity IDs, not names |
@@ -570,6 +612,13 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 
 Fixtures are synthetic: companies named "Example Company A", made-up codes in each country's format, and source files that mimic the real column layout. No downloaded data, no real entity, ever (publishing checklist §6).
 
+**Making a fixture.** `fixtures/README.md` is the recipe; in short:
+1. `pnpm fixtures:gen` (seeded, deterministic) writes the canonical synthetic world: about 2,000 companies across the four countries, people with made-up names from `fixtures/wordlists/` (never real names), relationships, facts, sanctions-list entries and edge cases (liquidated, tax debtor, sole trader, ambiguous names, diacritics).
+2. Per-source raw fixtures in `fixtures/sources/<source-id>/` are **written by the generator in the source's real file layout** (same columns, encodings, quirks), never cut from a real download. A loader author adds a layout writer next to the loader's spec.
+3. Agent transcripts in `fixtures/agents/<scenario>.json` are written by hand or recorded against fixtures only; a recording against real data stays in `research/.cache/`.
+4. HTTP replays for `live`-style tests are never committed; the `live` checks hit the network and assert shapes only.
+5. Screenshots in docs come from the fixtures profile only.
+
 ---
 
 ## 14. CI
@@ -579,7 +628,7 @@ The existing `guard.yml` stays as it is. A new `ci.yml` runs on every pull reque
 1. `pnpm install --frozen-lockfile` (Node 24, pnpm via `packageManager`, store cached)
 2. `pnpm lint` · `pnpm typecheck` · `node scripts/check-deps.mjs`
 3. `pnpm test` (unit, loader contract, store, API and MCP contract, agent runtime)
-4. `pnpm build`
+4. `pnpm build` with sentinel key values, then `node scripts/check-bundle-secrets.mjs` (§12)
 5. `pnpm e2e` (Playwright, fixtures profile, demo provider; traces uploaded on failure)
 6. `pnpm e2e:visual` (in the official Playwright container image, pinned)
 7. `pnpm audit --audit-level high`
@@ -606,6 +655,9 @@ Concurrency: one run per branch, older runs cancelled. `ci` and `guard` are requ
 | `AGENT_COST_CAP_USD`, `AGENT_COST_CAP_MAX_USD`, `AGENT_DAILY_CAP_USD` | from `agents.md` | Spend limits |
 | `QUESTION_TIMEOUT` | `30m` | Default-answer timeout |
 | `CRASH_PEAK_SINCE` | `2025-01-01` | Start date for "peak" |
+| `AGENT_CALL_TIMEOUT`, `AGENT_RUN_TIMEOUT`, `INVESTIGATION_TIMEOUT` | `120s`, `10m`, `30m` | §7.6a |
+| `PERSON_DATA_TTL_DAYS` | `35` (lawyer to confirm) | R11 |
+| `DISPUTE_SUPPRESS_AFTER` | `0` (immediately; lawyer to confirm) | R10 |
 | market connector keys | none | **[pending: markets.md]** |
 
 ---
@@ -617,6 +669,8 @@ pnpm finora
 ```
 
 runs `scripts/finora.mjs`, which: checks Node ≥ 24 and pnpm; installs if `node_modules` is missing; creates `.env.local` from `.env.example` on first run and says which keys are optional; runs migrations; runs `finora data sync --profile core` (incremental after the first run, progress per source, safe to interrupt and resume); builds once if needed; starts the app on `http://127.0.0.1:3000` and prints the URL. `pnpm finora --demo` uses the fixtures profile and the fake provider, starts in seconds and needs no network.
+
+The CLI (`apps/cli`) runs as `pnpm finora-cli <command>`: `data sync [source|--profile p]`, `data status`, `search`, `show <id>`, `resolve`, `suppress`, `doctor`, `mcp` (the stdio MCP server, also published as the `finora` binary for MCP client configs).
 
 ---
 
