@@ -25,7 +25,9 @@ This document is for the people and agents who build Finora. It says where code 
           packages/sources (loaders) ─────────────┘ ◄── official bulk files and APIs
 ```
 
-- **One process locally.** `pnpm finora` starts Next.js; Next mounts `apps/server` under `/api` and calls its `boot()` from the instrumentation hook, which starts the job runner (agent investigations, scheduled source refreshes, market refresh). Nothing else needs to run: no Docker, no database server, no Python.
+- **One process locally.** `pnpm finora` starts Next.js (a production build, §16); Next mounts `apps/server` under `/api` and calls its `boot()` from the instrumentation hook, which starts the job runner (agent investigations, scheduled source refreshes, market refresh). Nothing else needs to run: no Docker, no database server, no Python.
+- **Sync work never runs on the main thread** (cto B2). `node:sqlite` is synchronous, so a parse or a 5,000-record write batch on the main thread would freeze SSE streams, heartbeats and page renders. The job runner runs every source sync in a worker thread with its own database connection (the CLI runs it in its own process); the main thread serves requests and does only the small investigation writes. Test: `server/src/jobs.main-thread.test.ts` (during a fixture sync sized to run ≥ 10 s, `/api/v1/health` p95 stays under 100 ms and no SSE heartbeat is more than 1 s late).
+- **One holder per resource, across processes** (cto B1). The job runner in the app, a CLI `data sync`, `next dev` restarting its instrumentation, and boot-time recovery can all overlap. A `leases` table (resource, holder = pid + boot id, heartbeat, expiry), taken inside `BEGIN IMMEDIATE`, decides: every sync takes `sync:<source>`, the job runner takes `runner`, investigation recovery takes `recover`. A second taker ends `already_running` (CLI, exit code 3) or skips the tick (scheduler); a lease whose holder missed its heartbeats past expiry is taken over. Tests: `store/src/leases.test.ts` (two concurrent syncs of one fixture source: one runs, the other ends `already_running`, no rows lost; two `boot()` calls start one runner; a killed holder's lease is taken over after expiry), `agents/src/recovery.test.ts` (a dead process's runs resume exactly once).
 - **The same server runs standalone** (`pnpm server`) for hosting or for an MCP-over-HTTP client with the UI closed.
 - **One SQLite file** (`<data dir>/finora.db`) holds registry data, investigations and settings. A second file (`<data dir>/connector-cache.db`) holds data we may not redistribute (market prices fetched with the user's key); it is never exported and never served to anyone but its owner.
 - **One tool definition, three surfaces.** A capability such as "search companies" or "get a company's officers" is defined once in `packages/agent-tools` and exposed to the research agents, the MCP server and (through domain services) the HTTP API. They cannot drift.
@@ -347,8 +349,9 @@ The registers publish current state only, so history exists from install day. It
 | `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `cost_ledger`, `verdicts` | agent runtime (§7) |
 | `market_series`, `market_obs`, `market_latest` | Crash monitor series (§8; DDL in `docs/plan/loaders/markets.md` §1.2); the same tables in `connector-cache.db` for licensed series |
 | `jobs`, `settings` | background work; local settings (fund tickers, P12) |
+| `leases` | cross-process locks: resource (`sync:<source>`, `runner`, `recover`), holder (pid + boot id), heartbeat, expiry (§1) |
 
-Pragmas: WAL, `foreign_keys=ON`, `synchronous=NORMAL`, `busy_timeout=5000`. Migrations are forward-only and numbered, each in a transaction, tracked with `PRAGMA user_version`. Secondary indexes on `statements`, `facts` and the FTS tables are built after the first load of a source, not row by row.
+Pragmas: WAL, `foreign_keys=ON`, `synchronous=NORMAL`, `busy_timeout=5000`. Migrations are forward-only and numbered, each in a transaction, tracked with `PRAGMA user_version`. **On the three large tables (`statements`, `facts`, `records`) a migration is additive only** (new nullable columns, new indexes, new tables); anything that would rebuild them is a re-derive through `parserVersion` instead, because a rebuild doubles disk use and takes minutes on a ~7 GB store (cto S3). `store/src/migrations.test.ts` fails on a migration that rewrites one of them. Secondary indexes on `statements`, `facts` and the FTS tables are built after the first load of a source, not row by row.
 
 ---
 
@@ -436,7 +439,7 @@ type ParsedRecord = {
 
 For one source, one sync:
 
-1. **Fetch.** Through the polite fetcher: `officialHosts` allowlist, private-address refusal after DNS, per-source rate limit (SEC ≤ 10 requests/s with `SEC_USER_AGENT`), retries with backoff, size caps. The artifact's sha256 and the loader's `parserVersion` are compared with the last content sync; **unchanged means both are equal** (HTTP validators are only a hint: LV's ETag changes on every regeneration). Unchanged → write one `syncs` row of kind `unchanged`, touch nothing else, stop. Same artifact but a new `parserVersion` (a release changed the parser, the field map or an item's call, for example a new HIDE) → re-parse from the raw cache as a content sync, so the change reaches every install without waiting for the upstream file to change (A1). The raw cache keeps only each source's latest artifact, gzip-compressed (EE zips kept as downloaded; GLEIF's weekly full file kept gzip-compressed, so a `parserVersion` change re-parses it instead of re-downloading about 0.5 GB), within the raw-cache budget in §4.5. If the raw cache is missing or disabled, a new `parserVersion` re-downloads instead (LV takes about 6 min): slower, never wrong.
+1. **Fetch.** Through the polite fetcher: `officialHosts` allowlist, private-address refusal after DNS, per-source rate limit (SEC ≤ 10 requests/s with `SEC_USER_AGENT`), retries with backoff, size caps. The artifact's sha256 and the loader's `parserVersion` are compared with the last content sync; **unchanged means both are equal** (HTTP validators are only a hint: LV's ETag changes on every regeneration). Unchanged → write one `syncs` row of kind `unchanged`, touch nothing else, stop. Same artifact but a new `parserVersion` (a release changed the parser, the field map or an item's call, for example a new HIDE) → re-parse from the raw cache as a content sync, in the background under the source's lease with the UI usable (an edit to Part G re-parses every source: about the first-load time; cto S4), so the change reaches every install without waiting for the upstream file to change (A1). The raw cache keeps only each source's latest artifact, gzip-compressed (EE zips kept as downloaded; GLEIF's weekly full file kept gzip-compressed, so a `parserVersion` change re-parses it instead of re-downloading about 0.5 GB), within the raw-cache budget in §4.5. If the raw cache is missing or disabled, a new `parserVersion` re-downloads instead (LV takes about 6 min): slower, never wrong.
 2. **As-of check.** Apply the `meta.asOf` strategies in order. A date older than the last content sync's → `stale_skipped`, stop. No strategy yields a date → `failed` with `as_of_missing`.
 3. **Parse and gate**, streaming, per record:
    - **Field-map gate:** every value targets a `show`/`caveat` item or a resolution key (load rule 2); everything else was never read.
@@ -458,7 +461,7 @@ Tests (S04/S05 acceptance; names from the early review): `ingest/src/purge.test.
 
 - **Cadence** per source from cto's table (`01-data-cto.md` §2): daily registers, officers, debtor lists and sanctions; weekly LV financial statements and VID files, EE general data, and GLEIF as a full load (deltas cannot define removals; cto accepted, data-us). **Weekly jobs** (LV financial statements, about 5 min to parse; EE general data; GLEIF) each get their own night, outside the 5-minute daily budget and never in the same window as another weekly job or the daily refresh; reads are never blocked (WAL, one writer); monthly EE annual reports, LT statements, EE taxes paid; on view for SEC and the live US states. Each job runs after the source's `publishedAtUtc`.
 - **Extending shared config:** a loader spec adds its own drop reasons, FtM extension properties and event types to `domain/config/drop-reasons.ts`, `domain/schema/extensions.ts` and `domain/config/event-types.ts` in its slice; the schema-subset test and the sync-report schema read those lists.
-- **First load:** countries parse in parallel (worker threads), one writer. Each country's register file loads first, and the country is searchable as soon as it lands; financials and the rest follow in the background.
+- **First load:** countries parse in parallel (worker threads), one writer per source under its `sync:<source>` lease. Each country's register file loads first, and the country is searchable as soon as it lands; financials and the rest follow in the background.
 - **Budgets (P10, loader acceptance criteria)**, measured on the named machine profile in `docs/plan/benchmarks.md` with cto's probes (`research/probes/cto/`). Each loader slice also reports records per source and bytes per record:
 
 | Budget | Value |
@@ -687,7 +690,7 @@ Investigation (subject, purpose, locale, cap, status)
   └─ follow-ups (≤ $0.25 each), reruns of one specialist
 ```
 
-Tables (all in `finora.db`, written **before** anything is broadcast): `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `cost_ledger`, `verdicts`. A browser refresh, a crash or a restart loses nothing; on boot, runs that were `running` in a dead process resume from their last persisted model turn (`agents/src/recovery.test.ts`).
+Tables (all in `finora.db`, written **before** anything is broadcast): `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `cost_ledger`, `verdicts`. A browser refresh, a crash or a restart loses nothing; on boot, runs that were `running` in a dead process resume from their last persisted model turn, exactly once, under the `recover` lease (`agents/src/recovery.test.ts`).
 
 ### 7.2 Types the rest of the system relies on
 
@@ -1035,12 +1038,12 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 | Job | Steps |
 |---|---|
 | `check` | `pnpm install --frozen-lockfile` (Node 24, pnpm from `packageManager`); `pnpm lint` (incl. the denylist rule); `pnpm typecheck`; `node scripts/check-deps.mjs`; `node scripts/check-tokens.mjs`; `node scripts/check-lawyer-register.mjs`; generated files current (`items.generated.ts`, `route-table.ts`, `openapi.json`) |
-| `test` | `pnpm test` (unit, loader contract, pipeline, store, API, MCP, agent runtime), both `SHARE_ALIKE_MODE`s, both `LV_PERSON_ROWS` modes |
+| `test` | on `ubuntu-latest` and `windows-latest` (the human runs Finora on Windows): `pnpm test` (unit, loader contract, pipeline, store, API, MCP, agent runtime), both `SHARE_ALIKE_MODE`s, both `LV_PERSON_ROWS` modes |
 | `field-registry` | §10.5 |
 | `build` | `pnpm build` with sentinel key values, then `node scripts/check-bundle-secrets.mjs` |
 | `e2e` | Playwright on the fixtures profile with `FINORA_DEMO=1`; traces uploaded on failure |
 | `visual` | Playwright screenshots in the pinned official Playwright container |
-| `demo-boot` | `pnpm finora --demo`, then `/api/v1/health` answers |
+| `demo-boot` | on `ubuntu-latest` and `windows-latest`: `pnpm finora --demo` (production build), then `/api/v1/health` answers |
 | `audit` | `pnpm audit --audit-level high` |
 
 `live-sources.yml` runs nightly and on demand: the `live` loader checks and the reserved fixture-id check (§3.4), with `SEC_USER_AGENT` from a repository secret. It opens an issue when a source's format changes; it never fails a pull request. `ci` and `guard` are required checks for `main`. E2E never touches live sources or paid APIs.
@@ -1080,9 +1083,11 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 pnpm finora
 ```
 
-runs `scripts/finora.mjs`, which: checks Node ≥ 24 and pnpm; installs if `node_modules` is missing; creates `.env.local` from `.env.example` on first run and says which keys are optional and what each unlocks; runs migrations; starts the app on `http://127.0.0.1:3000` and prints the URL; then runs `finora-cli data sync --profile core` in the background (each country searchable as its register lands, progress on Settings and in the search groups, safe to interrupt and resume, incremental after the first run). `pnpm finora --demo` uses the fixtures profile and the fake provider, starts in seconds and needs no network.
+runs `scripts/finora.mjs`, which: checks Node ≥ 24 and pnpm; **checks free disk (refuses the core load with less than 15 GB free: the data dir's 12 GB plus temporary space)**; installs if `node_modules` is missing; creates `.env.local` from `.env.example` on first run and says which keys are optional and what each unlocks; runs migrations; **runs `next build` when `.next` is missing or stale (keyed on the commit and the lockfile hash), then `next start`** on `http://127.0.0.1:3000` and prints the URL (daily use never runs `next dev`, cto B3); then runs `finora-cli data sync --profile core` in the background (each country searchable as its register lands, progress on Settings and in the search groups, safe to interrupt and resume, incremental after the first run). `pnpm finora --demo` uses the fixtures profile and the fake provider, starts in seconds and needs no network.
 
-The CLI (`apps/cli`) runs as `pnpm finora-cli <command>`: `data sync [source|--profile p] [--allow-mass-purge]`, `data status`, `search`, `show <eid>`, `resolve`, `suppress`, `doctor`, `mcp` (the stdio MCP server, also the `finora` binary for MCP client configs).
+The CLI (`apps/cli`) runs as `pnpm finora-cli <command>`: `data sync [source|--profile p] [--allow-mass-purge]`, `data status`, `search`, `show <eid>`, `resolve`, `suppress`, `doctor` (disk preflight, `PRAGMA quick_check`, lease status), `backup`, `mcp` (the stdio MCP server, also the `finora` binary for MCP client configs).
+
+**Integrity and backup** (cto S2). The registry data is re-derivable from the raw cache; investigations, `purpose_log` (a legal record), disputes, judgements and settings are not. `finora-cli backup` writes those tables with `VACUUM INTO` to `<data dir>/backups/` (kept: the last 7), and the app runs it daily. If `PRAGMA quick_check` fails at boot, the app refuses writes, tells the user, and `finora-cli doctor --repair` restores the non-derivable tables from the newest backup and re-derives the rest from the raw cache. Tests: `cli/src/backup.test.ts`, `cli/src/doctor.test.ts` (a fixture store with a corrupted page is detected and repaired).
 
 ---
 
