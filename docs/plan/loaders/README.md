@@ -11,6 +11,7 @@ One spec per source (or per tightly coupled source group), written by the data s
 | `us-*.md` | data-us | SEC, the four live states, FDIC, FMCSA, the federal exclusion and enforcement lists |
 | `sanctions.md` | data-osint | EU, OFAC, UK and LV FIU lists, and the live-only national lists |
 | `markets.md` | data-markets | the Crash monitor data layer |
+| `esma-firds.md` | data-markets | ESMA FIRDS listed-share records for Baltic companies (S14.LTLVEE.01) |
 
 LATER and HIDE sources get no spec. A HIDE item is named in the spec of the source that carries it, with the field that is dropped and its negative test.
 
