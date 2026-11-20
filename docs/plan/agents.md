@@ -8,7 +8,7 @@ Inputs: council sessions 0 and 1 (`docs/plan/council/00-framing.md`, `01-data.md
 
 Every example uses fictional names, made-up codes and reserved domains (`.example`, `.test`).
 
-Revised 2026-11-20 for qa's plan review (`docs/plan/reviews/02-plan-review.md`, MUST-FIX 1-7 and the agents SHOULD-FIX list) and the council's court ruling (Part G: S10.LT.01, S10.LV.01, S10.EE.01 LATER with MANUAL). Architecture `7c5afaf` states the matching contract.
+Revised after council session 2 (`docs/plan/council/02-plan.md`: items 5, 6, 7, 8, 9, 10 and 16, plus CFO's non-blocking cost items). Earlier: revised 2026-11-20 for qa's plan review (`docs/plan/reviews/02-plan-review.md`, MUST-FIX 1-7 and the agents SHOULD-FIX list) and the council's court ruling (Part G: S10.LT.01, S10.LV.01, S10.EE.01 LATER with MANUAL). Architecture `7c5afaf` states the matching contract.
 
 ---
 
@@ -70,7 +70,7 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
 - A role whose provider price is unknown refuses to start the investigation (`price_unknown`).
 
 ### 2.1 `lead`
-- **Input:** the subject: a pinned entity id (Investigate from a report) or free text (name, code, website, country, the user's note).
+- **Input:** the subject: `{ eid, offerDomain? }` (Investigate from a report) or free text (name, code, website, country, the user's note). `offerDomain` is the optional domain the user received an offer or invoice from (the Investigate sheet's "Offer or invoice came from" field); the lead passes it to the web agent unchanged (council item 7).
 - **Pre-run tasks:** `search_companies` on every name and code in the free text; `get_company` on a pinned id.
 - **Job:** end with exactly one pinned entity id, or stop.
   - One candidate whose registry code or exact normalised name matches the input in the stated country: pin it.
@@ -99,18 +99,25 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
   - `check_live_list` for every live list that applies to the subject's country (§4.4): LT FNTT list and Bank of Lithuania and gambling domains (LT), Latvijas Banka and consumer-centre pages (LV), Ministry of Foreign Affairs list, Finantsinspektsioon alerts and consumer-protection list (EE), UN list (all), US enforcement feeds (US). FINRA BrokerCheck is a MANUAL link only (§4.4).
   - `search_courts` for US subjects only (§4.5). Baltic subjects get no court task; check 10 is recorded `not_possible` with the MANUAL portal link.
 - **Job:** confirm or rule out each possible match with a second identifier; ask `sanctions_match` when a name-only match cannot be settled (§7); describe insolvency, pledges and court results; never call anything "sanctioned" without an official-ID match (R8).
-- **Signals:** `insolvency_proceeding`, `open_pledge_or_measure`, `sanctions_listed` (official-ID match only), `sanctions_possible_match` (name match, unresolved), `officer_sanctions_possible_match` (a current officer's name on the in-memory person index; behind the purpose gate), `sanctions_human_not_sure`, `regulator_warning_listed` (domain or code match on a warning list), `court_case_party_by_identifier` (a US docket ties the party to the company by a second identifier, `us-courts.md`), `court_case_name_only`.
+- **Signals:** `insolvency_proceeding`, `open_pledge_or_measure`, `sanctions_listed` (official-ID match only), `sanctions_possible_match` (name match, unresolved), `officer_sanctions_possible_match` (a current officer's name on the in-memory person index; behind the purpose gate), `sanctions_human_not_sure`, `regulator_warning_listed` (domain or code match on a warning list), `court_case_defendant_recent` (council O2: a US docket ties the party to the company by a second identifier, the company is the **defendant**, and the case is open or was filed in the last 3 years, from the FJC party role and dates), `court_case_party_by_identifier` (any other tied case: a fact), `court_case_name_only` (a fact).
 
 ### 2.5 `web`
-- **Pre-run tasks:** `get_company` (website from the register where it exists: EE `S15.EE.01`, the US SAM.gov URL), then, if a domain is known: `domain_report` and `homepage_facts`; always `news_search` (GDELT, queued globally).
+- **Pre-run tasks:** `get_company` (website from the register where it exists: EE `S15.EE.01`, the US SAM.gov URL), then, if a domain is known: `domain_report` and `homepage_facts`; **if the subject has an `offerDomain`: `domain_report` and `homepage_facts` on it as well, in parallel** (one `run.task` each, labelled "Offer domain"); always `news_search` (GDELT, queued globally).
 - **Job:** find the official website if the register has none, tie it to the pinned company (§5.3 anchors), check consistency with the register, and list news mentions.
   - Website discovery: `web_search` (provider server tool; the runtime enforces the total of 4 uses through `max_uses`) with the register name, city and code. The split of at most 3 for discovery and 1 for news is a prompt instruction, not an enforced limit; `scenarios.test.ts` checks the fixtures respect it, and the measured run reports the real split. A candidate domain is fetched with `fetch_page` only to look for an anchor (§5.3). Without an anchor, the agent asks `scope` (§7) or records the site as "linked by name only".
   - News: GDELT first; if GDELT fails or returns nothing, at most 1 `web_search` for news. Each article becomes a finding only if fetched and confirmed to be about the pinned company by the registry code, the domain or the full legal name plus the city; otherwise it is listed as "Mentions the name; not confirmed to be this company" (S16.ALL.01 caveat) and is never a key finding.
-- **Signals:** `website_unresolvable` (register-listed or confirmed domain does not resolve), `website_states_other_code`, `website_live_while_struck_off`, `domain_newer_than_company` (creation date from US RDAP or .lt WHOIS; elsewhere the first certificate as a lower bound, signalled only when the lower bound is newer by more than 1 year and the company is older than 3 years), `no_website_found` (a fact, not a flag).
+- **The offer domain** (the invoice job, council item 7) is checked against the register, never trusted: it is tied to the pinned company only by a strong anchor (§5.3: it is the register-listed domain, or its homepage states the company's code or VAT number). Results:
+  - `offer_domain_tied`: a strong anchor holds (a fact).
+  - `offer_domain_not_tied`: no strong anchor, while the domain resolves. Shown as "[domain] is not linked to [company] in the register or on its own website" (points to check, §6.2).
+  - `offer_domain_other_company`: the domain's homepage states another register code, or the domain is the register-listed website of a different company in the store (points to check, ranked first among key findings, §6.5).
+  - `offer_domain_unresolvable`: the domain does not resolve (points to check).
+  - `domain_newer_than_company` applies to the offer domain too (below).
+  The agent never asks `scope` about the offer domain: the user supplied it, and the point is to test it, not to confirm it.
+- **Signals:** `website_unresolvable` (register-listed or confirmed domain does not resolve), `website_states_other_code`, `website_live_while_struck_off`, the four offer-domain signals above, `domain_newer_than_company` (council O2: **only from a registry creation date**, US RDAP or `.lt` WHOIS, showing the offer domain or the register-listed domain is under 12 months old or newer than the company), `certificates_seen_since` (a fact: "certificates seen since [date]"; certificate-log dates never fire a rule, because the first logged certificate only bounds the creation date and logging became near-universal in 2018), `no_website_found` (a fact, not a flag).
 - Reads nothing from social platforms: social profiles linked on the company's own homepage are listed as links only, as part of `homepage_facts` (S16.ALL.02 is LATER, so the list is not rendered in v1; it is kept for check 11's context only).
 
 ### 2.6 `verdict`
-- **Step 1, rules (code, no model):** `computeVerdict(checks, signals, answers, coverage)` in `packages/domain/src/verdict/rules.ts` returns `level`, `firedRules[]`, `coverage {ran, applicable, skipped[]}`. §6.
+- **Step 1, rules (code, no model):** `computeVerdict(checks, signals, answers, coverage)` in `packages/domain/src/verdict/rules.ts` returns `level`, `firedRules[]`, `keyFindingIds[]` (§6.5), `coverage {ran, total: 11, skipped[]}`. §6.
 - **Step 2, explanation (model):** input: the level, fired rules, findings (text, signal ids, citations). Output: structured JSON `{ sentences: [{ text, findingIds[] }] }`, at most 8 sentences, each with at least one finding id. It sees no transcripts, no documents and no tools. Banned-word check, regenerate once, then facts-only fallback (§6.4).
 
 ### 2.7 `followup`
@@ -127,7 +134,7 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
 ### 2.8 Re-running one agent
 `POST /api/v1/investigations/:id/runs/:runId/rerun` (architecture §5.1). Rules:
 - **Offered** for a specialist run (never the lead or the verdict) that ended `failed`, `stopped` or `budget_exceeded`, or `done` with `turn_limit`, `tool_limit` or `run_timeout`; and for any specialist when the investigation is more than 24 hours old ("Re-check now").
-- **Not offered** when the daily cap leaves less than the role's typical cost, when the investigation is still running, or after 2 reruns of the same role in one investigation.
+- **Not offered** when the room left on the investigation cap or the daily cap is less than the role's `high` estimate (CFO), when the investigation is still running, or after 2 reruns of the same role in one investigation.
 - **Effect:** a new run with a new id and the same role; its pre-run tasks run again (live sources are re-fetched); the old run and its findings stay in the record, marked `superseded`, and drop out of the verdict input. The verdict is recomputed when the new run ends: the rule table runs again and the explanation is regenerated (held against the cap).
 - **Cost:** held against the investigation cap; the one-shot extension still applies once per investigation. The estimate for a rerun is that role's row of §2.
 - Test: `agents/src/rerun.test.ts` (offered and refused cases; superseded findings leave the verdict input; the level is recomputed).
@@ -255,7 +262,7 @@ Signals: `court_case_party_by_identifier` when the docket ties the party to the 
 
 ### 4.6 Fetch rules (`fetch_page`, `homepage_facts`, `check_live_list`)
 - `http(s)` only, ports 80 and 443. DNS is resolved once and the connection is **pinned to the resolved address** (no second lookup between check and connect). Refused ranges: 0.0.0.0/8, 10/8, 100.64/10 (CGNAT), 127/8, 169.254/16, 172.16/12, 192.168/16, 224/4, 240/4, `::`, `::1`, `fc00::/7` (ULA), `fe80::/10`, `ff00::/8`, and IPv4-mapped IPv6 (`::ffff:0:0/96`) checked as IPv4. Redirects are re-checked hop by hop, at most 5 (architecture §7.10). Tests in `web-fetch.ssrf.test.ts`, one per range, plus a DNS-rebinding case.
-- **Candidate hosts** for the subject's own domain come only from the register, `web_search` results in this run, or the user's free text; never from text inside a fetched page.
+- **Candidate hosts** for the subject's own domain come only from the register, `web_search` results in this run, the user's free text, or the Investigate sheet's `offerDomain`; never from text inside a fetched page. The offer domain is fetched under rule 1 of the allowlist (its `/` and at most 3 same-host pages).
 - Size cap 2 MB per response, 15 s per request; HTML is reduced to text (scripts, styles and navigation removed) before storage.
 - **Allowlist** (`packages/agent-tools/src/fetch-allowlist.ts`, configuration, extendable by self-hosters):
   1. the pinned company's own domain: register-listed, or a candidate the agent is checking for an anchor (only `/`, and pages the homepage links to on the same host, at most 3);
@@ -349,13 +356,17 @@ The model's findings are explanation, not input.
 | `negative_equity` | `negative_equity` | `points_to_check` |
 | `open_pledge` | `open_pledge_or_measure` | `points_to_check` |
 | `sanctions_unsure` | `sanctions_human_not_sure`, or `sanctions_possible_match` / `officer_sanctions_possible_match` left unanswered or answered "Not sure" | `points_to_check` |
-| `regulator_warning` | `regulator_warning_listed` on a domain or code match | `points_to_check` (proposed) |
-| `renamed_recently` | renamed or re-registered in the last 6 months (P14: "Not evaluated" until snapshots cover 6 months) | `points_to_check` |
-| `court_case_by_identifier` | `court_case_party_by_identifier` (US only in v1) | `points_to_check` (proposed; a name-only court match never fires a rule) |
-| `website_inconsistent` | `website_unresolvable` on a register-listed domain, `website_states_other_code`, or `website_live_while_struck_off` | `points_to_check` (proposed) |
-| `domain_newer_than_company` | as defined in §2.5, strong anchor only | `points_to_check` (proposed) |
+| `regulator_warning` | `regulator_warning_listed` on a domain or code match | `points_to_check` (council O2: approved; not Serious, because warnings about clone firms can carry the real firm's identifiers) |
+| `renamed_recently` | `renamed_recently` or `reregistered_recently` (P14: "Not evaluated" until snapshots cover 6 months) | `points_to_check` |
+| `status_not_active` | `status_not_active`: the register status is neither active nor one of the serious statuses (for example suspended, reorganising) | `points_to_check` (council item 9) |
+| `no_officers_on_record` | `no_officers_on_record`: the register lists no current board member or manager where the country publishes them | `points_to_check` (council item 9) |
+| `offer_domain_not_tied` | `offer_domain_not_tied`, `offer_domain_other_company` or `offer_domain_unresolvable` | `points_to_check` (council item 7) |
+| `court_case_by_identifier` | `court_case_defendant_recent` (US only in v1) | `points_to_check` (council O2: only as defendant, in a case open or filed in the last 3 years; any other case and any name-only match is a fact) |
+| `website_inconsistent` | `website_unresolvable` on a register-listed domain, `website_states_other_code`, or `website_live_while_struck_off` | `points_to_check` (council O2: approved) |
+| `domain_newer_than_company` | `domain_newer_than_company` (§2.5: registry creation date only, under 12 months or newer than the company; the offer domain or the register-listed domain) | `points_to_check` (council O2) |
 
 - Level precedence: any `serious_concerns` rule wins; then `not_enough_data` replaces only `no_concerns_found` (flags always show, council Part B); then `points_to_check`; else `no_concerns_found`. Tests in `rules.test.ts`: serious + not-enough-data → serious; points + not-enough-data → points; only not-enough-data → not_enough_data; none → no_concerns_found.
+- **Every flag fires a rule** (council item 9): `rules.coverage.test.ts` iterates the signal-to-severity table (§6.2a) and fails if any signal of severity `point_to_check` or `concern` maps to no rule, so no "!" can sit under "No concerns found".
 - Same inputs, same level: `rules.determinism.test.ts` runs the table on the five scenario fixtures with three different explanation texts each and asserts identical `level` and `firedRules`.
 - Sole traders and natural persons never reach this table (the lead refuses them, §2.1).
 
@@ -365,19 +376,27 @@ The model's findings are explanation, not input.
 | Signal | Severity |
 |---|---|
 | `insolvency_proceeding`, `liquidation`, `struck_off`, `sanctions_listed`, `tax_activity_suspended`, `arrears_serious` | `concern` |
-| `arrears_points`, `social_insurance_debt` (below the serious thresholds), `accounts_not_in_window`, `negative_equity`, `open_pledge_or_measure`, `sanctions_possible_match`, `officer_sanctions_possible_match`, `sanctions_human_not_sure`, `regulator_warning_listed`, `renamed_recently`, `reregistered_recently`, `court_case_party_by_identifier`, `website_unresolvable`, `website_states_other_code`, `website_live_while_struck_off`, `domain_newer_than_company`, `status_not_active`, `no_officers_on_record` | `point_to_check` |
-| `court_case_name_only`, `debtor_list_exit`, `no_website_found` | `none_found` (shown as facts; they never fire a rule) |
+| `arrears_points`, `social_insurance_debt` (below the serious thresholds), `accounts_not_in_window`, `negative_equity`, `open_pledge_or_measure`, `sanctions_possible_match`, `officer_sanctions_possible_match`, `sanctions_human_not_sure`, `regulator_warning_listed`, `renamed_recently`, `reregistered_recently`, `court_case_defendant_recent`, `website_unresolvable`, `website_states_other_code`, `website_live_while_struck_off`, `domain_newer_than_company`, `offer_domain_not_tied`, `offer_domain_other_company`, `offer_domain_unresolvable`, `status_not_active`, `no_officers_on_record` | `point_to_check` |
+| `court_case_party_by_identifier`, `court_case_name_only`, `certificates_seen_since`, `offer_domain_tied`, `debtor_list_exit`, `no_website_found` | `none_found` (shown as facts; they never fire a rule) |
 | any signal on a `name_only` web anchor | capped at `point_to_check` (§5.3) |
 
 A `social_insurance_debt` at or above the `arrears_serious` thresholds maps to `concern`, because the rule table treats tax and social-insurance arrears together (council Part B).
 
 ### 6.3 Coverage
-`coverage = { ran, applicable, skipped: [{ checkId, reason }] }` (architecture §7.2: `applicable` is a number, 11 minus the checks skipped as `not_published`), reasons: `not_published` (the country publishes no such data, for example US private accounts), `not_possible_in_country` (for example check 4 when S04 is LOCK: "Owners: restricted in [country]"; check 10 in LT, LV and EE: "Court cases: check manually at [portal]"), `run_failed`, `stopped`, `budget_exceeded`, `needs_key` (US public without `SEC_USER_AGENT`; US courts without `COURTLISTENER_TOKEN` count check 10 as run on FJC only). The UI line: "7 of 11 checks ran · 2 not possible in [country]".
+`coverage = { ran, total: 11, skipped: [{ checkId, reason }] }`. **One denominator, 11, everywhere** (council item 8): there is no `applicable` count in any user-visible string, screen-reader announcement, library row, API or MCP text. Reasons: `not_published` (the country publishes no such data, for example US private accounts), `not_possible_in_country` (check 4 when S04 is LOCK: "Owners: restricted in [country]"; check 10 in LT, LV and EE: "Court cases: check manually at [portal]"), `run_failed`, `stopped`, `budget_exceeded`, `needs_key` (US public without `SEC_USER_AGENT`; US courts without `COURTLISTENER_TOKEN` count check 10 as run on FJC only). The UI line: "7 of 11 checks ran · 2 not possible in [country] · 2 not published in [country]". Test: `domain/src/verdict/coverage.test.ts` (every coverage string reads "of 11").
 
 ### 6.4 The explanation
 - Prompt: §10.2. Structured output; each sentence must list ≥ 1 finding id that exists in this investigation; sentences without one are dropped by the server before storage (`agents/src/verdict.uncited.test.ts`) and by the renderer (R7).
 - **Banned terms** (council clarification 2; the one list in `packages/domain/src/config/banned-terms.ts`, per locale, with letter-grade and score patterns): **"own voice"** = the sentence text with every span inside quotation marks removed when that span equals a verified quote of a cited document; the remainder is matched case-insensitively, whole-word (stems for LT, LV, ET per DESIGN.md §4). If any sentence matches, the whole explanation is rejected and regenerated once with a reminder; if the second attempt fails, `explanation: null` and `explanationFallbackReason: "banned_term_fallback"` (the UI shows "No written explanation for this report"). Never silently rewritten. Tests: `agents/src/verdict.banned.test.ts` (pass; regenerate; fallback; a banned word inside a verified quote passes; the same word outside it fails).
 - The explanation never states or implies a level different from the rule table's; the level is rendered by the UI from `level`, not from prose.
+- **One fallback line** (council item 12): when `explanation` is null, whether for the banned-term fallback or because no sentence kept a citation (`explanationFallbackReason: "no_cited_sentence"`), the UI shows "No written explanation for this report". No other wording.
+
+### 6.5 Key findings (council item 10)
+`selectKeyFindings(findings, signals)` in `packages/domain/src/verdict/key-findings.ts`, pure, returns at most 3 finding ids; the model never chooses them.
+1. **Eligible:** signal findings whose highest signal fires a rule. **Never eligible:** context findings, findings on a `name_only` anchor, findings whose only signals are facts (`none_found`), news findings, and inferred findings (those citing only documents of a candidate website the user did not confirm).
+2. **Order:** `concern` before `point_to_check`. Within points to check, `offer_domain_other_company` first, then `regulator_warning_listed` (council O2: it names the list and the identifier that matched), then the rest. Ties by check number, then by finding time.
+3. **Fewer than three** when fewer qualify; none when none qualify. The report never pads the list.
+Tests: `domain/src/verdict/key-findings.test.ts` (order; exclusions; fewer than three; a name-only court match is never a key finding, which is the US mockup's case).
 
 ---
 
@@ -403,13 +422,14 @@ Kinds follow the settled contract: `entity_choice | sanctions_match | scope | ca
 ## 8. Cost
 
 ### 8.1 Hold and settle
-- Before each model call, hold `input_tokens_estimate × input_price + max_tokens × output_price + web_search_max_uses_left × $0.01` on the investigation ledger, the daily ledger and (for follow-ups) the follow-up ledger. `input_tokens_estimate` = the provider's `count_tokens` result when available, else characters ÷ 3.5.
-- After the call, settle the actual cost from `usage` (input, cache creation at 1.25x, cache reads at the model's cache-read price, output, `server_tool_use.web_search_requests × $0.01`). Each retry attempt settles on its own.
+- Before each model call, hold `input_tokens_estimate × input_price + max_tokens × output_price + web_search_uses_left × ($0.01 + SEARCH_RESULT_TOKENS_EST × input_price × 1.25)` on the investigation ledger, the daily ledger and (for follow-ups) the follow-up ledger. `input_tokens_estimate` = the provider's `count_tokens` result when available, else characters ÷ 3.5. **Search results count** (council item 6): each web search the call may still make can return tens of thousands of tokens into the same call, so `SEARCH_RESULT_TOKENS_EST` (default 25,000; replaced by the measured p95 after the measured run, §12) is held per remaining use, at the cache-write rate (1.25x).
+- After the call, settle the actual cost from `usage` (input, cache creation at 1.25x, cache reads at the model's cache-read price, output, `server_tool_use.web_search_requests × $0.01`). Each retry attempt settles on its own. **A call that settles above its hold** logs `hold_underestimate` (with the call's role, the hold and the settled amount) and is counted on the ledger as spent; no further call of that investigation starts if its own hold would then exceed the cap, and the verdict still runs inside its reserve.
+- **Crash recovery** (CFO): on boot, every hold left open by a dead process settles at its held worst case before any run resumes.
 - **"Reaching" the cap means the next call's hold would exceed it.** Such a call is not made. The first time for the investigation cap: every run goes to `waiting` (`waitingOn: "cap"`) and one `cap_reached` question is asked; a second time: the investigation ends `budget_exceeded` with no question.
 - **The verdict's reserve:** 15% of the investigation cap (`SYNTH_RESERVE`) is never held by specialists: their combined held + settled spend may reach at most 85% of the cap. When the extension is granted, the reserve stays 15% of the original cap.
 - **The daily cap hit mid-run:** the daily ledger reserves the verdict's 15% when the investigation starts. If a specialist's hold would exceed the daily cap, every run stops (no question; the daily cap cannot be raised from inside a run), and the verdict runs inside its reserve. The UI shows the spend and reset sheet.
 - **Follow-ups** hold on the follow-up ledger and the daily ledger, never on the investigation ledger (§2.7).
-- Tests (`agents/src/budget.test.ts`): a hold that would exceed the cap is refused before the call; specialists stop at 85%; the daily cap hit mid-run stops all runs and the verdict still runs; the extension keeps the reserve.
+- Tests (`agents/src/budget.test.ts`): a call that settles above its hold logs `hold_underestimate`, then no new call starts and the verdict still runs (council item 6); search uses are held at `SEARCH_RESULT_TOKENS_EST`; open holds settle at worst case on recovery; a hold that would exceed the cap is refused before the call; specialists stop at 85%; the daily cap hit mid-run stops all runs and the verdict still runs; the extension keeps the reserve.
 
 ### 8.2 Caps (council decision 3; guardrail 1)
 | Cap | Default | Env |
@@ -426,7 +446,8 @@ Prices come from `packages/agents/src/prices.ts` (per model: input, output, cach
 1. For each role, take the 10th percentile, median and 95th percentile of settled cost from `cost_ledger` for that role, model and effort, once this install has ≥ 10 finished investigations (`basis: "history"`); otherwise the defaults in §2 (`basis: "defaults"`: typical = the typical column; low = 0.6 × typical; high = the worst column).
 2. `typical` = sum of medians; `low` = sum of 10th percentiles; `high` = sum of 95th percentiles plus one cache-expiry resume for each role that may ask a question (lead, legal, web), clamped to the cap ("up to the cap").
 3. Drivers, each adjusting before the sum and returned as `drivers[]` for the UI: no known website (web role × 1.3); country (US public without `SEC_USER_AGENT`: money and registry roles × 0.5, fewer sections); model and effort per role (linear in price); a cap below the typical sum (warning).
-4. The UI shows: "Estimated $0.30-0.92, usually about $0.46. Cap $1.50. Today: $X of $10 left." The cap, not the estimate, is enforced. Test: `agents/src/estimate.test.ts` (defaults path, history path with a fixture ledger, clamping, drivers).
+4. The UI shows: "Estimated $0.30-0.92, usually about $0.46. Cap $1.50. Today: $X of $10 left." The cap, not the estimate, is enforced.
+5. **Calibrated** (council item 6) means: across the measured run (§12) and the M2 gate runs, at least 90% of investigations settle at or under the `high` shown before they started, and the median settled cost is within ±30% of `typical`. Below that, the agent slice is not accepted; cut agent depth (turns, searches) before raising the cap (CFO kill criterion). `scripts/milestone-gate.mjs` prints both numbers. Test: `agents/src/estimate.test.ts` (defaults path, history path with a fixture ledger, clamping, drivers).
 
 ---
 
@@ -515,7 +536,25 @@ When `ANTHROPIC_API_KEY` is set (register key table, first item):
 1. `finora agents measure --sample research/.cache/osint/samples.json --per-country 3 --models sonnet,haiku` runs real investigations on 3 reality-check companies per country at two tiers (12 + 12 runs; about $5).
 2. Per run and role it records: input, cache-write, cache-read and output tokens; tool calls; web searches; wall time; questions asked (answered automatically from a fixed script for the measurement).
 3. Output: `research/.cache/agents/measure-<date>.json` (entity-level, never committed) and an aggregate table pasted into `osint.md` §4.6 and §2 above: p50/p95 per role and tier.
-4. Acceptance (cto, `01-data-cto.md` §6): the runtime slice is not accepted until these numbers replace the modelled defaults.
+4. Acceptance (cto, `01-data-cto.md` §6): the runtime slice is not accepted until these numbers replace the modelled defaults, and the calibration rule of §8.3 step 5 holds.
+
+### 12.1 What the milestone gate counts (council item 5)
+`scripts/milestone-gate.mjs` investigates the regression set only (`research/.cache/regression/set.json` in the main checkout: country and registry id per entity; built and owned by the coordinator). Questions are answered by script:
+- `entity_choice` and `free_text`: the option whose registry id equals the set entry (the ground truth); if none matches, "None of these" (and the gate counts a pinning failure);
+- `sanctions_match` and `scope`: "Not sure";
+- `cap_reached`: "Stop and write the report".
+
+**A wrong-company finding** is a finding where any of these resolves to an eid other than the subject or an entity joined to it by a `same_as` row in the store's `links` table:
+1. the finding's `entityId`;
+2. the entity of any cited statement;
+3. the anchor of any cited document: a domain that the store lists as another company's register website, or a page whose `homepage_facts` states another company's register code;
+4. a `listed` sanctions entry whose matching identifier is not the subject's.
+`name_only` findings are not counted as wrong, but they are listed by count, because they are the next most likely source of one.
+
+**Output** (aggregates only, exit 0 when every line passes, else 1): `entities`, `pinned`, `wrongCompanyFindings` (must be 0), `nameOnlyFindings`, `citedClaimRate` (verdict and explanation sentences with ≥ 1 verified citation, must be 100%), `fillDelta` (from the fresh sample, below), `spendUsd`, `withinHighPct` and `medianVsTypicalPct` (§8.3 step 5).
+- The fresh 10-per-country sample checks **profile fill only**, at $0; it starts no investigation.
+- `--budget-usd <n>` keeps its own ledger and never starts an investigation whose pre-run `high` exceeds what is left. Gate spend is shown in the totals, and gate runs feed the estimate history like any investigation.
+- Test: `scripts/milestone-gate.test.mjs` on the fixture world (one planted wrong-company citation → exit 1; budget stop; question answering by script).
 
 ---
 
@@ -542,6 +581,8 @@ When `ANTHROPIC_API_KEY` is set (register key table, first item):
 | `followup` | a follow-up with one cited sentence, one uncited sentence (dropped), one bad quote (rejected) and a banned term on the first attempt (regenerated) |
 | `share-alike-ee` | the money agent cites an EE tax-board value: SA-derived rows go to `finora-sa.db` in `store` mode; nothing derived is kept in `live-no-store` mode |
 | `courts-baltic` | an LV subject: no court task, check 10 `not_possible`, MANUAL link |
+| `invoice-offer-domain` | Investigate with `offerDomain` set to a lookalike domain on a reserved TLD: the domain resolves, is registered 2 months ago (fixture RDAP), its homepage states no code → `offer_domain_not_tied` and `domain_newer_than_company` fire, the level is `points_to_check`, and the offer-domain finding is key finding 01 |
+| `key-findings` | a concern, three points to check (one `regulator_warning`), a name-only court match and a context finding → key findings are the concern, then the regulator warning, then the next by check number; the name-only and context findings never appear |
 
 Test: `agents/src/scenarios.test.ts` replays every scenario and asserts events, findings, level, coverage and cost.
 
