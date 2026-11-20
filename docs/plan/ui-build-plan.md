@@ -1,6 +1,6 @@
 # UI build plan
 
-> **Status: phase 3 draft 5 (qa review of 0de4d5f answered; Baltic court, check 5 and Sodra changes, and web-qa's mockup findings folded in).** Owner: `frontend`. Written from `DESIGN.md` v1, `docs/design/IA.md`, the mockups in `docs/design/mockups/` (opened in Chromium at 1280 and 390 px wide for this revision), `docs/design/display-options.md`, council session 1 (`docs/plan/council/01-data.md` Parts B-H), `docs/plan/reviews/00-early-plan-review.md`, `docs/plan/agents.md`, `docs/plan/loaders/markets.md`, `docs/architecture.md` and `docs/plan/slices.md`. The mockups win on looks, this plan wins on behaviour. Open conflicts between sources are listed in §16. Items that wait on someone else are marked **[pending: ...]**.
+> **Status: phase 3 draft 6 (council session 2 fixes 7, 8, 10, 11, 12, 13 and 15 folded in; see §17).** Owner: `frontend`. Written from `DESIGN.md` v1, `docs/design/IA.md`, the mockups in `docs/design/mockups/` (opened in Chromium at 1280 and 390 px wide for this revision), `docs/design/display-options.md`, council session 1 (`docs/plan/council/01-data.md` Parts B-H), `docs/plan/reviews/00-early-plan-review.md`, `docs/plan/agents.md`, `docs/plan/loaders/markets.md`, `docs/architecture.md` and `docs/plan/slices.md`. The mockups win on looks, this plan wins on behaviour. Open conflicts between sources are listed in §16. Items that wait on someone else are marked **[pending: ...]**.
 
 A builder reading this file, `DESIGN.md` and the mockups should never have to guess. If something is unclear, that is a bug in this file.
 
@@ -23,6 +23,7 @@ A builder reading this file, `DESIGN.md` and the mockups should never have to gu
 15. [Test strategy for the UI](#15-test-strategy-for-the-ui)
     - [15a. Mockup defects the build must not copy](#15a-mockup-defects-the-build-must-not-copy)
 16. [Asks of other seats and open items](#16-asks-of-other-seats-and-open-items)
+17. [Council session 2: what changed](#17-council-session-2-what-changed-in-this-plan)
 
 ---
 
@@ -72,7 +73,7 @@ apps/web/
   src/app/[locale]/(tools)/crash/page.tsx
   src/app/[locale]/design/...                  state gallery (demo and test builds only)
   src/components/
-    shell/        AppShell, ToolRail, BottomBar, TopBar (command bar trigger, SpendPill, ThemeToggle), CommandBar, Footer
+    shell/        AppShell, ToolRail, BottomBar (with a "More" overflow when a tool count exceeds five), TopBar (command bar trigger, SpendPill, ThemeToggle), CommandBar, CatchUpBanner, Footer
     search/       SearchBox, SearchResults, CountryGroup, NoMatch
     field/        FieldRow, SourceChip, AiLabel, DerivedChip, Quote, PersonDisclaimer, PurposeGate, ReportProblem
     company/      CompanyHeader, CoverageLine, SectionIndex, SectionCard, KeyFigureTable, RoleTable, HolderTable, EventList, CheckLine, ChecksAside, ExportMenu
@@ -172,6 +173,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `TopBar` | The command bar trigger (field-shaped button with the `/` hint), `SpendPill` ("today $1.84 of $10.00", hidden under 768 px; turns `--warn` from 80% of the daily cap), `ThemeToggle` | - | `/` and `Ctrl/Cmd+K` open the command bar |
 | `CommandBar` | `/` or `Ctrl/Cmd+K` anywhere (acceptance: Up, Down and Enter move through and open results; the list has `listbox` and `option` roles with `aria-selected` and `aria-activedescendant`; Esc returns focus to the control that opened it, or to the top-bar trigger). Search companies across four jurisdictions, jump to a tool, open a past investigation. Built on `Combobox` in a `Dialog` | `idle` (recent items), `typing`, `loading`, `country-loading`, `no-match`, `error` | §8 |
 | `ThemeToggle` | Three-way theme (system, dark, light) in the top bar. The language choice (four locales) is in Settings | - | Arrow keys on the group |
+| `CatchUpBanner` | Shown after the app starts while refreshes missed when it was closed are still running ("Updating {n} sources that changed while Finora was closed"); values from those sources show the Stale state with their as-of date until it ends. Polite live region, no focus move | `running`, `done` (disappears), `error` ("Some sources did not update: see Settings") | - |
 | `Footer` | Source-code link (legal rule 18), terms, the blocked-uses notice for natural persons (P7), attribution lines collected per page | - | links |
 | `SourceChip` | `register · LV · 18 Nov` in mono. Opens a popover: source name and record link, licence (link to the Sources page), retrieved at, source's own as-of date, access-tier word, the loader or agent that produced it, and for agent findings the quote. Chip kinds: `official`, `agent-web`, `derived` ("Derived by Finora", lists input sources and links to the method) | `collapsed`, `open` | `Enter`/`Space` toggles; `Esc` closes |
 | `ConfidenceBadge` | Dot plus word: Official (solid), Corroborated (two dots), Single source (hollow), Inferred (dashed, plus "How we got here"). The word is always visible | one per level | not interactive, "How we got here" is a link |
@@ -192,7 +194,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `CompanyHeader` | Overline (`Company · Latvia`, `Investigation running`, `Investigation report · {date time}`), H1 (≤ 3 lines then truncated, full name in the tooltip and the identity row; **for a natural person or sole trader the H1 is the legal form and registry code, for example "Individual enterprise · {code}", never the name**, and so is `<title>`; L3, P6), meta row (status pill with gloss, legal form with gloss, registration number, address), optional LEI and VAT, and the actions. Profile: **Investigate** (primary), Network, Export, Report a problem. Run: Stop and write the report, Skip to report. Report: Network, Re-run, Export, Report a problem | `loading`, `profile`, `running`, `report`, `sole-trader` (facts-only variant: no Investigate, no Network, no agent rows) | - |
 | `CoverageLine` | "[Country]'s official data: ... Not in open data: ..." in a well before any result. Text is a catalogue key per country, plus `us-private` and `us-public-no-sec`. The designer replaced the icon strip with this line | one per country variant | - |
 | `SectionIndex` | Pills that jump to each section on the profile and report | - | links in tab order |
-| `ChecksAside` | The aside on a profile: "Checks from official data", checks 1 to 9 with their results and "Runs when you investigate" for 10 and 11, then **Investigate** and the typical cost. The same `ChecksList` renders the full 11 in a report | `profile` (1-9), `report` (1-11), `check not_evaluated` | - |
+| `ChecksAside` | The aside on a profile: "Checks from official data", the fixed line "No verdict yet. These checks use official data only; the rest run when you investigate. Missing does not mean clean." (O1: the profile shows no level), checks 1 to 9 with their results and "Runs when you investigate" for 10 and 11 (check 10 is "not possible" in the Baltics), then **Investigate** and the typical cost. A check whose data is past its cycle shows a `clock` icon, not a check mark. Below 1024 px a one-line checks tally ("7 of 11 checks ran from official data") sits under the page header. The same `ChecksList` renders the full 11 in a report | `profile` (1-9), `report` (1-11), `check not_evaluated` | - |
 | `ExportMenu` | Export on the header: JSON and FtM of redistributable values only. Says how many share-alike values were left out ("3 values under a share-alike licence are left out of this export; see the Sources page") | `closed`, `open`, `exporting`, `error` | Menu keys |
 | `SectionCard` | A titled section with its rows and the agent findings that landed in it. Collapses to one sentence when every row is "not published" | `loading` (skeleton rows), `loaded`, `all-gaps`, `error` (retry) | The heading is focusable by `j/k` navigation only on the report page (§8) |
 | `FieldRow` | One value with its label, state and chips (§5.1) | all `SectionResult` states plus `loading` | - |
@@ -206,7 +208,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 
 | Component | Purpose | States | Keyboard |
 |---|---|---|---|
-| `InvestigateSheet` | Opens from Investigate. Shows the estimate range ("typically $0.46, up to $0.92"), the cap, spend left today, the per-agent breakdown behind a disclosure, the purpose line and **Start investigation**. Per-agent defaults behind the disclosure: Identifying the company $0.02, Registry and people $0.06, Money and tax $0.06, Legal, insolvency and sanctions $0.07, Web, domain and news $0.20, Verdict $0.05 (typical, mid tier; replaced by measured values) | `estimating`, `ready`, `no-key` (steps to add `ANTHROPIC_API_KEY`, "Check again"), `daily-cap` (spend, reset time), `estimate-error` | Dialog rules; focus lands on **Start** when ready |
+| `InvestigateSheet` | Opens from Investigate. An optional field "Website or email domain from the offer or invoice" (`subject: {eid, offerDomain?}`): the web agent checks it against the register (DNS, certificates, homepage, domain creation date). The field is also offered on "Investigate this text". Without it a borrowed company name and code would get a reassuring profile. Shows the estimate range ("typically $0.46, up to $0.92"), the cap, spend left today, the per-agent breakdown behind a disclosure, the purpose line and **Start investigation**. Per-agent defaults behind the disclosure: Identifying the company $0.02, Registry and people $0.06, Money and tax $0.06, Legal, insolvency and sanctions $0.07, Web, domain and news $0.20, Verdict $0.05 (typical, mid tier; replaced by measured values) | `estimating`, `ready`, `no-key` (steps to add `ANTHROPIC_API_KEY`, "Check again"), `daily-cap` (spend, reset time), `estimate-error` | Dialog rules; focus lands on **Start** when ready |
 | `AgentPanel` | The aside beside the content (below it under 1024 px). Titled "Agents" with the run spend ("$0.27 of $1.50") and a meter, then the lanes in order: Lead (resolve and plan), Registry and people, Money and tax, Legal, insolvency and sanctions, Web, domain and news, Verdict | §6 | `Tab` through lanes |
 | `RunStats` | In the page header: `Investigating · 4 agents · 23 tasks · 31 sources · $0.27 of $1.50` in mono, with a meter, then **Stop and write the report** and **Skip to report**. "4 agents" counts the four specialists; the lead and the verdict are lanes but not counted | `planning`, `running`, `waiting`, `paused-at-cap`, `synthesising`, `done`, `stopped`, `failed`, `reconnecting` | The two actions are buttons |
 | `AgentLane` | One lane: status as word and dot (`DONE`, `RUNNING`, `WAITING`, `QUEUED`, `FAILED`, `STOPPED`), name, then `elapsed · usually {typical} · $cost` in mono, the current step (`› reading the news index (query 2 of 4)`), and its `TaskRow`s. A waiting lane has an amber border, a failed lane a red one. The lead lane ends with "Pinned to registration no. {code}". The typical time comes from the estimate DTO (`typicalSeconds` per role) | `queued`, `running`, `waiting`, `done`, `failed`, `stopped`, `budget_exceeded`. The running dot pulses 1.6 s, and not under reduced motion | Lanes are not tab stops; their action buttons (Re-run, link to the question) are |
@@ -222,6 +224,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `VerdictBlock` | Level, coverage line, the rules that fired, then the AI-written explanation as a separate child (§5.5) | `no_concerns_found`, `points_to_check`, `serious_concerns`, `not_enough_data`, `not-confirmed` (entity not confirmed) | - |
 | `FactsOnlyBlock` | "Facts only: no verdict is given on a private individual" | one | - |
 | `ChecksList` | The fixed list of 11 checks (ids 1-11). Each check is `ran` (with a finding rating: `none_found`, `point_to_check` or `concern`), `not_run` (with its coverage reason: `run_failed`, `stopped`, `budget_exceeded`, `needs_key`), `not_possible` ("not possible in {country}", the not-published case) or `not_evaluated` (P14, `trackedSince`). Same four states as architecture §7.2 | all four, and each `ran` rating | - |
+| `KeyFinding` list | The report shows up to three key findings, chosen by the runtime in this order: concerns first, then points to check, then by check number. A finding that is inferred, name-only or context-only is never a key finding, and fewer than three show when fewer qualify. The UI renders the order it is given and never re-ranks | `0 to 3` | - |
 | `KeyFinding`, `FindingItem` | One finding: severity (icon + word), statement, `ConfidenceBadge`, citation chips, `AiLabel`, overflow menu (Report an error or object). Renders nothing without a citation (R7) | per severity | `j/k`, `Enter` |
 | `EvidenceGroup` | Findings grouped by agent, with "Dig deeper" and "Re-run" | `empty`, `full` | - |
 | `CitationViewer` | Popover or sheet with the `Quote` and the source link | `open`, `closed`, `source-gone` ("The source no longer shows this text") | `Esc` |
@@ -324,8 +327,8 @@ Structure (top to bottom), as separate children so no wrapper can cover the leve
 
 1. **Level** in the serif display size, from the typed list `no_concerns_found | points_to_check | serious_concerns | not_enough_data`, each with icon and word. Colour: level 1 is `--ink` with a neutral dot, never green; level 2 `--warn` with `!`; level 3 `--bad` with `×`; level 0 `--muted` with `?`. The label "Rule-based" sits beside it.
 2. **Coverage on the same line**: "7 of 11 checks ran · 2 not possible in [country] · 31 sources · 19 Nov 2026". `not_enough_data` also lists the checks that did not run, each with its reason ("Owners: restricted in [country]").
-3. **Why this level**: the fired rules, each linking to its finding, or "No hard or soft flag in the checks that ran".
-4. **Explanation**: the AI-written sentences, each with its citation chips, under an `AiLabel`. `VerdictText` drops any sentence with no citation (R7). If nothing is left, it shows "Not enough evidence for a verdict".
+3. **Why this level** (and above it, a rule-based line "Added by this investigation: {n} findings from live sources: {lists}", computed from the run, not written by the model): the fired rules, each linking to its finding, or "No hard or soft flag in the checks that ran".
+4. **Explanation**: the AI-written sentences, each with its citation chips, under an `AiLabel`. `VerdictText` drops any sentence with no citation (R7). If nothing is left, it shows "No written explanation for this report" (the same single fallback line as the banned-term case).
 5. The `ChecksList` (the fixed 11 checks, ids 1-11), then key findings, each linked to its evidence.
 
 Fired rules render through the catalogue (`rules.<ruleId>`, for example `rules.arrears_serious`), never from model text. Coverage skip reasons (`not_possible_in_country`, `run_failed`, `stopped`, `budget_exceeded`, `needs_key`) each have their own catalogue line. If the explanation is `null` (reason `banned_term_fallback`), the block shows the fired rules and findings with the line "No written explanation for this report" and nothing else; the level is unaffected.
@@ -474,7 +477,7 @@ type InvestigationState = {
 One polite `LiveRegion` per page. Throttle rule: at most **one announcement per lane status change**, and none for steps, sources or costs. Messages:
 - a run changes status: "Registry: done" or "Legal: waiting for your answer";
 - a question arrives: "Question: which company? Choose one in the agents panel";
-- the verdict arrives: "Report ready: {level label}, {ran} of {applicable} checks ran";
+- the verdict arrives: "Report ready: {level label}, {ran} of 11 checks ran";
 - connection lost or restored.
 
 The question announcement does not move focus. A shortcut and a link take the user to the card (§8). The counters in the panel are not live regions (they would flood a screen reader). The header's text status is a normal element, and its changes are announced only through the one `LiveRegion`; there is no second region.
@@ -741,7 +744,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   4. A live-state group shows "Searching ..." then results or "Checked NY, CO, CT, PA: no match".
   5. A result row shows code, legal form, status, city and registration year; a 200-character name clamps to two lines at 390 px with no overflow.
   6. The result type has no person variant (type test); a person's name returns no result in the e2e fixture.
-  7. No match offers "Investigate this text"; without a key it opens the key sheet.
+  7. No match offers "Investigate this text"; without a key it opens the key sheet. The Investigate sheet has the optional offer-domain field, validated as a hostname (no scheme, no path), sent as `offerDomain`, and echoed on the run page ("Checking offer domain {domain} against the register").
   8. The tool rail is built from the manifests; the active tool has `aria-current`; below 768 px the bottom bar replaces it; no horizontal scroll at the four widths.
   9. The footer source-code link is on every page (rule 18).
   10. Switching locale (in Settings) keeps path and query.
@@ -762,7 +765,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   5. A section whose rows are all `not_published` collapses to one sentence.
   6. A person section before a purpose has no person value in the DOM; after a purpose it shows rows and the "Purpose: ... · Change" line; three companies in one session send the purpose three times.
   7. LT S03 shows the role facts and "Names are not in Lithuania's open data. Available as a paid register extract." with a link only to the register's own order page (host check); it never says "Not published" for LT names.
-  8. The sole-trader fixture shows `FactsOnlyBlock`, the disclaimer at the top, no verdict block, no S08 tax rows, no Investigate button (the facts-only block on the profile says no agents run), no Network action, no AGENT rows (courts, live lists, web), and no library entry is ever created for it.
+  8. The sole-trader fixture shows `FactsOnlyBlock`, the disclaimer at the top, no verdict block, no S08 tax rows, no Investigate button (the facts-only block on the profile says no agents run), no Network action, no AGENT rows (courts, live lists, web), and no library entry is ever created for it. Every row and check whose data is dropped for natural persons (insolvency, securing measures, suspensions, tax and arrears, S08, S09) renders the same rule-based lock (`restricted`), never "none found": a bankrupt and a non-bankrupt fixture sole trader produce identical DOM (`web/e2e/facts-only.spec.ts`, the `company.html` sole-trader branch is fixed to match).
   9. Every section and finding has "Report an error or object"; after submitting, the refetched section shows the `disputed` state.
   10. The Sources page lists each source with licence, attribution, cadence and last sync; every `SourceChip` links to its row; the LATER rows and their triggers are listed.
   11. `X-Robots-Tag: noindex` and the `robots` meta are present; `<title>` follows L3.
@@ -807,7 +810,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   1. The level label comes from the typed list; level 1 is neutral, never green; every level has an icon and a word.
   2. Coverage is on the same line as the level: "7 of 11 checks ran · 2 not possible in [country] · 31 sources · {date}".
   3. Level and explanation are separate DOM blocks; `AiLabel` never wraps the level (DOM test).
-  4. Every explanation sentence has at least one citation chip; a sentence without one is not rendered; with none left the block reads "Not enough evidence for a verdict" (R7).
+  4. Every explanation sentence has at least one citation chip; a sentence without one is not rendered; with none left the block reads "No written explanation for this report" (R7; the same single fallback line as the banned-term case, never a wording that reads like a fifth level).
   5. A citation chip opens the `CitationViewer` with the quote and the source link; `Quote` enforces each source kind's limit and cuts with "Read at source" (unit per kind).
   6. `not_enough_data` shows the muted `?` and lists the checks that did not run with their reasons; `not-confirmed` shows "Not enough data: company not confirmed".
   7. The facts-only fixture has no verdict block.
@@ -871,7 +874,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 ### U10 Settings and connectors
 
-- **Scope:** the Settings page: language, the current purpose with Change, key status (names and presence only; the optional market keys and the SEC contact setting included), the `ConnectorSheet` with how to add a key (edit the local `.env`, restart, "Check again"), default cost cap display, the 13 fund-symbol slots, theme and locale, the shortcuts switch, `DataStatus`.
+- **Scope:** the Settings page: language, the current purpose with Change, key status (names and presence only; the optional market keys and the SEC contact setting included), the `ConnectorSheet` with how to add a key (edit the local `.env`, restart, "Check again"), default cost cap display, the 13 fund-symbol slots, theme and locale, the shortcuts switch, `DataStatus`. Also: the opt-in **Start Finora at login** switch (Windows first; the app still binds 127.0.0.1; S25 owns the mechanism and the security review), month-to-date and today's spend, and an "out of credit" key state (no retries, the message says to add credit).
 - **Acceptance:**
   1. A key's value never appears in the HTML, an API response or a client chunk; a planted canary key is absent from all three.
   2. Key rows show "set" or "not set" and a "Check again" button; the app never accepts a key through the browser in v1.
@@ -880,6 +883,8 @@ Slices that depend only on fixtures start before the real API lands (the archite
   5. The AI key row has a `rejected` state ("The AI key was rejected") driven by the `model_auth` code; the Investigate sheet shows the same message.
   6. `DataStatus` shows each source's last sync and rows, and the history size against its cap with a warning, never a silent deletion.
   7. Every control has a label; the page passes axe at both themes.
+  8. The **Start at login** switch shows its state from `GET /settings/status`, explains what it does ("Finora starts in the background when you sign in and answers only on this machine"), and is off by default. **[pending: architect, S25 defines the setting and its route]**
+  9. Month-to-date and today's spend show against the daily cap; an "out of credit" key state shows the provider's message and stops retries.
 - **Tests:** `web/src/components/settings/*.test.tsx`, `web/e2e/settings.spec.ts`, `web/e2e/settings.shortcuts.spec.ts`, `web/e2e/settings.a11y.spec.ts`.
 - **Demo:** open Settings, see which keys are set, add a fund symbol, open Crash monitor and see the proxy tile.
 
@@ -951,8 +956,26 @@ web-qa swept the mockups (commit `7dc2e76`, 448 renders). These findings are bui
 **web-qa:** the gallery and `?state=` contract (§12) are the way to reach every state; tell me if a state you need has no URL.
 
 **Open items inside this plan:**
-- Mockups are not on the branch yet. Differences are folded into draft 2.
+- Mockups are on the branch (`docs/design/mockups/`, web-qa signed off at `d9441ad`).
 - Fonts: the three Fontsource packages and their licences are verified in U1.
 - Screen reader pass is manual and optional per milestone.
 - Print layout and a PDF export of a report are LATER.
 - Standalone person pages, person search and person nodes are out by decision (L2, council Part C).
+
+---
+
+## 17. Council session 2: what changed in this plan
+
+Council session 2 approved S01-S03 and gated the rest on 16 fixes. Frontend's share, all folded in above:
+
+| Fix | Change here |
+|---|---|
+| 7 offer domain | `InvestigateSheet` has the optional offer-domain field (`subject: {eid, offerDomain?}`), also on "Investigate this text"; U3 acceptance 7 |
+| 8 one denominator | Every user-visible coverage string reads "of 11": the verdict coverage line, the lane header, the library, announcements. `applicable` never reaches a string; test `web/src/coverage-strings.test.ts` renders every fixture and asserts "of 11" |
+| 10 key findings | The UI renders the three (or fewer) the runtime chose, in its order, and never re-ranks |
+| 11 sole traders | One rule-based lock for every dropped row and check; a bankrupt and a non-bankrupt fixture give identical output |
+| 12 one fallback line | "No written explanation for this report", for both the banned-term fallback and "no cited sentence left" |
+| 13 the profile is not a verdict | Fixed line on `ChecksAside`; a stale check shows a clock |
+| 15 a daily way in | U10 shows the start-at-login switch; the shell shows the catch-up banner and Stale values until the refresh ends |
+| not blocking, folded in | the checks tally below 1024 px; the "More" overflow in the bottom bar; the rule-based "Added by this investigation" line; Export stays and is defined (JSON and FtM of redistributable values, with the share-alike left-out count) |
+| not blocking, to do at the slice | banned-word inflections ("cleared", "fraudulent", "scams") are the architect's list; the `crash.html:73` and `sources.html:39-40` wording and the other mockup wording fixes are the designer's; the README items at S26 are the coordinator's |
