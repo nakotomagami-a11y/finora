@@ -345,8 +345,8 @@ Sample sizes are small (7-9 per country). The rates below say what the agent can
 | S15 | LV | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates |
 | S15 | LT | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code |
 | S15 | US | SAM.gov URL or web search → DNS, RDAP, CT, Wayback, homepage | B | website 100% of sample; RDAP date 100%; registrant 0% | per-query; licence verified Y |
-| S15.whois | LV, EE, LT | ccTLD WHOIS (port 43): creation date, registrar, register-code match | C | date: LT 2/2, EE 6/9, LV 0/2; code match: EE 4/9, LV 1/2 | per-query; licence verified Y (terms quoted in full, §1.1a); council S1 item 5: LATER until legal reads them; registrant name and contacts never shown |
-| S15.archive | all | Wayback CDX: first and last capture, snapshot link | C | 95% of sites known | per-query; licence verified N (live terms page renders only by script; 2014 text quoted, §1.1a); council S1 item 5: LATER until legal reads it |
+| S15.ALL.whois | LV, EE, LT | ccTLD WHOIS (port 43): creation date, registrar, register-code match | C | date: LT 2/2, EE 6/9, LV 0/2; code match: EE 4/9, LV 1/2 | per-query; licence verified Y (terms quoted in full, §1.1a); council S1 item 5: LATER until legal reads them; registrant name and contacts never shown |
+| S15.ALL.archive | all | Wayback CDX: first and last capture, snapshot link | C | 95% of sites known | per-query; licence verified N (live terms page renders only by script; 2014 text quoted, §1.1a); council S1 item 5: LATER until legal reads it |
 | S16 | all | GDELT DOC 2.0 (news, last 3 months) | C | 16% raw hits; 41% of queries answered | API; licence verified Y; 1 request per 5 s per IP; titles + links only |
 | S16 | US | SEC / DOJ / FTC press releases | A | not measured on the sample | bulk; licence verified Y (public) |
 | S16 | all | social profiles linked from the company's own website | C | 41% | per-query; licence verified Y (own site); links only, no platform data |
