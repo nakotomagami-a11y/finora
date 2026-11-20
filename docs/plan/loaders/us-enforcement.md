@@ -1,6 +1,6 @@
 # us-enforcement: federal enforcement feeds (SEC, Federal Reserve, FTC, DOJ) and FINRA
 
-Agent tools, not stored loaders (`storage: agent-only`, architecture §3.5). Modules `packages/sources/src/us/enforcement/` (fetch and parse, pure) used by the legal agent's tool `us_enforcement_search` (`docs/plan/agents.md`). Research: `docs/research/osint.md` §1.2 and "US regulator data" (data-osint), `docs/research/us.md` §4.4.
+Agent tools, not stored loaders (`storage: agent-only`, architecture §3.5). Modules `packages/sources/src/us/enforcement/` (fetch and parse, pure) used by the legal agent's `check_live_list` tool with list id `us-enforcement` (`docs/plan/agents.md` §4.4). The feeds are fetched at query time and never stored (Part G: "Checked live at query time"). Research: `docs/research/osint.md` §1.2 and "US regulator data" (data-osint), `docs/research/us.md` §4.4.
 
 ## Source
 
@@ -64,7 +64,7 @@ None (per investigation).
 `fixtures/us/enforcement/`: one RSS file per feed, a DOJ JSON page and an FTC CSV, each with 5 fictional items: an exact company match with a second identifier, a name-only match, an individual (must be masked), an older item, and a near-miss name.
 
 ## Tests
-`sources/src/us/enforcement/parse.test.ts` (RSS, JSON, CSV parsing), `agents/src/tools/us-enforcement.test.ts` (second-identifier rule; name-only → "not confirmed"; individual masked; nothing written to the store), `sources/src/us/finra.test.ts` (no request to any FINRA host in v1).
+`sources/src/us/enforcement/parse.test.ts` (RSS, JSON, CSV parsing), `agent-tools/src/check-live-list.test.ts` (`us-enforcement` cases) (second-identifier rule; name-only → "not confirmed"; individual masked; nothing written to the store), `sources/src/us/finra.test.ts` (no request to any FINRA host in v1).
 
 ## Failure modes
 A feed down: the tool reports it per feed; the check line reads "Checked [n] of 4 federal feeds". SEC feeds without `SEC_USER_AGENT`: skipped, "SEC feeds need the SEC contact setting".
