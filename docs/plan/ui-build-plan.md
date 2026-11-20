@@ -47,13 +47,13 @@ The architecture fixes the framework (`docs/architecture.md` §1, §5.3). This t
 | Component tests | Vitest + Testing Library + jsdom | Architecture §13 |
 | Browser tests | Playwright (Chromium) with `@axe-core/playwright` | Architecture §13 |
 
-### Deviations from the architecture, for the architect to accept
+### Deviations from the architecture (D1 and D4 accepted by the architect on 2026-11-20; D2 and D3 to be confirmed in milestone B)
 
 | # | Deviation | Reason |
 |---|---|---|
 | D1 | `FieldRow`, `SourceChip`, `Quote`, `AiLabel` and `PersonDisclaimer` live in `apps/web/src/components/`, not in `packages/ui` | They take DTO types (`SectionResult`, `SourceRef`, `Citation`). `packages/ui` may import only `i18n`. Putting DTO types into `ui` would break the dependency table. `packages/ui` keeps the presentation primitives they are built from (`StatusLine`, `Chip`, `Popover`, ...) |
 | D2 | Fixture DTO files for UI states live in `fixtures/ui/<screen>/<state>.json`, validated against the `api-contract` schemas | One place for the state gallery, the `?state=` mode and the e2e tests. S04b owns the schemas, frontend owns these files |
-| D3 | The item registry (`ItemId`, the call for each id) is generated from the Part G table into `packages/domain/src/config/items.ts` by a script and a test that fails when the two disagree | The "rendered-field registry equals the table" gate needs a typed list. `FieldRow` takes `itemId: ItemId`, so an unknown id fails typecheck |
+| D3 | The item registry (`ItemId`, the call for each id) is generated from the Part G table into `packages/domain/src/items/items.generated.ts` by a script and a test that fails when the two disagree | The "rendered-field registry equals the table" gate needs a typed list. `FieldRow` takes `itemId: ItemId`, so an unknown id fails typecheck |
 | D4 | Search needs a progressive result shape (§5.4, §16 ask 2) | The designer's "Estonia: loading, 62%" and the live US state groups need it |
 
 ---
@@ -881,7 +881,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 4. Library DTO: subject, country, entity id, verdict level, coverage, cost, status, started, finished; and whether delete or archive exists (R11).
 5. Network DTO: nodes (company id, name, code, status, country), edges (relation `shared_address | corporate_member`, `SourceRef`, `derived` flag, date), an address-hub node with `companyCount`, and `truncated`.
 6. Crash DTO: per tile, its state (§5.9), value, as-of, source and attribution, cadence, and the proxy symbol echo.
-7. The Part G table as `packages/domain/src/config/items.ts` (D3), with the empty-state key per id.
+7. The Part G table as `packages/domain/src/items/items.generated.ts` (D3), with the empty-state key per id.
 8. Estimate and daily-cap DTOs for the Investigate sheet: `{ low, typical, high, basis, capMicroUsd, dailyLeftMicroUsd, dailyResetsAt }`.
 9. Number the UI slices (§14) into `slices.md`; the `U` names are placeholders.
 10. `GET /settings/status` returns presence for each key and the SEC contact setting.
