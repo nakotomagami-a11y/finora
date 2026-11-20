@@ -210,6 +210,11 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 | PA | PA Data Policy, https://data.pa.gov/data-policy (no date shown) | "Data sets available through data.pa.gov are offered free and without restriction" | none stated | attribution requested, not required: "Data retrieved from data.pa.gov (https://www.data.pa.gov/)"; the policy may be amended "at any time and without further notice" |
 | WA | No portal terms found: the "User Resources" page has none, and the federal catalogue's copy of the portal's Terms of Service is marked "to be retired" | dataset licence: Open Data Commons Public Domain Dedication and Licence (portal metadata) | none (PDDL sets none) | licence verified Y (dataset), portal terms N |
 
+**Second look for OR and WA (2026-11-20), still partial:**
+- OR: the Secretary of State's site-wide Terms and Conditions (https://sos.oregon.gov/Pages/terms-and-conditions.aspx, no date) say only that "Most information collected by state government is assumed to be open to the public unless specifically exempted". They grant no reuse licence and say nothing on caching or automated access.
+- WA: the portal's own "[To be retired] Terms of Service" (`wt8r-5xui`) was due to retire after 2026-06-01, and no successor was found. The portal's About page is licensed PDDL in its metadata. A search-engine excerpt of that page reads "Data.wa.gov content may be used for free by anyone for most any purpose", but the page renders by script and the sentence could not be read directly. To settle: ask the WA Open Data Program by email (address on the WaTech open-data page).
+- Legal's ruling (hub comment 7029000097): the live slice for OR and WA stays blocked until a terms page is read. The CO disclaimer and CT withdrawal each get a test in the loader spec.
+
 **API throttling (all six portals run on the same platform):** "requests that aren't using an application token come from a shared pool via IP address", while "currently we do not throttle API requests that are using an application token" (https://dev.socrata.com/docs/app-tokens.html, read 2026-11-20). No numeric limits are published; throttled requests get HTTP 429.
 
 **What this means for the cache:**
