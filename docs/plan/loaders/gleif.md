@@ -1,0 +1,95 @@
+# gleif: GLEIF LEI records (golden copy)
+
+Module `packages/sources/src/intl/gleif/`. Research: `docs/research/us.md` §4.9 (data-us) and the LEI coverage in `baltics.md` (data-baltics).
+
+## Source
+- Publisher: Global Legal Entity Identifier Foundation. `officialHosts`: `goldencopy.gleif.org`, `api.gleif.org`, `search.gleif.org`.
+- Endpoints:
+  - Publish list: `https://goldencopy.gleif.org/api/v2/golden-copies/publishes/latest` → JSON with the URLs of the full LEI-CDF CSV (`…-gleif-goldencopy-lei2-golden-copy.csv.zip`) and the delta files (`…-lei2-last-day-…csv.zip`; *verify the delta key names on first build*).
+  - Full file measured 2026-11-19 16:00: 510,551,864 bytes zipped, 3,499,919 records, 338 columns.
+- `id`: `intl-gleif-lei`. `licence`: `cc0-1.0` ("The data available through the Access Service are provided under the CC0 licence", https://www.gleif.org/en/meta/lei-data-terms-of-use, verified 2026-11-20). `attribution`: none required; the source chip reads "Global LEI Foundation (GLEIF)". Don't suggest GLEIF endorses Finora; no GLEIF logo.
+- `storage`: `store`. `cadence`: `daily` (GLEIF publishes three times a day; we take one delta a day and a full file weekly). `publishedAtUtc`: "00:00, 08:00, 16:00" (file names carry the time).
+- `asOf`: `[in_file_name]` (`20261119-1600-…` → 2026-11-19T16:00Z), then `[max_date_in_data]` over `Registration.LastUpdateDate`.
+- `maxPurgeShare`: 0.02 (weekly full reload; LEIs are never deleted upstream, only re-statused, so a large purge means a broken file).
+- `deepLink`: `https://search.gleif.org/#/record/{recordKey}`. `orderUrl`: null. `requires`: none. `limits`: one full download a week, one delta a day.
+
+## Items
+
+| item_id | Call | Caveat | Empty state |
+|---|---|---|---|
+| S01.ALL.01 | SHOW | - | NP (LEI: — when absent) |
+| S01.ALL.02 | SHOW | - | NP (LEI: — when absent) |
+
+S01.ALL.02 is the LEI record itself (LEI, legal name, status, renewal). S01.ALL.01 is the LEI shown on a register entity's identity block through the official-ID link. LATER, not read: S05.ALL.01 (relationship records and reporting exceptions; the `rr` and `repex` files are not downloaded).
+
+## Field map
+
+Rows are kept only when `Entity.LegalAddress.Country` or `Entity.LegalJurisdiction` is LT, LV, EE, US or US-xx (core profile filter). All other columns are not read.
+
+| Source field | Type | Target | item_id | Personal? | Transform and validation |
+|---|---|---|---|---|---|
+| `LEI` | 20 chars | entity key `lei-<LEI>`; `leiCode` | resolution key | no | ISO 17442: `^[A-Z0-9]{18}[0-9]{2}$`, mod-97 check = 1 |
+| `Entity.LegalName` | text | `LegalEntity.name` | S01.ALL.02 | no | `xmllang` → `lang` |
+| `Entity.OtherEntityNames.OtherEntityName.1..5` with `.type` = PREVIOUS_LEGAL_NAME | text | `previousName` | S01.ALL.02 | no | other types (trading, transliterated) dropped |
+| `Entity.LegalAddress.Country`, `.Region`, `.City`, `.PostalCode`, `.FirstAddressLine` | text | `Address` | S01.ALL.02 | no | legal entities only (see party gate) |
+| `Entity.LegalJurisdiction` | ISO code | `jurisdiction` | S01.ALL.02 | no | e.g. `US-DE`, `LV` |
+| `Entity.LegalForm.EntityLegalFormCode` | ELF code | `legalForm` | resolution key | no | ISO 20275 code |
+| `Entity.EntityCategory` | enum | party gate only | resolution key | no | GENERAL, FUND, BRANCH, SOLE_PROPRIETOR, RESIDENT_GOVERNMENT_ENTITY, INTERNATIONAL_ORGANIZATION |
+| `Entity.EntityStatus` | enum | `status` | S01.ALL.02 | no | ACTIVE, INACTIVE |
+| `Entity.RegistrationAuthority.RegistrationAuthorityID`, `.RegistrationAuthorityEntityID` | text | link key (official-ID link to a register entity) | resolution key | no | see joins |
+| `Registration.RegistrationStatus` | enum | `leiStatus` | S01.ALL.02 | no | ISSUED, LAPSED, RETIRED, DUPLICATE, ANNULLED, PENDING_TRANSFER, PENDING_ARCHIVAL |
+| `Registration.LastUpdateDate`, `Registration.NextRenewalDate` | dates | `modifiedAt`, `leiRenewalDate` | S01.ALL.02 | no | a LAPSED status is shown as "LEI not renewed since [date]" |
+| every other column (headquarters address, successor entity, managing LOU, validation sources, …) | | dropped | - | - | |
+
+## Party gate
+`Entity.EntityCategory = SOLE_PROPRIETOR` means a natural person acting in business (legal rule 5): the record is **not loaded** and counted as `natural_person_lei`. Measured in the 2026-11-19 file: US 223, EE 21, LT 4, LV 2. Every other category is an organisation. FUND rows are loaded (they are legal entities, often 10% owners of US issuers).
+
+## Identity and joins
+- `eid` = `lei-<LEI>` for an LEI with no register match. When the registration-authority pair matches a loaded register entity, the LEI becomes a `links` row (LEI ↔ registry code, asserted by this record) and the register entity shows it (S01.ALL.01); the `lei-*` entity is not created.
+- Registration-authority codes (measured in the 2026-11-19 file, by legal jurisdiction):
+
+| Register | RA code | Entity-id shape | Measured |
+|---|---|---|---|
+| LV Enterprise Register | RA000423 | 11 digits | 4,155 of 4,450 LV |
+| LT Register of Legal Entities | RA000430 | 9 digits | 5,173 of 5,392 LT |
+| EE e-Business Register | RA000181 | 8 digits | 30,508 of 30,619 EE |
+| NY Department of State | RA000628 | 6-7 digits (`dos_id`) | 13,523 of 16,877 US-NY |
+| CO Secretary of State | RA000599 | 11 digits (`entityid`) | 2,797 of 3,211 US-CO |
+| CT Secretary of the State | RA000600 | 7 digits | 2,572 of 3,314 US-CT |
+| PA Department of State | RA000632 | 6-7 digits (`filing_number`) | 7,407 of 9,265 US-PA |
+| none given | RA999999 | - | US 44,426: never linked |
+
+- US state entities are live-cached (`us-states.md`): the link is made when the state entity is opened, by looking up its id in the stored GLEIF rows. CIK ↔ LEI: GLEIF holds no CIK, so SEC filers link to an LEI only through a state registration (most large companies are Delaware, RA000602, not loaded): the S01.ALL.01 empty state is common for US public companies.
+- A pair whose entity id doesn't resolve leaves the LEI as its own `lei-*` entity (searchable by name and LEI); never matched by name.
+
+## Refresh and change
+- Weekly full load; daily delta: rows in the delta replace their record. `record_key` = LEI; `hashInput` = the field-map columns in table order.
+- Removal: an LEI missing from a full file is deleted (GLEIF normally keeps them with a status, so the purge guard at 2% catches broken files).
+- History events: `finora.name_changed`, `finora.status_changed` (for example ISSUED → LAPSED) between syncs.
+
+## Size and time budget
+- Kept rows: about 406,000 (US 365,812; EE 30,619; LT 5,392; LV 4,450) minus about 250 sole proprietors.
+- About 9 statements per row ≈ 3.6 M statements ≈ 0.45 GB at 123 B. Share of the cross-border 1 GB budget: ≈ 0.45 GB.
+- Full parse of 3.5 M rows (filtering 89% away): ≈ 3-5 min, estimated (the probe's single pass over the zip completed in minutes; not timed separately). Daily delta: seconds.
+
+## Fixtures
+- `fixtures/intl/gleif/lei2-golden-copy.csv` with the real header (338 columns; generated from the column list, not copied) and 12 rows: one per RA code above, one RA999999, one LAPSED, one SOLE_PROPRIETOR (must be dropped), one FUND, one non-target country (must be filtered).
+- Fixture LEIs: 18 characters + 2 check digits that **fail** mod 97 (§3.4: the fixture variant), so they can never be real LEIs; `fixtures/ids.test.ts` checks the rule.
+
+## Tests
+| File | Proves |
+|---|---|
+| `sources/src/intl/gleif/gleif.test.ts` | country filter; field map = `meta.items`; previous names only from PREVIOUS_LEGAL_NAME |
+| `ingest/src/party-gate.test.ts` (GLEIF case) | a SOLE_PROPRIETOR row is not loaded and counted |
+| `resolve/src/lei-link.test.ts` | each RA code links to its register entity; RA999999 never links; no name matching |
+| `ingest/src/purge.test.ts` (shared) | the 2% guard stops a full file that would delete more |
+
+## Failure modes
+| Case | Behaviour | UI |
+|---|---|---|
+| Publish list unreachable | keep the last load; sync `failed` | LEI with "as of [date]"; Stale after 2 days |
+| Delta missing for a day | the next delta or the weekly full load catches up | none |
+| Column renamed | sync `failed` with `schema_changed` | last good data stays |
+
+## Open questions
+None.
