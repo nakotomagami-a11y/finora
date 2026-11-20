@@ -49,7 +49,7 @@ Enforcement items often name individuals. **P8 on the agent path:** an item whos
 ## FINRA (S11.US.03): link-out only in v1
 - BrokerCheck permitted uses (https://www.finra.org/investors/investing/working-with-investment-professional/about-brokercheck/permitted-uses): copying and compiling only "for investor protection, academic, compliance or regulatory purposes", with source, compile date, an error channel and no unsolicited marketing. data-osint read the general finra.org terms as non-commercial, no scraping and no machine learning.
 - Interim (until legal gives a light): **no automated BrokerCheck request.** For companies whose SIC code is a broker-dealer code (6211), the profile shows `not_checked{reason: "manual_lookup", url: "https://brokercheck.finra.org/"}` with "Check this firm on FINRA BrokerCheck". The agent never fetches BrokerCheck.
-- Open for `legal`: does a due-diligence check by the user count as "investor protection" or "compliance" under the permitted uses, and may an LLM read the result? If yes, the tool fetches the firm summary by CRD and returns the disclosure flag verbatim with the required attribution block.
+- Legal's light (hub 7029706804): **link-out only** (`manual_lookup`). An LLM reading the result is automated access, and the terms are not verified to allow it; a compliance purpose doesn't settle the automation question. No automated request until the terms are read. Trigger to revisit: FINRA's BrokerCheck terms read in full and quoted.
 
 ## Identity and joins
 None stored. A confirmed match becomes a finding pinned to the subject entity's eid (architecture §7.7).
@@ -70,4 +70,4 @@ None (per investigation).
 A feed down: the tool reports it per feed; the check line reads "Checked [n] of 4 federal feeds". SEC feeds without `SEC_USER_AGENT`: skipped, "SEC feeds need the SEC contact setting".
 
 ## Open questions
-For `legal`: the FINRA question above. Feed paths and the DOJ keyword filter are verified in the key-testing round (C7); the tool falls back to paging if the filter is absent.
+None for the builder. Feed paths and the DOJ keyword filter are verified in the key-testing round (C7); the tool falls back to paging if the filter is absent.

@@ -56,7 +56,9 @@ LATER, not read: S09.US.02 (FJC bankruptcy: no debtor names), S09.US.03 (PACER, 
 - CourtListener: per investigation.
 
 ## Size and time budget
-- FJC civil, last 10 years: about 3.2 M cases (2016-2026 per the measured year counts), of which an estimated 1.0-1.5 M have an organisation party ≈ 1.5-2 M index rows × ≈ 60 B ≈ **0.1-0.15 GB** (estimated). One parse pass over 2.0 GB unzipped ≈ 5-10 min, in the background after the core load.
+- **Measured 2026-11-20** (`research/probes/us/fjc_court_index.py <cv88on.zip> 10`, the party gate above, over the file filed through 2026-06-30): of 3,378,741 civil cases filed since 2016, **1,462,660 have an organisation party**, giving **1,562,381 index rows**. Dropped: 4,971,717 party names without a form token, 223,384 government parties.
+- Size: 1.56 M rows × ≈ 60 B ≈ 0.09 GB, plus one `records` row per case (1.46 M × 74 B, cto's measured bytes per record) ≈ 0.11 GB, **≈ 0.2 GB in total**: under cto's 0.3 GB line, so the 10-year window stands. If the loader slice measures it above 0.3 GB, the window drops to 5 years (cases since 2021: ≈ 0.73 M) before anything else is cut (cto, 7029711221).
+- One parse pass over 2.0 GB unzipped ≈ 5-10 min, in the background after the core load.
 - CourtListener: 0 bytes stored; ≤ 125 calls a day across all investigations.
 
 ## Fixtures

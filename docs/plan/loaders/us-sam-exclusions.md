@@ -65,6 +65,6 @@ Daily: download the extract, content hash, row hash per `SAM Number`. A row abse
 No key: KEY state, "Federal exclusions: needs the SAM.gov key". API refused (429, 403): keep the last list; Stale after 2 days. Layout change: `schema_changed`.
 
 ## Open questions
-For `legal` (light needed before this slice ships):
-1. Is the keyed Extracts API enough "permission" under "With permission, you may use software to connect to some SAM.gov data"? Interim: yes, keyed only; no keyless download (the probe used the website's file endpoint once for research).
-2. Are the agency-entered exclusion fields above (name, agency, type, dates, UEI, CAGE) free of "D&B Open Data"? Interim: addresses dropped; no D&B attribution needed for the remaining fields.
+None. Legal's light (hub 7029706804):
+1. Only the keyed Extracts API; a keyless or scraped pull falls under the ban on automated gathering, so it stays off (`ingest/src/sam-terms.test.ts`).
+2. The D&B restriction on agency-entered fields is not verified: the fields that might carry it (addresses and the DUNS-derived columns) stay dropped. Showing any of them later is a LAWYER item (P13).
