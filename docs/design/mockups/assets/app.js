@@ -206,10 +206,11 @@
     if (!layer) return;
     const f = [...layer.querySelectorAll('a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled && x.offsetParent !== null);
     if (!f.length) return;
-    const first = f[0], last = f[f.length - 1];
-    if (!layer.contains(document.activeElement)) { e.preventDefault(); first.focus(); return; }
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    // Move focus ourselves on every Tab: engines differ on whether links are tabbable.
+    e.preventDefault();
+    const i = f.indexOf(document.activeElement);
+    const next = i === -1 ? 0 : (i + (e.shiftKey ? -1 : 1) + f.length) % f.length;
+    f[next].focus();
   }
 
   /* ---------- Command bar (mockup of the real palette) ---------- */
