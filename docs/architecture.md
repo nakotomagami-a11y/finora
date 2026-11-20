@@ -145,8 +145,10 @@ syncs(
   storage       TEXT NOT NULL,   -- storage class in force (§3.5)
   started_at    TEXT NOT NULL,   -- ISO 8601 UTC
   finished_at   TEXT,
-  upstream_as_of TEXT,           -- the as-of date read inside the file or response; never only HTTP Last-Modified
+  upstream_as_of TEXT,           -- the as-of date, from the strongest strategy the source offers (§4.2 AsOfRule)
+  as_of_basis   TEXT,            -- which strategy produced it: in_file_field | in_file_name | max_date_in_data | portal_metadata | http_last_modified
   content_hash  TEXT,            -- sha256 of the raw artifact(s)
+  parser_version TEXT NOT NULL,  -- hash of the loader module + its field map + the generated item list (A1)
   report_json   TEXT             -- counts: read, written, unchanged, deleted, dropped by reason, duration
 );
 
@@ -169,7 +171,8 @@ Every statement, fact report and event points at its `record_id`. From the recor
 | `sourceId`, `sourceName`, `attribution`, `licenceUrl` | `sources` row + the source registry (§4.2) |
 | `licenceId` | `syncs.licence_id` of `last_changed_sync_id` |
 | `retrievedAt` | `syncs.started_at` of `last_changed_sync_id` |
-| `asOf` | `upstream_as_of` of the source's latest `content` sync (a live record was confirmed by it) |
+| `asOf`, `asOfBasis` | `upstream_as_of` and `as_of_basis` of the source's latest `content` sync (a live record was confirmed by it). The stale rule uses `asOf`. A weaker basis (`portal_metadata`, `http_last_modified`) renders as "as published by the portal" |
+| `checkedAt` | `started_at` of the source's latest `content` or `unchanged` sync: "Checked [source] as of [date]" uses it, so a list confirmed today reads as checked today even if its file is a week old (A5) |
 | `sourceUrl` | the source's deep-link pattern applied to `record_key`, when the source has one |
 | `accessTier`, `personal` | the value's `item_id` (§3.6) plus the entity's `natural_person` flag |
 | `derived` | true for values Finora computes (events of kind `finora.*`, shared-address counts, parent links): rendered with the "Derived by Finora" chip, citing the records they were computed from |
@@ -252,7 +255,7 @@ Every source's registry entry (§4.2) has exactly one storage class. The class d
 | Class | Where | Used for | Guarantee and test |
 |---|---|---|---|
 | `store` | `finora.db` | open-licence registers, GLEIF, official sanctions lists, SEC | the default; licence invariants (§4.2) |
-| `share-alike-store` | `finora-sa.db`, same schema, attached read-only at query time | EE tax board (S07.EE.01, S08.EE.01), switchable | P1: the main store never holds a share-alike row; export, bulk API and bulk MCP exclude it; single-company responses carry its attribution and licence link. Tests: `ingest/src/share-alike.test.ts`, `domain/src/export/export.test.ts` |
+| `share-alike-store` | `finora-sa.db`, attached read-only at query time | EE tax board (S07.EE.01, S08.EE.01), switchable | P1: the main store never holds a share-alike row **or anything derived from one** (history events included). Its tables mirror the main ones but key every row on the entity's public `eid` (text), never on `finora.db` integer ids, so a rebuild of either file cannot break the join (A6). Export, bulk API and bulk MCP exclude it; single-company responses carry its attribution and licence link. Tests: `ingest/src/share-alike.test.ts` (no main-store row or event references a share-alike sync, in both modes), `store/src/share-alike-rebuild.test.ts` (rebuild `finora.db`; the share-alike rows still attach), `domain/src/export/export.test.ts` |
 | `live-no-store` | memory only | the share-alike sources when `SHARE_ALIKE_MODE=live-no-store`; small daily lists | the file is read into memory at refresh and never written: no store row, no cache row, no file, no log line containing its values. Test: `ingest/src/live-no-store.test.ts` with sentinel values and a spied filesystem and logger (legal condition 1). Large files in this mode (EE taxes paid) show `not_checked{reason: "later"}` with "Not checked: licence question pending" |
 | `live-cached` | `finora.db`, rows with a cache marker | US state registries (NY, CO, CT, PA) | written only for an entity the user opens; re-fetched on view when older than `LIVE_CACHE_REFETCH_HOURS` (24); purged when not viewed for `PERSON_DATA_TTL_DAYS` (30); a withdrawn or corrected upstream record is removed at the next fetch (CT terms). Tests: `ingest/src/live-cache.test.ts` (fake clock: day 29 survives, day 30 deleted; 24 h re-fetch; CT withdrawal) |
 | `agent-only` | investigation `documents` only | courts, WHOIS-free web checks, live national sanctions lists, UN list, news | fetched by agents at query time, cited, kept only as investigation documents under the R11 TTL |
@@ -291,7 +294,7 @@ The registers publish current state only, so history exists from install day. It
 |---|---|
 | A company attribute changed (name, address, status, legal form, capital) | `finora.<attribute>_changed` event with old and new value; the statement holds the new value |
 | A person role disappeared | `finora.role_ended`: "a board member's role ended on [date]", with no name and no person key (P4, legal condition 2). The person row is deleted |
-| An entity entered or left a debtor list (LT, EE) | `finora.debtor_listed` / `finora.debtor_cleared`, with amount band only for companies |
+| An entity entered or left a debtor list (LT, EE) | `finora.debtor_listed` / `finora.debtor_cleared`, with amount band only for companies. Events derived from a share-alike source (the EE debtor list) are written to `finora-sa.db`, never the main store; in `live-no-store` mode they do not exist, because there is nothing to compare against without writing (A4) |
 | An EE company vanished from the open files | `tombstone_since` set; identity statements kept; "Not in the register's open data since [date]" |
 | A sole trader vanished | identity fields only, company context, purpose note (legal condition 3) |
 
@@ -339,7 +342,8 @@ type SourceMeta = {
   storage: StorageClass;            // §3.5
   cadence: "daily" | "weekly" | "monthly" | "quarterly" | "on-view";
   publishedAtUtc: string | null;    // observed publication time; the scheduler runs after it
-  asOf: AsOfRule;                   // how to read the as-of date inside the artifact
+  asOf: AsOfRule;                   // ordered strategies, strongest first (below)
+  maxPurgeShare: number;            // largest share of records one sync may delete (e.g. 0.05 for a daily register); above it the purge guard stops the sync
   deepLink: string | null;          // URL pattern with {recordKey}
   orderUrl: string | null;          // paid_only target; official register page only
   cacheTtl?: { refetchHours: number; purgeUnviewedDays: number }; // live-cached only
@@ -349,6 +353,18 @@ type SourceMeta = {
 };
 ```
 
+**`AsOfRule`** is an ordered list of documented strategies; the first that yields a date wins, and its name is recorded as `syncs.as_of_basis`:
+
+| Strategy | Meaning | Example |
+|---|---|---|
+| `in_file_field` | a date field inside the data or a header row | an export date column |
+| `in_file_name` | a date in the artifact's file name | EE annual-report zips |
+| `max_date_in_data` | the latest date of a named field across all rows | LV files without an export date |
+| `portal_metadata` | the open-data portal's own modified date for the dataset | CKAN `last_modified` |
+| `http_last_modified` | the HTTP header, last resort | EE daily files |
+
+A source lists only the strategies its spec proved on real files. Test: `ingest/src/as-of.test.ts`, one case per strategy, and the LV and EE fixtures sync successfully.
+
 `packages/sources/src/licences.ts` lists every licence with `attributionRequired`, `shareAlike`, `nonCommercial`, `redistribution`, `verifiedOn` (date and URL from docs/research). Invariants, checked by `sources/src/licences.test.ts` (R12, R13, P1, P11):
 
 1. `storage: "store"` requires `shareAlike = false`, `nonCommercial = false`, `redistribution = true`.
@@ -357,6 +373,8 @@ type SourceMeta = {
 4. Every source has a licence with a `verifiedOn` date; a `live-cached` source without one cannot be enabled (P11: OR and WA stay off).
 5. `orderUrl`, `deepLink` and every fetch host are in `officialHosts`.
 6. `items` equals the set of item ids in the field map, and every one is `show` or `caveat`.
+
+**Changing a source's storage class or licence class** (for example `store` to `share-alike-store`, or a licence that turns non-commercial) is a migration, not a setting: the next sync is a full reload into the new class, followed by a purge of every row of that source from the old location, and the class in force is recorded on each sync. Test: `ingest/src/class-change.test.ts` flips the class on a fixture source; afterwards no row of it remains in the old store (A7).
 
 ### 4.3 The loader contract
 
@@ -385,8 +403,8 @@ type ParsedRecord = {
 
 For one source, one sync:
 
-1. **Fetch.** Through the polite fetcher: `officialHosts` allowlist, private-address refusal after DNS, per-source rate limit (SEC ≤ 10 requests/s with `SEC_USER_AGENT`), retries with backoff, size caps. The artifact's sha256 is compared with the last content sync; **equal means unchanged** (HTTP validators are only a hint: LV's ETag changes on every regeneration). Unchanged → write one `syncs` row of kind `unchanged`, touch nothing else, stop.
-2. **As-of check.** Read the as-of date inside the artifact (`meta.asOf`). Older than the last content sync's → `stale_skipped`, stop. Missing → `failed` with `as_of_missing`.
+1. **Fetch.** Through the polite fetcher: `officialHosts` allowlist, private-address refusal after DNS, per-source rate limit (SEC ≤ 10 requests/s with `SEC_USER_AGENT`), retries with backoff, size caps. The artifact's sha256 and the loader's `parserVersion` are compared with the last content sync; **unchanged means both are equal** (HTTP validators are only a hint: LV's ETag changes on every regeneration). Unchanged → write one `syncs` row of kind `unchanged`, touch nothing else, stop. Same artifact but a new `parserVersion` (a release changed the parser, the field map or an item's call, for example a new HIDE) → re-parse from the raw cache as a content sync, so the change reaches every install without waiting for the upstream file to change (A1). The raw cache keeps each source's latest artifact.
+2. **As-of check.** Apply the `meta.asOf` strategies in order. A date older than the last content sync's → `stale_skipped`, stop. No strategy yields a date → `failed` with `as_of_missing`.
 3. **Parse and gate**, streaming, per record:
    - **Field-map gate:** every value targets a `show`/`caveat` item or a resolution key (load rule 2); everything else was never read.
    - **Personal-code gate (P3):** person properties are scanned against the country patterns (`domain/policy/personal-codes.ts`); a match is dropped and counted. Organisation `registrationNumber` is never scanned (qa #20).
@@ -397,11 +415,11 @@ For one source, one sync:
 5. **Write**, one writer, batches of 5,000 records per transaction:
    - new or changed `rowHash` → upsert the record (`last_changed_sync_id` = this sync), replace its statements, reports and events, and emit the history events of §3.7 by comparing old and new company attributes;
    - unchanged `rowHash` → nothing.
-6. **Purge**, only if the sync completed (`content`, never `partial` or an interrupted run): records whose key is absent from the temp table are deleted with their rows. If the record held an entity's identity and the source's spec says "tombstone" (EE), the entity keeps its identity statements and gets `tombstone_since`; person rows are deleted with a `finora.role_ended` event (P4).
+6. **Purge**, only if the sync completed (`content`, never `partial` or an interrupted run): records whose key is absent from the temp table are deleted with their rows. **Purge guard (A2):** if that would delete more than `meta.maxPurgeShare` of the source's records (an empty, header-only or cut-off file, an upstream export bug), nothing is deleted and the sync ends `partial` with reason `purge_guard`, shown on Settings; only `finora-cli data sync <source> --allow-mass-purge` overrides it. If the record held an entity's identity and the source's spec says "tombstone" (EE), the entity keeps its identity statements and gets `tombstone_since`; person rows are deleted with a `finora.role_ended` event (P4).
 7. **Derive.** Rebuild `entities` rows and FTS for touched entities; run official-ID linking (§6) for them; recompute derived values (shared-address counts, registered offices only, never addresses shared with a natural person: Part H 3).
 8. **Report.** Close the `syncs` row with counts by outcome and drop reason, duration and upstream as-of. `finora-cli data status` and the Sources page show it.
 
-Tests (S04/S05 acceptance; names from the early review): `ingest/src/purge.test.ts` (1,000 records, 1 changed, 1 removed → 999 live, 1 updated, 1 deleted, 998 untouched), `ingest/src/unchanged.test.ts` (content sync then unchanged sync: everything live, nothing purged, as-of kept), `ingest/src/partial.test.ts` (interrupted sync purges nothing), `ingest/src/stale.test.ts` (an older as-of is skipped), `ingest/src/party-gate.test.ts` (one case per type value; a fixture sole trader at a company address creates no S17 link), `ingest/src/history.test.ts` (rename event; role ended without a name), `store/src/retention.test.ts` (a source unchanged for 40 days keeps its current officers).
+Tests (S04/S05 acceptance; names from the early review): `ingest/src/purge.test.ts` (1,000 records, 1 changed, 1 removed → 999 live, 1 updated, 1 deleted, 998 untouched), `ingest/src/unchanged.test.ts` (content sync then unchanged sync: everything live, nothing purged, as-of kept), `ingest/src/partial.test.ts` (interrupted sync purges nothing), `ingest/src/stale.test.ts` (an older as-of is skipped), `ingest/src/parser-version.test.ts` (unchanged artifact plus a field map that newly drops an item: re-parsed, the item is gone), `ingest/src/purge-guard.test.ts` (an empty file and a half-size file delete nothing and report `purge_guard`), `ingest/src/class-change.test.ts` (A7), `ingest/src/party-gate.test.ts` (one case per type value; a fixture sole trader at a company address creates no S17 link), `ingest/src/history.test.ts` (rename event; role ended without a name), `store/src/retention.test.ts` (a source unchanged for 40 days keeps its current officers).
 
 ### 4.5 Scheduling and budgets
 
