@@ -26,7 +26,7 @@ The register's own sanctions-links file (S11.LV.01) is in `lv-risk.md`. The US e
 | S11.LT.01, S11.LT.02, S11.LV.03, S11.EE.01, S11.EE.02 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN | live-only lists (§9) |
 | S11.ALL.04 (PEP, aggregated dataset) | LATER | - | KEY | no spec (connector only, CC BY-NC) |
 
-**How the lists are used** (architecture §6, `packages/resolve/src/sanctions/`): `screenSanctions` matches a company (and, behind the purpose gate, its current officers) against the stored entries. A match on an official identifier gives `status: "listed"`; a name match gives `status: "possible_match"` (R8, legal rule 8). The instant profile's check 9 and the legal agent's `screen_sanctions` task both call it. Matching rules are in §7.
+**How the lists are used** (architecture §6, `packages/resolve/src/sanctions/`): `screenSanctions` matches a company against the stored entries, and, behind the purpose gate, its current officers against the in-memory person index (§7a; listed individuals are never stored). A match on an official identifier gives `status: "listed"`; a name match gives `status: "possible_match"` (R8, legal rule 8). The instant profile's check 9 and the legal agent's `screen_sanctions` task both call it. Matching rules are in §7.
 
 ---
 
@@ -58,19 +58,19 @@ The register's own sanctions-links file (S11.LV.01) is in `lv-risk.md`. The US e
 | `Entity_EU_ReferenceNumber` | text | `Sanction.listingId` | S11.ALL.01 | no | trim |
 | `Entity_UnitedNationId` | text | `Sanction.unId` (extension) | S11.ALL.01 | no | trim; used to show "also a UN listing" |
 | `Entity_DesignationDate` | date | `Sanction.startDate` | S11.ALL.01 | no | ISO |
-| `Entity_SubjectType_ClassificationCode` | enum | subject schema: `person` → `Person`, `enterprise` → `Organization` | S11.ALL.01 | no | other values → `skip unknown_subject_type` |
+| `Entity_SubjectType_ClassificationCode` | enum | `enterprise` → stored `Organization`; `person` → the whole entry goes to the in-memory person index (§7a) and nothing of it is stored | S11.ALL.01 | no | other values → `skip unknown_subject_type` |
 | `Entity_Regulation_Programme` | text | `Sanction.program` | S11.ALL.01 | no | trim |
 | `Entity_Regulation_PublicationUrl` | url | `Sanction.sourceUrl` | S11.ALL.01 | no | kept only if on `eur-lex.europa.eu` |
-| `NameAlias_WholeName` | text | `name` = the group's first non-empty `NameAlias_WholeName` in file order (the file has no primary flag), every other distinct value `alias` | S11.ALL.01 | persons: yes | trim; empty → skipped |
+| `NameAlias_WholeName` | text | `name` = the group's first non-empty `NameAlias_WholeName` in file order (the file has no primary flag), every other distinct value `alias`; persons: **not stored**: routed to the in-memory person index (§7a) | S11.ALL.01 | no (entities only stored) | trim; empty → skipped |
 | `NameAlias_NameLanguage` | text | statement `lang` | - | no | ISO 639-1 where given |
 | `Address_CountryIso2Code` | text | `country` | S11.ALL.01 | no | ISO lower-case; street, city, zip and PO box are **not read** |
-| `BirthDate_BirthDate`, `BirthDate_Year` | date / int | `birthDate` (full date, or year only) | S11.ALL.01 | yes | persons only |
-| `Citizenship_CountryIso2Code` | text | `nationality` | S11.ALL.01 | yes | persons only |
+| `BirthDate_BirthDate`, `BirthDate_Year` | date / int | persons: **not stored**: routed to the in-memory person index (§7a); birth year kept in memory only | - | - | never stored (legal, `LAW-SANCTIONS-PERSONS`) |
+| `Citizenship_CountryIso2Code` | text | persons: **not stored**: routed to the in-memory person index (§7a) | - | - | never stored |
 | `Identification_Number` + `Identification_TypeCode` + `Identification_CountryIso2Code` | text | `Identification` statement `{type, number, country}` | S11.ALL.01 | entities: no | **entities only**; types read: `regnumber`, `fiscalcode`, `taxid`, `imo`, `swiftbic`, `other`; number normalised (upper-case, spaces and `-./` removed). **Persons: dropped** (`person_document`): passport and national ID numbers can never be matched against register data (personal codes are never stored, P3), so they are not kept |
 | every other column (remarks, gender, function, titles, places of birth, addresses beyond country) | - | dropped, never read | - | - | data minimisation |
 
 ### Party gate
-Not applicable: list entries are list subjects, not party rows of a register record. No row links a list entry to a register entity at load time; links exist only as screening results at read time (§7). Persons are stored only to screen officers in company context (§8, open question 1).
+Not applicable: list entries are list subjects, not party rows of a register record. No row links a list entry to a register entity at load time; links exist only as screening results at read time (§7). Listed natural persons are never stored (legal 7030162985, `LAW-SANCTIONS-PERSONS`): they exist only in the in-memory person index (§7a).
 
 ### Identity and joins
 - Subject eid `sanc-eu-<Entity_LogicalId>`; sanction eid `sanc-eu-<Entity_LogicalId>-s`. Both `country: "intl"`. Never in search (`entities_fts` excludes `sanc-*`).
@@ -118,13 +118,13 @@ None for the builder.
 |---|---|---|---|---|---|
 | `publicationInfo/dataAsOf` | datetime | sync `upstream_as_of` | - | no | date part |
 | `entity/@id` | int | `recordKey`; eid `sanc-ofac-<id>` | S11.ALL.02 | no | digits |
-| `generalInfo/entityType` | enum | schema: `Entity` → `Organization`, `Individual` → `Person`, `Vessel` → `Vessel`, `Aircraft` → `Airplane` | S11.ALL.02 | no | other → `skip unknown_subject_type` |
+| `generalInfo/entityType` | enum | `Entity` → `Organization`, `Vessel` → `Vessel`, `Aircraft` → `Airplane` (stored); `Individual` → the entry goes to the in-memory person index (§7a), nothing stored | S11.ALL.02 | no | other → `skip unknown_subject_type` |
 | `sanctionsLists/sanctionsList` (+ `@datePublished`) | text | `Sanction.authority` ("SDN List", ...), `Sanction.startDate` | S11.ALL.02 | no | |
 | `sanctionsPrograms/sanctionsProgram` | text | `Sanction.program` (repeated) | S11.ALL.02 | no | |
-| `names/name` with `isPrimary` | text | `name` (primary), `alias` (others; `aliasType` A.K.A. / F.K.A. / N.K.A. kept as alias kind); script: Latin translations only, other scripts as `alias` with `lang` | S11.ALL.02 | persons: yes | `formattedFullName`; `isLowQuality = true` aliases are kept but flagged `weak` and never produce a `possible_match` alone (§7) |
+| `names/name` with `isPrimary` | text | `name` (primary), `alias` (others; `aliasType` A.K.A. / F.K.A. / N.K.A. kept as alias kind); script: Latin translations only, other scripts as `alias` with `lang`; individuals: **not stored**: routed to the in-memory person index (§7a) | S11.ALL.02 | no (entities only stored) | `formattedFullName`; `isLowQuality = true` aliases are kept but flagged `weak` and never produce a `possible_match` alone (§7) |
 | `identityDocuments/identityDocument` (`type`, `documentNumber`, `issuingCountry`, `isValid`) | text | `Identification {type, number, country, valid}` | S11.ALL.02 | entities: no | **non-person subjects only**; types kept: Registration Number, Business Registration Number, Company Number, Tax ID No., Identification Number, Vessel Registration Identification, MMSI, Folio Mercantil No.; number normalised as in §1. **Persons: dropped** (`person_document`) |
-| `features/feature` of type `Birthdate` | date range | `birthDate` (from `fromDateBegin`, with `isApproximate` and `isDateRange` kept) | S11.ALL.02 | yes | persons only |
-| `features/feature` of type `Nationality Country`, `Citizenship Country` | text | `nationality` | S11.ALL.02 | yes | persons only; country name → ISO 3166 via `domain/config/countries.ts` |
+| `features/feature` of type `Birthdate` | date range | individuals: **not stored**: routed to the in-memory person index (§7a); birth year in memory only | - | - | never stored |
+| `features/feature` of type `Nationality Country`, `Citizenship Country` | text | individuals: **not stored**: routed to the in-memory person index (§7a) | - | - | never stored; country name → ISO 3166 via `domain/config/countries.ts` |
 | `features/feature` of type `Organization Established Date` | date | `incorporationDate` | S11.ALL.02 | no | |
 | `features/feature` of type `Website` | url | `website` | S11.ALL.02 | no | host only, lower-case (used to match a company's domain) |
 | `addresses/address/country` | text | `country` | S11.ALL.02 | no | ISO; address parts are not read |
@@ -173,13 +173,13 @@ None for the builder.
 | line 1 | sync `upstream_as_of` | - | no | parse `DD-Mon-YYYY` |
 | `Unique ID` | `recordKey`; eid `sanc-uk-<id>` | S11.ALL.02 | no | trim |
 | `OFSI Group ID`, `UN Reference Number` | `Sanction.listingId` (extension props `ofsiGroupId`, `unId`) | S11.ALL.02 | no | trim |
-| `Designation Type` | schema: `Individual` → `Person`, `Entity` → `Organization`, `Ship` → `Vessel` | S11.ALL.02 | no | other → skip |
-| `Name 6`, `Name 1`-`Name 5`, `Name type` | `name` for "Primary name" (case-insensitive), else `alias` | S11.ALL.02 | persons: yes | `Name 1`..`Name 5` then `Name 6` joined with spaces; `Name type` normalised case-insensitively ("ALias" seen) |
-| `Name non-latin script` | `alias` with `lang` from `Non-latin script language` | S11.ALL.02 | persons: yes | |
+| `Designation Type` | `Entity` → `Organization`, `Ship` → `Vessel` (stored); `Individual` → the in-memory person index (§7a), nothing stored | S11.ALL.02 | no | other → skip |
+| `Name 6`, `Name 1`-`Name 5`, `Name type` | `name` for "Primary name" (case-insensitive), else `alias`; individuals: **not stored**: routed to the in-memory person index (§7a) | S11.ALL.02 | no (entities only stored) | `Name 1`..`Name 5` then `Name 6` joined with spaces; `Name type` normalised case-insensitively ("ALias" seen) |
+| `Name non-latin script` | `alias` with `lang` from `Non-latin script language`; individuals: in-memory only | S11.ALL.02 | no | |
 | `Regime Name` | `Sanction.program` | S11.ALL.02 | no | |
 | `Date Designated` | `Sanction.startDate` | S11.ALL.02 | no | `DD/MM/YYYY` → ISO |
-| `D.O.B` | `birthDate` | S11.ALL.02 | yes | persons only; `dd/mm/yyyy`, partial dates kept as year |
-| `Nationality(/ies)` | `nationality` | S11.ALL.02 | yes | persons only; country names → ISO |
+| `D.O.B` | individuals: **not stored**: routed to the in-memory person index (§7a); year in memory only | - | - | never stored |
+| `Nationality(/ies)` | individuals: **not stored**: routed to the in-memory person index (§7a) | - | - | never stored |
 | `Business registration number (s)` | `Identification {type: "registration", number, country}` | S11.ALL.02 | no | entities only; split on `;` and `,`; country from `Address Country` when single |
 | `IMO number` | `Identification {type: "imo"}` | S11.ALL.02 | no | ships and entities |
 | `Address Country` | `country` | S11.ALL.02 | no | ISO |
@@ -229,7 +229,7 @@ As §1. None.
 | 3 "Valstspiederība / reģistrācijas valsts" | country of the party | S11.LV.02 | no | country names → ISO |
 | 4 "Iesaldēto līdzekļu ... veids" | event `register.frozen_assets`, `data.assetTypes[]` | S11.LV.02 | no | split on `;` |
 | 5 "... iesaldēšanas pamatojums" | `data.ground` | S11.LV.02 | no | the FID's wording (for example ownership or control by a listed person) |
-| 6 "Sankciju sarakstā iekļautās personas vārds, uzvārds vai nosaukums" | **dropped** (`listed_person_name`) | - | yes | not stored; the event says "controlled or owned by a person on the [regime] list" (open question 2) |
+| 6 "Sankciju sarakstā iekļautās personas vārds, uzvārds vai nosaukums" | **dropped** (`listed_person_name`) | - | yes | not stored and not shown; the event says "controlled or owned by a person on the [regime] list" (legal: R, `LAW-LV-FIU-PERSON`) |
 | 7 "Datums, no kura spēkā ir sankcijas ..." | `data.sanctionsFrom` | S11.LV.02 | no | `DD.MM.YYYY.` → ISO |
 | 8 "Normatīvais akts ..." | `data.legalAct` | S11.LV.02 | no | e.g. a regulation number |
 | 9 "FID pārbaudīts" | `data.checkedNote` | S11.LV.02 | no | trim |
@@ -257,7 +257,7 @@ Generated at test time by `fixtures/sources/lv-fid/write-xlsx.ts` (an XLSX is a 
 The CKAN resource URL moves → found again by `package_show`. Sheet 2 missing → as-of from portal metadata (`as_of_basis: portal_metadata`).
 
 ### Open questions
-See §8, questions 1 and 2.
+None: column 6 stays dropped (legal 7030162985, `LAW-LV-FIU-PERSON`).
 
 ---
 
@@ -298,12 +298,12 @@ As §1. None.
 
 | Row | Schema | eid | Props (only these) |
 |---|---|---|---|
-| list subject | `Organization`, `Person`, `Vessel` or `Airplane` | `sanc-<list>-<id>` | `name`, `alias` (with kind and `weak`), `country`, `website`, `leiCode`, `Identification[]` (non-persons), `incorporationDate`; persons add `birthDate`, `nationality` |
+| list subject (stored) | `Organization`, `Vessel` or `Airplane`; **never `Person`** | `sanc-<list>-<id>` | `name`, `alias` (with kind and `weak`), `country`, `website`, `leiCode`, `Identification[]`, `incorporationDate` |
 | sanction | `Sanction` | `sanc-<list>-<id>-s` | `entity` (→ subject), `authority`, `program`, `startDate`, `listingId`, `unId`, `sourceUrl`, `reason` (ESMA only) |
 
-- Every statement's `item_id` is the list's S11 item; person subjects' name, alias, birth date and nationality statements are `personal: true`.
+- Every statement's `item_id` is the list's S11 item. No stored statement is personal: listed individuals are never stored (§7a).
 - `sanc-*` entities are excluded from `entities_fts`, `entities_trigram`, `links`, export and every list endpoint; they are reachable only through `screenSanctions` results.
-- `natural_person` on a `Person` list subject is 1, so every natural-person rule applies (no title with the name outside a match card, purpose tier).
+- Test: `sources/src/intl/sanctions-no-persons.test.ts` loads the three fixtures (each with individuals) and asserts no `Person` entity, no birth date and no nationality statement in any table, and no individual's name in any statement.
 
 ---
 
@@ -313,8 +313,8 @@ Built once per sync into an in-memory index (and rebuilt after each content sync
 
 1. **Normalise** a name: Unicode NFKD, strip diacritics, lower-case, non-alphanumerics to spaces, drop legal-form tokens (per-language list in `domain/config/legal-forms.ts`, the same list the court-party masking uses), sort tokens. (`osint.md` §1.6; probe `normalise()`.)
 2. **Candidates:** entries sharing the rarest token of the input; `weak` aliases alone never produce a candidate.
-3. **Name match:** exact normalised equality, or similarity ≥ 0.90 (Levenshtein ratio on the sorted-token strings). Kind must agree: companies against `Organization` (and `Vessel` owners are not matched), officers against `Person`.
-4. **Official-ID confirmation** (R8 `listed`): for a company, any `Identification` of a registration or tax type whose normalised number equals the company's registry code, VAT number or LEI, with the issuing country equal to the company's country or absent; or an LV FID row on the company's code; or the ESMA LEI equal to the company's LEI. For a person there is no official-ID confirmation in v1 (no personal codes are stored), so officers can only be `possible_match`.
+3. **Name match:** exact normalised equality, or similarity ≥ 0.90 (Levenshtein ratio on the sorted-token strings). Kind must agree: companies against the stored `Organization` entries; officers against the in-memory person index only (§7a).
+4. **Official-ID confirmation** (R8 `listed`): for a company, any `Identification` of a registration or tax type whose normalised number equals the company's registry code, VAT number or LEI, with the issuing country equal to the company's country or absent; or an LV FID row on the company's code; or the ESMA LEI equal to the company's LEI. For a person there is no official-ID confirmation in v1 (no personal codes are stored), so officers can only be `possible_match`; the index's birth year and nationality may be shown in the match card at query time and are never stored with the result.
 5. **Second-identifier exclusion:** a name match is dropped as "ruled out" (and shown in the match card as such) when the entry carries an identifier of a registration type issued by the company's own country whose number differs from the company's code, or a country of registration that differs. Persons: a listed birth year differing from a known birth year is not available (no officer birth dates stored), so persons are never ruled out automatically.
 6. **Output:** per list, entries with `status: "listed" | "possible_match" | "ruled_out"`, the matched name, the identifiers side by side (designer's match card), the list's `checkedAt` and `asOf`.
 7. **Measured noise** (`osint.md` §1.6): name-only exact matches hit 0.22% of 5,000 random EE company names and 0.06% of 5,000 random LV officer names, all on generic names; fuzzy matching at 0.90 added none. Step 5 removes most company hits; the rest become `sanctions_match` questions in an investigation, and a `possible_match` line in the instant profile.
@@ -323,12 +323,21 @@ Tests: `resolve/src/sanctions.test.ts` (one case per rule above, on the fixture 
 
 ---
 
-## 8. Open questions (for legal; interim values ship until answered)
+## 7a. The in-memory person index (officer screening, live only)
 
-1. **Listed natural persons in the store.** The EU, OFAC and UK lists name individuals with birth dates and nationalities. They are stored (name, aliases, birth date, nationality; no document numbers) only to screen a company's current officers, behind the purpose gate, and shown only in a possible-match card in that company's context. Interim: stored as above, `personal: true`, purpose tier. Asking legal for a light; if red, person entries are dropped at parse (`person_entry`) and officer screening counts as not run ("Officers not screened"), with no code change beyond the field map.
-2. **LV FID column 6 (the listed person behind a frozen company).** Interim: dropped; the company line reads "Assets frozen in Latvia: owned or controlled by a person on the [regime] list ([legal act])". Legal may allow the name, since the person is on an official list.
+Legal (7030162985, `LAW-SANCTIONS-PERSONS`): listed natural persons may be used for screening **live only**. No natural-person row is stored.
 
----
+- **What:** for every individual on the EU, OFAC (SDN and non-SDN) and UK lists: entry id, list, normalised name and aliases, programme, listing date, birth year (when given) and nationality. Held in the server process's memory (`packages/resolve/src/sanctions/person-index.ts`), never written to the store, a cache file, a log line or an export. It is a `live-no-store` view (architecture §3.5) of the same artifacts the entity loaders parse.
+- **Built:** in the same parse as the entity loaders (one download per list per day). On boot, the index is empty until the next sync or an on-demand download completes (about 1 minute for the three lists). Until then, officer screening reports "Officers not screened yet: lists loading" and check 9 says so in its coverage note.
+- **Raw cache:** the three list sources keep **no raw artifact** on disk (`rawCache: false`), because the files contain the individuals. A new `parserVersion` re-downloads (25 + 111 + 50 MB, daily anyway).
+- **Used by:** `screenSanctions` for a company's current officers, only behind the purpose gate (P2), in the instant profile's check 9 and the legal agent's `screen_sanctions` task.
+- **What is kept from a match:** in an investigation, a finding cites `{ list, entryId, listDate }` and the status (`possible_match`); no name, birth date or nationality from the list is stored with it. The instant profile stores nothing.
+- **Tests:** `resolve/src/sanctions/person-index.test.ts` (sentinel names and birth dates never reach the store, the filesystem or the logger, spied; a match yields only the citation fields; empty-index state), `ingest/src/raw-cache.test.ts` (no artifact kept for the three list sources).
+
+## 8. Questions answered by legal
+
+1. **Listed natural persons:** not stored; live, in-memory screening only (§7a). Birth date and nationality are used in memory only. LAWYER row `LAW-SANCTIONS-PERSONS` decides whether a stored name and alias would be acceptable later.
+2. **LV FID column 6:** dropped and never shown (`LAW-LV-FIU-PERSON`).
 
 ## 9. Live-only lists (`agent-only`, used by `check_live_list`)
 
