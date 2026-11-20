@@ -31,3 +31,15 @@
 
 - The designer fixed W1-W6 and most smaller findings in `05237c2` (popovers flip or become a bottom sheet; `.row-value { flex: none }` when rows stack; a compact lane list under the header plus a sticky run bar; the status pill under the name in search rows; `aria-expanded` reset; modal sheets), and added the missing states (`?state=reconnecting`, `?state=report&stopped=yes`, `?state=partial&country=lt`, `?cmd=open`, `?problem=open`).
 - web-qa's second run used `b9e961f`, which predates `05237c2`, so it re-measured the old files. Its Firefox and WebKit pass on that commit: 0 console errors, 0 failed requests, 0 overflow. A re-run from the tip is pending.
+
+## Re-test 2 (web-qa at `05237c2`, 2026-11-20)
+
+61 state URLs; Chromium at 4 viewports in both themes (488 renders), targeted checks in Chromium, Firefox and WebKit; Firefox and WebKit render all 61 URLs at 4 viewports with 0 console errors and 0 overflow. **W2-W6 verified fixed**, and so are the smaller findings (contrast, headings, OS theme, command bar opens) and the new states (`?cmd=open`, `?problem=open`, stopped, retry, reconnecting).
+
+| # | Severity | Finding | Status |
+|---|---|---|---|
+| W1b | MAJOR | Source popovers inside tables (People in LV and EE) are clipped by the table's `overflow: auto` scroll box at 768, 1280 and 1920 in all three browsers: about 40 px of a 286 px popover shows, so licence, as-of date and record link are unreachable (LV 2 of 20 chips, EE 1 of 14). The designer's measure checked the viewport, not the clipping ancestor | open (designer) |
+| W7 | MINOR | Command bar: Up, Down and Enter do nothing; no `combobox`/`listbox` roles or `aria-selected` | open; a build acceptance test if not in the mockup |
+| W8 | MINOR | Command bar Esc returns focus to the body, not the opener | open |
+| W9 | MINOR | "Show agents": focus stays on the body | fixed in `8f5b8f1` per the designer (web-qa tested `05237c2`) |
+| - | unconfirmed | WebKit sheet focus trap: 4-6 of 12 Tabs escape | the designer reports a fix in `8f5b8f1` (the trap moves focus itself on every Tab) |
