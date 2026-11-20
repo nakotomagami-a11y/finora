@@ -19,7 +19,8 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 | Daily refresh | ≤ 5 min, never blocking reads |
 | Unchanged reload | one `syncs` row, 0 statement writes |
 | Raw cache | ≤ 1.5 GB (latest artifact per source, gzip; measured gzip ratios: LV register x4.7, LT legal entities x4.0, LV members x4.5; estimate ≈ 1.3 GB) |
-| Whole data dir | ≤ 12 GB |
+| Whole data dir | ≤ 12 GB, backups included |
+| During a sync | `/api/v1/health` p95 < 100 ms; SSE heartbeats < 1 s late (recorded here; CI asserts only a 3 s heartbeat bound) |
 | Per source | records, bytes per record, statements, facts and events reported by each loader slice |
 
 ## Recorded measurements
