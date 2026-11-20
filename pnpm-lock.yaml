@@ -240,6 +240,25 @@ importers:
         specifier: 'catalog:'
         version: 5.1.1(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0))
 
+  packages/store:
+    dependencies:
+      '@finora/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      '@finora/tooling':
+        specifier: workspace:*
+        version: link:../tooling
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.1(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0))
+
   packages/tooling:
     dependencies:
       eslint:
