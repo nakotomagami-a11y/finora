@@ -246,7 +246,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S16 US public companies (SEC)
 - **Owner:** data-us · **with:** architect · **Depends on:** S15, `SEC_USER_AGENT` from the human (O5)
-- **Scope:** `docs/plan/loaders/us-sec.md`: submissions, company facts, Forms 3/4/5 quarterly sets, 8-K item 5.02 events, insiders in company context only, `needs_key` without the contact setting.
+- **Scope:** `docs/plan/loaders/us-sec.md`: submissions, company facts, the tickers list (S14.US.02), Forms 3/4/5 quarterly sets (S14.US.01), Form D related persons (S03.US.02), Schedules 13D/G (S04.US.01), 8-K item 5.02 events, insiders in company context only (the reporting owner's CIK is dropped, PS6), `needs_key` without the contact setting.
 - **Acceptance:** the spec's Tests; every SEC SHOW/CAVEAT item renders; without `SEC_USER_AGENT` the US public profile is `needs_key` and no SEC request is made; ≤ 10 requests/s (R14).
 - **Tests:** the spec's named tests under `sources/src/us/sec-*`, `sources/src/us/sec-user-agent.test.ts`.
 - **Demo:** set `SEC_USER_AGENT`, open a US public company, see filings, financials and insider trades behind the purpose gate.
@@ -261,9 +261,9 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 ### S18 US federal sources
 - **Owner:** data-us · **with:** data-osint · **Depends on:** S16
 - **Scope:** `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (FJC stored where the spec says; CourtListener through the legal agent with `COURTLISTENER_TOKEN`).
-- **Acceptance:** each spec's Tests; each item renders (stored) or has its agent case (live); bank-only and carrier-only rows appear only for those entities.
+- **Acceptance:** each spec's Tests; each item renders (stored) or has its agent case (live); bank-only and carrier-only rows appear only for those entities; without `SAM_GOV_API_KEY` (keyed extract only, `LAW-SAM`) S11.US.01 is `needs_key` and no request is made; FINRA is link-out only (`manual_lookup`, `LAW-FINRA`).
 - **Tests:** the specs' named tests under `sources/src/us/`, `agents/src/items.agent.test.ts` cases for S10.US and S11.US.03-04.
-- **Demo:** open a fixture bank and a fixture carrier and see their federal rows; investigate a US company and see the court search lane.
+- **Demo:** open a fixture bank and a fixture carrier and see their federal rows; without `SAM_GOV_API_KEY` the exclusions row reads "Add your key to check"; investigate a US company and see the court search lane.
 
 ### S19 MCP server
 - **Owner:** architect · **Depends on:** S07, S09 · **security**

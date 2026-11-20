@@ -258,9 +258,12 @@ Conditions that hold in v1, each with an enforcement point and a test:
 
 | Entity | `eid` | Fixture rule (qa #9) |
 |---|---|---|
-| LV company | `lv-<11-digit registration number>` | fixture variant of the check digit if data-baltics confirms one, else reserved prefix |
-| EE company | `ee-<8-digit registry code>` | fixture variant of the official check digit (fails the real algorithm) |
+| LV company | `lv-<11-digit registration number>` | LV, EE and LT codes carry a mod-11 check digit (data-baltics): a fixture code with true check digit c is written with (c + 1) mod 10, so no register can ever assign it |
+| EE company | `ee-<8-digit registry code>` | as LV |
 | LT company | `lt-<9-digit company code>` | as LV |
+| Foreign holder or officer known only by name (a company, not a person) | `org-<20 hex>`: sha256 of (source, company eid, record key), scoped to the company that lists it; never merged across companies | the fixture key |
+| Relationship row (Directorship, Ownership, Membership) | `rel-<record id>-<position>`, internal, like person rows | the fixture key |
+| LV legacy 9-digit code | skipped, counted as `legacy_code` | - |
 | US SEC filer | `us-cik-<10-digit CIK>` | reserved range `99xxxxxxxx` |
 | US state record | `us-<state>-<state id>` | prefix `FX` |
 | LEI-only entity | `lei-<LEI>` | fixture variant of ISO 7064 mod 97 |
@@ -276,9 +279,10 @@ Every source's registry entry (§4.2) has exactly one storage class. The class d
 |---|---|---|---|
 | `store` | `finora.db` | open-licence registers, GLEIF, official sanctions lists, SEC | the default; licence invariants (§4.2) |
 | `share-alike-store` | `finora-sa.db`, attached read-only at query time | EE tax board (S07.EE.01, S08.EE.01), switchable | P1: the main store never holds a share-alike row **or anything derived from one** (history events included). Its tables mirror the main ones but key every row on the entity's public `eid` (text), never on `finora.db` integer ids, so a rebuild of either file cannot break the join (A6). Export, bulk API and bulk MCP exclude it; single-company responses carry its attribution and licence link. Tests: `ingest/src/share-alike.test.ts` (no main-store row or event references a share-alike sync, in both modes), `store/src/share-alike-rebuild.test.ts` (rebuild `finora.db`; the share-alike rows still attach), `domain/src/export/export.test.ts` |
-| `live-no-store` | memory only | the share-alike sources when `SHARE_ALIKE_MODE=live-no-store`; small daily lists | the file is read into memory at refresh and never written: no store row, no cache row, no file, no log line containing its values. Test: `ingest/src/live-no-store.test.ts` with sentinel values and a spied filesystem and logger (legal condition 1). Large files in this mode (EE taxes paid) show `not_checked{reason: "later"}` with "Not checked: licence question pending" |
+| `live-no-store` | memory only | the share-alike sources when `SHARE_ALIKE_MODE=live-no-store`; small daily lists | the file is read into memory at refresh and never written: no store row, no cache row, no file, no log line containing its values. The sync still writes its one `syncs` row with counts only (no values), so health and Settings can report it. Test: `ingest/src/live-no-store.test.ts` with sentinel values and a spied filesystem and logger (legal condition 1). Large files in this mode (EE taxes paid) show `not_checked{reason: "later"}` with "Not checked: licence question pending" |
 | `live-cached` | `finora.db`, rows with a cache marker | US state registries (NY, CO, CT, PA) | written only for an entity the user opens; re-fetched on view when older than `LIVE_CACHE_REFETCH_HOURS` (24); purged when not viewed for `PERSON_DATA_TTL_DAYS` (30). A re-fetch that returns the company replaces its lines, and a withdrawn or corrected record is removed (CT terms). **An empty response is not proof of removal** (cto, data-us, legal): on the first miss (HTTP 200, empty, while the portal answers other queries) nothing is deleted, the cached values are withheld from every surface, and the profile reads "[State] registry did not return this company on [date]", naming no principal and implying no status; a second miss at least 24 h later deletes the rows, withdrawn principals included. 5xx, timeouts and 429 never count as a miss. Tests: `ingest/src/live-cache.test.ts` (fake clock: day 29 survives, day 30 deleted; 24 h re-fetch; CT withdrawal; an empty re-fetch withholds and keeps the rows; a second miss 24 h later deletes them; a 5xx is not a miss) |
-| `agent-only` | investigation `documents` only | courts, WHOIS-free web checks, live national sanctions lists, UN list, news | fetched by agents at query time, cited, kept only as investigation documents under the R11 TTL |
+| `agent-only` | investigation `documents` only | live court portals, web checks, live national sanctions lists, UN list, news, US enforcement feeds | fetched by agents at query time, cited, kept only as investigation documents under the R11 TTL |
+| `store`, agent-read only | `finora.db` `court_index` | the FJC civil court index (1.56 M organisation-party rows, ≈ 0.2 GB, measured) | stored, read only by the legal agent's court tool, never rendered without an accepted agent finding |
 | `connector-cache` | `connector-cache.db` | licensed market series (user keys) | never exported, never served to another user (R17) |
 
 `SHARE_ALIKE_MODE` (`store` default, or `live-no-store`) switches the EE share-alike sources with no code change (legal's condition for clearing the share-alike store). CI runs the EE loader tests in both modes.
@@ -333,6 +337,7 @@ The registers publish current state only, so history exists from install day. It
 | `links` | official-ID links between entities (LEI ↔ registry code, CIK ↔ LEI, VAT ↔ code), with the asserting record |
 | `judgements` | resolution decisions (same / different / unsure), by rule, agent or human; never overridden by a reload |
 | `live_cache_views` | last view time per `live-cached` entity (P5) |
+| `labels` | classifier labels too large for generated config (LT's 2,302 activity labels, per language); legal forms and statuses stay generated config in `domain/config/` |
 | `court_index` | US federal court index (FJC): one row per case and organisation party, 10 years (5 if it passes 0.3 GB), read only by the legal agent's `search_courts` tool, never rendered directly (`docs/plan/loaders/us-courts.md`) |
 | `disputes`, `suppressions` | R10, L5: applied at read time on every surface |
 | `purpose_log` | P2: append-only, one row per company whose person data is opened, with the purpose in force; never updated |
@@ -366,8 +371,9 @@ type SourceMeta = {
   publishedAtUtc: string | null;    // observed publication time; the scheduler runs after it
   asOf: AsOfRule;                   // ordered strategies, strongest first (below)
   maxPurgeShare: number;            // largest share of records one sync may delete: max(0.02, 5 x the measured removal share per refresh period); the spec states the measurement
-  purgeScope: "full" | "window" | "none"; // full: a complete file defines the source; window: a full-history pull purges only inside its date window; none: incremental sources never purge (data-markets)
-  deepLink: string | null;          // URL pattern with {recordKey}
+  purgeScope: "full" | "window" | "periods_in_file" | "none"; // full: a complete file defines the source; window: purges only inside its date window; periods_in_file: rolling files (LV VID, LT and EE taxes) purge only periods present in the file, so older periods stay as our history; none: incremental sources never purge
+  deepLink: string | null;          // URL pattern with {recordKey} or {entityCode} (most LV record keys are not company codes)
+  changeToken?: ChangeTokenRule;    // optional cheap upstream check (for example the LT statements API change-log id): unmoved token => { unchanged: true } without the download
   orderUrl: string | null;          // paid_only target; official register page only
   cacheTtl?: { refetchHours: number; purgeUnviewedDays: number }; // live-cached only
   requires: EnvKey[];               // e.g. ["SEC_USER_AGENT"]
@@ -404,7 +410,7 @@ A source lists only the strategies its spec proved on real files. Test: `ingest/
 ```ts
 interface SourceLoader {
   meta: SourceMeta;
-  fetch(ctx: FetchContext): Promise<FetchResult>;              // raw artifacts into the raw cache, or { unchanged: true }
+  fetch(ctx: FetchContext): Promise<FetchResult>;              // raw artifacts into the raw cache (a source may fetch several, e.g. the LT UUID-to-code map beside its dataset), or { unchanged: true }
   parse(raw: RawArtifact[], ctx: ParseContext): AsyncIterable<ParsedRecord>;
 }
 
@@ -447,6 +453,7 @@ Tests (S04/S05 acceptance; names from the early review): `ingest/src/purge.test.
 ### 4.5 Scheduling and budgets
 
 - **Cadence** per source from cto's table (`01-data-cto.md` §2): daily registers, officers, debtor lists and sanctions; weekly LV financial statements and VID files, EE general data, and GLEIF as a full load (deltas cannot define removals; cto accepted, data-us), staggered so it never shares a window with the EE general-data parse; monthly EE annual reports, LT statements, EE taxes paid; on view for SEC and the live US states. Each job runs after the source's `publishedAtUtc`.
+- **Extending shared config:** a loader spec adds its own drop reasons, FtM extension properties and event types to `domain/config/drop-reasons.ts`, `domain/schema/extensions.ts` and `domain/config/event-types.ts` in its slice; the schema-subset test and the sync-report schema read those lists.
 - **First load:** countries parse in parallel (worker threads), one writer. Each country's register file loads first, and the country is searchable as soon as it lands; financials and the rest follow in the background.
 - **Budgets (P10, loader acceptance criteria)**, measured on the named machine profile in `docs/plan/benchmarks.md` with cto's probes (`research/probes/cto/`). Each loader slice also reports records per source and bytes per record:
 
@@ -824,6 +831,10 @@ Per-role limits and timeouts are in `agents.md` §3.3; the architecture adds two
 type MarketRow = {
   itemId: ItemId; label: string; state: "ok" | "stale" | "needs_key" | "needs_symbol" | "peak_unknown" | "error";
   value?: number; unit: string; peak?: { value: number; date: string; basis: "since" | "all_time" | "seeded" };
+  rowKey: string;                                        // stable per row, e.g. "M03.X.02:japan" (one item can have up to 7 rows)
+  symbol?: string;                                       // fund-slot rows only: "Via [your symbol]..."
+  trackingSince?: string;                                // peak_unknown: "Peak not known yet: tracking since [date]"
+  dayChangePct?: number;                                 // change since the previous close
   drawdownPct?: number; valueLostMicroUsd?: number;     // value lost only where the source's terms allow it
   cadence: "quarterly" | "monthly" | "daily_exchange" | "daily_7d" | "live"; delayed: boolean;
   asOf: string; sources: SourceRef[];
@@ -833,7 +844,7 @@ type CrashResponse = { tiles: { tileId: TileId; rows: MarketRow[] }[];
 ```
 
 - **Taiwan peak:** seeded once from a cited official figure if legal clears it; until then "Peak not known yet: tracking since [date]", never 0%.
-- Tests: `markets/src/calc.test.ts` (peak, drawdown, value lost, carry-forward on synthetic series), `markets/src/connectors.test.ts` (connector-cache only, never exported), `markets/src/schedule.test.ts` (the request budget per source is never exceeded over a simulated day), `markets/src/items.test.ts` (one case per M item), `server/src/routes/v1/markets/crash/route.contract.test.ts`.
+- Tests: `markets/src/calc.test.ts` (peak, drawdown, value lost, day change, on synthetic series), `markets/src/connectors.test.ts` (connector-cache only, never exported), `markets/src/schedule.test.ts` (the request budget per source is never exceeded over a simulated day), `markets/src/items.test.ts` (one case per M item), `server/src/routes/v1/markets/crash/route.contract.test.ts`.
 
 ---
 
@@ -901,7 +912,7 @@ Three rule sets apply, each rule with exactly one enforcement point and at least
 | P13 | LAWYER register: id, question, affected items, interim value, config key, test; CI fails on a `[pending: lawyer]` with no row | `docs/plan/lawyer-register.md` (legal owns the rows); `scripts/check-lawyer-register.mjs` | `scripts/check-lawyer-register.test.mjs` |
 | P14 | Snapshot-dependent rules read "Not evaluated: tracked since [date]" until our history covers the window | the check-level state `not_evaluated{trackedSince}` on `Check` (§7.2), not a section state; verdict rules treat it as not evaluated, never as clean | `domain/src/verdict/history-window.test.ts` (a 10-day-old install cannot report "no rename in 6 months") |
 
-LAWYER rows known at milestone B (P13): `LAW-PSEUDONYM` (`PERSON_ROWS`), `LAW-LV-OFFICERS` (`LV_PERSON_ROWS`), ended-role retention (`PERSON_ROLE_RETENTION_DAYS`), person TTL (`PERSON_DATA_TTL_DAYS`), dispute window (`DISPUTE_SUPPRESS_AFTER`), sole-trader addresses at municipality level, address-based person links, WHOIS and archive terms, LLC members, the anonymous member count, share-alike local store (`SHARE_ALIKE_MODE`). Each config value's interim is the safe one, and nothing is upgraded without the lawyer's answer.
+LAWYER rows (P13), ids as legal supplied them (7029900878): `LAW-BO-LV-EE`, `LAW-PSEUDONYM` (`PERSON_ROWS=names_no_id`), `LAW-LV-OFFICERS` (`LV_PERSON_ROWS=names_no_id`), `LAW-LLC-MEMBERS`, `LAW-RETENTION-ROLES` (`PERSON_ROLE_RETENTION_DAYS=0`), `LAW-CACHE-TTL` (`PERSON_DATA_TTL_DAYS=30`), `LAW-SOLE-ADDRESS`, `LAW-PERSON-LINKS`, `LAW-ANON-COUNT`, `LAW-WHOIS-LT`, `LAW-WHOIS-LV-EE`, `LAW-SAM`, `LAW-FINRA`, `LAW-SHARE-ALIKE` (`SHARE_ALIKE_MODE=store`), `LAW-P7-SCOPE`, `LAW-DEFAMATION`, plus `LAW-DISPUTE-WINDOW` (`DISPUTE_SUPPRESS_AFTER=0`) and `LAW-ACCOUNTS-DEADLINE` ("accounts filed on time": 7 months LV, 6 months EE, interim). `check-lawyer-register` matches `[pending: lawyer <id>]` markers against these ids. Each config value's interim is the safe one, and nothing is upgraded without the lawyer's answer.
 
 ### 10.3 Other rules (L1-L6)
 
