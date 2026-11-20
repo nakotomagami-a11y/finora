@@ -550,6 +550,7 @@ Every interactive element is reachable and operable by keyboard. Focus is always
 | Search results update | Stays in the input; the result count goes to the live region |
 | Purpose chosen | The first row of the unlocked table |
 | Investigation starts | The panel heading ("Agents"), not the first lane |
+| "Show agents" (sticky run bar) or "Skip to report" is activated | The target heading ("Agents" or the verdict heading), not left on the body |
 | Question arrives | Does not move. `q` and the "Waiting for your answer" link move it |
 | Question answered | The next lane that changed status, else the panel heading |
 | Verdict arrives | Does not move. The live region announces it; "Skip to report" is a link in the header |
