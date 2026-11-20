@@ -92,7 +92,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | done 2026-11-20 |
 | `docs/plan/council/00-framing.md` (session 1 gates, matrix format, v1 frame) | council (committed by coordinator) | 1 | done |
 | `docs/plan/council/01-data-cto.md` (cto's feasibility, cost and scaling calls) | cto (committed by coordinator) | 2 | done 2026-11-20 |
-| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | decision committed 2026-11-20; Part G expansion awaiting council and cto confirmation; legal's 4 "?" rows and data-baltics' EE recount open |
+| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | decision and reconciliation (Part H) committed 2026-11-20; final Part G (153 rows) awaiting council confirmation; cto confirmed A-F; open: legal's one line on sole-trader addresses, data-osint's WHOIS and archive terms |
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | early draft exists; frozen until phase 3 opens |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/*.md` | data seats | 3 | |
@@ -134,7 +134,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 ### By the council
-Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (SHOW 42, CAVEAT 57, LATER 47, HIDE 5 after splits); the policy table P1-P13 that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
+Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (153 rows after splits and two new S15 ids: SHOW 41, CAVEAT 58, LATER 49, HIDE 5); the policy table P1-P14 that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
 
 Requirement (after H2): the estimated cost is shown before an investigation starts, as a range (typical to worst case under the cap) next to the cap and today's remaining daily spend. Owners: data-osint (estimation method), designer (pre-run state).
 
