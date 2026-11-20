@@ -62,6 +62,7 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
 | `followup` | (follow-up panel) | - | `AGENT_MODEL_SYNTH` | low | 3 | 4 | $0.03 / $0.10 |
 
 - Totals for one investigation: **$0.46 typical, $0.92 worst** (osint.md §4.6, table "Mid model throughout"). These are the `basis: "defaults"` values of the estimate (§8.3) until this install has 10 finished investigations, and until the measured run (§12) replaces them.
+- **Typical wall time per role** (🟡, for `typicalSeconds` in the estimate DTO; osint.md §4.8): lead 15 s, registry 25 s, money 25 s, legal 30 s, web 90 s, verdict 20 s, follow-up 10 s. Replaced by the measured run (§12).
 - The architecture's hard ceilings (40 turns, 80 tool calls per run) stay as a safety net; the per-role limits above are what normally stops a run.
 - `max_tokens` per model call: lead 2,000; specialists 4,000; verdict 3,000; follow-up 2,000. The ledger holds against these (§8.1).
 - A role whose provider price is unknown refuses to start the investigation (`price_unknown`).
@@ -84,9 +85,9 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
 - People appear only as returned by S03 for this company, behind the purpose already stated at Investigate (P2 logs the access with actor `agent:registry`). The agent never searches a person anywhere else (council: open-web person dossiers HIDE).
 
 ### 2.3 `money`
-- **Pre-run tasks:** `get_checks` (checks 5-7), `get_financials` (5 fiscal years), `get_company_section` S07, S08.
+- **Pre-run tasks:** `get_checks` (checks 5-7), `get_financials` (5 fiscal years), `get_company_section` S07, S08. **LT only:** `read_live_source` for `lt-sodra-debts` (S08.LT.02) and `lt-sodra-insured` (S07.LT.01), which the council moved to the agent path (live, not stored; §4.4b).
 - **Job:** describe the financial position and arrears in plain words, with periods and currencies; say what is not published (US private: "No US source publishes accounts or tax data for private companies"; LV debt amounts: the MANUAL link).
-- **Signals:** `accounts_overdue`, `negative_equity`, `arrears_points` (EUR 100-4,999 or a plan or LV rating C), `arrears_serious` (thresholds of Part B), `tax_activity_suspended`, `debtor_list_exit` (a fact, not a flag). The thresholds live in the rule table (§6.2), not in the prompt.
+- **Signals:** `accounts_overdue`, `negative_equity`, `social_insurance_debt` (LT, with amount and date; feeds the same arrears thresholds), `arrears_points` (EUR 100-4,999 or a plan or LV rating C), `arrears_serious` (thresholds of Part B), `tax_activity_suspended`, `debtor_list_exit` (a fact, not a flag). The thresholds live in the rule table (§6.2), not in the prompt.
 
 ### 2.4 `legal`
 - **Pre-run tasks** (all in parallel, one `run.task` each):
@@ -111,6 +112,14 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
 
 ### 2.7 `followup`
 - Input: the user's question and the investigation's findings and documents. Tools: `read_document` and `read_finding` only (no network, no store search). Output: sentences with finding or document citations. Cap `AGENT_FOLLOWUP_CAP_USD` ($0.25). If the answer needs new research, it says so and offers "Re-run [agent]".
+
+### 2.8 Re-running one agent
+`POST /api/v1/investigations/:id/runs/:runId/rerun` (architecture §5.1). Rules:
+- **Offered** for a specialist run (never the lead or the verdict) that ended `failed`, `stopped` or `budget_exceeded`, or `done` with `turn_limit`, `tool_limit` or `run_timeout`; and for any specialist when the investigation is more than 24 hours old ("Re-check now").
+- **Not offered** when the daily cap leaves less than the role's typical cost, when the investigation is still running, or after 2 reruns of the same role in one investigation.
+- **Effect:** a new run with a new id and the same role; its pre-run tasks run again (live sources are re-fetched); the old run and its findings stay in the record, marked `superseded`, and drop out of the verdict input. The verdict is recomputed when the new run ends: the rule table runs again and the explanation is regenerated (held against the cap).
+- **Cost:** held against the investigation cap; the one-shot extension still applies once per investigation. The estimate for a rerun is that role's row of §2.
+- Test: `agents/src/rerun.test.ts` (offered and refused cases; superseded findings leave the verdict input; the level is recomputed).
 
 ---
 
@@ -175,7 +184,7 @@ Every open-web tool writes what it read to `documents` (content-addressed by SHA
 
 | Tool | Input | Sources (osint.md) | What the model sees | Storage | Test |
 |---|---|---|---|---|---|
-| `domain_report` | `{ domain }` | Cloudflare DoH (Google fallback); Cert Spotter (crt.sh fallback); US gTLD RDAP; `.lt` WHOIS (port 43) | resolves, MX, SPF, DMARC; certificate count, first certificate date, hostnames count; creation date and registrar (US RDAP, `.lt` only) | derived facts only, as an investigation document; raw WHOIS text never stored or shown; `.lv`, `.ee`, `.eu` WHOIS never queried (S15.LV.whois, S15.EE.whois LATER); no web archive (S15.ALL.archive LATER) | `agent-tools/src/domain-report.test.ts` |
+| `domain_report` | `{ domain }` | Cloudflare DoH (Google fallback); Cert Spotter (crt.sh fallback); US gTLD RDAP; `.lt` WHOIS (port 43) | resolves, MX, SPF, DMARC; certificate count, first certificate date, hostnames count; creation date and registrar (US RDAP, `.lt` only) | derived facts only, as an investigation document; raw WHOIS text never stored or shown; `.lv`, `.ee`, `.eu` WHOIS never queried (S15.LV.whois, S15.EE.whois LATER); no web archive (S15.ALL.archive LATER). **The output schema has no registrant field at all** (not even null or masked, legal 7029267727): the parser reads only the creation date and registrar lines and discards the rest of the WHOIS text in memory | `agent-tools/src/domain-report.test.ts` (the Zod output schema is strict; a `.lt` fixture with a registrant block yields no registrant key) |
 | `homepage_facts` | `{ domain, entityId }` | one GET of `https://<domain>/` | reachable, final host, title, `statesRegistryCode`, `statesVat`, `statesOtherCode` (a register-shaped code that is not the pinned one), social links found | document: final URL, hash, extracted text (≤ 200 KB) | `homepage-facts.test.ts` |
 | `fetch_page` | `{ url, reason }` | allowlisted hosts only (§4.6) | extracted text, ≤ 30,000 characters, wrapped as untrusted | document | `fetch-page.test.ts`, `web-fetch.ssrf.test.ts` |
 | `news_search` | `{ entityId, extraTerms? }` | GDELT DOC 2.0, query = the quoted search name, filtered with GDELT's `sourcecountry:` operator to the subject's country (value from GDELT's country lookup list), last 3 months, ≤ 50 articles; a second query without the filter runs only if the first returns nothing | title, URL, domain, seen date, language, country per article; never article text | GDELT metadata stored with its attribution | `news-search.test.ts` |
@@ -193,10 +202,21 @@ Every open-web tool writes what it read to `documents` (content-addressed by SHA
 | `ee-mfa` | S11.EE.01 | Ministry of Foreign Affairs national-sanctions subjects (HTML, `https://www.vm.ee/en/...`) | name only (no official ID) | never `listed` (R8): at most `possible_match` |
 | `ee-fi-alerts`, `ee-ttja` | S11.EE.02 | Finantsinspektsioon alerts (`https://www.fi.ee/en/alerts`, keyword search); consumer protection blacklist (`https://jvis.ttja.ee/...`) | name, domain | as above |
 | `un-sc` | S11.ALL.05 | UN Security Council consolidated list XML, fetched live (its terms forbid redistribution) | name + second identifier | `listed` only on an official-ID match |
-| `us-finra` | S11.US.03 | FINRA BrokerCheck firm search, per query, broker-dealers only | CRD number or exact name | shown with the BrokerCheck attribution block, compile date and the error-report link (FINRA permitted uses) |
-| `us-enforcement` | S11.US.04 | SEC litigation and administrative-proceedings RSS, Fed enforcement RSS, FTC actions CSV, DOJ press API (loaded daily per data-us's `us-*` loader spec; queried from the store) | name | `possible_match` only; the agent must confirm |
+| `us-finra` | S11.US.03 | FINRA BrokerCheck | - | **no automated request in v1** (`us-enforcement.md`, interim until legal gives a light): for broker-dealer companies the section shows `not_checked{reason: "manual_lookup"}` with "Check this firm on FINRA BrokerCheck"; the tool never fetches a FINRA host |
+| `us-enforcement` | S11.US.04 | SEC litigation and administrative-proceedings RSS, Fed enforcement RSS, FTC actions CSV, DOJ press API: `agent-only`, fetched at query time per `us-enforcement.md` (one fetch per feed per investigation, never stored) | name | `possible_match` only; the agent must confirm; "Checked [n] of 4 federal feeds" when a feed is down |
 
 Test: `agent-tools/src/check-live-list.test.ts` (fixture pages for every list id, on reserved domains).
+
+### 4.4b `read_live_source` (agent only)
+
+`{ sourceId, entityId }` for register sources the council put on the agent path because they may not be stored. The tool downloads the source's current file once per process per publication day, keeps it in memory only (the `live-no-store` guarantee: no store row, no file, no log line with its values), returns the pinned company's row, and stores only that row as an investigation document with the file's as-of date.
+
+| `sourceId` | Item | File (per `lt-sodra.md`) | Returns | Signal |
+|---|---|---|---|---|
+| `lt-sodra-debts` | S08.LT.02, S18.LT.02 | `https://sodra.lt/Failai/Skolos.zip` (daily, as of the date in line 1) | debt amount, debt date, deferral flag, as-of | `social_insurance_debt` when listed; `checked_none` otherwise |
+| `lt-sodra-insured` | S07.LT.01 | `https://sodra.lt/Failai/Apdraustuju_skaicius.zip` (daily) | insured persons, as-of | none (a fact) |
+
+The monthly files (up to 400 MB) are not read on the agent path; the 24-month line of S07 is LATER for LT until the trigger in council 7029948837 (the publisher's terms quoted). Empty state before an investigation: AGENT ("Social-insurance data: checked when you investigate"). Test: `agent-tools/src/read-live-source.test.ts` (sentinel values never reach the store, the filesystem or the logger; one download per publication day).
 
 ### 4.5 `search_courts` (agent only)
 
@@ -342,7 +362,7 @@ Kinds follow the settled contract: `entity_choice | sanctions_match | scope | ca
 | `entity_choice` | lead | several register candidates, or a fuzzy-only match | up to 5 candidates (name, code, legal form, status, city) + "None of these" | **no default, no countdown**; after `QUESTION_TIMEOUT` (30 min) the investigation ends `not_enough_data`, reason "company not confirmed" | everything |
 | `sanctions_match` | legal | a list entry matches by name and no second identifier settles it either way | "Same company" / "Different company" / "Not sure", with the entry's identifiers side by side with the register's | default "Not sure" after 30 min (fires `sanctions_unsure`); marked "answered by default" | the legal run only |
 | `scope` | web | a candidate website has no anchor; or the user's free text names a domain that differs from the register's | "Yes, it's theirs" / "No" / "Not sure" | default "Not sure" → the site stays "linked by name only" | the web run only |
-| `cap_reached` | runtime | the investigation's held + settled spend reaches the cap the first time | "Stop and write the report" (default) / "Allow up to $0.50 more" (clipped to what is left of the daily cap) | default after 10 min; offered once per investigation; a second hit ends the investigation `budget_exceeded` with no question | all runs (they pause as `paused_at_cap`) |
+| `cap_reached` | runtime | the investigation's held + settled spend reaches the cap the first time | "Stop and write the report" (default) / "Allow up to $0.50 more" (clipped to what is left of the daily cap) | default after 10 min; offered once per investigation; a second hit ends the investigation `budget_exceeded` with no question | all runs (each goes to `waiting` with `waitingOn: "cap"`; the header reads "paused at cap") |
 | `free_text` | lead | the free-text subject has no country and the name exists in several countries' registers | free text, with the candidate countries as quick replies | no default; timeout as `entity_choice` | everything |
 
 - At most 3 questions per investigation from agents (`cap_reached` not counted), at most 1 per run. A fourth `ask_human` call returns `question_limit`, and the agent records the open point as a context finding. If several list entries need a `sanctions_match` answer, the legal agent asks about the strongest one (most matching identifiers); the others stay "possible match, needs review" and fire `sanctions_unsure`.
@@ -442,6 +462,18 @@ Test: `agents/src/injection.test.ts` replays a fixture page containing "ignore y
 
 The header counts "4 agents · N tasks · N sources" from `run.task` and `run.source` events (designer).
 
+**Label and step keys** (`packages/i18n/messages/<locale>.json` under `agents.*`; `params` in braces; the catalogue test fails on a key used in code but missing in any locale):
+
+| Role | `run.task` label keys | `run.step` keys |
+|---|---|---|
+| lead | `task.search_companies` {query}, `task.get_company` | `step.comparing_candidates` {count}, `step.asking_which_company` |
+| registry | `task.get_checks`, `task.read_section` {section} | `step.reading_section` {section}, `step.recording_finding` |
+| money | `task.get_checks`, `task.get_financials` {years}, `task.read_section` {section}, `task.read_live_source` {source} | `step.reading_section` {section}, `step.recording_finding` |
+| legal | `task.get_checks`, `task.read_section` {section}, `task.screen_sanctions` {lists}, `task.live_list` {list}, `task.search_courts` {country} | `step.checking_identifiers` {list}, `step.fetching_page` {domain}, `step.asking_sanctions_match`, `step.recording_finding` |
+| web | `task.get_company`, `task.domain_report` {domain}, `task.homepage_facts` {domain}, `task.news_search` | `step.searching_web` {purpose: website\|news}, `step.fetching_page` {domain}, `step.checking_anchor` {domain}, `step.asking_website`, `step.recording_finding` |
+| verdict | `task.apply_rules`, `task.write_explanation` | `step.regenerating_explanation` |
+| all | - | `step.waiting_for_answer`, `step.waiting_for_cap`, `step.rate_limited` {host}, `step.retrying` {attempt} |
+
 ---
 
 ## 12. The measured run (key-testing round)
@@ -477,6 +509,8 @@ When `ANTHROPIC_API_KEY` is set (register key table, first item):
 
 Test: `agents/src/scenarios.test.ts` replays every scenario and asserts events, findings, level, coverage and cost.
 
+**Event scripts for the UI** (frontend's `?state=` pages and e2e): `fixtures/agents/<scenario>.events.json` is **generated**, never hand-written, by `pnpm fixtures:events`, which runs each scenario through the real runtime with the `fake` provider and a fake clock and writes the SSE envelopes it emitted: `{ scenario, events: Envelope[], timing: { offsetsMs: number[] } }`. The demo server replays them at their recorded offsets (`FINORA_DEMO=1`), or instantly in tests. A CI check (`fixtures/agents/events.fresh.test.ts`) fails when a committed events file differs from a fresh generation, so the UI never drifts from the runtime.
+
 ---
 
 ## 14. Acceptance for the agent slices (into `slices.md`)
@@ -490,7 +524,7 @@ Test: `agents/src/scenarios.test.ts` replays every scenario and asserts events, 
 
 **Agent tools and specialists (data-osint):**
 1. Every scenario in §13 passes.
-2. Every Part G CAVEAT row filled by an agent (S10.LT.01, S10.LV.01, S10.US.01-02, S11 live rows, S15.LT.01, S15.LV.02, S15.EE.02, S15.US.01, S15.LT.whois, S16.ALL.01) has a fixture-backed test that renders its caveat text and its AGENT empty state.
+2. Every Part G CAVEAT row filled by an agent (S07.LT.01, S08.LT.02, S18.LT.02, S10.LT.01, S10.LV.01, S10.US.01-02, S11 live rows, S15.LT.01, S15.LV.02, S15.EE.02, S15.US.01, S15.LT.whois, S16.ALL.01) has a fixture-backed test that renders its caveat text and its AGENT empty state.
 3. S10.EE.01 renders its MANUAL state and no tool fetches a `riigiteataja.ee` or `rikos.rik.ee` decision path (`robots.txt`).
 4. Every LATER or HIDE row in the agents' area (S15.LV.whois, S15.EE.whois, S15.ALL.archive, S16.ALL.02-04, S11.ALL.04, S12.*) has a negative test: no tool queries it and no finding can carry its `itemId`.
 5. `web-fetch.ssrf.test.ts`: private addresses, redirects into them, oversized bodies and disallowed hosts are refused.
@@ -521,6 +555,6 @@ Test: `agents/src/scenarios.test.ts` replays every scenario and asserts events, 
 ## 16. Open items
 - **Court portals (§4.5a):** S10.EE.01 cannot be an agent check (`robots.txt`); proposed MANUAL, for the council. S10.LT.01 and the LV portal need a build-time probe and a legal light (no terms found).
 - **Rule table entries marked "proposed"** (§6.2): council confirms in session 2.
-- **Contract additions for the architect:** `Finding.kind` (`signal | context`) and `signalIds`; `get_checks` as a shared tool; the `run.task` label keys of §11; the role-specific question limits of §7.
+- Contract additions (`Finding.kind`, `signalIds`, `get_checks`, the label keys, the question limits) were accepted into architecture §7 (milestone B).
 - **Measured run** (§12): waits for the key-testing round.
 - `docs/plan/loaders/sanctions.md` follows after the architect's milestone A (store and loader contract).
