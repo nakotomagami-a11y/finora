@@ -198,3 +198,14 @@ Not legal advice. Primary texts were not re-read this round; "not verified" item
 ## Share-alike storage (answer to qa, 2026-11-20)
 
 Not legal advice. The architecture's CI test (fail any share-alike source stored locally) is the stricter position and stays the default. Relax it only through an explicit share-alike storage class with the three round 3 conditions enforced in code: a separate store, a licence tag per record, and never merged into anything exported, published or served in bulk, with a negative test for export. Without that class, EE tax debt (S08) can't be built as decided. Session 1 chooses: (a) the storage class, or (b) EE tax debt agent-only, queried live, nothing stored. Whether a separate local store is within project rule 4 remains a **LAWYER** item.
+
+## Per-company person pseudonym (architecture milestone A, 2026-11-20)
+
+Not legal advice. The architecture gives each person row an install-local HMAC over (source, company, record key), with no cross-company person id. Light **Y**, conditional; if any condition fails, the light is **R** and the design falls back to company-level data.
+1. The masked LV code and the EE person hash are never an input, direct or indirect. The record key comes from a row-local identifier not derived from a personal code; if the register's record key is the person's code or a function of it, the light is R.
+2. One company only: no cross-company output, query, index or API joins person rows across companies.
+3. The key is install-local: never exported, served, logged or shown; deleted with the store; never copied into backups or shared between installs.
+4. Retention follows policy P4: the pseudonym is removed when the role ends (0 days interim); no same-company person history.
+5. Tests: the HMAC appears in no API, MCP, export or agent output; a fixture with a known code asserts the code does not appear in the store.
+
+A per-company pseudonym is still personal data; condition 1 keeps it out of the direct-identifier class. **LAWYER** to confirm before the person rows are built.
