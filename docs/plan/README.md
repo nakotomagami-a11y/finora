@@ -9,8 +9,8 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | Phase | State | Started | Exit met |
 |---|---|---|---|
 | 1. Data research | **done** | 2026-11-19 | 2026-11-20 |
-| 2. Council session 1: data | **in progress** (seats resuming) | 2026-11-20 | |
-| 3. The plan | waiting for phase 2 | | |
+| 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
+| 3. The plan | **in progress** | 2026-11-20 | |
 | 4. Council session 2: plan approval | waiting for phase 3 | | |
 | 5. Build, slice by slice | waiting for phase 4 | | |
 | 6. Done | | | |
@@ -18,6 +18,8 @@ The single place to see where the mission stands. The coordinator keeps it curre
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
 
 ## Exit criteria
+
+**Phase 2 exit check (2026-11-20):** 1 ✔ `01-data.md` Part G rules every display-matrix item (158 rows) with call, caveat and empty state; Parts A-F and H carry reasons, UI treatment, dissent and what would change each call; 2 ✔ `council` and `cto` both posted and confirmed; legal's and the designer's advice is cited.
 
 **Phase 1 exit check (2026-11-20):** 1 ✔ four area docs (SEC EDGAR, CourtListener and other key-gated sources recorded from their docs and deferred under C7); 2 ✔ open questions answered in each area doc; 3 ✔ reality checks, aggregates only; 4 ✔ `legal.md` rounds 1-3 with 18 product rules; 5 ✔ `display-matrix.md`, 147 rows; 6 ✔ `reality-check.md`; 7 ✔ licence (answered), paid services (answered), keys (deferred by the human); 8 ✔ `guard tree` clean. qa spot-checked all four area docs and the assembly; no MUST-FIX open. Still landing during session 1, not exit criteria: data-baltics' LT round-2 answers and the LT/EE two-day diffs.
 
@@ -92,7 +94,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | done 2026-11-20 |
 | `docs/plan/council/00-framing.md` (session 1 gates, matrix format, v1 frame) | council (committed by coordinator) | 1 | done |
 | `docs/plan/council/01-data-cto.md` (cto's feasibility, cost and scaling calls) | cto (committed by coordinator) | 2 | done 2026-11-20 |
-| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | decision and reconciliation (Part H) committed 2026-11-20; final Part G (153 rows) awaiting council confirmation; cto confirmed A-F; open: legal's one line on sole-trader addresses, data-osint's WHOIS and archive terms |
+| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | **done** 2026-11-20: Part G final, 158 rows (SHOW 41, CAVEAT 58, LATER 54, HIDE 5), confirmed by council and cto; open (non-blocking): data-osint's WHOIS and archive terms |
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | early draft exists; frozen until phase 3 opens |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/*.md` | data seats | 3 | |
@@ -134,7 +136,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 ### By the council
-Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (153 rows after splits and two new S15 ids: SHOW 41, CAVEAT 58, LATER 49, HIDE 5); the policy table P1-P14 that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
+Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (158 rows after splits and new S15 ids: SHOW 41, CAVEAT 58, LATER 54, HIDE 5); the policy table P1-P14; the proven-company gate for every party row; US live states NY, CO, CT, PA that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
 
 Requirement (after H2): the estimated cost is shown before an investigation starts, as a range (typical to worst case under the cap) next to the cap and today's remaining daily spend. Owners: data-osint (estimation method), designer (pre-run state).
 
@@ -182,5 +184,5 @@ Data seats add rows here through their `result` posts; the coordinator keeps the
 
 ## Council records
 - Session 0 (framing): `docs/plan/council/00-framing.md`, 2026-11-19
-- Session 1 (data): `docs/plan/council/01-data.md` (decision, 2026-11-20) and `docs/plan/council/01-data-cto.md` (technical calls); reconciliation round open
+- Session 1 (data): `docs/plan/council/01-data.md` (decision, confirmed 2026-11-20) and `docs/plan/council/01-data-cto.md` (technical calls)
 - Session 2 (plan): not yet convened

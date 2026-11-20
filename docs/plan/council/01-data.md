@@ -18,7 +18,7 @@ The primary-job sections for the kill criterion are S01, S02, S03, S06, S08, S09
 | EE | The full check, including the daily tax-debtor list | Beneficial owners: lock. Workforce: CAVEAT, pending a recount |
 | LT | A money and status check: financials, taxes, daily tax and social-insurance arrears, insured counts, insolvency | Names of officers and owners: `paid_only`. "Names are not in Lithuania's open data. Available as a paid register extract", with a link to the register's own ordering page only. Never "Not published": the register holds them |
 | US public | Identity, filings, officers and insiders, financials, insider trades | Needs `SEC_USER_AGENT`. Without it, the profile is `needs_key` and promises nothing |
-| US private | "Is it registered and in good standing in NY, CO, OR, CT, PA or WA?" plus federal exclusions and sanctions | Owners, accounts, tax: "No US source publishes these for private companies". The verdict is normally "Not enough data" unless a hard flag fires |
+| US private | "Is it registered and in good standing in NY, CO, CT or PA?" plus federal exclusions and sanctions | Owners, accounts, tax: "No US source publishes these for private companies". The verdict is normally "Not enough data" unless a hard flag fires |
 
 **Coverage line on every profile, before any result** (CMO copy): "[Country]'s official data: ... Not in open data: ...".
 
@@ -212,7 +212,7 @@ Session 2 rejects a plan that lacks any of these rows. Interim values ship as th
 | P8 | HIDE holds on the agent path too: agent output is filtered for HIDE item types, personal codes and natural-person court parties before display | - | canary test with an agent fixture that "finds" a beneficial owner and a code | data-osint, qa |
 | P9 | Our own snapshots: company-level change events (name, address, status, legal form), debtor-list entries and exits (LT, EE), identity-only EE tombstones. No full daily copies. LT arrears: only on-list and off-list events are stored | `HISTORY_MAX_GB=1` | health check: last run ≤ 48 h; size under the cap | cto |
 | P10 | Store budgets from cto (LV ≤ 2.5 GB, EE ≤ 3 + 0.25 GB, LT ≤ 2 GB, cross-border ≤ 1 GB, total ≤ 10 GB); first load ≤ 30 min; each country searchable as soon as its register lands | - | loader acceptance tests on the named machine profile | cto |
-| P11 | The US live slice is blocked until data-us records all six state licences | - | slice gate | coordinator |
+| P11 | Each state's live query is blocked until its licence is recorded in the source registry (recorded: NY, CO, CT, PA; OR and WA LATER, register C11) | - | slice gate; the licence invariant fails CI for a source without a licence id | coordinator |
 | P12 | Fund tickers live in local settings only | - | the guard; fixtures use fictional symbols | architect |
 | P13 | LAWYER register: id, question, affected item_ids, interim value, config key, test. CI fails on a `[pending: lawyer]` with no register row | - | CI | legal |
 
@@ -257,7 +257,7 @@ Applied on top of Parts B-E after legal's review and cto's notes. Gate 1 decided
 
 **Natural persons and sole traders**
 6. **Part B applies to companies only.** Sole traders and natural persons get the facts-only variant (P6): no verdict level, never "Serious concerns" (rule 5).
-7. **Sole-trader addresses: country only (interim).** Legal's posts conflict on municipality level; the council holds the stricter reading until legal answers in one line. If cleared: municipality, never the street.
+7. **Sole-trader addresses: country only; nothing finer is loaded.** Legal answered no: municipality level is not cleared (LAWYER). LT sole-trader addresses are not loaded.
 8. **Sole-trader money:** business financials (S06) CAVEAT, behind the purpose gate, facts only, rule 6 disclaimer, never in a verdict. Tax, arrears and cleared-debt lines tied to a natural person (S08): **HIDE** (credit-type data, rule 5; the purpose gate doesn't change that).
 9. **Natural-person insolvency is HIDE in every country** (extends legal round 3 item 5c). Company insolvency is unaffected.
 
@@ -267,7 +267,7 @@ Applied on top of Parts B-E after legal's review and cto's notes. Gate 1 decided
 - **P7 (blocked uses):** scoped to natural-person and sole-trader subjects only, so US public-company research is not blocked (legal, Part F item 4).
 - **P8 (agent path and court parties):** natural-person insolvency is never loaded (item 9). Court parties are masked unless proven to be a company: a registry ID match in the store, or a legal-form token (SIA, AS, UAB, OÜ, Inc, LLC and the like); everything else shows as "a private individual". Fixtures include a company name without a form token, which must be masked.
 - **P9 (history cap):** at `HISTORY_MAX_GB`, warn in the health check and on Settings; never delete silently (deleted history turns "renamed" into a false clean).
-- **P13 (LAWYER register) rows adopted now:** natural-person role starts, address-based links, WHOIS, LLC members, retention (P4, P5), sole-trader addresses at municipality level.
+- **P13 (LAWYER register) rows adopted now:** natural-person role starts, address-based links, WHOIS, LLC members, retention (P4, P5), sole-trader addresses at municipality level, the anonymous member count.
 - **New P14 (snapshot-dependent rules):** "renamed or re-registered in 6 months", the LT 180-day arrears age and "no longer on the debtor list since" read "Not evaluated: tracked since [date]" until our snapshots cover the window, never as clean. Test: a 10-day-old install can't report "no rename in 6 months".
 
 **Accepted from the designer:** `not_checked{reason: "agent_only", agentId}` for the AGENT key (with an Investigate action) and `not_checked{reason: "manual_lookup", url}` for MANUAL, with the official-host allowlist; a "Derived by Finora" provenance chip for values we compute (parent links, shared-address counts, future estimates). Both go to the architect for phase 3.
@@ -276,15 +276,20 @@ Applied on top of Parts B-E after legal's review and cto's notes. Gate 1 decided
 
 **Dissent added:** cleared tax debt window: the designer wanted 90 days; the council keeps 12 months (CPO: contracts run longer). LV salary estimate from 5 employees (designer): moot for v1, since salary is LATER.
 
-## Part G: the item table, one row per `item_id` (coordinator's expansion, for the council to confirm)
+**Final round (2026-11-20): session 1 closed**
+- **The proven-company gate** (cto load rules 1-2, adopted as the enforcement for P8 and the S04 LOCK): a member is loaded only if the register types it as a company (LV `LEGAL_ENTITY` or `FOREIGN_ENTITY`; EE `J`). Everything else, including LV `JOINT_OWNERS`, is never loaded and is counted in the sync report. Every row tied to a party (members, the EE and LT debtor lists, social-insurance debts, insolvency rows, sanctions links) goes through one ingest helper and loads only if the party is proven to be a company, by a code that resolves to a register entity with a non-natural-person form or by the register's own type field. Court-party masking uses the same logic. One fixture test per type value; a fixture sole trader at a company address creates no S17 link.
+- **Check 4, "Owners on record":** no anonymous member count (legal: not approved; LAWYER). About 91% of LV and EE companies have no company member to show (LV 13,015 of 140,544 companies with members; EE 7.9% of entities), so S04 is LOCK and check 4 counts as not run. The coverage line names the reason: "Owners: restricted in [country]". Instant profiles still reach 6 or more checks. *What would change it:* a lawyer clears the anonymous count, or the LLC-member LOCK.
+- **Part F, closed:** (1) LV and EE LLC members: LOCK, a LAWYER item; (2) national lists: CAVEAT, live, cited, from the official publication only; (3) WHOIS and archive: LATER; (4) P7 applies to natural-person subjects only; (5) sole-trader money: as in P6. **Part F, open:** WHOIS and archive terms (data-osint, then legal).
+- **Critical path:** `SEC_USER_AGENT` comes from the human before the US slices start.
+- **Dissent:** none new.
 
-Expanded mechanically from Part D, then updated with Part H. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and two new S15 ids, so 153 rows. No id is missing or unknown. Counts: SHOW 41, CAVEAT 58, LATER 49, HIDE 5. **Part G is the authoritative table; Part D is the council's rule form.**
+## Part G: the item table, one row per `item_id` (final, confirmed)
 
-**New ids:** `S15.ALL.whois` and `S15.ALL.archive` (Part H, item 5). **Split ids:** `S01.US.03a` (PA) and `S01.US.03b` (OR); `S08.EE.01a` (tax debtors) and `S08.EE.01b` (taxes paid); `M05.X.02a` (oracle) and `M05.X.02b` (user key); `M06.X.01a` (O5 oracle) and `M06.X.01b` (O3 supply + X4 candles).
+Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and seven new S15 ids, so 158 rows. No id is missing or unknown. Counts: SHOW 41, CAVEAT 58, LATER 54, HIDE 5. **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
 
-**Reconciliation points for the council and cto** (the expansion does not change them; the council rules):
-1. **OR and WA.** Register decision C11 keeps OR and WA live queries LATER (no readable terms page, no outreach in v1). Part A's US private promise names six states, and P11 says "all six state licences". Proposed: the promise reads "NY, CO, CT or PA", and P11 reads "each state's live query is blocked until its licence is recorded (recorded: NY, CO, CT, PA)".
-2. **`S03.US.03`** (state people) includes FL officers, but FL is LATER (`S01.US.04`). Proposed: the CAVEAT covers CT principals, PA parties and the NY CEO only; FL officers are LATER with `S01.US.04`.
+**New ids:** `S15.LT.01-whois`, `S15.LV.02-whois`, `S15.EE.02-whois` and `S15.LT.01-archive`, `S15.LV.02-archive`, `S15.EE.02-archive`, `S15.US.01-archive` (Part H, item 5). **Split ids:** `S01.US.03a` (PA) and `S01.US.03b` (OR); `S08.EE.01a` (tax debtors) and `S08.EE.01b` (taxes paid); `M05.X.02a` (oracle) and `M05.X.02b` (user key); `M06.X.01a` (O5 oracle) and `M06.X.01b` (O3 supply + X4 candles).
+
+**Reconciliation points, closed:** (1) OR and WA: yes, the US private promise reads "NY, CO, CT or PA" and P11 is per state. (2) `S03.US.03`: yes, CT principals, PA parties and the NY CEO only; FL officers LATER with `S01.US.04`, OR representatives with `S01.US.03b`.
 
 | item_id | call | caveat text | empty-state |
 |---|---|---|---|
@@ -298,7 +303,7 @@ Expanded mechanically from Part D, then updated with Part H. Every one of the 14
 | S01.US.04 | LATER | - | — |
 | S01.US.05 | LATER | - | PAID ("No free register in [state]") |
 | S01.US.06 | LATER | - | — |
-| S01.US.07 | CAVEAT | Licence data for carriers, brokers and contractors only | — |
+| S01.US.07 | CAVEAT | Licence data for carriers and brokers (FMCSA) only; the OR and WA licence sources are LATER (P11) | — |
 | S01.ALL.01 | SHOW | - | NP (LEI, VAT: — when absent) |
 | S01.ALL.02 | SHOW | - | NP (LEI, VAT: — when absent) |
 | S02.LT.01 | SHOW | - | NP; history: "Tracked by Finora since [date]" |
@@ -312,13 +317,13 @@ Expanded mechanically from Part D, then updated with Part H. Every one of the 14
 | S03.EE.01 | CAVEAT | Current roles only; past roles are not published. People appear only in this company's context | needs_purpose; then NP |
 | S03.US.01 | CAVEAT | Current roles only; past roles are not published. People appear only in this company's context | needs_purpose; then NP |
 | S03.US.02 | CAVEAT | Current roles only; past roles are not published. People appear only in this company's context | needs_purpose; then NP |
-| S03.US.03 | CAVEAT | Current roles only; past roles are not published. People appear only in this company's context | needs_purpose; then NP |
+| S03.US.03 | CAVEAT | CT principals, PA parties and the NY CEO only; FL officers are LATER with S01.US.04 and OR representatives with S01.US.03b. People appear only in this company's context | needs_purpose; then NP |
 | S03.US.04 | LATER | - | — |
 | S04.LT.01 | LATER | - | PAID |
 | S04.LV.01 | CAVEAT | Company members only; members who are private individuals are not shown (rule 1) | LOCK / NP |
 | S04.LV.02 | HIDE | - | LOCK (rule 1) |
 | S04.LV.03 | HIDE | - | LOCK (rule 1) |
-| S04.EE.01 | CAVEAT | Company members only; members who are private individuals are not shown (rule 1) | LOCK / NP |
+| S04.EE.01 | CAVEAT | Company members of private limited companies only; members who are private individuals are not shown (rule 1). Public limited company shareholders are held by the securities depository | LOCK / NP |
 | S04.EE.02 | HIDE | - | LOCK (rule 1) |
 | S04.US.01 | CAVEAT | Large holders as filed with the SEC; people appear only in this company's context | KEY / needs_purpose |
 | S04.US.02 | CAVEAT | Large holders as filed with the SEC; people appear only in this company's context | KEY / needs_purpose |
@@ -336,7 +341,7 @@ Expanded mechanically from Part D, then updated with Part H. Every one of the 14
 | S06.US.03 | LATER | - | NP ("No US source publishes accounts of private companies") |
 | S07.LT.01 | CAVEAT | Insured count from the social-insurance fund; no licence stated by the publisher | NP |
 | S07.LV.01 | CAVEAT | Employees from tax filings, quarterly; covers 54-58% of active companies | NP |
-| S07.EE.01 | CAVEAT | Quarterly, from the tax board (CC BY-SA); board members not counted | "N employees on [date] (employment register, board members not counted)" / "No employee count from the tax board for [quarter]" / "Paid no state taxes in [year]: not in the tax board's file" |
+| S07.EE.01 | CAVEAT | Quarterly, from the tax board (CC BY-SA); board members are not counted | "N employees on [date]" / "No employee count from the tax board for [quarter]" / "Paid no state taxes in [year]: not in the tax board's file" / "Not checked: licence question pending (live-no-store mode)" |
 | S07.US.01 | LATER | - | — |
 | S07.US.02 | SHOW | - | — (carriers only) |
 | S07.US.03 | CAVEAT | From the annual report (self-reported) | KEY |
@@ -344,11 +349,11 @@ Expanded mechanically from Part D, then updated with Part H. Every one of the 14
 | S08.LT.02 | CAVEAT | Social-insurance fund; no licence stated by the publisher | CN |
 | S08.LV.01 | CAVEAT | Taxes paid for 56% of active companies; debt amounts are not open data | MANUAL (amount); CN (rating) |
 | S08.EE.01a (tax debtors) | SHOW | - | CN |
-| S08.EE.01b (taxes paid) | CAVEAT | Taxes paid for 39.1% of active companies; share-alike licence | NP |
+| S08.EE.01b (taxes paid) | CAVEAT | Taxes paid for 39.1% of active companies; share-alike licence | NP / "Not checked: licence question pending (live-no-store mode)" |
 | S08.US.01 | LATER | - | NP ("The US publishes no tax payment or tax debt data") |
 | S09.LT.01 | CAVEAT | Bankruptcy reports published up to Oct 2025 | CN |
-| S09.LV.01 | SHOW | - | CN (EE: status and pledges; bankruptcy notices LATER) |
-| S09.EE.01 | SHOW | - | CN (EE: status and pledges; bankruptcy notices LATER) |
+| S09.LV.01 | SHOW | - | CN |
+| S09.EE.01 | SHOW | - | CN (status and pledges; bankruptcy notices LATER; natural-person insolvency HIDE) |
 | S09.US.01 | CAVEAT | Checked UCC filings in Colorado and Connecticut only; other states not checked | CN |
 | S09.US.02 | LATER | - | — |
 | S09.US.03 | LATER | - | PAID ("Federal bankruptcy dockets: paid, not checked") |
@@ -397,14 +402,19 @@ Expanded mechanically from Part D, then updated with Part H. Every one of the 14
 | S14.US.03 | LATER | - | — |
 | S14.LTLVEE.01 | SHOW | - | — |
 | S14.LTLVEE.02 | LATER | - | — |
-| S15.LT.01 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: RDAP domain creation date); WHOIS and web archive not used; registrant name and contact never shown | AGENT |
+| S15.LT.01 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
 | S15.LV.01 | LATER | - | — |
-| S15.LV.02 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: RDAP domain creation date); WHOIS and web archive not used; registrant name and contact never shown | AGENT |
+| S15.LV.02 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
 | S15.EE.01 | SHOW | - | — |
-| S15.EE.02 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: RDAP domain creation date); WHOIS and web archive not used; registrant name and contact never shown | AGENT |
-| S15.US.01 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: RDAP domain creation date); WHOIS and web archive not used; registrant name and contact never shown | AGENT |
-| S15.ALL.whois | LATER | - | — (until the .lt, .lv, .ee registry WHOIS terms are read and quoted) |
-| S15.ALL.archive | LATER | - | — (until the web archive's terms are read and quoted) |
+| S15.EE.02 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
+| S15.US.01 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
+| S15.LT.01-whois | LATER | - | — (until data-osint quotes the registry terms and legal clears them) |
+| S15.LV.02-whois | LATER | - | — (until data-osint quotes the registry terms and legal clears them) |
+| S15.EE.02-whois | LATER | - | — (until data-osint quotes the registry terms and legal clears them) |
+| S15.LT.01-archive | LATER | - | — (until the archive's terms are read) |
+| S15.LV.02-archive | LATER | - | — (until the archive's terms are read) |
+| S15.EE.02-archive | LATER | - | — (until the archive's terms are read) |
+| S15.US.01-archive | LATER | - | — (until the archive's terms are read) |
 | S16.LV.01 | LATER | - | — |
 | S16.EE.01 | LATER | - | — |
 | S16.US.01 | LATER | - | — |
@@ -412,9 +422,9 @@ Expanded mechanically from Part D, then updated with Part H. Every one of the 14
 | S16.ALL.02 | LATER | - | — |
 | S16.ALL.03 | LATER | - | — |
 | S16.ALL.04 | HIDE | - | — |
-| S17.LT.01 | CAVEAT | Registered offices only; a shared address can be an office building or a registered-agent address. Addresses shared with a sole trader or private individual are suppressed, with any count tied to them | — |
-| S17.LV.01 | CAVEAT | Company-to-company links only: registered offices and corporate members. Addresses shared with a sole trader or private individual are suppressed, with any count tied to them | — |
-| S17.EE.01 | CAVEAT | Company-to-company links only: registered offices and corporate members. Addresses shared with a sole trader or private individual are suppressed, with any count tied to them | — |
+| S17.LT.01 | CAVEAT | A shared address can be an office building or a registered-agent address. Registered offices of companies only; an address shared with a sole trader or private individual is not shown | — |
+| S17.LV.01 | CAVEAT | Company-to-company links only: shared addresses and corporate members. Registered offices of companies only; an address shared with a sole trader or private individual is not shown | — |
+| S17.EE.01 | CAVEAT | Company-to-company links only: shared addresses and corporate members. Registered offices of companies only; an address shared with a sole trader or private individual is not shown | — |
 | S17.US.01 | LATER | - | — |
 | S17.US.02 | LATER | - | — |
 | S18.LT.01 | SHOW | - | NC per check |
@@ -422,20 +432,20 @@ Expanded mechanically from Part D, then updated with Part H. Every one of the 14
 | S18.LV.01 | SHOW | - | NC per check |
 | S18.EE.01 | SHOW | - | NC per check |
 | S18.US.01 | CAVEAT | The US has no public tax-debt or payment-default data | NC per check |
-| M01.X.01 | CAVEAT | as in Part C | NC / "Peak not known yet: tracking since [date]" |
+| M01.X.01 | CAVEAT | Quarterly; includes non-listed equity | NC |
 | M01.X.02 | CAVEAT | Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index | KEY / "Choose a fund in settings" |
 | M02.X.01 | CAVEAT | Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index | KEY / "Choose a fund in settings" |
-| M03.X.01 | CAVEAT | as in Part C | NC / "Peak not known yet: tracking since [date]" |
+| M03.X.01 | CAVEAT | Peak seeded once from a cited official figure, if legal clears it | NC / "Peak not known yet: tracking since [date]" (no %, never 0%) |
 | M03.X.02 | CAVEAT | Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index | KEY / "Choose a fund in settings" |
 | M04.X.01 | CAVEAT | Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index | KEY / "Choose a fund in settings" |
-| M05.X.01 | CAVEAT | as in Part C | NC / "Peak not known yet: tracking since [date]" |
+| M05.X.01 | CAVEAT | Monthly average | NC |
 | M05.X.02a (oracle) | LATER | - | — |
-| M05.X.02b (user key) | CAVEAT | as in Part C | NC / "Peak not known yet: tracking since [date]" |
-| M06.X.01b (O3 supply + X4 candles) | CAVEAT | as in Part C | NC / "Peak not known yet: tracking since [date]" |
+| M05.X.02b (user key) | CAVEAT | With your own key; personal use | NC / KEY |
+| M06.X.01b (O3 supply + X4 candles) | CAVEAT | Self-hosted, personal use | NC |
 | M06.X.01a (O5 oracle) | LATER | - | — |
-| M06.X.02 | CAVEAT | as in Part C | NC / "Peak not known yet: tracking since [date]" |
-| M07.X.01 | SHOW | M08: "ticker is an estimate" | NC |
-| M08.X.01 | SHOW | M08: "ticker is an estimate" | NC |
+| M06.X.02 | CAVEAT | Personal use; attribution | NC |
+| M07.X.01 | SHOW | - | NC |
+| M08.X.01 | SHOW | Ticker is an estimate | NC |
 | M09.X.01 | LATER | - | — |
 | OUT.US.01 | HIDE | - | — (never loaded) |
 | OUT.US.02 | LATER | - | — |
