@@ -100,7 +100,7 @@
     };
     const el = document.createElement("details");
     el.className = "switcher";
-    if (param("panel", "open") !== "closed") el.open = true;
+    if (param("panel", "closed") === "open") el.open = true;
     el.innerHTML = `<summary>${icon("settings", "icon icon-sm")} Mockup states</summary>
       <div class="switcher-body">
         ${controls.map(sel).join("")}

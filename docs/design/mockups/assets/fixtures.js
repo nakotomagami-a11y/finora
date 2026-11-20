@@ -105,7 +105,7 @@
       ["Owners on record", "notrun", "Owners: paid register extract in Lithuania"],
       ["Accounts filed on time", "ok", "FY 2025 filed"],
       ["Financial position", "ok", "Equity positive"],
-      ["Tax and social-insurance arrears", "soft", "On the tax arrears list: €3,420 since 2 Sep 2026"],
+      ["Tax and social-insurance arrears", "soft", "On the tax arrears list: €3,420 since 2 Sep 2026; the 180-day age rule is not evaluated yet (tracked since 16 Nov 2026)"],
       ["Insolvency, liquidation, pledges, securing measures", "ok", "Bankruptcy reports checked (published up to Oct 2025)"],
       ["Sanctions and watchlists", "ok", "6 lists checked, none found"],
       ["Court cases", "notrun", "Legal agent did not finish (court portal timed out)"],

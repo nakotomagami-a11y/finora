@@ -2,7 +2,7 @@
 
 > **Status: v1, phase 3.** Grounded in the council's data record (`docs/plan/council/01-data.md`, Part G is authoritative), the legal memo (`docs/research/legal.md`) and the agreed contract (`docs/plan/reviews/00-early-plan-review.md`). Where this file and the council record disagree, the council record wins and this file is the bug.
 >
-> **Mockups:** `docs/design/mockups/`, static HTML with fictional data and no build step. Start at `index.html`, which links every screen and state. Open it directly in a browser, or run `python -m http.server 8080 -d docs/design/mockups` and go to `http://127.0.0.1:8080/`. Every state is a URL parameter; the floating "Mockup states" panel switches between them and the theme (`&panel=closed` hides it).
+> **Mockups:** `docs/design/mockups/`, static HTML with fictional data and no build step. Start at `index.html`, which links every screen and state. Open it directly in a browser, or run `python -m http.server 8080 -d docs/design/mockups` and go to `http://127.0.0.1:8080/`. Every state is a URL parameter; the floating "Mockup states" panel (collapsed by default, `&panel=open` expands it) switches between them and the theme.
 >
 > **Related:** `docs/design/IA.md` (routes and navigation for many tools), `docs/design/display-options.md` (the advice trail behind the council's calls).
 
@@ -85,6 +85,7 @@ Fonts are self-hosted under the SIL Open Font License (`mockups/assets/fonts/`, 
 
 - **Voice:** plain, short, literal. Sentences, not labels, for states ("Checked the debtor list as of 19 Nov 2026: none found").
 - **Banned in every string Finora writes**, controls included, case-insensitive and whole-word: *Clear, Safe, Avoid, Scam, Fraud*, letter grades and anything that reads like a credit score. Use "Reset", not "Clear". The only exemption is a verbatim excerpt shown in the `Quote` component with its citation.
+  - **Other locales (draft for native review in `packages/i18n/REVIEW.md`):** Baltic languages inflect, so the test matches word stems, not whole words. Proposed stems: LT `švar`, `saug`, `venk`, `apgav`, `sukč`; LV `tīr`, `droš`, `izvair`, `krāp`; ET `puhas`, `turval`, `vältig`, `pett`. A native reviewer confirms the list and removes stems that also match innocent words (for example LT `saug` in "saugoti", to keep). Until then the locale test reports matches as warnings, and the English test fails the build.
 - **Register words first.** Status pills and legal forms show the register's own word plus an English gloss: `SIA · limited company`, `Likviduojamas · under liquidation`. Never our paraphrase alone. A tax authority's own rating is shown verbatim as "Tax authority's rating: A", never restyled as a Finora score.
 - **Dates:** `19 Nov 2026` in prose and chips (`19 Nov` when the year is the current one); `FY 2025` or `FY to Jun 2025` for financial periods (non-calendar years name the period end).
 - **Money:** the company's own currency, never converted silently. `€212k`, `EUR k` in table headers, `USD m` for US public companies. Pre-euro Latvian figures say "LVL (before the euro)". Figures filed in thousands carry "Reported in thousands".
@@ -117,7 +118,7 @@ Every value renders through `FieldRow` with an `itemId` from Part G. The section
 | `not_checked{reason: manual_lookup, url}` | MANUAL | `hand` | "Check manually at [official site] · Open" | url on the official-host allowlist |
 | `not_checked{reason: restricted, basis}` | LOCK | `lock` | "Not shown in [country]: restricted by [legal basis]" | keyed on the rule (country, legal form, section), never on the record |
 | `disputed{disputeId}` | | `flag` | "Under review after an objection, since [date]" | value hidden, chip kept |
-| check state `not_evaluated` (P14) | | `clock` | "Not evaluated: tracked since [date]" | snapshot-dependent rules before their window is covered; never reads as clean |
+| `Check.state = not_evaluated{trackedSince}` (P14) | | `clock` | "Not evaluated: tracked since [date]" | **check level, not a section state** (architecture §7.2): shown in the checks list and the check's line; the S02 history row shows the data as `partial` ("4 days of history, tracked since …"). Never reads as clean |
 | `loading` (client only) | | skeleton | | width of a typical value; `aria-busy` on the section |
 | HIDE | — | | no row, no field, no count | negative-tested |
 
@@ -152,7 +153,7 @@ A small badge before the chip. Names, not percentages.
 Summary; routes and the tool manifest are in `docs/design/IA.md`.
 
 - **Tool rail** (left, 72 px, icon plus label; a bottom bar under 768 px): Explorer, Library, Crash monitor; Sources and Settings at the bottom. Built from tool manifests.
-- **Top bar:** the command bar (`/` or Ctrl+K: companies in all four jurisdictions, tools, past investigations), today's spend against the daily cap, the theme toggle.
+- **Top bar:** the command bar (`/` or Ctrl+K: companies in all four jurisdictions, tools, past investigations), today's spend against the daily cap, the theme toggle. The language switch (EN, LT, LV, ET) lives in Settings, not the top bar.
 - **The main flow is one page.** Search → company page with official data at once → Investigate → the same page gains the agent panel, findings land in their sections → the verdict appears on top and a chat docks in the aside. The URL becomes stable when the run starts (`.../runs/[id]`), so the run can be shared, reopened and re-run.
 
 ## 8. Screens and states
@@ -217,6 +218,8 @@ A well inside the People (and US Owners, Securities) section: legend "Why are yo
   - **task sub-rows** from `run.task`: icon (check, spinner, clock for queued, x for failed, skip), label, sources read or "queued"/"skipped".
 - **Findings land in their section** with a 600 ms accent ring; the section shows "The [agent] agent is checking this now: [step]" until then.
 - **Waiting lanes** get an amber border; failed lanes a red border.
+- **Under 1024 px** the agent panel sits below the sections, so a sticky **run bar** under the top bar carries the state ("4 agents · 2 running · $0.27 of $1.50", or "Needs you", or "Reconnecting") and a "Show agents" link that jumps to the panel. A question card always renders inline at the top of the content.
+- At most one question per run and three per investigation (`agents.md` §7).
 - **Reconnecting** (`?state=reconnecting`): the header stats read "Reconnecting · last update [time]", running lanes add "last update N s ago", and a warn banner says "Connection lost at [time]. Reconnecting (attempt N)… The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost." with Retry now. The stream resumes from `Last-Event-ID`; nothing on the page is cleared.
 
 ### 9.2 Question cards
@@ -227,9 +230,9 @@ A card pinned at the top of the primary column (`id="question"`), amber border o
 |---|---|---|
 | `entity_choice` | one card per candidate with code, legal form, status, city, registration year; "None of these" | **no default, no countdown**; on timeout the run ends "Not enough data: company not confirmed"; nothing is shown until the company is pinned |
 | `sanctions_match` | side-by-side table of the fields either side has (identifiers first), each marked similar / differs / not on list, all neutral colour; Same company / Different company / Not sure | 30 min: recorded as "possible match, needs review (answered by default)"; "Not sure" is a soft flag; "sanctioned" appears only for an ID-confirmed primary-list entry |
-| `scope` | options with their extra cost | 30 min: the cheapest useful option, marked default |
-| `cap_reached` | "Stop here and write the report" (default), "Allow up to $0.50 more" (once per run, clipped to what is left today, hidden when nothing is left) | 30 min: stop and write |
-| `cap_reached`, extension used | only "Stop here and write the report", with "Extension already used for this run" | the report is written automatically |
+| `scope` (`agents.md` §7) | "Is [domain] this company's website?" with how it was found, what the site says and the domain's age; Yes / No / Not sure | 30 min: "Not sure"; until confirmed, findings from the site are "name only" and can raise at most a point to check |
+| `cap_reached` | "Stop here and write the report" (default), "Allow up to $0.50 more" (**once per investigation**, clipped to what is left today, hidden when nothing is left) | **10 min**: stop and write |
+| `cap_reached`, extension used | only "Stop here and write the report", with "Extension already used for this investigation" | the report is written automatically |
 
 ### 9.3 Verdict (companies only)
 
@@ -315,7 +318,7 @@ The frontend inventory (`docs/plan/ui-build-plan.md`) is the build list; these a
 - Scrollable tables are focusable regions named after their section.
 - The agent panel uses a polite live region, throttled to one announcement per lane step. Question cards are regions with an H2.
 - Sheets are modal dialogs with a label; Esc closes popovers and sheets.
-- Keyboard: `/` search; ↑ ↓ Enter in results; `j` / `k` between findings in a report; Enter opens a source chip.
+- Keyboard: `/` search; ↑ ↓ Enter in results; `j` / `k` between findings in a report; Enter opens a source chip; `?` opens a small dialog that lists these shortcuts.
 - The mockups pass axe (no violations) on the main states in both themes at 1280 and 390 px.
 
 ## 15. Responsive

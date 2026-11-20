@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
 <title>Company · Finora mockup</title>
 <link rel="stylesheet" href="assets/tokens.css">
 <link rel="stylesheet" href="assets/app.css">
@@ -35,6 +36,7 @@
 
   const defaultLevel = { lv: "points", ee: "points", lt: "points", "us-private": "insufficient", "us-public": "points" }[subj.key];
   const level = param("verdict", "auto") === "auto" ? defaultLevel : param("verdict");
+  if (newInstall && subj.checks) subj.checks = subj.checks.map((c, i) => (i === 1 && c[1] !== "notrun" ? [c[0], "noteval", "Active · rename rule not evaluated: tracked since 16 Nov 2026"] : c));
   if (lvRoleCounts) {
     subj.checks = subj.checks.map((c, i) => (i === 2 ? [c[0], "ok", "2 board members on record (names pending a legal review)"] : i === 8 ? [c[0], "ok", "Company screened, 5 lists; officers not screened: names not loaded"] : c));
     subj.coverage = { ...subj.coverage, notOpen: subj.coverage.notOpen + ", officer names (pending a legal review)" };
@@ -171,7 +173,7 @@
   function statusSection() {
     if (state === "loading") return section({ id: "status", sid: "S02", title: "Status and history", body: `<div class="rows">${R("Status", { state: "loading", w: 30 })}${R("History", { state: "loading", w: 70 })}</div>` });
     const snap = newInstall
-      ? notChecked({ reason: "not_evaluated", since: "16 Nov 2026" })
+      ? `<span class="partial-mark">4 days of history, tracked since 16 Nov 2026</span>`
       : `<span class="state-line checked">${icon("check", "icon icon-sm")}<span>No address or legal-form change since tracking started</span></span>`;
     const events = {
       lv: [["3 Sep 2026", `Renamed from <em>Paraugs Wood SIA</em>`, S.urNames, "point"], ["12 Mar 2014", "Registered in the commercial register", S.urLV]],
@@ -185,7 +187,7 @@
       ${events.map(([d, t, s, f]) => `<div class="event"><span class="event-date num">${d}</span><span class="event-body"><span>${t} ${f ? sev("point_to_check") : ""}</span><span>${chip(s)}</span></span></div>`).join("")}
       </div>
       <div class="rows" style="margin-top:8px">
-        ${R("Changes in the last 6 months", { state: "data", html: snap, note: "" })}
+        ${R("Changes in the last 6 months", { state: "data", html: snap, partial: newInstall ? "Too short for the 6-month rename rule, so check 2 reads “not evaluated” until the history covers it." : "" })}
       </div>
       <span class="caveat">${icon("clock", "icon icon-sm")}<span>Address and legal-form history: tracked by Finora since 16 Nov 2026${subj.key === "lv" ? ". Name history comes from the register (last updated 2 Apr 2025)." : "."}</span></span>`;
     return section({ id: "status", sid: "S02", title: "Status and history", body });
@@ -244,7 +246,6 @@
       ${R("Taxes paid", { state: "data", html: `<span class="num">€96k in 2025</span> <span class="tag tag-sa">CC BY-SA</span>`, src: S.emtaTax, conf: "official", caveat: "Taxes paid for 39.1% of active companies; share-alike licence. Left out of exports." })}`;
     else rows = `
       ${R("Tax arrears", { state: "data", html: `<span class="num">€3,420</span> overdue since 2 Sep 2026 ${sev("point_to_check")}`, src: S.vmiArrears, conf: "official" })}
-      ${R("Arrears age rule", { state: "not_checked", reason: "not_evaluated", since: "16 Nov 2026" })}
       ${R("Social-insurance debt", { state: "checked_none", sourceName: "Sodra's debtor list", asOf: "19 Nov 2026", src: S.sodra, caveat: "Social-insurance fund; no licence stated by the publisher." })}
       ${R("Taxes paid", { state: "data", html: `<span class="num">€318k in 2025</span>`, src: S.vmiTax, conf: "official" })}`;
     return section({ id: "tax", sid: "S08", title: "Taxes and arrears", body: `<div class="rows">${rows}</div>` });
@@ -339,7 +340,7 @@
   }
 
   /* ---------- Checks card (profile) and verdict (report) ---------- */
-  const CHECK_IC = { ok: ["", "check", "None found or on record"], soft: ["flag-soft", "bang", "Point to check"], hard: ["flag-hard", "x", "Concern"], notrun: ["notrun", "dash", "Not run"], pending: ["notrun", "agent", "Runs when you investigate"] };
+  const CHECK_IC = { noteval: ["notrun", "clock", "Not evaluated yet"], ok: ["", "check", "None found or on record"], soft: ["flag-soft", "bang", "Point to check"], hard: ["flag-hard", "x", "Concern"], notrun: ["notrun", "dash", "Not run"], pending: ["notrun", "agent", "Runs when you investigate"] };
   function checksList(checks, opts = {}) {
     return `<div class="checks" role="list">${checks.map(([t, s, why], i) => {
       let st = s;
@@ -429,7 +430,7 @@
       ${l.step ? `<span class="lane-step">${esc(l.step)}</span>` : ""}
       ${l.tasks ? `<div class="tasks">${l.tasks.map(([s, t, n]) => `<div class="task ${s}"><span class="t-ic">${TI[s] ? icon(TI[s], "icon icon-sm") : '<span class="spinner"></span>'}</span><span class="t-label">${esc(t)}</span><span class="t-end num">${s === "queued" ? "queued" : s === "skipped" ? "skipped" : `${n} src`}</span></div>`).join("")}</div>` : ""}
     </div>`;
-    return `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px" aria-label="Agents">
+    return `<section class="card" id="agents" style="padding:16px;display:flex;flex-direction:column;gap:12px;scroll-margin-top:120px" aria-label="Agents">
       <div style="display:flex;align-items:baseline;gap:8px"><h2 class="serif" style="font-size:22px">Agents</h2><span class="muted small num" style="margin-left:auto">$0.27 of $1.50</span></div>
       <div class="meter ${q.startsWith("cap") && state === "question" ? "cap" : ""}" role="progressbar" aria-label="Spend against the cap" aria-valuenow="${q.startsWith("cap") && state === "question" ? 100 : 18}" aria-valuemin="0" aria-valuemax="100"><i style="width:${q.startsWith("cap") && state === "question" ? 100 : 18}%"></i></div>
       <div class="lanes">${L.map(lane).join("")}</div>
@@ -487,21 +488,21 @@
       </div>
       <p class="small muted">Only an identical registration number or LEI confirms a match automatically. "Not sure" becomes a point to check. The word "sanctioned" is only used for a confirmed entry.</p>`,
       foot("Legal agent and the verdict", "If unanswered in 30 minutes: recorded as “possible match, needs review” (answered by default)."));
-    if (q === "scope") return card("Registry and people agent", "This company is a member of 14 other companies. Check them all, or only the largest?",
-      `<div class="q-options">
-        <button class="q-option default" type="button"><span class="q-title">Only the 3 with the largest stakes</span><span class="q-sub">about +$0.12 · default</span></button>
-        <button class="q-option" type="button"><span class="q-title">All 14</span><span class="q-sub">about +$0.55 · may reach the $1.50 cap</span></button>
-        <button class="q-option" type="button"><span class="q-title">None: just this company</span><span class="q-sub">no extra cost</span></button>
-      </div>`, foot("Registry and people", "If unanswered in 30 minutes: only the 3 largest (answered by default)."));
-    if (q === "cap") return card("Cost cap", "This run reached its $1.50 cap.",
-      `<div class="kv"><div><span class="k">Spent on this run</span><span class="num">$1.50 of $1.50</span></div><div><span class="k">Left today</span><span class="num">$8.16 of $10.00</span></div><div><span class="k">Still running</span><span>Web, domain and news (2 searches left)</span></div></div>
+    if (q === "scope") return card("Web, domain and news agent", "Is paraugs-timber.example this company's website?",
+      `<div class="kv"><div><span class="k">Found by</span><span>a web search for the company name and city</span></div><div><span class="k">On the site</span><span>“Paraugs Timber”, Rīga, no registration number shown</span></div><div><span class="k">Domain in use since</span><span class="num">2014 (certificate logs)</span></div></div>
+      <div class="q-options" style="flex-direction:row;flex-wrap:wrap">
+        <button class="btn" type="button">Yes, it's theirs</button><button class="btn" type="button">No</button><button class="btn" type="button">Not sure</button>
+      </div>
+      <p class="small muted">Until it is confirmed, findings from this site are marked "name only" and can't raise more than a point to check.</p>`, foot("Web, domain and news", "If unanswered in 30 minutes: “Not sure” (answered by default)."));
+    if (q === "cap") return card("Cost cap", "This investigation reached its $1.50 cap.",
+      `<div class="kv"><div><span class="k">Spent on this investigation</span><span class="num">$1.50 of $1.50</span></div><div><span class="k">Left today</span><span class="num">$8.16 of $10.00</span></div><div><span class="k">Still running</span><span>Web, domain and news (2 searches left)</span></div></div>
       <div class="q-options">
         <button class="q-option default" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Uses the findings so far · default</span></button>
-        <button class="q-option" type="button"><span class="q-title">Allow up to $0.50 more</span><span class="q-sub">Offered once per run; never past today's cap</span></button>
-      </div>`, foot("Web, domain and news; the verdict", "If unanswered in 30 minutes: stop and write the report."));
-    return card("Cost cap", "This run reached its cap again.",
-      `<p class="small ink2">The extension is already used for this run, so it can only stop now. Findings so far are kept.</p>
-      <div class="q-options"><button class="q-option default" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Extension already used for this run</span></button></div>`,
+        <button class="q-option" type="button"><span class="q-title">Allow up to $0.50 more</span><span class="q-sub">Offered once per investigation; never past today's cap</span></button>
+      </div>`, foot("Web, domain and news; the verdict", "If unanswered in 10 minutes: stop and write the report."));
+    return card("Cost cap", "This investigation reached its cap again.",
+      `<p class="small ink2">The extension is already used for this investigation, so it can only stop now. Findings so far are kept.</p>
+      <div class="q-options"><button class="q-option default" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Extension already used for this investigation</span></button></div>`,
       foot("the verdict", "The report is written automatically in 30 seconds."));
   }
 
@@ -550,6 +551,7 @@
     }
     const top = phase === "report" || (natural && state === "full") ? verdictBlock() : "";
     const banner = state === "partial" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One agent did not finish.</strong> The legal agent stopped when the court portal timed out, so check 10 counts as not run. Other findings are complete. <button class="link-btn" type="button">Re-run the legal agent</button></span></div>` : "";
+    const runBar = phase === "run" ? `<div class="run-bar" role="status"><span>${reconnecting ? "Reconnecting" : state === "question" ? "Needs you" : "4 agents · 2 running"} · $0.27 of $1.50</span><a href="#agents">Show agents</a></div>` : "";
     const qcard = state === "question" ? questionCard() : reconnecting ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Connection lost at 09:43:12. Reconnecting (attempt 2)…</strong> The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost. <button class="link-btn" type="button">Retry now</button></span></div>` : "";
     const sections = [statusSection(), peopleSection(), ownersSection(), financialsSection(), workforceSection(), taxSection(), insolvencySection(), courtsSection(), sanctionsSection(), filingsSection(), securitiesSection(), webSection(), networkSection()].join("");
     const index = phase !== "run" && state !== "loading" ? `<nav class="sec-index" aria-label="Sections">${[["status", "Status"], ["people", "People"], ["owners", "Owners"], ["financials", "Financials"], ["tax", "Taxes"], ["insolvency", "Insolvency"], ["courts", "Courts"], ["sanctions", "Sanctions"], ["web", "Web"]].filter(([a]) => sections.includes(`id="${a}"`)).map(([a, l]) => `<a href="#${a}">${l}</a>`).join("")}</nav>` : "";
@@ -559,7 +561,7 @@
       <span>${natural ? "Not a credit report. Not for credit, employment, tenancy or insurance decisions. " : ""}AI-written text is labelled. <a href="#">Report an error or object</a></span>
     </footer>`;
     return `<div class="page"><div class="cols">
-      <div class="primary">${header()}${banner}${qcard}${top}${index}${sections}${footer}</div>
+      <div class="primary">${header()}${runBar}${banner}${qcard}${top}${index}${sections}${footer}</div>
       <aside class="aside" tabindex="0" aria-label="${phase === "run" ? "Agents" : phase === "report" ? "Follow-up questions" : "Checks"}">${aside}</aside>
     </div></div>${sheetFor()}`;
   }
@@ -567,7 +569,7 @@
   Finora.mount("explorer", render, [
     { key: "country", label: "Subject", options: [["lv", "Latvia · SIA (full)"], ["ee", "Estonia · OÜ"], ["lt", "Lithuania · UAB"], ["us-private", "US private · Colorado LLC"], ["us-public", "US public · SEC filer"], ["sole-trader", "Sole trader · facts only (LT)"]] },
     { key: "state", label: "Page state", options: [["full", "Profile: official data"], ["loading", "Profile: loading"], ["error", "Profile: error"], ["estimate", "Investigate: cost estimate sheet"], ["nokey", "Investigate: no AI key"], ["daily-cap", "Investigate: daily cap reached"], ["streaming", "Investigation streaming"], ["reconnecting", "Investigation: reconnecting"], ["question", "Agent asks you"], ["report", "Report"], ["partial", "Report: one agent failed"]] },
-    { key: "q", label: "Question (with Agent asks you)", options: [["entity", "Which company is it?"], ["sanctions", "Possible sanctions match"], ["scope", "Scope and cost"], ["cap", "Cost cap reached"], ["cap-used", "Cap reached, extension used"]] },
+    { key: "q", label: "Question (with Agent asks you)", options: [["entity", "Which company is it?"], ["sanctions", "Possible sanctions match"], ["scope", "Is this website theirs?"], ["cap", "Cost cap reached"], ["cap-used", "Cap reached, extension used"]] },
     { key: "verdict", label: "Verdict level (with Report)", options: [["auto", "As the data says"], ["none", "No concerns found"], ["points", "Points to check"], ["serious", "Serious concerns"], ["insufficient", "Not enough data"]] },
     { key: "purpose", label: "Purpose gate", options: [["set", "Purpose stated"], ["unset", "No purpose yet"]] },
     { key: "install", label: "Snapshot history", options: [["established", "Covers 6 months"], ["new", "New install: not evaluated yet"]] },
