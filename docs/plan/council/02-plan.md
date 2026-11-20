@@ -37,6 +37,24 @@ Monorepo and boundaries; licence on every value; store, resolution and budgets (
 
 B1-B3 and S1-S4 are closed in `3c6cd90`: a `leases` table taken inside `BEGIN IMMEDIATE` (`store/src/leases.test.ts`, `agents/src/recovery.test.ts`); every sync in a worker thread (`server/src/jobs.main-thread.test.ts`); `pnpm finora` builds when `.next` is missing or stale and runs `next start` on 127.0.0.1, with the cold path recorded in `benchmarks.md`; CI `test` and `demo-boot` on Ubuntu and Windows; a 15 GB disk preflight, `PRAGMA quick_check`, daily `finora-cli backup` (last 7 kept) and `doctor --repair`; additive-only migrations on the three big tables; Part G re-parses in the background under the leases. Legal's "v1 runs locally only" line is at the top of `docs/architecture.md` and in the README's run section (`d9457c2`).
 
+## cto: technical approval (2026-11-20)
+
+**Approved to build from `3c6cd90`.** B1-B3 and S1-S4 verified in the files. Conditions carried into the build (qa checks them per slice; they don't block approval):
+1. Every loader slice records its P10 numbers in `benchmarks.md` (disk, records, bytes per record, times); a slice over budget cuts fields or years, never the budget.
+2. S10 is not accepted until the measured run (`ANTHROPIC_API_KEY`) replaces the modelled cost.
+3. S12 records the cold path as a measured number.
+4. Council session 3 at each milestone gets a cto health check: budgets against actuals, open debt, scaling risks.
+
+## qa on the revision (`3c6cd90`)
+
+| # | Severity | Finding | Fix | Status |
+|---|---|---|---|---|
+| Q1 | MUST-FIX | `VACUUM INTO` copies the whole database, not selected tables: 7 backups of a ~7 GB store ≈ 49 GB against the 12 GB data-dir budget | back up only the non-derivable tables (attach a file and `INSERT … SELECT`, or keep them in their own database file); count backups in the 12 GB; `cli/src/backup.test.ts` asserts contents and a size budget | open (architect) |
+| Q2 | MUST-FIX | `doctor --repair` can bring back deleted personal data: a restore from a backup up to 7 days old returns investigations deleted by the user or expired under the TTL (R11, P5), and resolved disputes | a deletion tombstone log that is never restored and is re-applied after a restore, then the retention job and suppressions run before reads resume; backups are pruned of deleted investigations, or their retention becomes a LAWYER row with legal's light; `cli/src/doctor.test.ts`: delete, back up, corrupt, repair, the investigation stays gone | open (architect, legal) |
+| Q3 | SHOULD-FIX | A worker's batch transaction can hold the WAL write lock long enough for a main-thread investigation write to hit `SQLITE_BUSY` | bound each batch by time (≤ 250 ms, adaptive size) and retry main-thread writes; extend `jobs.main-thread.test.ts` | open |
+| Q4 | SHOULD-FIX | Absolute timing assertions (p95 < 100 ms, heartbeat ≤ 1 s late) will flake on shared CI runners | keep them as recorded benchmarks on `dev-desktop-1`; in CI assert relative budgets or a generous bound (≤ 3 s gap) | open |
+| Q5 | NIT | "Stale" keyed on commit + lockfile misses uncommitted changes | add the dirty-tree hash, or document `pnpm finora --rebuild` | open |
+
 ## Council decision
 
 Pending.
