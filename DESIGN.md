@@ -129,7 +129,7 @@ Every value renders through `FieldRow` with an `itemId` from Part G. The section
 
 ### 6.1 SourceChip
 
-A mono chip at the row end: `Register LV · 19 Nov`. Click or Enter opens a popover (Esc closes it, returns focus to the chip and resets `aria-expanded`). On desktop the popover opens under the chip and flips left, right or up so it never leaves the viewport; under 768 px it is a bottom sheet across the screen. It with: source name, licence, access tier (open data / share-alike store / your key / display only / query time / shown after a stated purpose), the source's as-of date, retrieved at and by which loader or agent, an excerpt for agent findings, "Open the record" (where a stable per-record link exists) and "How this source is used" (Sources page). Variants: `web` (agent finding, `--info` text), `derived` ("Derived by Finora", dashed border, with "Computed from"), `stale` (amber).
+A mono chip at the row end: `Register LV · 19 Nov`. Click or Enter opens a popover (Esc closes it, returns focus to the chip and resets `aria-expanded`). On desktop the popover is positioned against the viewport (so a scrolling table can never clip it), opens under the chip, flips up or sideways to stay on screen, follows the chip on scroll and closes when the chip leaves the screen; under 768 px it is a bottom sheet across the screen. It with: source name, licence, access tier (open data / share-alike store / your key / display only / query time / shown after a stated purpose), the source's as-of date, retrieved at and by which loader or agent, an excerpt for agent findings, "Open the record" (where a stable per-record link exists) and "How this source is used" (Sources page). Variants: `web` (agent finding, `--info` text), `derived` ("Derived by Finora", dashed border, with "Computed from"), `stale` (amber).
 
 ### 6.2 Confidence
 
@@ -154,7 +154,7 @@ A small badge before the chip. Names, not percentages.
 Summary; routes and the tool manifest are in `docs/design/IA.md`.
 
 - **Tool rail** (left, 72 px, icon plus label; a bottom bar under 768 px): Explorer, Library, Crash monitor; Sources and Settings at the bottom. Built from tool manifests.
-- **Top bar:** the command bar (`/` or Ctrl+K anywhere, or the top-bar field; `?cmd=open`): a modal palette with grouped results (companies with their distinguishing facts, investigations, tools and pages), ↑ ↓ Enter, Esc closes. On the search page `/` focuses the search box instead. Then today's spend against the daily cap, the theme toggle. The language switch (EN, LT, LV, ET) lives in Settings, not the top bar.
+- **Top bar:** the command bar (`/` or Ctrl+K anywhere, or the top-bar field; `?cmd=open`): a modal palette: the input is a `combobox` controlling a `listbox` of grouped `option`s (companies with their distinguishing facts, investigations, tools and pages), filtered as you type, ↑ ↓ move the selection (`aria-activedescendant`, `aria-selected`), Enter opens it, Esc closes and returns focus to whatever opened it. On the search page `/` focuses the search box instead. Then today's spend against the daily cap, the theme toggle. The language switch (EN, LT, LV, ET) lives in Settings, not the top bar.
 - **The main flow is one page.** Search → company page with official data at once → Investigate → the same page gains the agent panel, findings land in their sections → the verdict appears on top and a chat docks in the aside. The URL becomes stable when the run starts (`.../runs/[id]`), so the run can be shared, reopened and re-run.
 
 ## 8. Screens and states

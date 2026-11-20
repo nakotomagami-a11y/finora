@@ -166,21 +166,35 @@
     if (problem) openProblem(problem.getAttribute("data-problem"));
   });
   // Desktop: anchor under the chip, flipped so it never leaves the viewport. Phones: CSS turns it into a bottom sheet.
+  // Desktop: fixed to the viewport next to the chip, so a scrolling table can never clip it; flips up or
+  // sideways to stay on screen. Phones: CSS turns it into a bottom sheet.
   function placePop(pop) {
-    pop.style.left = ""; pop.style.right = ""; pop.style.top = ""; pop.style.bottom = "";
+    ["left", "right", "top", "bottom", "position", "width"].forEach((k) => { pop.style[k] = ""; });
     if (matchMedia("(max-width: 767px)").matches) return;
-    const v = pop.getBoundingClientRect();
-    if (v.bottom > innerHeight - 8 && v.height + 14 < pop.parentElement.getBoundingClientRect().top) { pop.style.top = "auto"; pop.style.bottom = "calc(100% + 6px)"; }
-    const r = pop.getBoundingClientRect();
-    if (r.left < 8) { pop.style.right = "auto"; pop.style.left = "0"; }
-    const r2 = pop.getBoundingClientRect();
-    if (r2.right > innerWidth - 8) { pop.style.left = "auto"; pop.style.right = "0"; }
+    const chipRect = pop.parentElement.getBoundingClientRect();
+    pop.style.position = "fixed";
+    pop.style.right = "auto";
+    const w = Math.min(320, innerWidth - 16);
+    pop.style.width = w + "px";
+    const h = pop.getBoundingClientRect().height;
+    const left = Math.max(8, Math.min(chipRect.right - w, innerWidth - w - 8));
+    const below = chipRect.bottom + 6;
+    const top = below + h > innerHeight - 8 && chipRect.top - 6 - h >= 8 ? chipRect.top - 6 - h : Math.max(8, Math.min(below, innerHeight - h - 8));
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
   }
-  function closePops() {
+  // On scroll the popover follows its chip; it closes only when the chip leaves the viewport.
+  addEventListener("scroll", () => {
+    const pop = document.querySelector(".pop:not([hidden])");
+    if (!pop || matchMedia("(max-width: 767px)").matches) return;
+    const r = pop.parentElement.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) closePops(false); else placePop(pop);
+  }, { passive: true, capture: true });
+  function closePops(refocus = true) {
     document.querySelectorAll(".pop:not([hidden])").forEach((p) => {
       p.hidden = true;
       const b = document.querySelector(`[aria-controls="${p.id}"]`);
-      if (b) { b.setAttribute("aria-expanded", "false"); b.focus(); }
+      if (b) { b.setAttribute("aria-expanded", "false"); if (refocus) b.focus(); }
     });
   }
   document.addEventListener("keydown", (e) => {
@@ -188,7 +202,7 @@
     if (e.key === "Escape") {
       if (document.querySelector(".pop:not([hidden])")) return closePops();
       const layer = document.querySelector("[data-layer]");
-      if (layer) return layer.remove();
+      if (layer) return closeLayer(layer);
       const cancel = document.querySelector(".scrim .sheet-actions [data-cancel]");
       if (cancel) return cancel.click();
     }
@@ -214,26 +228,73 @@
   }
 
   /* ---------- Command bar (mockup of the real palette) ---------- */
+  let layerOpener = null;
+  function closeLayer(layer) {
+    layer.remove();
+    if (layerOpener && document.contains(layerOpener)) layerOpener.focus();
+    layerOpener = null;
+  }
+  const CMD_ITEMS = [
+    ["Companies", "company.html?country=lv", "Paraugs Timber SIA", "LV · 40000FX0017 · SIA · Rīga · 2014", "LV"],
+    ["Companies", "company.html?country=lv", "Paraugs Timber SIA", "LV · 40000FX0058 · SIA · Valmiera · 2022", "LV"],
+    ["Companies", "company.html?country=ee", "Paraugs Timber Eesti OÜ", "EE · 1FX000033 · OÜ · Tartu · 2020", "EE"],
+    ["Companies", "company.html?country=lt", "Pavyzdys Bakery UAB", "LT · 30FX00017 · UAB · Vilnius · 2011", "LT"],
+    ["Investigations", "company.html?country=lv&state=report", "Paraugs Timber SIA", "Points to check · today 09:44", ""],
+    ["Investigations", "company.html?country=ee&state=report", "Näidis Freight OÜ", "Points to check · today 08:12", ""],
+    ["Tools and pages", "crash.html", "Crash monitor", "Markets from their peaks", ""],
+    ["Tools and pages", "library.html", "Library", "Every investigation you ran", ""],
+    ["Tools and pages", "sources.html", "Sources", "Licences and freshness", ""],
+    ["Tools and pages", "settings.html", "Settings", "Keys, caps, language", ""],
+  ];
   function openCmd() {
     if (document.querySelector("[data-layer='cmd']")) return;
-    const g = (title, items) => `<div class="pal-group" role="group" aria-label="${esc(title)}"><span class="label">${esc(title)}</span>${items.map(([href, a, b, cc]) => `<a class="pal-item" href="${href}">${cc ? `<span class="cc">${cc}</span>` : icon("chev", "icon icon-sm")}<span class="pal-main"><span>${esc(a)}</span><span class="small muted">${esc(b)}</span></span></a>`).join("")}</div>`;
+    layerOpener = document.activeElement && document.activeElement !== document.body ? document.activeElement : document.querySelector(".cmd");
     const el = document.createElement("div");
     el.className = "scrim pal-scrim";
     el.setAttribute("data-layer", "cmd");
     el.innerHTML = `<div class="palette" role="dialog" aria-modal="true" aria-label="Command bar">
-      <div class="search-box" style="height:48px;border-radius:10px">${icon("search")}<label class="sr-only" for="cmd-q">Search companies, investigations and tools</label><input id="cmd-q" autocomplete="off" placeholder="Company, code, investigation or tool" value="paraugs"><span class="kbd">Esc</span></div>
-      ${g("Companies", [["company.html?country=lv", "Paraugs Timber SIA", "LV · 40000FX0017 · SIA · Rīga · 2014", "LV"], ["company.html?country=lv", "Paraugs Timber SIA", "LV · 40000FX0058 · SIA · Valmiera · 2022", "LV"], ["company.html?country=ee", "Paraugs Timber Eesti OÜ", "EE · 1FX000033 · OÜ · Tartu · 2020", "EE"]])}
-      ${g("Investigations", [["company.html?country=lv&state=report", "Paraugs Timber SIA", "Points to check · today 09:44", ""]])}
-      ${g("Tools and pages", [["crash.html", "Crash monitor", "Markets from their peaks", ""], ["sources.html", "Sources", "Licences and freshness", ""], ["settings.html", "Settings", "Keys, caps, language", ""]])}
-      <p class="small muted">↑ ↓ to move · Enter to open · Esc to close</p>
+      <div class="search-box" style="height:48px;border-radius:10px">${icon("search")}<label class="sr-only" for="cmd-q">Search companies, investigations and tools</label><input id="cmd-q" role="combobox" aria-expanded="true" aria-controls="cmd-list" aria-autocomplete="list" autocomplete="off" placeholder="Company, code, investigation or tool" value="paraugs"><span class="kbd">Esc</span></div>
+      <div id="cmd-list" role="listbox" aria-label="Results"></div>
+      <p class="small muted" id="cmd-hint">↑ ↓ to move · Enter to open · Esc to close</p>
     </div>`;
-    el.addEventListener("click", (e) => { if (e.target === el) el.remove(); });
+    el.addEventListener("click", (e) => { if (e.target === el) closeLayer(el); });
     document.body.appendChild(el);
-    el.querySelector("input").focus();
+    const input = el.querySelector("input");
+    const list = el.querySelector("#cmd-list");
+    let active = 0, shown = [];
+    const draw = () => {
+      const q = input.value.trim().toLowerCase();
+      shown = CMD_ITEMS.filter((it) => !q || (it[2] + " " + it[3]).toLowerCase().includes(q) || it[0] === "Tools and pages");
+      active = Math.min(active, Math.max(0, shown.length - 1));
+      let html = "", group = "";
+      shown.forEach((it, i) => {
+        if (it[0] !== group) { group = it[0]; html += `<div class="label pal-head" role="presentation">${esc(group)}</div>`; }
+        html += `<a class="pal-item" id="cmd-opt-${i}" role="option" aria-selected="${i === active}" href="${it[1]}" tabindex="-1">${it[4] ? `<span class="cc">${it[4]}</span>` : icon("chev", "icon icon-sm")}<span class="pal-main"><span>${esc(it[2])}</span><span class="small muted">${esc(it[3])}</span></span></a>`;
+      });
+      list.innerHTML = html || `<p class="small muted" role="presentation" style="padding:8px">No match. Press Enter to search the registers for “${esc(input.value)}”.</p>`;
+      if (shown.length) input.setAttribute("aria-activedescendant", `cmd-opt-${active}`); else input.removeAttribute("aria-activedescendant");
+    };
+    input.addEventListener("input", () => { active = 0; draw(); });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!shown.length) return;
+        active = (active + (e.key === "ArrowDown" ? 1 : -1) + shown.length) % shown.length;
+        draw();
+        el.querySelector(`#cmd-opt-${active}`).scrollIntoView({ block: "nearest" });
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        location.href = shown.length ? shown[active][1] : `search.html?state=typing`;
+      }
+    });
+    draw();
+    input.focus();
+    input.select();
   }
 
   /* ---------- Report a problem (legal rule 10) ---------- */
   function openProblem(what) {
+    layerOpener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
     const el = document.createElement("div");
     el.className = "scrim";
     el.setAttribute("data-layer", "problem");
@@ -247,14 +308,14 @@
       </fieldset>
       <label class="small" for="pb-d" style="display:flex;flex-direction:column;gap:6px">Details<textarea id="pb-d" class="input" style="height:96px;padding:8px 12px;resize:vertical" placeholder="What should it say, and where did you see the correct value?"></textarea></label>
       <p class="small muted">An objected statement is hidden while it is reviewed. This report stays on this machine until you export or send it.</p>
-      <div class="sheet-actions"><button class="btn" type="button" data-cancel onclick="this.closest('[data-layer]').remove()">Cancel</button><button class="btn btn-primary" type="submit">Send report</button></div>
+      <div class="sheet-actions"><button class="btn" type="button" data-cancel onclick="Finora.closeLayer(this.closest('[data-layer]'))">Cancel</button><button class="btn btn-primary" type="submit">Send report</button></div>
     </form></div>`;
     document.body.appendChild(el);
     el.querySelector("form").addEventListener("submit", (ev) => {
       ev.preventDefault();
       ev.target.innerHTML = `<h2>Thank you</h2><p class="ink2">Your report is logged. If it objects to a statement about you, that statement is hidden while it is reviewed.</p><div class="sheet-actions"><button class="btn btn-primary" type="button" data-cancel>Close</button></div>`;
       const close = ev.target.querySelector("[data-cancel]");
-      close.addEventListener("click", () => el.remove());
+      close.addEventListener("click", () => closeLayer(el));
       close.focus();
     });
     el.querySelector("input").focus();
@@ -369,5 +430,5 @@
     if (param("problem", "") === "open") openProblem("Paraugs Timber SIA, Securing measures (S09)");
   }
 
-  window.Finora = { esc, param, icon, chip, conf, aiTag, ruleTag, agentTag, sev, fieldRow, stateLine, notChecked, section, sparkline, sheet, mount, toggleTheme, openCmd, openProblem };
+  window.Finora = { esc, param, icon, chip, conf, aiTag, ruleTag, agentTag, sev, fieldRow, stateLine, notChecked, section, sparkline, sheet, mount, toggleTheme, openCmd, openProblem, closeLayer };
 })();
