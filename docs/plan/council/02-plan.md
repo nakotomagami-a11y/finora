@@ -128,5 +128,23 @@ The instant profile shows the checks and the coverage line, with no level. **Rea
 ### Coordinator's items done in the same commit
 Items 1, 3 and 4 are in `prototype.md` (D11, K2 with the key date and the parallel lane, §6 spend, §7 the milestone gate); item 2 is `session3-runbook.md`. The regression set (item 5) is built before S12. The parallel lane goes into `slices.md` with the architect's revision.
 
-### Open: person-line suppressions (architect `0e35177`)
-legal (7048919634) refuses any hash of a person's line, including the `targetHash` in `0e35177`. legal's vote, matching the coordinator's recommendation: row id where the source has one (`{companyEid, itemId, sourceRowId, at}`); where none exists, `{companyEid, itemId, at}` and the whole item section for that company stays hidden until a re-run; sole traders hidden by default with no entry; lifts compacted daily. qa proposed a role-level variant for sources without a row id. The council rules in its one-line confirmation.
+### Addendum: person-line suppressions (council 7048943522, 7048963566, 7048972000; legal 7048930177, 7048948562, 7048968931)
+
+**Ruled (gate 1): no hash of a person's line in any file.** This replaces `targetHash` in `0e35177`.
+1. **Sources with a row-local role id (LV officers, EE persons):** `{op: set | lift, companyEid, itemId, sourceRowId, at}` (PS1, PS6).
+2. **Sources without one (CT principals, PA parties, the NY CEO, SEC insiders, Form D): role-level.** `{op, companyEid, itemId, role, at}`. After a repair, every line of that role at that company stays hidden and reads "Hidden after a data repair", with "Show again" (the user's explicit choice; it appends a lift entry and never re-shows on its own). The council switched from whole-item hiding under its own trigger, once legal rated the role field Y.
+3. **Sole traders (`natural_person = 1`):** no entry; after a repair their personal items stay hidden by default until a re-run.
+4. **The log** `<data dir>/restrictions.log`: append-only, fsynced before the suppression is acknowledged; active entries only (a lift appends a lift entry, and a daily compaction removes lifted pairs); never in a backup, never shared between installs; `doctor --repair` refuses if it or `deletions.log` is missing or unreadable, and replays both before reads resume. Company-line suppressions stay in the backup allowlist, with legal's filter.
+5. **No content hash, keyed hash or `targetHash` of a person's line anywhere** (the same reading as the HMAC ruling).
+6. **Tests** (`cli/src/doctor.test.ts`, `store/src/restrictions-log.test.ts`): an LV officer-line suppression is absent from every backup and still hidden after corrupt + repair; a US principal-line suppression keeps that role's lines hidden after repair; a sole trader's personal items are hidden after repair; a missing or corrupt log makes the repair refuse with nothing restored; a lifted entry is gone after compaction; the fixture log holds no name, value or hash.
+
+**Reasons:** legal rates a hash of a person's line R; repair is rare, so over-hiding costs little; every variant fails safe. **Dissent:** resolved. cto and qa both preferred role-level for US sources, which is now the ruling; cto's final position was never a content hash (7048962914).
+
+### Addendum: item 6, holds per call (council 7048963566, cto 7048948339)
+Each call holds its own `max_uses` × `SEARCH_RESULT_TOKENS_EST` × input price × 1.25, not the run's remaining searches at once, so the four specialists' holds can't fill the cap together. S09 test: under the default cap the four specialists start within the stated stagger and none waits on the ledger.
+
+### Revision status (2026-11-20)
+- **data-osint:** items 5, 6, 7, 9, 10 and 16 in `agents.md` (`80e8c81`), plus the CFO rerun and crash-recovery points. Item 6 is to be aligned to holds per call.
+- **frontend:** items 7, 8, 10, 11, 12, 13 and 15 in `ui-build-plan.md` draft 6.
+- **coordinator:** items 1-4 in `77c6252`.
+- **Open:** architect (items 5, 6, 7, 8, 11, 14, 15, the parallel lane, and the suppressions form above) and designer (items 7, 10, 11, 13).
