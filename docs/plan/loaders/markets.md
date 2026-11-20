@@ -73,11 +73,12 @@ market_latest(
 | `fred-citation-required` | true | false | false | **false** (owner permission needed to redistribute) | 2026-11-19, FRED legal page + series notes |
 | `ogdl-tw-1.0` | true | false | false | true | 2026-11-19, https://data.gov.tw/license |
 | `cc-by-4.0` (World Bank) | true | false | false | true | 2026-11-19, https://datacatalog.worldbank.org/public-licenses#cc-by |
-| `provider-personal-s7`, `provider-personal-s3` | true | false | true | false | 2026-11-19, private terms notes by code |
-| `provider-derived-x4` | false | false | false | **false** (commercial use needs the exchange's data licence; legal: CAVEAT self-hosted, LATER hosted) | 2026-11-19, private terms notes, X4 |
-| `provider-attribution-c1` | true ("Powered by" line) | false | false | false | 2026-11-19, private terms notes, C1 |
-| `provider-personal-c3` | true | false | true | false | 2026-11-19, private terms notes, C3 |
-| `rpc-display-o3` | false | false | false | true (chain data "is not Service Content") | 2026-11-19, private terms notes, O3 |
+| `provider-personal-s7` | true | false | true | false | 2026-11-19, https://www.tiingo.com/documentation/appendix/developers |
+| `provider-personal-s3` | true | false | true | false | 2026-11-19, https://www.alphavantage.co/support/ and https://www.alphavantage.co/terms_of_service/ |
+| `provider-derived-x4` | false | false | false | **false** (commercial use needs the exchange's data licence; legal: CAVEAT self-hosted, LATER hosted) | 2026-11-19, https://www.bitstamp.net/api/ |
+| `provider-attribution-c1` | true ("Powered by" line) | false | false | false | 2026-11-19, https://www.coingecko.com/en/api_terms |
+| `provider-personal-c3` | true | false | true | false | 2026-11-19, https://coinpaprika.com/api/pricing/ and https://coinpaprika.com/api-terms-of-use/ |
+| `rpc-display-o3` | false | false | false | true (chain data "is not Service Content") | 2026-11-19, https://www.publicnode.com/terms |
 
 Invariant 3 (§4.2) puts every `redistribution: false` source in `connector-cache`, which matches the storage column below. R17 reads "redistribution = false ⇒ connector-cache; a key is required only where `requires` lists one" (architect, accepted; legal: consistent with memo rule 5). So X4, C3 and the cited FRED series are keyless `connector-cache` sources, and C1's key is optional.
 
@@ -175,7 +176,13 @@ The rules:
 - No ticker ships in the repo, in defaults, fixtures, docs or tests. With no symbol, a slot's state is `needs_symbol` and the UI shows "Choose a fund in settings" with no number (Part G).
 - With a symbol but no key, the state is `needs_key`.
 - Changing a slot's symbol deletes that slot's series rows and refetches.
-- Keys are env vars, never settings (architecture §15). The Settings page shows only whether each is set.
+- Keys are env vars, never settings (architecture §15, row "market connector keys", points here). The Settings page shows only whether each is set and what it unlocks:
+
+| Env var | Required by | Unlocks |
+|---|---|---|
+| `MARKETS_S7_API_KEY` | `stocks-s7` (`requires`) | the 13 fund slots: M01.X.02, M02.X.01, M03.X.02, M04.X.01 |
+| `MARKETS_S3_API_KEY` | `gold-s3` (`requires`) | M05.X.02b, daily gold |
+| `MARKETS_C1_DEMO_KEY` | optional for `crypto-c1` | a stable 10,000 calls/month quota instead of the shared keyless limit |
 
 ### 1.6 Scheduling (`packages/markets/src/schedule.ts`; cto §7)
 
@@ -237,7 +244,7 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 
 | File | Proves |
 |---|---|
-| `packages/markets/src/calc.test.ts` | peak, peak date and drawdown on the planted series; `peakKnown = false` gives `drawdownPct = null` and never 0; value lost only for `series`/`supply`; `totalWiped` sums only `countInTotal` rows (bitcoin and ether with value lost are not added on top of the total crypto market), lists them, and reports a counted row with no value as excluded; the stale thresholds per frequency, including a Monday after a Friday close (not stale) |
+| `packages/markets/src/calc.test.ts` | peak, peak date and drawdown on the planted series; the total-crypto peak uses only the C3 all-time high and the current C1 total (no stored C1 history); `peakKnown = false` gives `drawdownPct = null` and never 0; value lost only for `series`/`supply`; `totalWiped` sums only `countInTotal` rows (bitcoin and ether with value lost are not added on top of the total crypto market), lists them, and reports a counted row with no value as excluded; the stale thresholds per frequency, including a Monday after a Friday close (not stale) |
 | `packages/markets/src/debt.test.ts` | per-second rate and ticker from two fixture rows; label key present |
 | `packages/markets/src/items.test.ts` | one case per M item: every M SHOW/CAVEAT item in `items.generated.ts` has a tile row; `M05.X.02a`, `M06.X.01a` and `M09.X.01` have none, and no connector lists an oracle host (LATER negative tests) |
 | `packages/markets/src/settings.test.ts` | no slot has a default symbol; `needs_symbol` vs `needs_key`; a symbol change deletes the slot's rows |
@@ -406,7 +413,7 @@ Two registry entries share one parser because their licences differ (one storage
   storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
   asOf: [{ strategy: "max_date_in_data", field: "[].date" }], maxPurgeShare: 0,   // proven on real responses in the key round
   deepLink: null, orderUrl: null,
-  requires: ["MARKETS_S7_API_KEY"], limits: { dailyRequests: 1000, requestsPerHour: 50 },
+  requires: ["MARKETS_S7_API_KEY"], limits: { dailyRequests: 1000 },   // the 50/hour cap lives in schedule.ts budgets (1.6)
   items: ["M01.X.02", "M02.X.01", "M03.X.02", "M04.X.01"], purgeScope: "none" }
 ```
 - Terms: S7 runs a programme for open-source software where each user supplies their own key, with attribution required (research, private notes S7). The Settings page links to the provider's sign-up page from `meta.homepage`.
@@ -496,7 +503,7 @@ Two registry entries share one parser because their licences differ (one storage
   limits: { requestsPerSecond: 1 }, items: ["M06.X.01b"], purgeScope: "none" }
 ```
 - Requests: `POST https://bitcoin-rpc.publicnode.com` with `{"jsonrpc":"1.0","id":1,"method":"getbestblockhash","params":[]}`, then `{"jsonrpc":"1.0","id":2,"method":"getblockheader","params":["<hash>"]}`. Read `result.height` and `result.time` (epoch seconds) from the header. Measured 2026-11-20: height 976,676, header 0.3 h old; probe `publicnode_btc_height` in `onchain.py`.
-- Fallback host: O1, `GET https://mempool.space/api/blocks/tip/height`, plain-text integer. O1's software is AGPL-3.0, and users may point `MARKETS_BTC_HEIGHT_URL` at their own instance.
+- Fallback host: O1, `GET https://mempool.space/api/blocks/tip/height`, plain-text integer. Only the two hosts in `officialHosts` are ever called; there is no user-configurable host (a user URL would bypass the allowlist, R14).
 - Supply: `btcSupply(height)` in `packages/markets/src/btc-supply.ts` sums each halving era: 210,000 blocks, subsidy starting at 50 BTC and halved by integer division in satoshis, from block 0 to `height` inclusive. Measured gap to an explorer's reported supply: 28 BTC of 20.1 M (unclaimed early subsidy), documented in the row's note.
 - `asOf` is the best block's header `time`. On the fallback host, the as-of is the tip block's `timestamp` from `GET https://mempool.space/api/block/<hash>` (proven in phase 1). Store one `market_obs` row per UTC day (the last fetch of the day) in series `btc:supply` (`coins`, `daily_7d`), plus a `market_latest` row.
 
@@ -513,8 +520,8 @@ Two registry entries share one parser because their licences differ (one storage
   licence: "provider-attribution-c1", attribution: "<the 'Powered by' line required by C1's terms, private notes C1>",
   storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
   asOf: [{ strategy: "in_file_field", field: "data.updated_at", epoch: "s" }], maxPurgeShare: 0,
-  deepLink: null, orderUrl: null, requires: [], optional: ["MARKETS_C1_DEMO_KEY"],
-  limits: { requestsPerMinute: 10 }, items: ["M06.X.02", "M06.X.01b"], purgeScope: "none" }
+  deepLink: null, orderUrl: null, requires: [],   // MARKETS_C1_DEMO_KEY is optional: see the key table in 1.5 (architecture §15 points here)
+  limits: { requestsPerSecond: 0.2 }, items: ["M06.X.02", "M06.X.01b"], purgeScope: "none" }
 ```
 - **Global:** `GET https://api.coingecko.com/api/v3/global`; reads `data.total_market_cap.usd` and `data.updated_at`. Goes to `market_latest` for series `c1:total_cap` (`usd_cap`).
 - **Ether supply:** `GET https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=ethereum`; reads `[0].circulating_supply` and `[0].last_updated`. Goes to `market_latest` for series `c1:eth_supply` (`coins`).
@@ -540,7 +547,7 @@ Two registry entries share one parser because their licences differ (one storage
   items: ["M06.X.02"], purgeScope: "none" }
 ```
 - `GET https://api.coinpaprika.com/v1/global`; reads `market_cap_ath_value` (USD) and `market_cap_ath_date` (ISO), stored as the single seed of series `c3:total_cap_peak`, plus `last_updated`.
-- The peak for `M06.X.02` = max(`market_cap_ath_value`, the highest C1 snapshot ever seen in this install). `peakDate` follows whichever is larger. `peakKnown` is true, because the all-time high is on or before any `peakSince`.
+- The peak for `M06.X.02` = max(`market_cap_ath_value`, the **current** C1 total). No C1 history is kept or compared (C1's terms allow only a refreshed latest snapshot), so the current value is the only C1 figure used. If the current total is higher, the drawdown is 0 and the row shows "at its peak". `peakDate` follows whichever is larger: the C3 date, or the C1 `updated_at` date. `peakKnown` is true, because the all-time high is on or before any `peakSince`.
 - **Caveat on meaning:** this is the all-time high, not "the highest close since `peakSince`". If the all-time high falls before `peakSince`, the row's peak date shows it. The row's note states "all-time high" (designer to place).
 
 **Items:** `M06.X.02`. **Field map:** the three fields above. **Fixtures:** `fixtures/c3-global.json`. **Tests:** `packages/sources/src/intl/c3/c3.test.ts` (peak rule with a higher local snapshot). **Failure modes:** keep the last peak; it doesn't go stale (an all-time high only moves up, and local snapshots cover that).

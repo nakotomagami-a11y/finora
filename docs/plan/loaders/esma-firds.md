@@ -10,7 +10,7 @@
   - `fq=mic:<MIC>` for the six MICs below
   - `fq=gnr_cfi_code:ES*` (shares; CFI category E, group S)
   - `fq=type_s:parent`
-  - `rows=500`, `wt=json`
+  - `rows=500`, `wt=json`. The loader checks `response.numFound`: if it exceeds the documents returned (measured maximum 33 per venue), it pages with `start` in steps of 500. A venue whose pages don't add up to `numFound` ends the sync `partial` with `truncated`.
   - `fl=isin,lei,mic,gnr_cfi_code,mrkt_trdng_start_date,mrkt_trdng_trmination_date,latest_received_flag,status,valid_to_date,publication_date`
   - No `latest_received_flag` filter on the request: the loader needs every version to compute "listed since" (see Field map).
 - **Venues (MIC, ISO 10383):** `XRIS` Riga main, `XTAL` Tallinn main, `XLIT` Vilnius main, `FNLV`, `FNEE`, `FNLT` (the three growth markets). Venue labels come from the ISO 10383 institution name of each MIC, kept in `packages/sources/src/intl/esma-firds/venues.ts`.
@@ -35,6 +35,7 @@ export const meta: SourceMeta = {
   publishedAtUtc: "08:00",
   asOf: [{ strategy: "max_date_in_data", field: "response.docs[].publication_date" }],
   maxPurgeShare: 0.07,
+  purgeScope: "full",
   deepLink: "https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds&isin={isin}",
   orderUrl: null,
   requires: [],
@@ -88,7 +89,8 @@ Not applicable in the party sense: FIRDS rows are instruments, not parties. The 
 ## Refresh and change
 
 - **Full load and refresh** are the same: 6 requests, every version of every Baltic share record (about 120 documents measured), grouped in memory by (`isin`, `mic`).
-- **Change detection:** content hash over the six raw responses; equal → one `unchanged` sync row. Otherwise the row hash per record key.
+- **Change detection:** content hash over the six raw responses plus `parserVersion`; both equal → one `unchanged` sync row. Otherwise the row hash per record key.
+- **`purgeScope: "full"`:** the six responses together define the source, so a listing absent from all of them is removed (subject to the purge guard and `venue_empty`).
 - **Removal:** a listing that ends (termination date set, `TERM`, or absent from every response) is **deleted** with its Security entity. History event on the company: `finora.listing_ended` with `data: { mic, isin }` and the sync date, item `S14.LTLVEE.01`. A new listing emits `finora.listing_added`.
 - **Unchanged file:** one sync row, no writes.
 - **Record unit and sort:** one listing, (`isin`, `mic`), built from all its versions; sorted by `mic`, then `isin`. Hash input `[isin, mic, listedSince, lei]`.
