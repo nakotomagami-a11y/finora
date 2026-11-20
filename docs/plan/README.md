@@ -96,7 +96,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/council/01-data-cto.md` (cto's feasibility, cost and scaling calls) | cto (committed by coordinator) | 2 | done 2026-11-20 |
 | `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | **done** 2026-11-20: Part G final, 155 rows after the WHOIS ruling (SHOW 41, CAVEAT 59, LATER 50, HIDE 5), confirmed by council and cto |
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | milestone A **closed** (store and loader contract, verified by qa at `faed2df`; `docs/plan/reviews/01-milestone-a.md`); milestone B in progress |
-| `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
+| `DESIGN.md`, `docs/design/IA.md`, mockups (`docs/design/mockups/`) | designer | 3 | v1 and 8 mockup pages (~60 states) pushed `7dc2e76`; web-qa review next |
 | `docs/plan/loaders/README.md` (spec template and ownership) | coordinator | 3 | done |
 | `docs/plan/loaders/*.md` | data seats | 3 | landed: `markets.md`, `esma-firds.md` (data-markets, `d3fce4c`, fixed contract `384ddb4`); `gleif.md`, `us-states.md`, `us-sec.md`, `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (data-us, `4e820f1`, fixed contract `e5fd7bd`) |
 | `docs/plan/agents.md` | data-osint | 3 | landed `1ecbbc4`; court portals (§4.5a) to follow; §16 lists contract additions for the architect |
