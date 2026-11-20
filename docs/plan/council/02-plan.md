@@ -149,4 +149,5 @@ Each call holds its own `max_uses` × `SEARCH_RESULT_TOKENS_EST` × input price 
 - **coordinator:** items 1-4 in `77c6252`.
 - **architect:** items 3 (lane), 5, 7, 8, 11, 13, 14 (slice splits: S04a/S04i/S04f, S04b/S04u, S09a/S09b, S15r/S15g/S15f, S20 and S24 server/UI) and 15 in `47acc2b`. Two points in it predate the final rulings and are to be aligned: US suppressions must be **role-level**, and item 6 holds are **per call**.
 - **data-osint:** item 6 aligned to holds per call in `bee282f` (`agents/src/budget.parallel.test.ts`).
-- **Open:** the architect's two alignments above; designer (items 7, 10, 11, 13).
+- **Council confirmation (7049016483):** the revision in `47acc2b` is confirmed and **S01 is go**, except two lines to fix in one commit, each verified by qa at its gate: `architecture.md:1121` → role-level US restrictions (gates S12); `architecture.md:808` → holds per call matching `agents.md` §8.1 (gates S09a). qa verified data-osint's items 5-10 and 16 and the architect's 3, 5, 7, 8, 11, 14 and 15.
+- **Open:** the architect's two alignments; designer (items 7, 10, 11, 13); frontend's draft 6 to be verified by qa.

@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: S01-S03 approved; S04+ gated on 16 fixes | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01-S03 | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01 (architect), then S02-S03 (frontend) | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
