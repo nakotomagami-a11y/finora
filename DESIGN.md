@@ -165,7 +165,7 @@ Summary; routes and the tool manifest are in `docs/design/IA.md`.
 | Investigate | `company.html?state=estimate`, `nokey`, `daily-cap` | pre-run cost estimate; no AI key; daily cap reached |
 | Investigation running | `company.html?state=streaming` | agent panel with lanes and task sub-rows; findings landing; header stats |
 | Agent asks you | `company.html?state=question&q=…` | which company (no default), possible sanctions match, scope and cost, cost cap reached, cap reached with the extension used |
-| Report | `company.html?state=report`, `partial` | No concerns found, Points to check, Serious concerns, Not enough data, facts only; one agent failed |
+| Report | `company.html?state=report`, `partial` | No concerns found, Points to check, Serious concerns, Not enough data; one agent failed (the web agent, so check 11 is not run). The facts-only variant is a profile state (`?country=sole-trader`) |
 | Network explorer | `network.html` | graph, list twin, address hosting 412 companies, no links, loading, error |
 | Library | `library.html` | list, filtered, empty, loading, error |
 | Crash monitor | `crash.html` | no keys (official only), keys and funds set, one source stale, one source failed, loading |
@@ -197,7 +197,8 @@ The calls are Part G; the treatments the mockups show:
 - **S07:** headcount plus a 24-month line; EE uses the three council lines ("N employees on [date] …", "No employee count from the tax board for [quarter]", "Paid no state taxes in [year] …").
 - **S08:** an arrears check line first, then taxes by year. LV debt amount is MANUAL; LV rating verbatim. EE tax data carries a `CC BY-SA` tag and "Left out of exports". LT shows the LT 180-day age rule as not evaluated until snapshots cover it. US collapses to one line. Sole traders: no S08 at all (HIDE).
 - **S09:** one check line per register; US says "Checked UCC filings in Colorado and Connecticut only; other states not checked".
-- **S10, S11 live lists, S15, S16:** AGENT on the profile; a running line during a run; findings in the report. Court parties who are not proven companies read "a private individual" (P8).
+- **S10 in LT, LV and EE:** MANUAL in v1 (council, Baltic court rows): "Check manually at the official court-decision portal", with a caveat that agents don't search it in this version. Check 10 counts as not possible there, and the coverage line names it ("court cases (check manually at the court portal)"); never "none found". In LV, case numbers on S09 events link to the portal, but that does not count as running check 10. Baltic investigations reach at most 10 of 11 checks.
+- **S10 in the US, S11 live lists, S15, S16:** AGENT on the profile; a running line during a run; findings in the report. Court parties who are not proven companies read "a private individual" (P8).
 - **S11:** one line per list with its as-of date; a hit becomes a question card (§9.2).
 - **S14:** US public only: ticker, net insider buys and sells per quarter behind the purpose gate.
 - **S17:** a one-line summary with a "Derived by Finora" chip and "Open the network explorer".

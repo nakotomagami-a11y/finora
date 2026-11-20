@@ -55,7 +55,7 @@
     code: "40000FX0017", codeLabel: "Registration no.",
     registered: "12 Mar 2014", address: "Parauga iela 1, Rīga, LV-1000", activity: "16.10 Sawmilling and planing of wood",
     vat: "LV40000FX0017", lei: null,
-    coverage: { official: "status, officers, company members, financial statements, taxes paid, tax rating, insolvency and securing measures, sanctions links", notOpen: "beneficial owners and members who are private individuals (restricted), tax debt amounts (manual lookup only)" },
+    coverage: { official: "status, officers, company members, financial statements, taxes paid, tax rating, insolvency and securing measures, sanctions links", notOpen: "beneficial owners and members who are private individuals (restricted), tax debt amounts (manual lookup only), court cases (check manually at the court portal)" },
     checks: [
       ["Pinned to a registry record", "ok", "Registration no. 40000FX0017"],
       ["Status current and active", "soft", "Active · renamed on 3 Sep 2026 (within 6 months)"],
@@ -66,7 +66,7 @@
       ["Tax and social-insurance arrears", "ok", "Tax rating A; debt amounts are a manual lookup"],
       ["Insolvency, liquidation, pledges, securing measures", "soft", "1 open securing measure since 2 Oct 2026"],
       ["Sanctions and watchlists", "ok", "5 lists checked, none found"],
-      ["Court cases", "ok", "Legal agent: 1 ruling found, company was the claimant"],
+      ["Court cases", "notrun", "Check manually at the official court-decision portal"],
       ["Web presence consistent with the register", "ok", "Website names the same registration number"],
     ],
   };
@@ -76,7 +76,7 @@
     name: "Näidis Freight OÜ", form: ["OÜ", "private limited company"], status: ["Registrisse kantud", "entered in the register", "good"],
     code: "1FX000017", codeLabel: "Registry code", registered: "4 Jun 2019", address: "Näidise tn 1, Tallinn, 10111", activity: "49.41 Freight transport by road",
     vat: "EE10FX000017", lei: "5299FX00EXAMPLE00017",
-    coverage: { official: "status, officers, company members, annual report figures, the daily tax-debtor list, taxes paid, pledges", notOpen: "beneficial owners and members who are private individuals (restricted), court cases (searched by the legal agent)" },
+    coverage: { official: "status, officers, company members, annual report figures, the daily tax-debtor list, taxes paid, pledges", notOpen: "beneficial owners and members who are private individuals (restricted), court cases (check manually at the court portal)" },
     checks: [
       ["Pinned to a registry record", "ok", "Registry code 1FX000017"],
       ["Status current and active", "ok", "Entered in the register since 4 Jun 2019"],
@@ -87,7 +87,7 @@
       ["Tax and social-insurance arrears", "ok", "Not on the tax debtor list"],
       ["Insolvency, liquidation, pledges, securing measures", "soft", "1 commercial pledge registered 2024"],
       ["Sanctions and watchlists", "ok", "5 lists checked, none found"],
-      ["Court cases", "ok", "Legal agent: none found"],
+      ["Court cases", "notrun", "Check manually at the official court-decision portal"],
       ["Web presence consistent with the register", "ok", "Website matches the register's website field"],
     ],
   };
@@ -97,7 +97,7 @@
     name: "Pavyzdys Bakery UAB", form: ["UAB", "private limited company"], status: ["Teisinis statusas neįregistruotas", "no legal proceedings", "good"],
     code: "30FX00017", codeLabel: "Company code", registered: "21 Jan 2011", address: "Pavyzdžio g. 1, Vilnius, LT-01100", activity: "10.71 Manufacture of bread and fresh pastry",
     vat: "LT30FX000171", lei: null,
-    coverage: { official: "status, role facts (no names), financial statements, taxes paid, daily tax and social-insurance arrears, insured counts, bankruptcy reports", notOpen: "names of officers and owners (paid register extract), court cases (searched by the legal agent)" },
+    coverage: { official: "status, role facts (no names), financial statements, taxes paid, daily tax and social-insurance arrears, insured counts, bankruptcy reports", notOpen: "names of officers and owners (paid register extract), court cases (check manually at the court portal)" },
     checks: [
       ["Pinned to a registry record", "ok", "Company code 30FX00017"],
       ["Status current and active", "ok", "No legal proceedings"],
@@ -108,7 +108,7 @@
       ["Tax and social-insurance arrears", "soft", "On the tax arrears list: €3,420 since 2 Sep 2026; the 180-day age rule is not evaluated yet (tracked since 16 Nov 2026)"],
       ["Insolvency, liquidation, pledges, securing measures", "ok", "Bankruptcy reports checked (published up to Oct 2025)"],
       ["Sanctions and watchlists", "ok", "6 lists checked, none found"],
-      ["Court cases", "notrun", "Legal agent did not finish (court portal timed out)"],
+      ["Court cases", "notrun", "Check manually at the official court-decision portal"],
       ["Web presence consistent with the register", "ok", "Website names the same company code"],
     ],
   };

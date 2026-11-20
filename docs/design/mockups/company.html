@@ -256,7 +256,7 @@
     let rows;
     if (subj.key === "lv") rows = `
       ${R("Insolvency proceedings", { state: "checked_none", sourceName: "the insolvency register", asOf: "19 Nov 2026", src: S.insLV })}
-      ${R("Securing measures", { state: "data", html: `1 open: prohibition on registering changes, since 2 Oct 2026 ${sev("point_to_check")}`, src: S.insLV, conf: "official" })}
+      ${R("Securing measures", { state: "data", html: `1 open: prohibition on registering changes, since 2 Oct 2026 ${sev("point_to_check")} <span class="small muted num">· case no. FX-C12-0451-26 · <a href="#" onclick="return false">court portal ${icon("ext", "icon icon-sm")}</a></span>`, src: S.insLV, conf: "official" })}
       ${R("Liquidation", { state: "checked_none", sourceName: "the Enterprise Register", asOf: "19 Nov 2026", src: S.urLV })}
       ${R("Activity suspensions", { state: "checked_none", sourceName: "the State Revenue Service", asOf: "19 Nov 2026", src: S.vid })}`;
     else if (subj.key === "ee") rows = `
@@ -271,9 +271,13 @@
   function courtsSection() {
     if (state === "loading" || natural) return "";
     let body;
+    if (subj.cc !== "US") {
+      // Council (Baltic court rows): MANUAL in v1 for LT, LV and EE; check 10 counts as not possible.
+      return section({ id: "courts", sid: "S10", title: "Courts", body: `<div class="rows">${R("Court cases", { state: "not_checked", reason: "manual_lookup", site: "the official court-decision portal" })}</div>
+        <span class="caveat" style="margin-top:8px">${icon("info", "icon icon-sm")}<span>Agents don't search ${esc(subj.country)}'s court portal in this version, so check 10 counts as not possible here. A partial court search would read as complete, which it isn't.${subj.key === "lv" ? " Case numbers on insolvency and securing-measure events link to the portal (S09)." : ""}</span></span>` });
+    }
     if (phase === "profile") body = `<div class="rows">${R("Court cases", { state: "not_checked", reason: "agent_only", agent: "legal, insolvency and sanctions" })}</div>`;
     else if (state === "streaming" || state === "question") body = running("legal, insolvency and sanctions", "searching the court rulings portal");
-    else if (state === "partial") body = `<div class="rows">${R("Court cases", { state: "not_checked", reason: "error", text: "the court portal timed out, so the legal agent did not finish" })}</div>`;
     else if (subj.key === "us-public") body = finding({ text: "One federal civil case names a party with the same name. The court record has no company identifier, so this is a possible match by name and needs your review.", sev: "point_to_check", conf: "single", src: S.court, agent: "Legal" });
     else body = finding({ text: "One anonymised ruling from 2023 matches the company's registration number: a payment dispute where the company was the claimant and won.", sev: "none_found", conf: "official", src: S.court, agent: "Legal" });
     return section({ id: "courts", sid: "S10", title: "Courts", body: body + `<span class="caveat" style="margin-top:8px">${icon("info", "icon icon-sm")}<span>Searched by the legal agent at query time; possible matches need review. Private individuals in court records are shown as "a private individual".</span></span>` });
@@ -326,6 +330,7 @@
     if (phase === "profile") body = `<div class="rows">${R("Website and domain", { state: "not_checked", reason: "agent_only", agent: "web, domain and news" })}${R("News", { state: "not_checked", reason: "agent_only", agent: "web, domain and news" })}</div>`;
     else if (state === "streaming" || state === "question") body = `${finding({ text: "The website names the same registration number in its footer, and certificate logs show the domain in use since 2014, the year the company was registered.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web", landing: true })}
       <div style="margin-top:10px">${running("web, domain and news", "reading the news index (query 2 of 4)")}</div>`;
+    else if (state === "partial") body = `<div class="rows">${R("Website and domain", { state: "not_checked", reason: "error", text: "the company's website did not answer, so the web agent did not finish" })}</div>`;
     else body = `${finding({ text: "The website names the same registration number in its footer, and certificate logs show the domain in use since 2014, the year the company was registered.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web" })}
       <div style="height:10px"></div>
       ${finding({ text: "One regional news item mentions the name. Not confirmed to be this company: the article gives no registration number or website.", sev: "none_found", conf: "single", src: S.news, agent: "News" })}`;
@@ -344,9 +349,10 @@
   function checksList(checks, opts = {}) {
     return `<div class="checks" role="list">${checks.map(([t, s, why], i) => {
       let st = s;
-      if (opts.instant && i >= 9) st = "pending";
+      const pendingRow = opts.instant && i >= 9 && s !== "notrun";
+      if (pendingRow) st = "pending";
       const [cls, ic, lbl] = CHECK_IC[st];
-      return `<div class="check" role="listitem" ${opts.ids ? `id="check-${i + 1}"` : ""}><span class="check-ic ${cls}" title="${lbl}">${icon(ic, "", lbl)}</span><span class="check-body"><span class="check-title">${i + 1}. ${esc(t)}</span><span class="check-why">${opts.instant && i >= 9 ? "Runs when you investigate" : esc(why)}</span></span></div>`;
+      return `<div class="check" role="listitem" ${opts.ids ? `id="check-${i + 1}"` : ""}><span class="check-ic ${cls}" title="${lbl}">${icon(ic, "", lbl)}</span><span class="check-body"><span class="check-title">${i + 1}. ${esc(t)}</span><span class="check-why">${pendingRow ? "Runs when you investigate" : esc(why)}</span></span></div>`;
     }).join("")}</div>`;
   }
 
@@ -354,7 +360,7 @@
     const c = subj.checks.map((x) => [...x]);
     if (level === "none") c.forEach((x) => { if (x[1] === "soft") { x[1] = "ok"; x[2] = "None found"; } });
     if (level === "serious") { c[7] = [c[7][0], "hard", "Insolvency proceedings started 14 Nov 2026"]; }
-    if (state === "partial") c[9] = [c[9][0], "notrun", "Legal agent did not finish (court portal timed out)"];
+    if (state === "partial") c[10] = [c[10][0], "notrun", "Web agent did not finish (the website did not answer)"];
     return c;
   }
 
@@ -416,8 +422,8 @@
       { n: "Lead: resolve and plan", st: "done", meta: "14 s · $0.02", step: "Pinned to registration no. 40000FX0017" },
       { n: "Registry and people", st: "done", meta: "22 s · $0.05", tasks: [["done", "register file", "1"], ["done", "officers", "1"], ["done", "company members", "1"], ["done", "name history", "1"], ["done", "our snapshots", "1"]] },
       { n: "Money and tax", st: "done", meta: "28 s · $0.06", tasks: [["done", "annual reports", "1"], ["done", "quarterly taxes", "1"], ["done", "tax rating", "1"], ["skipped", "tax debt amount: manual lookup only", "0"]] },
-      { n: "Legal, insolvency and sanctions", st: q === "sanctions" && state === "question" ? "waiting" : state === "partial" ? "failed" : "running", meta: "31 s · usually under 1 min · $0.05", tasks: [["done", "insolvency register", "1"], ["done", "securing measures", "1"], ["done", "EU consolidated list", "1"], ["done", "OFAC lists", "1"], ["done", "UK Sanctions List", "1"], ["done", "FIU frozen-assets list", "1"], ["running", "UN list (live)", "0"], [state === "partial" ? "failed" : "running", "court rulings portal", "2"], ["queued", "central bank warnings", "0"]] },
-      { n: "Web, domain and news", st: "running", meta: "48 s · usually 1-2 min · $0.09", step: "reading the news index (query 2 of 4)", tasks: [["done", "find the website", "3"], ["done", "DNS", "1"], ["done", "certificate logs", "1"], ["done", "homepage", "1"], ["running", "news index", "2"], ["queued", "web search 3 of 4", "0"], ["queued", "web search 4 of 4", "0"]] },
+      { n: "Legal, insolvency and sanctions", st: q === "sanctions" && state === "question" ? "waiting" : state === "partial" ? "done" : "running", meta: "31 s · usually under 1 min · $0.05", tasks: [["done", "insolvency register", "1"], ["done", "securing measures", "1"], ["done", "EU consolidated list", "1"], ["done", "OFAC lists", "1"], ["done", "UK Sanctions List", "1"], ["done", "FIU frozen-assets list", "1"], ["running", "UN list (live)", "0"], ["skipped", "court portals: manual in the Baltics", "0"], ["queued", "central bank warnings", "0"]] },
+      { n: "Web, domain and news", st: state === "partial" ? "failed" : "running", meta: "48 s · usually 1-2 min · $0.09", step: state === "partial" ? "stopped: the website did not answer" : "reading the news index (query 2 of 4)", tasks: [["done", "find the website", "3"], ["done", "DNS", "1"], ["done", "certificate logs", "1"], [state === "partial" ? "failed" : "done", "homepage", "1"], ["running", "news index", "2"], ["queued", "web search 3 of 4", "0"], ["queued", "web search 4 of 4", "0"]] },
       { n: "Verdict", st: "queued", meta: "usually 15-30 s", step: "" },
     ];
     if (state === "question" && q === "entity") L.forEach((l, i) => { if (i === 0) { l.st = "waiting"; l.step = "waiting for you: which company is it?"; l.meta = "12 s · $0.02"; } else { l.st = "queued"; l.tasks = undefined; l.step = ""; l.meta = "waits for the lead"; } });
@@ -443,7 +449,7 @@
     if (state === "loading") return `<section class="card" style="padding:16px"><span class="sk" style="width:50%;height:18px"></span><div style="height:12px"></div>${Array.from({ length: 6 }, () => '<span class="sk" style="margin:10px 0"></span>').join("")}</section>`;
     return `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px" aria-labelledby="ic-h">
       <h2 id="ic-h" class="serif" style="font-size:22px">Checks from official data</h2>
-      <p class="small muted">The instant profile runs checks 1 to 9 from loaded registers. Checks 10 and 11 need agents.</p>
+      <p class="small muted">The instant profile runs checks 1 to 9 from loaded registers. Agents run check 11${subj.cc === "US" ? " and check 10" : ""}; ${subj.cc === "US" ? "" : "court cases are a manual check in this country, so check 10 is not possible."}</p>
       ${checksList(subj.checks, { instant: true })}
       <a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate · typically $0.46</a>
     </section>`;
@@ -550,7 +556,7 @@
         </div><aside class="aside" tabindex="0" aria-label="Agents">${lanes()}</aside></div></div>`;
     }
     const top = phase === "report" || (natural && state === "full") ? verdictBlock() : "";
-    const banner = state === "partial" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One agent did not finish.</strong> The legal agent stopped when the court portal timed out, so check 10 counts as not run. Other findings are complete. <button class="link-btn" type="button">Re-run the legal agent</button></span></div>` : "";
+    const banner = state === "partial" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One agent did not finish.</strong> The web agent stopped when the company's website did not answer, so check 11 counts as not run. Other findings are complete. <button class="link-btn" type="button">Re-run the web agent</button></span></div>` : "";
     const runBar = phase === "run" ? `<div class="run-bar" role="status"><span>${reconnecting ? "Reconnecting" : state === "question" ? "Needs you" : "4 agents · 2 running"} · $0.27 of $1.50</span><a href="#agents">Show agents</a></div>` : "";
     const qcard = state === "question" ? questionCard() : reconnecting ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Connection lost at 09:43:12. Reconnecting (attempt 2)…</strong> The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost. <button class="link-btn" type="button">Retry now</button></span></div>` : "";
     const sections = [statusSection(), peopleSection(), ownersSection(), financialsSection(), workforceSection(), taxSection(), insolvencySection(), courtsSection(), sanctionsSection(), filingsSection(), securitiesSection(), webSection(), networkSection()].join("");
