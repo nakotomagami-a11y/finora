@@ -63,6 +63,8 @@ B1-B3 and S1-S4 are closed in `3c6cd90`: a `leases` table taken inside `BEGIN IM
 
 **Final backup spec (2026-11-20; cto 7048844734 and 7048855348, legal 7048848652, qa 7048838567):** exclude **by table, not by row**: a per-row "holds natural-person data" judgement is one the code can get wrong. Backed up: settings; fund slots; judgements (`eid_a`, `eid_b`, decision, by, at; any row touching an entity with `natural_person = 1` excluded; no note column); disputes only where the item is non-personal and the entity has `natural_person = 0` (content hashes); `purpose_log` (company eid + purpose); the index of pinned company investigations (id, subject eid, status, level, coverage, cost, dates; unpinned free-text investigations excluded entirely; never the typed text). Excluded as whole tables: findings text, citation snapshots, `documents`, question and answer text, follow-ups. `store/src/backup-classes.test.ts` classifies every table and asserts each filter by name. `deletions.log` fails closed (in `8db4e4a`). 3 daily backups. The architect's row-level `WHERE personal = 0` in `8db4e4a` is replaced by this.
 
+**Landed in `c2b6dbc`:** the architecture's §16 and S12 follow the final spec (no row filter and no `VACUUM INTO` left; `suppressions` added to the allowlist; run events and tasks and signals added to the excluded tables). Legal confirmed (7048878772). Waiting: qa's verification and cto's one line.
+
 ## Council decision
 
 Pending.
