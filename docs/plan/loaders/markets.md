@@ -20,14 +20,14 @@ This is a group spec: one shared part (series model, maths, scheduling, settings
 | `M04.X.01` | CAVEAT fund text, KEY | Canada, Brazil (2 slots) | `stocks-s7` | no |
 | `M05.X.01` | CAVEAT "Monthly average" | Gold, monthly | `intl-worldbank-pinksheet` | no |
 | `M05.X.02b` | CAVEAT "With your own key; personal use" | Gold, daily | `gold-s3` | no |
-| `M06.X.01b` | CAVEAT "Self-hosted, personal use" | Bitcoin, ether | `crypto-x4-ohlc` (price), `crypto-o3-btc-height` (bitcoin supply), `crypto-c1` (ether supply) | bitcoin: yes; ether: yes, citing C1 for supply |
+| `M06.X.01b` | CAVEAT "Self-hosted, personal use" | Bitcoin, ether | `crypto-x4-ohlc` (price), `crypto-o3-btc-height` (bitcoin supply), `crypto-c1` (ether supply) | bitcoin: yes; ether: yes, citing C1 for supply; neither counted in the total |
 | `M06.X.02` | CAVEAT "Personal use; attribution" | Total crypto market | `crypto-c1` (now), `crypto-c3-global` (peak) | yes: both are USD caps |
 | `M07.X.01` | SHOW | Brent, WTI ($/barrel) | `us-fred-open` (`DCOILBRENTEU`, `DCOILWTICO`) | no: price only |
 | `M08.X.01` | SHOW, "Ticker is an estimate" | US national debt | `us-treasury-debt` | n/a |
 
 **Not built (LATER, no connector, negative-tested):** `M05.X.02a` and `M06.X.01a` (the oracle route, O5), `M09.X.01` (macro tiles). No code may call an oracle contract or create an M09 tile; see `items.test.ts` in 1.9.
 
-**Value lost** is shown only where the row says yes (council: "only where the source's terms allow it and are quoted"). Fund rows, index rows and gold show drawdown only, until legal clears one cited cap figure per market (`markets.md` open question 1). The tile config carries `valueLost: "series" | "supply" | null`, and nothing else computes it.
+**Value lost** is shown only where the row says yes (council: "only where the source's terms allow it and are quoted"). Fund rows, index rows and gold show drawdown only, until legal clears one cited cap figure per market (`markets.md` open question 1). The tile config carries `valueLost: "series" | "supply" | null` and `countInTotal: boolean` (1.4 step 8), and nothing else computes either.
 
 **Dropped from research, not needed in v1:** FX (ECB, Fed H.10). FX was only needed to turn Asian caps into USD, and v1 shows no Asian value lost. KRX (Korea) is also dropped: Korea comes through a fund slot. The second stock connector (S6) is also dropped: one connector (S7) fills every fund slot.
 
@@ -99,7 +99,11 @@ Inputs per series: observations `obs` (date ascending, within the window), the o
    - `valueLost: "series"` (unit `usd_cap` or Z.1 `usd`): `peak − current`
    - `valueLost: "supply"`: `(peak − current) × supplyNow`, with `supplyNow` from the supply series' latest value (bitcoin: computed from block height; ether: C1 circulating supply). The result cites both series.
    - otherwise `null`.
-8. `totalWiped` = the sum of non-null `valueLost` across tiles, returned with the list of tile rows it includes and the oldest `asOf` among them. The UI decides how to label a sum of quarterly and live figures (designer).
+8. `totalWiped` = the sum of non-null `valueLost` over the rows whose tile config has **`countInTotal: true`**. It is returned with the rows it includes and the oldest `asOf` among them.
+   - `countInTotal` is true only for `M01.X.01` (US corporate equities) and `M06.X.02` (total crypto market).
+   - Bitcoin and ether (`M06.X.01b`) are false, because the total crypto market already contains them (designer, 7029912590).
+   - If a counted row has no value lost (source down or stale), the total omits it and lists it under `excludedItemIds`. It is never replaced by its parts.
+   - Display: "Value below peaks ≈ $X trillion" with the list of rows and the oldest as-of (DESIGN.md §12).
 9. **Stale** (council clarification 1, 2× cadence):
 
    | Frequency | Stale when the last observation is older than |
@@ -127,7 +131,7 @@ Inputs per series: observations `obs` (date ascending, within the window), the o
 | `asOf` | `currentAt` (step 2) |
 | `sources` | the `SourceRef`s of the series used, plus `derived: true` and the input series for computed values |
 
-`CrashResponse.totalWiped.valueMicroUsd` is step 8, and `rowItemIds` and `oldestAsOf` are as defined there.
+`CrashResponse.totalWiped.valueMicroUsd` is step 8, and `rowItemIds` and `oldestAsOf` are as defined there. It also needs **`excludedItemIds: ItemId[]`** (counted rows that had no value), listed with the four row fields below.
 
 **Four fields this spec needs that §8 doesn't have yet** (architect, for the S04b contract):
 
@@ -233,7 +237,7 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 
 | File | Proves |
 |---|---|
-| `packages/markets/src/calc.test.ts` | peak, peak date and drawdown on the planted series; `peakKnown = false` gives `drawdownPct = null` and never 0; value lost only for `series`/`supply`; `totalWiped` lists its rows; the stale thresholds per frequency, including a Monday after a Friday close (not stale) |
+| `packages/markets/src/calc.test.ts` | peak, peak date and drawdown on the planted series; `peakKnown = false` gives `drawdownPct = null` and never 0; value lost only for `series`/`supply`; `totalWiped` sums only `countInTotal` rows (bitcoin and ether with value lost are not added on top of the total crypto market), lists them, and reports a counted row with no value as excluded; the stale thresholds per frequency, including a Monday after a Friday close (not stale) |
 | `packages/markets/src/debt.test.ts` | per-second rate and ticker from two fixture rows; label key present |
 | `packages/markets/src/items.test.ts` | one case per M item: every M SHOW/CAVEAT item in `items.generated.ts` has a tile row; `M05.X.02a`, `M06.X.01a` and `M09.X.01` have none, and no connector lists an oracle host (LATER negative tests) |
 | `packages/markets/src/settings.test.ts` | no slot has a default symbol; `needs_symbol` vs `needs_key`; a symbol change deletes the slot's rows |
