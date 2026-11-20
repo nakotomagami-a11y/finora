@@ -11,7 +11,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 1. Data research | **done** | 2026-11-19 | 2026-11-20 |
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
-| 4. Council session 2: plan approval | **done**: S01-S03 approved; S04+ gated on 16 fixes | 2026-11-20 | 2026-11-20 |
+| 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
 | 5. Build, slice by slice | **in progress**: S01 (architect), then S02-S03 (frontend) | 2026-11-20 | |
 | 6. Done | | | |
 
