@@ -165,7 +165,7 @@ Not applicable: these files describe companies only, with no party rows. They ar
 - Daily full files. Unchanged sha256 (and unchanged `parserVersion`, review item A1) → one `unchanged` sync row, nothing else.
 - Removal: a code absent from both entity files is deleted with its rows (it should not happen; the register keeps deregistered codes). `maxPurgeShare` and `purgeScope` per source: Contract values above. A normal day has about 40 new registrations and 13 moves to the deregistered file and no removal from the union.
 - History events (§3.7), emitted by comparing the old and new record of an entity:
-  - `finora.renamed` (old and new name; companies only, never natural-person forms), `finora.address_changed` (companies only), `finora.status_changed` (old and new normalised status and `stat_kodas`), `finora.legal_form_changed`, all item S02.LT.01;
+  - `finora.name_changed` (old and new name; companies only, never natural-person forms), `finora.address_changed` (companies only), `finora.status_changed` (old and new normalised status and `stat_kodas`), `finora.legal_form_changed`, all item S02.LT.01;
   - `finora.capital_changed` (old and new amount and currency), item S02.LT.01;
   - `finora.role_ended` from bodies: a flag going 1 → 0, or a `*Since` date changing (a new appointment), writes "a [manager | board | council | supervisory board] role ended on [sync date]" with no name, item S03.LT.01.
   - Natural-person forms emit only `finora.status_changed` and `finora.legal_form_changed`.

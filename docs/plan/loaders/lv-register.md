@@ -198,7 +198,7 @@ Not applicable to the identity rows: `register.csv` is the register itself, and 
 - **Measured churn between two daily pulls:** register 43 added, 0 removed, 56 changed; liquidations 14 added, 13 removed; reorganisations 3 added, 1 removed; equity 55 added, 31 removed; memorandum 42 added, 13 removed.
 - **Purge guard:** `maxPurgeShare` 0.02 per family (table in § Source). An empty or cut-off file ends `partial` with `purge_guard`.
 - **History events** (ingest step 5, §3.7), from the old and new statements of a changed register record:
-  - `name` changed → `finora.renamed` (`data = {old, new}`; NP: no names in `data`, only `{changed: true}`);
+  - `name` changed → `finora.name_changed` (`data = {old, new}`; NP: no names in `data`, only `{changed: true}`);
   - `address` changed → `finora.address_changed` (NP: never emitted, there is no address);
   - `status` changed → `finora.status_changed`;
   - `type` changed → `finora.legal_form_changed`;
@@ -265,7 +265,7 @@ The LV total across the five LV specs is ≈ 1.25 GB of rows, ≈ 1.6 GB with se
 | `packages/sources/src/licences.test.ts` (shared) | `cc0-1.0` + `store` passes the invariants. Every host in `officialHosts` |
 | `fixtures/ids.test.ts` (shared) | LV fixture codes fail the real check digit and pass the fixture variant |
 | `packages/ingest/src/unchanged.test.ts`, `purge.test.ts`, `partial.test.ts`, `stale.test.ts` (shared) | Run with this source's fixture: unchanged file → one sync row; removed liquidation row → event deleted; interrupted sync purges nothing; older as-of skipped |
-| `packages/ingest/src/history.test.ts` (shared) | Fixture day 2 renames a company, moves an address, changes capital → `finora.renamed`, `finora.address_changed`, `finora.capital_changed`. An NP rename has no names in `data` |
+| `packages/ingest/src/history.test.ts` (shared) | Fixture day 2 renames a company, moves an address, changes capital → `finora.name_changed`, `finora.address_changed`, `finora.capital_changed`. An NP rename has no names in `data` |
 | `packages/ingest/src/shared-address.test.ts` | Two companies at one `addressid` → count 2. The address shared with a sole trader → no count, no list (Part H 3) |
 | `packages/store/src/provenance.test.ts` (shared) | Every statement and event from these sources has a `record_id` whose sync carries `cc0-1.0`, retrieval date and as-of |
 

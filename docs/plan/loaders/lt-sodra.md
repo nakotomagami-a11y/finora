@@ -99,7 +99,7 @@ Nothing on disk. Memory while cached: ≈ 108,000 insured rows and ≈ 37,000 de
 
 ## Tests
 
-- `agent-tools/src/social-insurance.test.ts` (architect's name, slice S10): the tool reads both fixture files live and returns the pinned company's values with `asOf` from line 1; a spied filesystem, store and logger see no sentinel amount and no fixture code (nothing written); a second call the same day makes no second download; a new publication day downloads again.
+- `agent-tools/src/read-live-source.test.ts` (LT Sodra cases; the name in `slices.md` S10 and `agents.md`): the tool reads both fixture files live and returns the pinned company's values with `asOf` from line 1; a spied filesystem, store and logger see no sentinel amount and no fixture code (nothing written); a second call the same day makes no second download; a new publication day downloads again.
 - Party gate in the same file: a call for a sole proprietorship returns `not_applicable` for both files (no agents for natural persons); a code not in the register returns `code_not_in_register`.
 - Parsing: cp1257 decoding, the title-line as-of, the dashed line skipped, comma decimals, deep link from the insurer code (`packages/sources/src/lt/lt-sodra/lt-sodra.parse.test.ts`, pure parser shared by the tool).
 - HIDE negative test (sole-trader debt): covered on the agent path by the P8 canary (`agents/src/canary.test.ts`) and in `packages/ingest/src/lt-natural-tax.test.ts` (shared with `lt-tax`) for UI, API, MCP and export.
