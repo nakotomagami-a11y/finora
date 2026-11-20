@@ -1,5 +1,7 @@
 # web-qa review: the design mockups
 
+**Verdict (web-qa, 2026-11-20, at `d9441ad`): signed off. No MAJOR or MUST-FIX open.** Chromium 488 renders, Firefox 244, WebKit 244: 0 console errors, 0 failed requests, 0 overflow, 0 unnamed controls, 0 contrast failures. W1b closed (0 clipped popovers by the four-corner `elementFromPoint` check in all three engines), W7 and W8 closed. Carried into the build (`ui-build-plan.md` §15): popovers in a portal with the four-corner test on every chip, the sheet focus trap in all three engines, the command bar roles and keyboard, and a Firefox and WebKit smoke project. Accepted: 28 px chips and 30 px `select` under 768.
+
 `web-qa` tested `docs/design/mockups/` at `7dc2e76` on 2026-11-20: 8 pages, 56 state URLs, 390x844, 768x1024, 1280x800 and 1920x1080, dark and light (448 renders), Chromium only, plus interaction tests on popovers, sheets, the purpose gate, question cards, the network graph, search, theme and keyboard. Screenshots stay local. Committed by the coordinator.
 
 **Clean:** 0 console errors or warnings, 0 failed requests, 0 horizontal overflow, 0 unnamed buttons, 0 unlabelled inputs, 0 duplicate ids, 0 banned words; logical tab order with a visible focus ring everywhere; the skip link first; focusable network nodes; reduced motion stops all animation; long names clamp to 3 lines.

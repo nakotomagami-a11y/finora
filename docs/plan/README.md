@@ -10,14 +10,16 @@ The single place to see where the mission stands. The coordinator keeps it curre
 |---|---|---|---|
 | 1. Data research | **done** | 2026-11-19 | 2026-11-20 |
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
-| 3. The plan | **in progress** | 2026-11-20 | |
-| 4. Council session 2: plan approval | waiting for phase 3 | | |
+| 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
+| 4. Council session 2: plan approval | **in progress** | 2026-11-20 | |
 | 5. Build, slice by slice | waiting for phase 4 | | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
 
 ## Exit criteria
+
+**Phase 3 exit check (2026-11-20):** 1 ✔ `docs/architecture.md` and `docs/plan/slices.md` (27 slices, M1-M5, every SHOW and CAVEAT id mapped to a slice and test); 2 ✔ `DESIGN.md`, `docs/design/IA.md` and the mockups for every screen and state; 3 ✔ `docs/plan/ui-build-plan.md`; 4 ✔ a loader spec per source (`docs/plan/loaders/`, 27 specs); 5 ✔ `docs/plan/agents.md`; 6 ✔ `docs/plan/prototype.md`; 7 ✔ qa: no open MUST-FIX (`reviews/02-plan-review.md`, at `2314a54`); web-qa: signed off (`reviews/03-mockups.md`, at `d9441ad`). Also: `docs/plan/lawyer-register.md` (32 rows), `docs/plan/benchmarks.md`.
 
 **Phase 2 exit check (2026-11-20):** 1 ✔ `01-data.md` Part G rules every display-matrix item (155 rows after the WHOIS ruling) with call, caveat and empty state; Parts A-F and H carry reasons, UI treatment, dissent and what would change each call; 2 ✔ `council` and `cto` both posted and confirmed; legal's and the designer's advice is cited.
 
@@ -106,7 +108,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
 | `docs/plan/qa-plan-checklist.md` | qa (committed by coordinator) | 3 | done |
 | `docs/plan/reviews/02-plan-review.md` (qa's full plan review, milestone B) | qa (committed by coordinator) | 3 | **qa verdict: no open MUST-FIX; ready for council session 2** (`2314a54`) |
-| `docs/plan/reviews/03-mockups.md` (web-qa's mockup review) | web-qa (committed by coordinator) | 3 | 6 blocking fixed by the designer in `05237c2`; web-qa re-run pending |
+| `docs/plan/reviews/03-mockups.md` (web-qa's mockup review) | web-qa (committed by coordinator) | 3 | **signed off** by web-qa at `d9441ad` |
 | `docs/plan/reviews/00-early-plan-review.md` (qa's review of the early drafts; architect's committed fixes) | qa + architect (committed by coordinator) | 1 | done; 12 MUST-FIX open for phase 3 |
 
 ## Decisions
@@ -191,4 +193,4 @@ Data seats add rows here through their `result` posts; the coordinator keeps the
 ## Council records
 - Session 0 (framing): `docs/plan/council/00-framing.md`, 2026-11-19
 - Session 1 (data): `docs/plan/council/01-data.md` (decision, confirmed 2026-11-20) and `docs/plan/council/01-data-cto.md` (technical calls)
-- Session 2 (plan): not yet convened
+- Session 2 (plan): convened 2026-11-20; record to come in `docs/plan/council/02-plan.md`
