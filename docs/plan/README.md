@@ -95,11 +95,11 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/council/00-framing.md` (session 1 gates, matrix format, v1 frame) | council (committed by coordinator) | 1 | done |
 | `docs/plan/council/01-data-cto.md` (cto's feasibility, cost and scaling calls) | cto (committed by coordinator) | 2 | done 2026-11-20 |
 | `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | **done** 2026-11-20: Part G final, 155 rows after the WHOIS ruling (SHOW 41, CAVEAT 59, LATER 50, HIDE 5), confirmed by council and cto |
-| `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | milestone A pushed `233b78f`; qa: 4 MUST-FIX open (`docs/plan/reviews/01-milestone-a.md`); milestone B next |
+| `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | milestone A pushed `233b78f`; qa and cto: 5 MUST-FIX open (`docs/plan/reviews/01-milestone-a.md`); milestone B next |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/README.md` (spec template and ownership) | coordinator | 3 | done |
 | `docs/plan/loaders/*.md` | data seats | 3 | |
-| `docs/plan/agents.md` | data-osint | 3 | |
+| `docs/plan/agents.md` | data-osint | 3 | landed `1ecbbc4`; court portals (§4.5a) to follow; §16 lists contract additions for the architect |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
 | `docs/plan/qa-plan-checklist.md` | qa (committed by coordinator) | 3 | done |
