@@ -94,7 +94,7 @@
 
   const LT = {
     key: "lt", country: "Lithuania", cc: "LT",
-    name: "Pavyzdys Bakery UAB", form: ["UAB", "private limited company"], status: ["Teisinis statusas neįregistruotas", "no legal proceedings", "good"],
+    name: "Pavyzdys Bakery UAB", form: ["UAB", "private limited company"], status: ["Teisinis statusas neįregistruotas", "legal status not registered", "good"],
     code: "30FX00017", codeLabel: "Company code", registered: "21 Jan 2011", address: "Pavyzdžio g. 1, Vilnius, LT-01100", activity: "10.71 Manufacture of bread and fresh pastry",
     vat: "LT30FX000171", lei: null,
     coverage: { official: "status, role facts (no names), financial statements, taxes paid, the daily tax arrears list, bankruptcy reports", notOpen: "names of officers and owners (paid register extract), social-insurance data (read live when you investigate, never stored), court cases (check manually at the court portal)" },
@@ -106,7 +106,7 @@
       ["Accounts filed", "ok", "Annual report for 2025 in the register since 12 May 2026"],
       ["Financial position", "ok", "Equity positive"],
       ["Tax and social-insurance arrears", "soft", "On the tax arrears list: €3,420 since 2 Sep 2026 (79 days)"],
-      ["Insolvency, liquidation, pledges, securing measures", "ok", "Bankruptcy reports checked (published up to Oct 2025)"],
+      ["Insolvency, liquidation, pledges, securing measures", "stale", "Bankruptcy reports published up to Oct 2025, older than their usual cycle"],
       ["Sanctions and watchlists", "ok", "6 lists checked, none found"],
       ["Court cases", "notrun", "Check manually at the official court-decision portal"],
       ["Web presence consistent with the register", "ok", "Website names the same company code"],
@@ -148,16 +148,16 @@
       ["Accounts filed", "ok", "10-K for FY 2025 filed 20 Nov 2025"],
       ["Financial position", "ok", "Equity positive, net income positive"],
       ["Tax and social-insurance arrears", "notrun", "The US publishes no tax debt data"],
-      ["Insolvency, liquidation, pledges, securing measures", "ok", "No bankruptcy filing; UCC not applicable"],
+      ["Insolvency, liquidation, pledges, securing measures", "ok", "No bankruptcy filing in EDGAR"],
       ["Sanctions and watchlists", "ok", "OFAC and 4 more lists: none found"],
-      ["Court cases", "soft", "Legal agent: 1 federal civil case, possible match by name, needs review"],
+      ["Court cases", "ok", "Legal agent: 1 federal civil case matches the name only (a fact, not a flag)"],
       ["Web presence consistent with the register", "ok", "Investor site links to the same CIK"],
     ],
   };
 
   const SOLE = {
     key: "sole-trader", country: "Lithuania", cc: "LT", natural: true,
-    name: "IĮ Jonas Pavyzdys Carpentry", form: ["IĮ", "individual enterprise (sole trader)"], status: ["Teisinis statusas neįregistruotas", "no legal proceedings", "good"],
+    name: "IĮ Jonas Pavyzdys Carpentry", form: ["IĮ", "individual enterprise (sole trader)"], status: ["Teisinis statusas neįregistruotas", "legal status not registered", "good"],
     code: "30FX00099", codeLabel: "Company code", registered: "15 May 2017", address: "Lithuania (address not shown for a sole trader)", activity: "16.23 Manufacture of other builders' carpentry",
     vat: null, lei: null,
     coverage: { official: "status, role facts, financial statements (after a stated purpose)", notOpen: "tax and arrears lines tied to a private individual (not shown), address (country only), names (paid register extract)" },

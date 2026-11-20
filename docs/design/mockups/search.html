@@ -50,7 +50,7 @@
       return `<div class="results">
         ${group("Latvia · 0 matches", `<p class="small muted" style="padding:0 16px">No match in the Enterprise Register.</p>`)}
         ${group("Estonia", `<div style="padding:0 16px;display:flex;flex-direction:column;gap:8px"><span class="state-line"><span class="spinner" aria-hidden="true"></span><span>Estonia is still loading: 62% of the e-Business Register. Results appear here as soon as it finishes.</span></span><div class="meter" style="max-width:320px"><i style="width:62%"></i></div></div>`)}
-        ${group("Lithuania · 1 match", result({ key: "lt", cc: "LT", ccLabel: "Lithuania", name: "Näidis Baltic UAB", facts: ["30FX00042", "UAB", "Klaipėda", "registered 2016"], pill: "No legal proceedings" }))}
+        ${group("Lithuania · 1 match", result({ key: "lt", cc: "LT", ccLabel: "Lithuania", name: "Näidis Baltic UAB", facts: ["30FX00042", "UAB", "Klaipėda", "registered 2016"], pill: "Legal status not registered" }))}
       </div>`;
     }
     if (state === "no-match") {

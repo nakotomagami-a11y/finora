@@ -39,6 +39,7 @@
     arrowDown: '<path d="M8 3v9.5M4 8.5l4 4 4-4"/>',
     file: '<path d="M4 2.5h5l3 3v8H4Z"/><path d="M9 2.5v3h3"/>',
     skip: '<path d="M4 4l5 4-5 4zM11 4v8"/>',
+    dot: '<circle cx="8" cy="8" r="3" fill="currentColor" stroke="none"/>',
   };
   const icon = (name, cls = "icon", label) =>
     `<svg class="${cls}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"'}>${P[name] || ""}</svg>`;
