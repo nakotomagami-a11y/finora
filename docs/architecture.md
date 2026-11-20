@@ -267,7 +267,7 @@ Conditions that hold in v1, each with an enforcement point and a test:
 | US SEC filer | `us-cik-<10-digit CIK>` | reserved range `99xxxxxxxx` |
 | US state record | `us-<state>-<state id>` | prefix `FX` |
 | LEI-only entity | `lei-<LEI>` | fixture variant of ISO 7064 mod 97 |
-| Sanctions list entry (company) | `sanc-<list>-<entry id>` | the per-list reserved fixture ranges in `docs/plan/loaders/sanctions.md` |
+| Sanctions list entry (company) | `sanc-<list>-<entry id>` | reserved ranges (`sanctions.md`): OFAC `90000000`-`90000099`; EU `900000`-`900099` and `EU.FX.*`; UK `FX0001`-`FX0099`; IMO numbers `99000xx` |
 | Person in company context | `p-<record id>-<position>`, internal only, never output (§3.3; no HMAC in v1) | follows the company's fixture id |
 
 The nightly `live` job asserts the reserved ranges stay unassigned in the real registers. `fixtures/ids.test.ts` checks every fixture id against its rule.
