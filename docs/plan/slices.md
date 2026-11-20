@@ -79,6 +79,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-WHOIS-LT | `agent-tools/src/output-filter.test.ts` (holder never shown) |
      | LAW-WHOIS-LV-EE | `agents/src/items.agent.test.ts` (LATER ids never queried) |
      | LAW-NATIONAL-LISTS | `agent-tools/src/check-live-list.test.ts` (live, cited, never stored) |
+     | LAW-LV-FIU-PERSON | `sources/src/intl/sanctions-lv-fiu.test.ts` (the listed person's name is dropped; only proven companies load) |
      | LAW-UN-LIVE | `agent-tools/src/check-live-list.test.ts`, `sources/src/licences.test.ts` (never stored) |
      | LAW-COURTS-LT, LAW-COURTS-LV | `agents/src/items.agent.test.ts` (no Baltic court portal is queried; MANUAL link rendered) |
      | LAW-SAM | `sources/src/us/sam-exclusions.test.ts` (fields dropped, keyed extract only) |
@@ -172,7 +173,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Owner:** data-osint · **with:** architect · **Depends on:** S04, `docs/plan/loaders/sanctions.md`
 - **Scope:** the stored official lists (EU, OFAC, UK, LV FIU) per `sanctions.md`; `screen_sanctions` in `packages/resolve` with the second-identifier rule (R8); the live-only lists as `agent-only` sources (fetched by S10's `check_live_list`, never stored).
 - **Acceptance:** the spec's Tests; plus a name-only match is `possible_match`, an official-ID match is `listed`, a different id is no match; the UN list and the national lists without a licence are never stored (licence invariants); S11.ALL.01-03 and S11.LV.01-02 render with their dates (`items.test.ts`).
-- **Tests:** `resolve/src/sanctions.test.ts`, `sources/src/intl/sanctions-*.test.ts` (per spec), `sources/src/licences.test.ts` rows for each list.
+- **Tests:** `resolve/src/sanctions.test.ts`, `resolve/src/person-index.test.ts`, `sources/src/intl/sanctions-*.test.ts` (per spec), `sources/src/intl/sanctions-no-persons.test.ts`, `sources/src/intl/raw-cache.test.ts`, `sources/src/licences.test.ts` rows for each list.
 - **Demo:** `pnpm finora-cli data sync --source sanctions-eu`, then `pnpm finora-cli resolve --sanctions "<fixture name>"` shows a possible match with the entry's identifiers.
 
 ### S07 Report assembly, checks and the read API
