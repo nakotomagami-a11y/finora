@@ -780,8 +780,27 @@ Architect's questions: a/b registry code; c `report_id` stable per report; d non
 - Licence: CC BY-SA 3.0, per the dataset entry on the national portal https://andmed.eesti.ee (dataset "Maksu- ja Tolliamet - Tasutud maksud, käive ja töötajate arv"); the EMTA page itself states open data is free "to use, reuse and share" without naming a licence. Verified 19 Nov 2026. Share-alike: keep it out of any differently licensed export.
 - Keys, limits, cost: none.
 - Legal constraints: EMTA warns the figures "cannot be used to calculate an average salary". Sole-trader rows are personal data.
-- Tested with: `fetch_emta.py`, `build_index.py`.
+- Tested with: `fetch_emta.py`, `build_index.py`; the S07 recount with `python -I research/probes/baltics/ee/workforce_recount.py`.
 - Verdict: use with caveat (share-alike; no salary). Grade B for S07 and S08.
+- **S07 recount (council session 1, Part F; measured 2026-11-20 on the file as of 10 Oct 2026).** The question was whether the 26.9% means "has staff" or "missing data".
+  - **The file does not list every company.** The tax board's page: included are "kõik juriidilised isikud ja füüsilisest isikust ettevõtjad (FIE), kes on kvartali jooksul tasunud riiklikke makse" (all legal persons and sole traders who paid state taxes during the quarter); deleted legal persons and natural persons are excluded.
+  - **What the employee count is.** Again from the page: "kvartali viimasel päeval töötanud isikute arv töötamise registri andmetel ... välja arvatud juhtimis- või kontrolliorgani liikmed". That is the people working on the last day of the quarter per the employment register, not counting board or supervisory-board members.
+  - **What an empty cell means.** The page says: "tühi – vastava välja väärtuse leidmiseks alusandmed puuduvad" (empty: the source data needed for the value is missing). A count of 0 never appears in the file.
+  - Across the 296,058 active business-form companies, for 2026 Q3:
+
+    | State in the file | Companies | Share |
+    |---|---|---|
+    | Employee count > 0 | 79,626 | 26.9% |
+    | In the file, employee count empty | 92,008 | 31.1% |
+    | No 2026 row at all (paid no state taxes in 2026) | 124,424 | 42.0% |
+
+    10,126 of the companies with no 2026 row have a 2025 row.
+  - Of the rows with an empty count, 13.3% paid labour taxes in the quarter. That fits board-member fees, which are taxed but not counted. 45.1% declared turnover, and 54.7% have some amount.
+  - **So "0 employees reported" would overstate the source.** The tax board never reports 0; it leaves the cell empty. The section is still determinable for every active company, in three states, worded close to the source:
+    - "N employees on [quarter-end date] (employment register, board members not counted)"
+    - "No employee count from the tax board for [quarter]"
+    - "Paid no state taxes in [year]: not in the tax board's file"
+  - CAVEAT stays.
 
 Architect's questions: a/b registry code; c no row id (key = registry code + year); d sole traders by name only; e taxpayer type `FIE`; f full re-publication each quarter, deleted entities are dropped; g `Andmete seis` column; h 2022-2026, quarterly; i UTF-8, `,` delimiter, quoted, Estonian headers, decimal comma; header: `"Andmete seis","Registrikood","Nimi","Liik","Maakond","Tegevusala","Aasta","Riiklikud maksud I kv",...,"Töötajate arv IV kv"`; j no entity page; k Estonian only.
 
