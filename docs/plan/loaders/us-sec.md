@@ -31,7 +31,7 @@ One loader package `packages/sources/src/us/sec/` with five sources that share t
 - `asOf`: per source, listed above.
 - `purgeScope` and `maxPurgeShare`:
   - tickers: `full`, **0.02** (floor; daily delistings are a small fraction of about 10,000 rows, to be measured over two pulls in the key-testing round).
-  - insiders and Form D data sets: `window` (8 quarters), **0.625**: each quarterly load drops one quarter of eight (12.5% of records) by design; 5x that is 62.5%.
+  - insiders and Form D data sets: `window` (8 quarters), **0.02 inside the window** (cto, 7029779579): records whose quarter has aged out of the window are expected deletions and are not counted against the guard; records missing from a quarter still inside the window are counted against `max(2%, 5x measured)`. Quarterly files are immutable once published, so the measured in-window removal share is expected near 0 and the floor applies. A truncated quarterly file therefore ends `purge_guard` instead of deleting the store.
   - company and holders: `none` (filings are never deleted).
 - `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4; here the module includes the XBRL concept fallback table.
 - Record unit and sort order: see Refresh and change (one record per issuer-quarter for insider transactions; one role set per issuer for current insiders; one per Form D filing; one per company document).
@@ -174,7 +174,7 @@ All estimated until the key-testing round:
 | `sources/src/us/sec/companyfacts.test.ts` | concept fallback order; 5-year window; duplicate `end` dates resolved by latest `filed`; IFRS company handled |
 | `sources/src/us/sec/items-502.test.ts` | an 8-K with item 5.02 produces `filing.8k.5.02`; no person name is extracted |
 | `ingest/src/sec-fetcher.test.ts` | no request leaves without `SEC_USER_AGENT`; 8 requests per second across concurrent loaders; the User-Agent never appears in logs |
-| `ingest/src/insiders-window.test.ts` | the 9th quarter is dropped within the 0.625 purge guard; a role missing from the new window emits `finora.role_ended` without a name |
+| `ingest/src/insiders-window.test.ts` | a new quarter that drops the oldest quarter passes the guard; a file missing half of a quarter still inside the window ends `purge_guard` and deletes nothing; a role missing from the new window emits `finora.role_ended` without a name |
 | `sources/src/person-fields.test.ts` (US cases) | no SEC loader's hash input or stored fields contain `RPTOWNERCIK` or any CIK of a reporting person |
 | `ingest/src/party-gate.test.ts` (SEC cases) | 13D/G type IN → personal person; type CO → company; Forms 3/4/5 owners → personal |
 | `domain/src/items/hide.test.ts` | OUT.US.01 has no loader, field map or agent tool |

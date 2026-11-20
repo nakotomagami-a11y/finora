@@ -16,7 +16,7 @@ Courts are **agent-only** in v1 (Part G S10: "CAVEAT, agent only"; possible matc
 
 ### Contract fields (milestone A.1 checklist)
 - `asOf`: FJC `[max_date_in_data]` over `FILEDATE`; CourtListener per result.
-- `purgeScope`: FJC `window` (the last 10 years); CourtListener `none` (agent-only). `maxPurgeShare`: FJC **0.125**: each quarterly reload drops about one quarter of 40 from the 10-year window (≈ 2.5% of cases), and 5x that is 12.5%.
+- `purgeScope`: FJC `window` (the last 10 years); CourtListener `none` (agent-only). `maxPurgeShare`: FJC **0.02 inside the window** (cto, 7029779579): cases filed before the window start are expected deletions and not counted; cases missing inside the window are counted (court cases are not withdrawn from the file, so the floor applies).
 - `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4; here the module includes the legal-form token list and the FJC code-book labels.
 - Record unit: one record per case (`record_key` = court + docket + filing date) holding its organisation parties; file order.
 - `personRecordKey`: none: person parties are never loaded (party gate). Share-alike events: none.
@@ -65,7 +65,7 @@ LATER, not read: S09.US.02 (FJC bankruptcy: no debtor names), S09.US.03 (PACER, 
 `fixtures/us/fjc/cv88on.txt` (header with the real 46 column names, generated), 8 cases: a company defendant with a form token, a person defendant (must be dropped), "United States" as plaintiff (dropped), a company without a form token (dropped, P8 fixture), cases inside and outside the 10-year window. Zipped with standard deflate for the fixture (the loader handles both). `fixtures/us/courtlistener/search.json`: 3 results, one with a person party.
 
 ## Tests
-`sources/src/us/fjc/fjc-civil.test.ts` (window, field map, Deflate64 handled through the unzip path), `ingest/src/party-gate.test.ts` (court cases: person names and "United States" never loaded; a company name without a form token masked), `agents/src/tools/us-courts.test.ts` (a name-only candidate is not a finding until confirmed; the 125-a-day budget is shared and refuses call 126; nothing from CourtListener is written to the store).
+`sources/src/us/fjc/fjc-civil.test.ts` (window, field map, Deflate64 handled through the unzip path), `ingest/src/purge-guard.test.ts` (US window case: aged-out cases pass; a file missing a third of the in-window cases ends `purge_guard`), `ingest/src/party-gate.test.ts` (court cases: person names and "United States" never loaded; a company name without a form token masked), `agents/src/tools/us-courts.test.ts` (a name-only candidate is not a finding until confirmed; the 125-a-day budget is shared and refuses call 126; nothing from CourtListener is written to the store).
 
 ## Failure modes
 - No `COURTLISTENER_TOKEN`: the tool skips CourtListener; S10.US.02 shows KEY "Court dockets: needs the CourtListener token"; the FJC index still runs.

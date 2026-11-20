@@ -19,7 +19,7 @@ Module `packages/sources/src/intl/gleif/`. Research: `docs/research/us.md` §4.9
 - Record unit: one record per LEI (`record_key` = LEI), file order; no grouping needed.
 - `personRecordKey`: none (no person rows; sole-proprietor LEIs are not loaded).
 - Share-alike events: none.
-- **Cadence choice:** weekly full file only in v1, not daily deltas. A delta file can't define what was removed, so purge would need a second source id; a weekly full load keeps one source with `purgeScope: full` and stays current under the 2x-cadence rule (14 days). Daily deltas are a later optimisation.
+- **Cadence choice:** weekly full file only in v1, not daily deltas. A delta file can't define what was removed, so purge would need a second source id; a weekly full load keeps one source with `purgeScope: full` and stays current under the 2x-cadence rule (14 days). Daily deltas are a later optimisation. Accepted by cto (7029779579, 7029790440): the weekly job runs outside the 5-minute daily budget and is staggered so it never shares a window with the EE weekly general-data parse. v1 downloads only the LEI file (≈ 0.5 GB); the relationship and reporting-exception files are not fetched (S05 LATER).
 
 ## Items
 
