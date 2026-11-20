@@ -105,7 +105,8 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/lawyer-register.md` (P13) | legal (committed by coordinator) | 3 | 16 rows from legal + 5 added by the coordinator for legal to confirm |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
 | `docs/plan/qa-plan-checklist.md` | qa (committed by coordinator) | 3 | done |
-| `docs/plan/reviews/02-plan-review.md` (qa's full plan review, milestone B) | qa (committed by coordinator) | 3 | 21 MUST-FIX open |
+| `docs/plan/reviews/02-plan-review.md` (qa's full plan review, milestone B) | qa (committed by coordinator) | 3 | 21 MUST-FIX; 17-18 fixed, rest open |
+| `docs/plan/reviews/03-mockups.md` (web-qa's mockup review) | web-qa (committed by coordinator) | 3 | 6 blocking open (designer) |
 | `docs/plan/reviews/00-early-plan-review.md` (qa's review of the early drafts; architect's committed fixes) | qa + architect (committed by coordinator) | 1 | done; 12 MUST-FIX open for phase 3 |
 
 ## Decisions
