@@ -136,7 +136,7 @@ Notation: **States** are the states each component renders in the gallery (§12)
 | Component | Purpose and variants | States beyond the basics | Keyboard |
 |---|---|---|---|
 | `Button` | `primary` (accent fill, `--on-accent` text), `secondary` (surface-2 with line), `ghost`, `danger`. Sizes `md` (40 px high), `sm` (32 px). Radius `--radius-button` | `loading` (pulse dot, label kept, `aria-busy`, still focusable, click ignored) | `Enter` and `Space` activate |
-| `IconButton` | Icon only. The `label` prop is required by type and becomes `aria-label` and the tooltip | as Button | as Button. Minimum hit area 24 px, 44 px on touch |
+| `IconButton` | Icon only. The `label` prop is required by type and becomes `aria-label` and the tooltip | as Button | as Button. Minimum hit area 24 px; 36 px below 768 px |
 | `Input`, `SearchInput` | Text input with an attached `<label>` (visible or `sr-only`), a hint and an error line. `SearchInput` adds the leading icon and a Reset button | `error` (icon + text, `aria-invalid`, `aria-describedby`), `readonly` | `Esc` in `SearchInput` resets when it has text |
 | `Textarea` | The free-text investigation box and the "Report a problem" body. Auto-grows to 8 lines | `error`, character counter at 90% of the limit | `Ctrl/Cmd+Enter` submits only where the form says so |
 | `Combobox` | ARIA 1.2 combobox: input, listbox popup, groups with headings, `aria-activedescendant` | `closed`, `open`, `empty`, `loading`, `error` | `ArrowDown/Up` move, `Home/End` first/last, `Enter` choose, `Esc` close (second `Esc` resets), typing filters |
@@ -576,7 +576,7 @@ Target: WCAG 2.2 AA. The checks below are in the build (tests named in §15), no
 | Focus | Visible on every control; never removed; outline, so forced-colours mode keeps it | `keyboard.spec.ts`, forced-colours run |
 | Contrast | Text ≥ 4.5:1, non-text ≥ 3:1 in both themes; `--faint` never carries text | `tokens.contrast.test.ts`, axe |
 | Colour | Never the only carrier: every status has an icon or sign and a word | review in the gallery, test on `StatusPill` |
-| Targets | At least 24 × 24 px (WCAG 2.2); 44 px on coarse pointers | `target-size.spec.ts` on the gallery |
+| Targets | At least 24 × 24 px everywhere (WCAG 2.2). Below 768 px the designer sets: primary buttons and the theme toggle 40 px, small buttons 36 px, pills 36 px, link buttons 32 px, chips 28 px with their tap area padded. Chips and small buttons stay under 40 px on purpose | `design.target-size.spec.ts` on the gallery |
 | Motion | `prefers-reduced-motion`: no transitions, pulses, washes, shimmer or sheet slides, except counters changing; nothing flashes | emulated-media test checks computed durations |
 | Zoom and reflow | Works at 200% zoom and at 320 CSS px width without two-dimensional scrolling (tables scroll inside their own region) | `reflow.spec.ts` |
 | Text spacing | Layout survives the WCAG text-spacing overrides (line 1.5, paragraph 2, letter 0.12, word 0.16) | `text-spacing.spec.ts` |
@@ -600,13 +600,13 @@ Test widths are web-qa's four: **390×844, 768×1024, 1280×800, 1920×1080**. T
 |---|---|
 | ≥ 1280 | Tool rail (56 px), content column up to 880 px, **agent panel** at the right (360 to 400 px), chat dock as a second right column when open |
 | 1024 to 1279 | Tool rail, content, agent panel at the right (336 px); the chat is a right sheet |
-| 768 to 1023 | Tool rail; the agent panel and the chat move **below the content** as sheets. A sticky summary bar ("4 agents · 2 running · $0.31") opens the sheet |
+| 768 to 1023 | Tool rail; the agent panel and the chat move **below the content**. A **compact lane list** sits right under the page header (one line per lane: status, step, time, cost, and a link to all tasks), and the sticky run bar stays visible while the sections scroll |
 | < 768 | **Bottom bar** replaces the rail. One column. Tables become scrollable regions with a sticky first column (key figures show 3 years, then scroll). The network opens in list view. The sheet is a bottom sheet |
 | 1920 | Content stays at its maximum width and is centred. The panel does not grow. Nothing stretches to 1920 |
 
 Other rules:
 - No horizontal scroll on the page at any of the four widths (tested). Long names wrap and clamp (a 200-character fictional name is a fixture).
-- Touch: 44 px targets on coarse pointers. Hover is never the only way to a fact (tooltips repeat information that is also reachable by tap or focus).
+- Touch: the sizes in §9 (24 px minimum, 36 to 40 px for buttons below 768 px). Hover is never the only way to a fact (tooltips repeat information that is also reachable by tap or focus).
 - Safe areas: the bottom bar and bottom sheets use `env(safe-area-inset-bottom)`.
 - Print: not in v1.
 
@@ -791,7 +791,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   11. A reload mid-run restores an identical state: the DOM text after reload equals the DOM text before it, apart from elapsed timers.
   12. Losing the connection shows the banner after 3 s, keeps the content and recovers without a duplicate finding.
   13. At most one announcement per lane status change, none per step; the question and the verdict announce once each.
-  14. At 1024 and below the panel sits under the content (tested at 1024, 1023, 768 and 390), and a sticky summary bar ("4 agents · 2 running · $0.31", a link to the panel) keeps the run visible while the user scrolls the sections (confirmed by the designer: it reads "4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel).
+  14. At 1024 and below the panel sits under the content (tested at 1024, 1023, 768 and 390), and a compact lane list right under the page header (one line per lane with status, step, time and cost, plus a link to all tasks) and the sticky run bar ("4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents") keep the run visible while the user scrolls the sections (confirmed by the designer: it reads "4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel).
   15. A lane step with an unknown key renders "Working"; no model text reaches a lane (type and unit test).
   16. Reduced motion: no pulse, no wash; counters still change.
   17. The lead lane reads "Lead: resolve and plan" and ends with "Pinned to registration no. {code}"; the verdict lane is queued until the specialists end; "4 agents" in the header counts the four specialists; free text that matches no registry record ends with "Not found in the loaded registers", no lanes start, and the page says no web search ran on an unpinned name.
@@ -909,12 +909,12 @@ web-qa swept the mockups (commit `7dc2e76`, 448 renders). These findings are bui
 
 | Defect in the mockups | Build requirement | Slice and test |
 |---|---|---|
-| Source popovers run off-screen at 390 px (16 of 20 chips) | `SourceChip` popovers use collision handling with an 8 px viewport padding and flip or shift, so the licence, as-of date and record link are fully inside the viewport at 390 | U4: `web/e2e/source-chip.spec.ts` opens every chip on the LV profile at 390 and asserts the popover box is inside the viewport |
+| Source popovers run off-screen at 390 px (16 of 20 chips) | On desktop `SourceChip` popovers open under the chip and flip left, right or up (collision handling with an 8 px viewport padding) so they stay inside the viewport; below 768 px the popover is a full-width bottom sheet | U4: `web/e2e/source-chip.spec.ts` opens every chip on the LV profile at 390 and asserts the popover box is inside the viewport |
 | About 4,000 px of dead vertical space on phones (`flex: 1 1 240px` becomes a height when rows stack) | Rows stack with no flex-basis height; row height follows content. A row with a 40 px value is about 40 px | U4: `web/e2e/profile.layout.spec.ts` asserts no row has more than 30 px of empty space at 390 |
 | Search rows crush the name to 74 px at 390 | At 390 the status pill moves under the name; the name gets the full row width and clamps to two lines | U3: `web/e2e/search.responsive.spec.ts` asserts the name box is at least 60% of the row at 390 |
 | `aria-expanded` stays `true` after Esc | Use the Radix Popover (it owns `aria-expanded`); focus stays on the chip | U1: `popover.test.tsx` |
 | Sheets are not modal (focus not trapped, Esc does nothing) | Sheet is a Radix Dialog: focus trapped, background inert, Esc closes, focus returns to the opener. The pre-run sheet is the one blocking step before money is spent | U1: `sheet.test.tsx`; U5: `investigation.sheet.spec.ts` (Tab never leaves the sheet; Esc closes) |
-| Touch targets below 40 px (chips 22 px, Retry 22 px, pills 30 px) | Every interactive target is at least 24 px (WCAG 2.2) and at least 44 px on coarse pointers, the chip's tap area included, without making the chip look bigger | U1: `design.target-size.spec.ts` on the gallery at 390 with `hasTouch` |
+| Touch targets below 40 px (chips 22 px, Retry 22 px, pills 30 px) | Every interactive target is at least 24 px (WCAG 2.2); below 768 px buttons are 36 to 40 px and chips 28 px, as in DESIGN.md | U1: `design.target-size.spec.ts` on the gallery at 390 with `hasTouch` |
 | `--faint` used for text (the "/" separators) | `--faint` is for icons and dividers only; separators are decorative `aria-hidden` glyphs or borders | U1: `check-tokens` forbids `--faint` as a text colour |
 | Loading and error states without an `h1`, headings jumping from h1 to h3 | Every page state has exactly one `h1` and an ordered heading tree | U3, U4: `structure.spec.ts` over every state |
 | `/` and `Ctrl/Cmd+K` do nothing outside the search page; the top-bar field only navigates | The command bar is a real dialog on every page | U3: `command-bar.spec.ts` on each tool page |
