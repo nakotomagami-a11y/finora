@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Search · Finora mockup</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+<script src="assets/fixtures.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  const { esc, param, icon } = Finora;
+  const state = param("state", "empty");
+  const query = { typing: "paraugs timber", "loading-country": "näidis", "no-match": "the roofer who quoted me, roofs-example.test", error: "paraugs", "long-name": "paraugs" }[state] || "";
+
+  const facts = (r) => `<span class="result-facts num">${r.facts.map((f) => `<span>${esc(f)}</span>`).join("")}</span>`;
+  const result = (r, sel) => `<a class="result" href="company.html?country=${r.key}" ${sel ? 'aria-selected="true"' : ""} role="option">
+      <span class="cc" aria-label="${esc(r.ccLabel)}">${r.cc}</span>
+      <span class="result-main"><span class="result-name">${esc(r.name)}</span>${facts(r)}</span>
+      ${r.pill ? `<span class="pill ${r.tone || ""}"><span class="dot"></span>${esc(r.pill)}</span>` : ""}
+      ${icon("chev", "icon icon-sm")}
+    </a>`;
+  const group = (title, items, extra = "") => `<div class="rgroup" role="group" aria-label="${esc(title)}"><div class="rgroup-head"><span class="label">${esc(title)}</span>${extra}</div>${items}</div>`;
+
+  const LV = [
+    { key: "lv", cc: "LV", ccLabel: "Latvia", name: "Paraugs Timber SIA", facts: ["40000FX0017", "SIA", "Rīga", "registered 2014"], pill: "Active" },
+    { key: "lv", cc: "LV", ccLabel: "Latvia", name: "Paraugs Timber SIA", facts: ["40000FX0058", "SIA", "Valmiera", "registered 2022"], pill: "Active" },
+    { key: "lv", cc: "LV", ccLabel: "Latvia", name: "Paraugs Timber Trading SIA", facts: ["40000FX0021", "SIA", "Rīga", "registered 2012"], pill: "Liquidated 2019", tone: "" },
+  ];
+  const EE = [{ key: "ee", cc: "EE", ccLabel: "Estonia", name: "Paraugs Timber Eesti OÜ", facts: ["1FX000033", "OÜ", "Tartu", "registered 2020"], pill: "Entered in the register" }];
+
+  function results() {
+    if (state === "typing" || state === "long-name") {
+      const lv = state === "long-name" ? [{ ...LV[0], name: FX.LV.longName }, ...LV.slice(1)] : LV;
+      return `<div class="results" role="listbox" aria-label="Search results">
+        ${group("Latvia · 3 matches", lv.map((r, i) => result(r, i === 0)).join(""))}
+        ${group("Estonia · 1 match", EE.map((r) => result(r)).join(""))}
+        ${group("Lithuania", `<p class="small muted" style="padding:0 16px">No match in the Register of Legal Entities.</p>`)}
+        ${group("United States · live registers", `<p class="state-line" style="padding:0 16px"><span class="spinner" aria-hidden="true"></span><span>Searching NY, CO, CT and PA registers and SEC filers…</span></p>`)}
+        <p class="small muted">Names collide often in Lithuania, so every result shows the code, legal form, city and registration year. Press <span class="kbd">↑</span> <span class="kbd">↓</span> to move, <span class="kbd">Enter</span> to open.</p>
+      </div>`;
+    }
+    if (state === "loading-country") {
+      return `<div class="results">
+        ${group("Latvia · 0 matches", `<p class="small muted" style="padding:0 16px">No match in the Enterprise Register.</p>`)}
+        ${group("Estonia", `<div style="padding:0 16px;display:flex;flex-direction:column;gap:8px"><span class="state-line"><span class="spinner" aria-hidden="true"></span><span>Estonia is still loading: 62% of the e-Business Register. Results appear here as soon as it finishes.</span></span><div class="meter" style="max-width:320px"><i style="width:62%"></i></div></div>`)}
+        ${group("Lithuania · 1 match", result({ key: "lt", cc: "LT", ccLabel: "Lithuania", name: "Näidis Baltic UAB", facts: ["30FX00042", "UAB", "Klaipėda", "registered 2016"], pill: "No legal proceedings" }))}
+      </div>`;
+    }
+    if (state === "no-match") {
+      return `<div class="empty-state" role="status"><h2>No registered company matches this text</h2>
+        <p class="ink2">Checked: the Latvian, Estonian and Lithuanian registers (all loaded), the New York, Colorado, Connecticut and Pennsylvania registers (live) and SEC filers. Companies in other US states are not covered in v1, so “no match” does not mean the company doesn't exist.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary" href="company.html?state=question&q=entity">${icon("play", "icon icon-sm")} Investigate this text</a><button class="btn" type="button">Edit the search</button></div>
+        <p class="small muted">Investigating free text starts with the lead agent: it looks for the company by name, website and address, and asks you before it pins anything.</p></div>`;
+    }
+    if (state === "error") {
+      return `<div class="banner banner-warn" role="alert">${icon("warn")}<span><strong>The US live registers did not answer.</strong> Baltic results are complete. <button class="link-btn" type="button">Retry the US</button></span></div>
+        <div class="results">${group("Latvia · 3 matches", LV.map((r) => result(r)).join(""))}${group("United States", `<p class="state-line error" style="padding:0 16px">${icon("warn", "icon icon-sm")}<span>Not checked: New York, Colorado, Connecticut and Pennsylvania timed out after 8 s</span></p>`)}</div>`;
+    }
+    return "";
+  }
+
+  function home() {
+    return `
+      <div style="display:flex;flex-direction:column;gap:24px;margin-top:8px">
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          ${[["LV", "Latvia", "loaded 19 Nov, 06:10", "full check"], ["EE", "Estonia", "loaded 19 Nov, 06:24", "full check"], ["LT", "Lithuania", "loaded 19 Nov, 05:58", "money and status check; no names"], ["US", "United States", "live: NY, CO, CT, PA · SEC", "registration and filings"]].map(([cc, n, w, p]) => `
+          <div class="card" style="flex:1 1 200px;padding:14px 16px;display:flex;flex-direction:column;gap:4px"><span style="display:flex;gap:8px;align-items:center"><span class="cc">${cc}</span><strong>${n}</strong></span><span class="small ink2">${p}</span><span class="small muted mono">${w}</span></div>`).join("")}
+        </div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><h2 class="serif" style="font-size:26px">Recent</h2><a class="small" href="library.html" style="margin-left:auto">Open the library</a></div>
+          <div class="card">${FX.LIBRARY.slice(0, 4).map((r) => `<a class="lib-row" href="company.html?country=${{ LV: "lv", EE: "ee", LT: "lt", US: r.code.startsWith("99") ? "us-public" : "us-private" }[r.cc]}&state=report"><span class="cc">${r.cc}</span><span class="lib-main"><span>${esc(r.name)}</span><span class="small muted mono">${esc(r.code)} · ${esc(r.when)}</span></span></a>`).join("")}</div>
+        </div>
+      </div>`;
+  }
+
+  function render() {
+    return `<div class="page">
+      <div class="search-hero">
+        ${state === "empty" ? `<h1>Who are we looking into?</h1><p class="ink2">Search a company in Latvia, Estonia, Lithuania or the US. The official profile opens instantly; agents dig further when you ask them to.</p>` : `<h1 class="label">Explorer · search</h1>`}
+        <form role="search" onsubmit="event.preventDefault();location.search='state=typing'">
+          <label class="sr-only" for="q">Company name, registration code, VAT number, LEI or any text you have</label>
+          <div class="search-box">${icon("search")}<input id="q" autocomplete="off" placeholder="Name, code, VAT, LEI, or paste what you know" value="${esc(query)}" aria-controls="results" ${state === "empty" ? "autofocus" : ""}><span class="kbd">/</span></div>
+        </form>
+        <div id="results">${state === "empty" ? home() : results()}</div>
+      </div>
+    </div>`;
+  }
+
+  Finora.mount("explorer", render, [
+    { key: "state", label: "Search state", options: [["empty", "Empty (home)"], ["typing", "Results by country"], ["long-name", "Results with a very long name"], ["loading-country", "A country still loading"], ["no-match", "No match: investigate the text"], ["error", "Live registers failed"]] },
+  ]);
+})();
+</script>
+</body>
+</html>

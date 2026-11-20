@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Library · Finora mockup</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+<script src="assets/fixtures.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  const { esc, param, icon } = Finora;
+  const state = param("state", "list");
+
+  const LEVEL = {
+    none: ["No concerns found", ""],
+    points: ["Points to check", "pill-warn"],
+    serious: ["Serious concerns", "pill-bad"],
+    insufficient: ["Not enough data", ""],
+    facts: ["Facts only", ""],
+  };
+  const STATUS = {
+    done: "",
+    partial: `<span class="small" style="color:var(--warn)">${icon("warn", "icon icon-sm")} one agent did not finish</span>`,
+    waiting: `<span class="status waiting"><span class="dot"></span>Needs you</span>`,
+    cap: `<span class="small muted">${icon("stop", "icon icon-sm")} stopped at the cap</span>`,
+  };
+  const keyFor = (r) => ({ LV: "lv", EE: "ee", LT: r.name.startsWith("IĮ") ? "sole-trader" : "lt", US: r.code.startsWith("99") ? "us-public" : "us-private" }[r.cc]);
+
+  function row(r) {
+    const [l, tone] = LEVEL[r.level];
+    const href = r.status === "waiting" ? `company.html?country=${keyFor(r)}&state=question&q=sanctions` : `company.html?country=${keyFor(r)}&state=${r.status === "partial" ? "partial" : "report"}`;
+    return `<a class="lib-row" href="${href}">
+      <span class="cc">${r.cc}</span>
+      <span class="lib-main"><span>${esc(r.name)}</span><span class="small muted mono">${esc(r.code)} · ${esc(r.when)}</span></span>
+      <span class="lib-end">
+        ${STATUS[r.status]}
+        <span class="pill ${tone}">${r.level === "facts" ? "" : '<span class="dot"></span>'}${l}</span>
+        <span class="small muted mono" style="min-width:86px;text-align:right">${esc(r.cov)}</span>
+        <span class="small muted mono" style="min-width:44px;text-align:right">${esc(r.cost)}</span>
+      </span>
+    </a>`;
+  }
+
+  function render() {
+    let rows = FX.LIBRARY;
+    if (state === "filtered") rows = rows.filter((r) => r.level === "points" || r.level === "serious");
+    const filters = `<div class="filters" role="group" aria-label="Filter investigations">
+      <button class="fchip" type="button" aria-pressed="${state !== "filtered"}">All</button>
+      <button class="fchip" type="button" aria-pressed="${state === "filtered"}">Points to check or serious</button>
+      <button class="fchip" type="button" aria-pressed="false">Needs you · 1</button>
+      <button class="fchip" type="button" aria-pressed="false">Latvia</button><button class="fchip" type="button" aria-pressed="false">Estonia</button><button class="fchip" type="button" aria-pressed="false">Lithuania</button><button class="fchip" type="button" aria-pressed="false">US</button>
+      <label class="sr-only" for="lf">Filter by name or code</label><input id="lf" class="input" style="max-width:240px;height:30px" placeholder="Filter by name or code">
+    </div>`;
+    let body;
+    if (state === "empty") body = `<div class="empty-state"><h2>No investigations yet</h2><p class="ink2">Open a company and press Investigate. Every run lands here with its verdict, its sources and what it cost, so you can reopen or re-run it later.</p><a class="btn btn-primary" href="search.html">Search a company</a></div>`;
+    else if (state === "loading") body = `<div class="card" aria-busy="true">${Array.from({ length: 6 }, () => `<div class="lib-row"><span class="sk" style="width:28px;height:22px"></span><span class="lib-main"><span class="sk" style="width:40%"></span><span class="sk" style="width:24%;height:10px"></span></span><span class="sk" style="width:120px"></span></div>`).join("")}</div>`;
+    else if (state === "error") body = `<div class="banner banner-bad" role="alert">${icon("warn")}<span><strong>The library couldn't be loaded.</strong> The local store didn't answer; your investigations are not lost. <button class="link-btn" type="button">Retry</button></span></div>`;
+    else body = `<div class="card">${rows.map(row).join("")}</div>
+      <p class="small muted">${state === "filtered" ? `${rows.length} of ${FX.LIBRARY.length} investigations` : `${rows.length} investigations · $4.18 spent this month`} · columns: verdict, checks that ran, cost</p>`;
+    return `<div class="page" style="max-width:1080px">
+      <div class="co-head"><span class="label">Explorer</span><h1 class="co-title">Library</h1><p class="ink2">Every investigation you ran, newest first.</p></div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">${state === "empty" || state === "error" ? "" : filters}${body}</div>
+    </div>`;
+  }
+
+  Finora.mount("library", render, [
+    { key: "state", label: "Library state", options: [["list", "List"], ["filtered", "Filtered"], ["empty", "Empty"], ["loading", "Loading"], ["error", "Error"]] },
+  ]);
+})();
+</script>
+</body>
+</html>

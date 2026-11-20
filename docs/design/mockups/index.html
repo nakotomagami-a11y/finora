@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Finora mockups</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  const { esc } = Finora;
+  const G = [
+    ["Search", "search.html", [["empty", "Home: empty search, country status, recent runs"], ["typing", "Results grouped by country, US live group streaming"], ["long-name", "A 200-character company name"], ["loading-country", "Estonia still loading"], ["no-match", "No match: registers checked, investigate the text"], ["error", "US live registers failed"]]],
+    ["Company profile (official data)", "company.html", [["state=full&country=lv", "Latvia: full profile, locks, manual lookup, derived network"], ["state=full&country=ee", "Estonia: share-alike tax data, no company members, workforce states"], ["state=full&country=lt", "Lithuania: role facts, paid-only names and owners, arrears"], ["state=full&country=us-private", "US private: not published sections collapsed"], ["state=full&country=us-public", "US public: SEC data, insider trades"], ["state=full&country=us-public&sec=missing", "US public without the SEC contact: needs key"], ["state=full&country=sole-trader", "Sole trader: facts only, disclaimer, purpose-gated money"], ["state=full&purpose=unset", "Purpose gate before people data"], ["state=full&install=new", "New install: snapshot rules not evaluated yet"], ["state=full&name=long", "Very long legal name"], ["state=loading", "Loading"], ["state=error", "Error"]]],
+    ["Investigate", "company.html", [["state=estimate", "Pre-run cost estimate"], ["state=nokey", "No AI key"], ["state=daily-cap", "Daily cap reached"], ["state=streaming", "Investigation streaming: lanes, tasks, findings landing"]]],
+    ["Agent asks you", "company.html", [["state=question&q=entity", "Which company is it? (no default)"], ["state=question&q=sanctions", "Possible sanctions match, side by side"], ["state=question&q=scope", "Scope and cost"], ["state=question&q=cap", "Cost cap reached, one extension"], ["state=question&q=cap-used", "Cap reached again, extension used"]]],
+    ["Report", "company.html", [["state=report&country=lv", "Points to check (Latvia) with chat"], ["state=report&verdict=none&country=ee", "No concerns found"], ["state=report&verdict=serious", "Serious concerns"], ["state=report&country=us-private", "Not enough data (US private)"], ["state=report&country=sole-trader", "Facts only, no verdict"], ["state=partial&country=lt", "One agent failed"]]],
+    ["Network explorer", "network.html", [["state=graph", "Company links, graph"], ["state=graph&view=list", "List twin"], ["state=large", "Address hosts 412 companies"], ["state=empty", "No links"], ["state=loading", "Loading"], ["state=error", "Error"]]],
+    ["Library", "library.html", [["state=list", "List"], ["state=filtered", "Filtered"], ["state=empty", "Empty"], ["state=loading", "Loading"], ["state=error", "Error"]]],
+    ["Crash monitor", "crash.html", [["keys=none", "No keys: official data only"], ["keys=set", "Your key and funds set"], ["state=stale&keys=set", "One source stale"], ["state=error", "One source failed"], ["state=loading", "Loading"]]],
+    ["Settings", "settings.html", [["state=full", "All keys set"], ["state=keys-missing", "Keys missing"], ["state=key-invalid", "AI key rejected"], ["state=history-warning", "History near its limit"]]],
+    ["Sources", "sources.html", [["state=full", "All sources"], ["state=stale", "One source stale"], ["state=loading", "Loading"]]],
+  ];
+  function render() {
+    return `<div class="page" style="max-width:1080px">
+      <div class="co-head"><span class="label">Design mockups · fictional data</span><h1 class="co-title">Finora screens and states</h1>
+        <p class="ink2">Static HTML, no build step. Every state is a URL; the floating "Mockup states" panel switches between them and the theme. Spec: <span class="mono">DESIGN.md</span>. Checked at 390×844, 768×1024, 1280×800 and 1920×1080.</p></div>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:12px">
+        ${G.map(([t, f, states]) => `<section class="section"><div class="section-head"><h2>${esc(t)}</h2><span class="sid">${esc(f)}</span></div><div class="rows">${states.map(([q, l]) => `<div class="row"><span class="row-value"><a href="${f}?${q.includes("=") ? q : "state=" + q}">${esc(l)}</a></span><span class="row-end mono muted" style="font-size:11.5px">?${esc(q.includes("=") ? q : "state=" + q)}</span></div>`).join("")}</div></section>`).join("")}
+      </div>
+    </div>`;
+  }
+  Finora.mount(null, render, null, { spend: false });
+})();
+</script>
+</body>
+</html>

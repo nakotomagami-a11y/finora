@@ -1,5 +1,7 @@
 # Design: the first prototype
 
+> **Superseded** by `DESIGN.md` (v1) and the mockups in `docs/design/mockups/`. This page records the first prototype, made before any data existed.
+
 A clickable prototype was made before we had any data, so treat every field in it as a hypothesis. It isn't published here because it contains example names. This page describes its flow. The data research decides what stays.
 
 ## Flow
