@@ -197,6 +197,26 @@ Size at the cto's lean layout (123 bytes per statement), keeping about 10 fields
 - **Trade-off:** live queries need the network and leave the portals' uptime in our path; search across all states at once becomes 5-6 parallel requests (about 1-2 s). Network-of-officers within a state (S17) needs the bulk file, so it stays LATER for the live states.
 - Council session 1 decides which states load by default, as it planned.
 
+### 2.11 Terms for live queries and caching (legal's question)
+
+Read 2026-11-20. **No portal limits how long a query result may be kept.** Colorado's terms add an obligation (a disclaimer) and a right to revoke. The other portals disclaim warranties, may withdraw data, or don't state terms.
+
+| State | Terms read (URL) | Use and reuse | Caching or retention limit | Other conditions |
+|---|---|---|---|---|
+| NY | OPEN-NY Terms of Use, https://data.ny.gov/download/77gx-ii52/application/pdf | "use our government information however you wish, in private sector projects or in government collaborations"; no attribution, share-alike or pre-approval required | none stated | none |
+| CO | https://data.colorado.gov/terms (no date shown) | "By using data made available through this site, the user agrees to all the conditions…"; dataset licence Public Domain (portal metadata) | none stated | **Disclaimer required:** "Applications using data supplied by this site must include the following disclaimers on their sites: The data made available here has been modified for use from its original source, which is the State of Colorado. THE STATE OF COLORADO MAKES NO REPRESENTATIONS OR WARRANTY AS TO THE COMPLETENESS, ACCURACY, TIMELINESS, OR CONTENT OF ANY DATA MADE AVAILABLE THROUGH THIS SITE. THE STATE OF COLORADO EXPRESSLY DISCLAIMS ALL WARRANTIES, WHETHER EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. The data is subject to change as modifications and updates are complete. It is understood that the information contained in the Web feed is being used at one's own risk." **Revocation:** the State may "require the termination of any and all displaying, distributing or otherwise using any or all of the data for any reason" |
+| OR | No portal terms page: `https://data.oregon.gov/terms` answers 404. The footer's only terms link is the platform vendor's corporate terms (https://www.tylertech.com/terms, effective 2024-04-29), which contain no clause on data, caching or retention | main dataset: no licence stated; sibling datasets from the same division: "Public Domain U.S. Government" | none found | licence verified partial |
+| CT | https://data.ct.gov/terms (no date shown) | data provided "as is" as a public service; no conditions on use; no attribution required | none stated | the State may "discontinue availability of content … at any time", and must "promptly correct or remove" inaccurate or protected data |
+| PA | PA Data Policy, https://data.pa.gov/data-policy (no date shown) | "Data sets available through data.pa.gov are offered free and without restriction" | none stated | attribution requested, not required: "Data retrieved from data.pa.gov (https://www.data.pa.gov/)"; the policy may be amended "at any time and without further notice" |
+| WA | No portal terms found: the "User Resources" page has none, and the federal catalogue's copy of the portal's Terms of Service is marked "to be retired" | dataset licence: Open Data Commons Public Domain Dedication and Licence (portal metadata) | none (PDDL sets none) | licence verified Y (dataset), portal terms N |
+
+**API throttling (all six portals run on the same platform):** "requests that aren't using an application token come from a shared pool via IP address", while "currently we do not throttle API requests that are using an application token" (https://dev.socrata.com/docs/app-tokens.html, read 2026-11-20). No numeric limits are published; throttled requests get HTTP 429.
+
+**What this means for the cache:**
+- No time limit comes from the portals. Retention of person data (officers, principals, agents) is set by legal rule R11 and a lawyer, not by these terms.
+- Every cached state record keeps its retrieval date and is refreshed from the source. A record the source withdraws or corrects (CT, CO) is replaced or purged on refresh, not kept.
+- Wherever Colorado data is shown, the UI shows Colorado's disclaimer, for example behind the source chip.
+
 ### 2.9 Other states
 - Texas: the "Active Franchise Taxpayers" dataset (`9cir-efmm`) did not answer the count query; not usable as tested.
 - No other state with free bulk **officer** data was found on the Socrata catalogue search; IA, VT, AK and others were not checked individually. To settle: one pass over each Secretary of State's data page.
