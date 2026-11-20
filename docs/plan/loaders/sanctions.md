@@ -327,6 +327,7 @@ Tests: `resolve/src/sanctions.test.ts` (one case per rule above, on the fixture 
 
 Legal (7030162985, `LAW-SANCTIONS-PERSONS`): listed natural persons may be used for screening **live only**. No natural-person row is stored.
 
+- **At parse:** every individual entry is dropped from the store with drop reason `person_entry` (counted in the sync report) and handed to the index instead.
 - **What:** for every individual on the EU, OFAC (SDN and non-SDN) and UK lists: entry id, list, normalised name and aliases, programme, listing date, birth year (when given) and nationality. Held in the server process's memory (`packages/resolve/src/sanctions/person-index.ts`), never written to the store, a cache file, a log line or an export. It is a `live-no-store` view (architecture §3.5) of the same artifacts the entity loaders parse.
 - **Built:** in the same parse as the entity loaders (one download per list per day). On boot, the index is empty until the next sync or an on-demand download completes (about 1 minute for the three lists). Until then, officer screening reports "Officers not screened yet: lists loading" and check 9 says so in its coverage note.
 - **Raw cache:** the three list sources keep **no raw artifact** on disk (`rawCache: false`), because the files contain the individuals. A new `parserVersion` re-downloads (25 + 111 + 50 MB, daily anyway).

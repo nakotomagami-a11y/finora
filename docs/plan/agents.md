@@ -227,7 +227,7 @@ Test: `agent-tools/src/check-live-list.test.ts` (fixture pages for every list id
 | `lt-sodra-debts` | S08.LT.02, S18.LT.02 | `https://sodra.lt/Failai/Skolos.zip` (daily, as of the date in line 1) | debt amount, debt date, deferral flag, as-of | `social_insurance_debt` when listed; `checked_none` otherwise |
 | `lt-sodra-insured` | S07.LT.01 | `https://sodra.lt/Failai/Apdraustuju_skaicius.zip` (daily) | insured persons, as-of | none (a fact) |
 
-The monthly files (up to 400 MB) are not read on the agent path; the 24-month line of S07 is LATER for LT until the trigger in council 7029948837 (the publisher's terms quoted). Empty state before an investigation: AGENT ("Social-insurance data: checked when you investigate"). Tests: `agent-tools/src/read-live-source.test.ts` (sentinel values never reach the store, the filesystem or the logger; one download per publication day) and `agent-tools/src/social-insurance.test.ts` (the Sodra cases, architecture S10).
+The monthly files (up to 400 MB) are not read on the agent path; the 24-month line of S07 is LATER for LT until the trigger in council 7029948837 (the publisher's terms quoted). Empty state before an investigation: AGENT ("Social-insurance data: checked when you investigate"). Tests: `agent-tools/src/read-live-source.test.ts` (sentinel values never reach the store, the filesystem or the logger; one download per publication day) (also covers the Sodra cases, architecture S10).
 
 ### 4.5 `search_courts` (agent only, US)
 
@@ -376,7 +376,7 @@ A `social_insurance_debt` at or above the `arrears_serious` thresholds maps to `
 
 ### 6.4 The explanation
 - Prompt: §10.2. Structured output; each sentence must list ≥ 1 finding id that exists in this investigation; sentences without one are dropped by the server before storage (`agents/src/verdict.uncited.test.ts`) and by the renderer (R7).
-- **Banned terms** (council clarification 2; the one list in `packages/domain/src/config/banned-terms.ts`, per locale, with letter-grade and score patterns): **"own voice"** = the sentence text with every span inside quotation marks removed when that span equals a verified quote of a cited document; the remainder is matched case-insensitively, whole-word (stems for LT, LV, ET per DESIGN.md §4). If any sentence matches, the whole explanation is rejected and regenerated once with a reminder; if the second attempt fails, `explanation: null` and `explanationFallbackReason: "banned_term"` (the UI shows "No written explanation for this report"). Never silently rewritten. Tests: `agents/src/verdict.banned.test.ts` (pass; regenerate; fallback; a banned word inside a verified quote passes; the same word outside it fails).
+- **Banned terms** (council clarification 2; the one list in `packages/domain/src/config/banned-terms.ts`, per locale, with letter-grade and score patterns): **"own voice"** = the sentence text with every span inside quotation marks removed when that span equals a verified quote of a cited document; the remainder is matched case-insensitively, whole-word (stems for LT, LV, ET per DESIGN.md §4). If any sentence matches, the whole explanation is rejected and regenerated once with a reminder; if the second attempt fails, `explanation: null` and `explanationFallbackReason: "banned_term_fallback"` (the UI shows "No written explanation for this report"). Never silently rewritten. Tests: `agents/src/verdict.banned.test.ts` (pass; regenerate; fallback; a banned word inside a verified quote passes; the same word outside it fails).
 - The explanation never states or implies a level different from the rule table's; the level is rendered by the UI from `level`, not from prose.
 
 ---
@@ -595,4 +595,4 @@ Test: `agents/src/scenarios.test.ts` replays every scenario and asserts events, 
 - Contract additions (`Finding.kind`, `signalIds`, `get_checks`, the label keys, the question limits) were accepted into architecture §7 (milestone B).
 - **Measured run** (§12): waits for the key-testing round.
 - `docs/plan/loaders/sanctions.md` is on the branch (`87301af`); its two questions for legal are in its §8.
-- **Sodra tool:** `read_live_source` (§4.4b); the architect's test name `agent-tools/src/social-insurance.test.ts` is adopted for the Sodra cases. `lt-sodra.md` (data-baltics) keeps the file facts.
+- **Sodra tool:** `read_live_source` (§4.4b); its test is `agent-tools/src/read-live-source.test.ts` (architecture S10). `lt-sodra.md` (data-baltics) keeps the file facts.
