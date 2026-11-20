@@ -49,6 +49,8 @@ Why one source for registered + deregistered: a company moves from the first fil
 | `lt-rc-jar-capital` | 1. `in_file_field`: `formavimo_data` (wins) | **0.02**: removals are strike-offs of limited companies (same measurement, ≤ 0.005% a day) | `full` | one record per company; no order assumed |
 | `lt-lsd-activity` | 1. `portal_metadata`: `_created` of the newest change-log entry, `.../ja_asmenys/JuridinisAsmuo/:changes/-1` (wins; 2026-11-19 12:52 UTC); 2. `http_last_modified` (same timestamp on 2026-11-19) | **0.02**: the change feed shows 0 deletes on the loads of 2026-11-17, 18 and 19 (53-74 inserts and 85-274 patches a day of 552,531 rows; `removal_shares.py`); records also leave when a company is struck off (≈ 13 a day) | `full` | one record per company code (registered entities only); the activity table is sorted by its `_id`, the classifier is read into memory first, so no order is assumed |
 
+**Measured day over day (files of 19 and 20 Nov 2026, `python -I research/probes/baltics/lt/diff_pulls.py` with `--fields` excluding `formavimo_data`):** registered file 236,455 → 236,506, 65 added, 14 moved to the deregistered file, 64 changed (0.06%); management bodies 65 added, 14 removed, 56 changed. Hashing `formavimo_data` would mark 100% of rows changed every day, so the hash inputs exclude it (as above).
+
 `parserVersion` (A1) for all four: the hash of the loader module, its field map and the generated item list, plus, for `lt-rc-jar-entities` and `lt-rc-jar-bodies`, the generated LT tables in `legal-forms.ts` and `statuses.ts` (the natural-person form set and the status mapping change what is stored). The EVRK classifier is a fetched artifact, not part of the parser.
 
 ## Items

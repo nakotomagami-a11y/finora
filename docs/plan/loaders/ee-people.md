@@ -26,6 +26,8 @@ Three `SourceMeta` entries, one parser family:
 | `ee-rik-offcard-persons` | `max_date_in_data` on `kaardivalised_isikud[].algus_kpv`; `http_last_modified` | 2026-11-18 | `full` | 0.02 | as above (proxy) |
 | `ee-rik-members` | `max_date_in_data` on `osanikud[].algus_kpv`; `http_last_modified` | 2026-11-19 | `full` | 0.02 | as above (proxy) |
 
+**Measured day over day (files of 19 and 20 Nov 2026, `python -I research/probes/baltics/ee/diff_pulls.py diff` on the stored snapshots):** role sets on the card: 22 removed of 381,685 entity objects (0.006%; removals follow entity deletions), 143 changed; members: 22 removed, 73 changed. `maxPurgeShare` stays 0.02.
+
 - **Keys:** none. **Limits:** none published. Politeness as in `ee-register.md`.
 - **Format:** zip with one JSON array, 4-space pretty-printed, one object per entity (all 381,685 entities, most with an empty list). Streamed by line block (`research/probes/baltics/ee/jsonstream.py`). Sizes unzipped: 1.0 GB, 0.85 GB, 0.77 GB.
 

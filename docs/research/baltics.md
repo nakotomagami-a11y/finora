@@ -137,10 +137,10 @@ Asked by `cto`. "Current" follows council clarification 1 (no older than 2x the 
 | LV name history | daily / unchanged | 2025-04-02 | **no** | small | - | 0 | same |
 | LV tax authority (quarterly, rating, VAT) | quarterly, ~monthly, daily | Q3 2026; 2026-11-11; 2026-11-19 | yes | 46 + 14 + 29 MB | 48 + 2.5 + 21 s | 0 in 24 h | same |
 | LV procurement (daily JSON) | daily / daily | 2026-11-18 | yes | ~1.2 MB per day | - | one file per day | per-day file |
-| EE register (9 daily files) | daily / daily | 2026-11-19 (same day) | yes | 0.52 GB zipped, 10.1 GB unzipped | general data 364 s; rulings 872 s; persons 20-35 s each | pending second file; ~400-590 register entries per weekday | Last-Modified, ETag, 304; CDN max-age 14 days |
+| EE register (9 daily files) | daily / daily | 2026-11-19 (same day) | yes | 0.52 GB zipped, 10.1 GB unzipped | general data 364 s; rulings 872 s; persons 20-35 s each | 19 → 20 Nov: basic file 64 added, 22 removed (0.006%), 147 changed; persons 143 changed; members 73 changed; pledges 3 removed of 4,944; ~400-590 register entries per weekday | Last-Modified, ETag, 304; CDN max-age 14 days |
 | EE annual reports | monthly / monthly | cut 2026-10-31 | yes | 0.14 GB zipped | 4-68 s per file | monthly | Last-Modified |
 | EE tax board taxes | quarterly / quarterly | Q3 2026 (10 Oct) | yes | 156 MB | 23 + 31 s | quarterly | Last-Modified |
-| EE tax debtors | daily / daily | 2026-11-19 | yes | 1.3 MB | < 1 s | pending | Last-Modified |
+| EE tax debtors | daily / daily | 2026-11-19 | yes | 1.3 MB | < 1 s | 19 → 20 Nov: 124 added, 325 removed (1.63%), 607 amounts changed (3.1%; the as-of column changes on every row and must stay out of the row hash) | Last-Modified |
 | EE procurement | monthly / monthly | Oct 2026 | yes | 335 MB per 12 months | seconds per month | monthly | - |
 | GLEIF | 3x daily + deltas | 2026-11-19 16:00 | yes | 510.6 + 24.5 + 62.9 MB | 151 s (all three, Baltic filter) | LastDay delta: LT 34, LV 18, EE 128 | ETag, Last-Modified, deltas |
 | EU sanctions | on change | 2026-10-23 | yes | 25.9 MB | 1.8 s | 0 (identical pulls) | Last-Modified |
@@ -148,7 +148,7 @@ Asked by `cto`. "Current" follows council clarification 1 (no older than 2x the 
 | LV national frozen-assets list | irregular | 2026-11-16 | yes | 33 KB | < 1 s | - | CKAN last_modified |
 | Kohesio | snapshot folders, months apart | 2026-10-23 | slow (national data reaches it months late) | 108 MB (Baltic CSVs) | 29 s | LT 2021-27 unchanged March-October | none (dated folder) |
 
-Two-day diffs for LT and EE: the 19 Nov snapshots are stored, and each country's `diff_pulls.py diff` runs against the next pull. The numbers go into this table when they exist.
+Two-day diffs for LT and EE were measured on the files of 19 and 20 Nov 2026 (`diff_pulls.py`); the cells above carry them.
 
 ## IDs, joins and people
 
@@ -210,7 +210,7 @@ Asked by `architect`. Per-source answers are under each entry below (lines a-k);
 - Size and speed: 40.9 + 42.6 + 25.4 + 15.6 MB; each parses in < 0.6 s. No ETag or Last-Modified (Cloudflare,
   `Cache-Control: private`): the as-of date is the `formavimo_data` column. No delta file. Changes measured against
   the API copy (cut-off 2026-10-02): 2,048 new registrations, 618 deregistrations, 2,901 status changes in 48 days.
-  Day-over-day diff: snapshot of 2026-11-19 kept (`diff_pulls.py`); second pull pending.
+  Day-over-day diff (`diff_pulls.py`, hashing every column except `formavimo_data`): 19 → 20 Nov, registered 65 added, 14 moved to the deregistered file, 64 changed (0.06%); management bodies 56 changed.
 - Join keys: `ja_kodas`, 9 digits, mod-11 check digit (same algorithm as Lithuanian personal codes; 552,531 of
   552,531 valid), 100% filled. Joins 1:1 to tax, social-insurance, bankruptcy and EU-funds files.
 - Person identity: none in these files. Sole proprietorships (individuali įmonė) and partnerships carry the owner's
@@ -1584,7 +1584,7 @@ One row per section and country, in the README's final format. Grades follow the
 
 ## Open items
 
-1. **Two-day diffs for LT and EE.** The snapshots of 19 Nov are stored. Run `research/probes/baltics/{lt,ee}/diff_pulls.py diff` after the next daily files, then fill the "Changed per day" column.
+1. **Two-day diffs for LT and EE:** done (19 → 20 Nov 2026; see the freshness table). The EE tax-debtor list removes about 1.6% a day, so its purge limit is 0.082, not the 0.02 floor.
 2. **Estonian register API (contract).**
    - Free, 50,000 answers a day, one query at a time. The application takes up to five working days.
    - It adds history, deleted companies and full annual reports. The bulk files cover everything else.
