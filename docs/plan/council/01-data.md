@@ -283,11 +283,18 @@ Applied on top of Parts B-E after legal's review and cto's notes. Gate 1 decided
 - **Critical path:** `SEC_USER_AGENT` comes from the human before the US slices start.
 - **Dissent:** none new.
 
+**WHOIS and archive ruling (2026-11-20, after phase 3 opened):** data-osint quoted the registry and archive terms (`osint.md` §1.1a); legal reviewed them; the council applied legal's lights (gate 1, no dissent).
+- **.lt WHOIS (`S15.LT.whois`): CAVEAT.** Domain age, registrar and creation date, read once per investigation at query time; the holder is never shown; no storage beyond the investigation's cited record; no contact of the holder. **Build condition:** the .lt terms are re-read against the server notice on the build date; if they changed, the row drops back to LATER.
+- **.lv WHOIS (`S15.LV.whois`): LATER.** Its purpose clause (Internet operation, or contacting the holder over legal problems) doesn't cover due diligence. *What would change it:* the .lv registry confirms in writing that the lookup is within its purpose.
+- **.ee WHOIS (`S15.EE.whois`): LATER, no display.** The terms bar business use and require results to be passed on "in its entirety", which conflicts with showing selected fields, including the register-code match.
+- **Web archive (`S15.ALL.archive`): LATER.** Access is "for scholarship and research purposes only", with no collecting or storing of personal data. No archive link in v1, not even a plain link (LAWYER). *What would change it:* a lawyer clears the link.
+- **Check 11:** in LV and EE it runs on DNS, certificate logs and the homepage only.
+
 ## Part G: the item table, one row per `item_id` (final, confirmed)
 
-Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and seven new S15 ids, so 158 rows. No id is missing or unknown. Counts: SHOW 41, CAVEAT 58, LATER 54, HIDE 5. **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
+Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and four new S15 ids, so 155 rows. No id is missing or unknown. Counts: SHOW 41, CAVEAT 59, LATER 50, HIDE 5. **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
 
-**New ids:** `S15.LT.01-whois`, `S15.LV.02-whois`, `S15.EE.02-whois` and `S15.LT.01-archive`, `S15.LV.02-archive`, `S15.EE.02-archive`, `S15.US.01-archive` (Part H, item 5). **Split ids:** `S01.US.03a` (PA) and `S01.US.03b` (OR); `S08.EE.01a` (tax debtors) and `S08.EE.01b` (taxes paid); `M05.X.02a` (oracle) and `M05.X.02b` (user key); `M06.X.01a` (O5 oracle) and `M06.X.01b` (O3 supply + X4 candles).
+**New ids:** `S15.LT.whois`, `S15.LV.whois`, `S15.EE.whois` and `S15.ALL.archive` (Part H, item 5 and the WHOIS ruling). **Split ids:** `S01.US.03a` (PA) and `S01.US.03b` (OR); `S08.EE.01a` (tax debtors) and `S08.EE.01b` (taxes paid); `M05.X.02a` (oracle) and `M05.X.02b` (user key); `M06.X.01a` (O5 oracle) and `M06.X.01b` (O3 supply + X4 candles).
 
 **Reconciliation points, closed:** (1) OR and WA: yes, the US private promise reads "NY, CO, CT or PA" and P11 is per state. (2) `S03.US.03`: yes, CT principals, PA parties and the NY CEO only; FL officers LATER with `S01.US.04`, OR representatives with `S01.US.03b`.
 
@@ -408,13 +415,10 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S15.EE.01 | SHOW | - | — |
 | S15.EE.02 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
 | S15.US.01 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
-| S15.LT.01-whois | LATER | - | — (until data-osint quotes the registry terms and legal clears them) |
-| S15.LV.02-whois | LATER | - | — (until data-osint quotes the registry terms and legal clears them) |
-| S15.EE.02-whois | LATER | - | — (until data-osint quotes the registry terms and legal clears them) |
-| S15.LT.01-archive | LATER | - | — (until the archive's terms are read) |
-| S15.LV.02-archive | LATER | - | — (until the archive's terms are read) |
-| S15.EE.02-archive | LATER | - | — (until the archive's terms are read) |
-| S15.US.01-archive | LATER | - | — (until the archive's terms are read) |
+| S15.LT.whois | CAVEAT | Domain age, registrar and creation date from the .lt registry, read once per investigation at query time; the holder is never shown | AGENT |
+| S15.LV.whois | LATER | - | — |
+| S15.EE.whois | LATER | - | — |
+| S15.ALL.archive | LATER | - | — (no archive link in v1, not even a plain link: legal marks that LAWYER) |
 | S16.LV.01 | LATER | - | — |
 | S16.EE.01 | LATER | - | — |
 | S16.US.01 | LATER | - | — |
