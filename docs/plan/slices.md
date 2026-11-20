@@ -71,18 +71,25 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-RETENTION-ROLES | `ingest/src/history.test.ts` |
      | LAW-CACHE-TTL | `store/src/retention.test.ts`, `ingest/src/live-cache.test.ts` |
      | LAW-SOLE-ADDRESS | `ingest/src/natural-person.test.ts` |
+     | LAW-SECURING-SOLE | `ingest/src/natural-person.test.ts` (sole traders' securing measures and suspensions dropped) |
+     | LAW-PERSON-INSOLVENCY | `ingest/src/natural-person.test.ts` (natural-person insolvency dropped) |
      | LAW-PERSON-LINKS | `domain/src/network/build.test.ts` |
      | LAW-ANON-COUNT | `domain/src/checks/checks.test.ts` (check 4 not run where S04 is LOCK) |
+     | LAW-LV-NP-PROCUREMENT | `sources/src/field-maps.test.ts` (S12 is LATER: nothing mapped) |
      | LAW-WHOIS-LT | `agent-tools/src/output-filter.test.ts` (holder never shown) |
      | LAW-WHOIS-LV-EE | `agents/src/items.agent.test.ts` (LATER ids never queried) |
+     | LAW-NATIONAL-LISTS | `agent-tools/src/check-live-list.test.ts` (live, cited, never stored) |
+     | LAW-UN-LIVE | `agent-tools/src/check-live-list.test.ts`, `sources/src/licences.test.ts` (never stored) |
+     | LAW-COURTS-LT, LAW-COURTS-LV | `agents/src/items.agent.test.ts` (no Baltic court portal is queried; MANUAL link rendered) |
      | LAW-SAM | `sources/src/us/sam-exclusions.test.ts` (fields dropped, keyed extract only) |
      | LAW-FINRA | `agent-tools/src/check-live-list.test.ts` (link-out, no request) |
+     | LAW-CO-DISCLAIMER | `web/e2e/co-disclaimer.spec.ts` |
      | LAW-SHARE-ALIKE | `ingest/src/share-alike.test.ts`, `ingest/src/live-no-store.test.ts` |
+     | LAW-SODRA-LICENCE | `agent-tools/src/social-insurance.test.ts` (read live, nothing written), `sources/src/licences.test.ts` |
+     | LAW-ACCOUNTS-DEADLINE | `domain/src/checks/filing-window.test.ts` (no statutory deadline is ever shown; legal and the coordinator asked to remove this row, and the test stays either way) |
      | LAW-P7-SCOPE | `domain/src/policy/purposes.test.ts` |
      | LAW-DEFAMATION | `agents/src/orchestrator.subject.test.ts` |
      | LAW-DISPUTE-WINDOW | `store/src/disputes.test.ts` |
-     | LAW-SODRA | `sources/src/licences.test.ts` (storage class), `ingest/src/live-no-store.test.ts` |
-     | LAW-FILING-DEADLINES | `domain/src/checks/filing-deadlines.test.ts` |
      | LAW-MARKET-CAP | `markets/src/items.test.ts` (no value lost without quoted terms) |
      | LAW-AGPL-HOSTED | no hosted build in v1; `web/e2e/source-link.spec.ts` (R18) |
 - **Tests:** `scripts/check-deps.test.mjs`, `scripts/check-lawyer-register.test.mjs`, `scripts/gen-items.test.mjs`, `tooling/eslint/rules.test.ts`, `tooling/eslint/rules/denylist.test.ts`, `domain/src/items/items.generated.test.ts`.
@@ -211,7 +218,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S10 Specialists, open-web tools and the verdict
 - **Owner:** data-osint · **with:** architect · **Depends on:** S09, S06 · **security**
-- **Scope:** `agents.md` §2, §4.2-§4.6, §5, §6, §9, §10, §13: the four specialists and their pre-run tasks, the open-web tools (`domain_report`, `homepage_facts`, `fetch_page`, `news_search`, `check_live_list`, `search_courts` for LV first), anchors, signals, the rule table `computeVerdict` and the explanation with the banned-term branches, the P8 output filter and canary, the twelve fake-provider scenarios. The v1 investigation **is** the one profile template the council kept (counterparty, session 0): the plan always runs the four specialists; other templates are LATER (the `plan` event already carries the roles, so a template only changes the plan).
+- **Scope:** `agents.md` §2, §4.2-§4.6, §5, §6, §9, §10, §13: the four specialists and their pre-run tasks, the open-web tools (`domain_report`, `homepage_facts`, `fetch_page`, `news_search`, `check_live_list`, `search_courts` for the US only; Baltic court checks are MANUAL in v1), the money agent's live LT social-insurance tool (S07.LT.01, S08.LT.02, S18.LT.02; `docs/plan/loaders/lt-sodra.md` and `agents.md` §4; read at query time, never stored), anchors, signals, the rule table `computeVerdict` and the explanation with the banned-term branches, the P8 output filter and canary, the twelve fake-provider scenarios. The v1 investigation **is** the one profile template the council kept (counterparty, session 0): the plan always runs the four specialists; other templates are LATER (the `plan` event already carries the roles, so a template only changes the plan).
 - **Acceptance:** `agents.md` §14 "Agent tools and specialists" items 1-5, plus:
   1. One test per rule in the rule table; the determinism test (same inputs, three explanation texts, same level and fired rules).
   2. The three banned-term branches (pass, regenerate, fallback).
@@ -257,8 +264,8 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S14 Lithuania loaders
 - **Owner:** data-baltics · **with:** architect · **Depends on:** M2
-- **Scope:** every `docs/plan/loaders/lt-*.md` spec: the daily register files with the classifier and address joins, the tax-authority datasets and the arrears change feed (purge guard on deletes), social-insurance files grouped per company-period (storage `live-no-store` while `LAW-SODRA` is open, council), statements grouped per report, `paid_only` people with the register's own ordering page, the Statistics Lithuania activity table with English labels into `labels`, share capital as an optional S01 field.
-- **Acceptance:** each spec's Tests; every LT SHOW/CAVEAT item renders; S03.LT names render `paid_only` with the official order link only; social-insurance debts stay in the instant profile with nothing written to disk (`ingest/src/live-no-store.test.ts` on the LT fixtures); the 180-day arrears rule follows the stability-check outcome (`domain/src/verdict/lt-arrears-age.test.ts`); P10: LT ≤ 2 GB, searchable in ≈ 2 min.
+- **Scope:** every `docs/plan/loaders/lt-*.md` spec: the daily register files with the classifier and address joins, the tax-authority datasets and the arrears change feed (purge guard on deletes), statements grouped per report, `paid_only` people with the register's own ordering page, the Statistics Lithuania activity table with English labels into `labels`, share capital as an optional S01 field.
+- **Acceptance:** each spec's Tests; every LT SHOW/CAVEAT item renders; S03.LT names render `paid_only` with the official order link only; no social-insurance data is loaded or stored (it is the money agent's live tool in S10); the 180-day arrears rule runs from the list's entry date (`domain/src/verdict/lt-arrears-age.test.ts`); P10: LT ≤ 2 GB, searchable in ≈ 2 min.
 - **Tests:** the spec files' named tests under `sources/src/lt/`, `sources/src/lt/*.live.test.ts`.
 - **Demo:** `pnpm finora-cli data sync --country lt`, open a Lithuanian company, see arrears, insured counts and the paid-extract line for names.
 
@@ -390,7 +397,7 @@ Every rule's enforcement point is in architecture §10; this table says which sl
 
 ## Appendix: every SHOW and CAVEAT item
 
-Generated from Part G of `docs/plan/council/01-data.md` (155 rows: 41 SHOW, 59 CAVEAT, 5 HIDE, the rest LATER). **Data slice** loads it; **UI slice** renders it; the **acceptance test** is the parameterised case for that id, which asserts the value renders with its sources, its caveat when CAVEAT, and its empty state when there is no data. `domain/src/report/items.test.ts` and `agents/src/items.agent.test.ts` iterate `items.generated.ts`, so an id added to Part G without a case fails CI. The UI side is covered for every id by the field-registry test (architecture §10.5). HIDE ids are in architecture §10.4.
+Generated from Part G of `docs/plan/council/01-data.md` (155 rows: 41 SHOW, 56 CAVEAT, 5 HIDE, the rest LATER), with the council's later calls applied: S07.LT.01, S08.LT.02 and S18.LT.02 on the agent path (`758a916`), and S10.LT.01, S10.LV.01 and S10.EE.01 moved to LATER with a MANUAL link (council 7029979738; to be recorded in Part G by the coordinator). **Data slice** loads it; **UI slice** renders it; the **acceptance test** is the parameterised case for that id, which asserts the value renders with its sources, its caveat when CAVEAT, and its empty state when there is no data. `domain/src/report/items.test.ts` and `agents/src/items.agent.test.ts` iterate `items.generated.ts`, so an id added to Part G without a case fails CI. The UI side is covered for every id by the field-registry test (architecture §10.5). HIDE ids are in architecture §10.4.
 
 | item_id | Call | Data slice | UI slice | Acceptance test |
 |---|---|---|---|---|
@@ -424,13 +431,13 @@ Generated from Part G of `docs/plan/council/01-data.md` (155 rows: 41 SHOW, 59 C
 | S06.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S06.EE.01` |
 | S06.US.01 | SHOW | S16 | S08 | `domain/src/report/items.test.ts › S06.US.01` |
 | S06.US.02 | SHOW | S18 | S08 | `domain/src/report/items.test.ts › S06.US.02` |
-| S07.LT.01 | CAVEAT | S14 | S14 | `domain/src/report/items.test.ts › S07.LT.01` |
+| S07.LT.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S07.LT.01` |
 | S07.LV.01 | CAVEAT | S05 | S08 | `domain/src/report/items.test.ts › S07.LV.01` |
 | S07.EE.01 | CAVEAT | S13 | S13 | `domain/src/report/items.test.ts › S07.EE.01` |
 | S07.US.02 | SHOW | S18 | S08 | `domain/src/report/items.test.ts › S07.US.02` |
 | S07.US.03 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S07.US.03` |
 | S08.LT.01 | SHOW | S14 | S14 | `domain/src/report/items.test.ts › S08.LT.01` |
-| S08.LT.02 | CAVEAT | S14 | S14 | `domain/src/report/items.test.ts › S08.LT.02` |
+| S08.LT.02 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S08.LT.02` |
 | S08.LV.01 | CAVEAT | S05 | S08 | `domain/src/report/items.test.ts › S08.LV.01` |
 | S08.EE.01a | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S08.EE.01a` |
 | S08.EE.01b | CAVEAT | S13 | S13 | `domain/src/report/items.test.ts › S08.EE.01b` |
@@ -438,9 +445,6 @@ Generated from Part G of `docs/plan/council/01-data.md` (155 rows: 41 SHOW, 59 C
 | S09.LV.01 | SHOW | S05 | S08 | `domain/src/report/items.test.ts › S09.LV.01` |
 | S09.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S09.EE.01` |
 | S09.US.01 | CAVEAT | S17 | S17 | `domain/src/report/items.test.ts › S09.US.01` |
-| S10.LT.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S10.LT.01` |
-| S10.LV.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S10.LV.01` |
-| S10.EE.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S10.EE.01` |
 | S10.US.01 | CAVEAT | S18 | S11 | `agents/src/items.agent.test.ts › S10.US.01` |
 | S10.US.02 | CAVEAT | S18 | S11 | `agents/src/items.agent.test.ts › S10.US.02` |
 | S11.LT.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S11.LT.01` |
@@ -478,7 +482,7 @@ Generated from Part G of `docs/plan/council/01-data.md` (155 rows: 41 SHOW, 59 C
 | S17.LV.01 | CAVEAT | S05 | S20 | `domain/src/report/items.test.ts › S17.LV.01` |
 | S17.EE.01 | CAVEAT | S13 | S20 | `domain/src/report/items.test.ts › S17.EE.01` |
 | S18.LT.01 | SHOW | S14 | S14 | `domain/src/report/items.test.ts › S18.LT.01` |
-| S18.LT.02 | CAVEAT | S14 | S14 | `domain/src/report/items.test.ts › S18.LT.02` |
+| S18.LT.02 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S18.LT.02` |
 | S18.LV.01 | SHOW | S05 | S08 | `domain/src/report/items.test.ts › S18.LV.01` |
 | S18.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S18.EE.01` |
 | S18.US.01 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S18.US.01` |
