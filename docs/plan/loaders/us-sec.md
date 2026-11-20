@@ -108,7 +108,7 @@ Each fiscal year is one `fact_reports` row (`kind = annual_accounts`, `period_st
 
 | Table.field | Target | item_id | Personal? | Transform |
 |---|---|---|---|---|
-| SUBMISSION.ACCESSION_NUMBER, ISSUERCIK, FILING_DATE, DOCUMENT_TYPE, AFF10B5ONE | event `filing.form345`; record key | S14.US.01 | no | issuer must be a `us-cik-*` entity; `AFF10B5ONE` shown as "Trading plan (Rule 10b5-1) flagged" |
+| SUBMISSION.ACCESSION_NUMBER, ISSUERCIK, FILING_DATE, DOCUMENT_TYPE, AFF10B5ONE | event `filing.form345`; the filing key follows the **accession rule** above (the accession is kept only when its prefix is not a reporting person's CIK, else `<issuerCik>:<filingDate>:<n>`); the record key is `insiders:<issuerCik>:<yyyy>q<n>` | S14.US.01 | no | issuer must be a `us-cik-*` entity; `AFF10B5ONE` shown as "Trading plan (Rule 10b5-1) flagged" |
 | REPORTINGOWNER.RPTOWNERNAME, RPTOWNER_RELATIONSHIP, RPTOWNER_TITLE | `Person` in a `Directorship` (officer, director) or `Ownership` (ten percent owner) of the issuer | S03.US.01 (officer, director), S04.US.02 (ten percent owner) | **yes** | roles: Director, Officer, TenPercentOwner, Other |
 | REPORTINGOWNER.RPTOWNERCIK | **dropped: personal code (PS6)** | - | - | an SEC person identifier: never a key, hash input or stored value |
 | NONDERIV_TRANS.TRANS_DATE, TRANS_CODE, TRANS_SHARES, TRANS_PRICEPERSHARE, TRANS_ACQUIRED_DISP_CD | aggregated per issuer and calendar quarter: `fact_reports(kind = insider_quarter)` with `shares_bought` (code P), `shares_sold` (code S), `value_bought`, `value_sold`, `filings` | S14.US.01 | no | only P and S feed net buys and sells; other codes (A, F, M, G, J, ...) are counted in `other_transactions` |
