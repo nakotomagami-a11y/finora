@@ -35,7 +35,7 @@ Monorepo and boundaries; licence on every value; store, resolution and budgets (
 
 ## Revision (architect, `3c6cd90`)
 
-B1-B3 and S1-S4 are closed in `3c6cd90`: a `leases` table taken inside `BEGIN IMMEDIATE` (`store/src/leases.test.ts`, `agents/src/recovery.test.ts`); every sync in a worker thread (`server/src/jobs.main-thread.test.ts`); `pnpm finora` builds when `.next` is missing or stale and runs `next start` on 127.0.0.1, with the cold path recorded in `benchmarks.md`; CI `test` and `demo-boot` on Ubuntu and Windows; a 15 GB disk preflight, `PRAGMA quick_check`, daily `finora-cli backup` (last 7 kept) and `doctor --repair`; additive-only migrations on the three big tables; Part G re-parses in the background under the leases. Open: legal's "v1 runs locally only" line at the top of `docs/architecture.md` and in the README's run section.
+B1-B3 and S1-S4 are closed in `3c6cd90`: a `leases` table taken inside `BEGIN IMMEDIATE` (`store/src/leases.test.ts`, `agents/src/recovery.test.ts`); every sync in a worker thread (`server/src/jobs.main-thread.test.ts`); `pnpm finora` builds when `.next` is missing or stale and runs `next start` on 127.0.0.1, with the cold path recorded in `benchmarks.md`; CI `test` and `demo-boot` on Ubuntu and Windows; a 15 GB disk preflight, `PRAGMA quick_check`, daily `finora-cli backup` (last 7 kept) and `doctor --repair`; additive-only migrations on the three big tables; Part G re-parses in the background under the leases. Legal's "v1 runs locally only" line is at the top of `docs/architecture.md` and in the README's run section (`d9457c2`).
 
 ## Council decision
 

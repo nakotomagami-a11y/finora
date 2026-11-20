@@ -4,7 +4,7 @@ Free, open-source company intelligence, done by agents. Describe a company you'r
 
 Checking a company by hand means hours across a dozen registries and websites. Agents can do it in minutes, and the result should be free.
 
-**Status: research.** No app code yet. We are first measuring which public data actually exists for the US and the Baltics (Lithuania, Latvia, Estonia) and what it lets us show. Architecture and code come after that.
+**Status: planning done, build next.** No app code yet. The data research (`docs/research/`), the council's data decisions and the build plan (`docs/plan/`) are written and reviewed; the build starts slice by slice once the plan is approved. The register of the work is `docs/plan/README.md`.
 
 ## Running Finora
 
