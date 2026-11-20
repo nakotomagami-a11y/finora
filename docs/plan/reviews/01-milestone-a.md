@@ -1,5 +1,7 @@
 # qa review: architecture milestone A (store and loader contract)
 
+**Status: closed 2026-11-20.** Every item below is fixed and verified by qa at `faed2df`.
+
 `qa` reviewed `docs/architecture.md` §3-§4 at `233b78f` on 2026-11-20, before the loader specs build on it; committed by the coordinator. Early-review items #1, #2, #9, #10, #15, #19, #20, #22, #23 and N1 are confirmed closed in the text.
 
 | # | Severity | Finding | Fix asked | Status |
@@ -29,9 +31,9 @@
 **cto's corrections to `docs/plan/benchmarks.md` (sent to the architect):** drop the unmeasured "NVMe SSD" from `dev-desktop-1` (8 cores / 16 threads, 32 GB RAM, disk type not recorded); label the statement-layout rows by run (run 2 ran under unrelated CPU load: its times are not budgets, its sizes and write counts are); compare ranked with ranked: trigram top 20 with rank is p50 13 ms, p95 34 ms, beside prefix p50 19 ms, p95 39 ms, so ~40 ms p95 per index is the budget.
 
 **Person rows (§3.3, `names_no_id`), qa check at `37cf9a8` (legal agrees with all three):**
-- **M1, MUST-FIX: a dispute must survive a role-set reload** (R10). Its target is company eid + source + item + an internal hash of the disputed line's normalised content, re-applied after every load; the hash is never output, exported or logged (canary rule). Test `store/src/disputes.test.ts`: dispute officer A, add officer B, A stays suppressed and B shows. Architect's `b61002a` answer: stable targets for findings, citations, disputes and `purpose_log`, test `store/src/person-targets.test.ts`. qa to verify.
-- **S1, SHOULD-FIX: a correction must not read as "a role ended".** Diff on the source's own row-local role id (LV officer `id`, EE `kirje_id`), internal only, else (role, start date); names are never compared. Architect's `b61002a`: test `ingest/src/role-ended.test.ts`. qa to verify.
-- **S2, SHOULD-FIX: §3.4 is stale** (still `p-<20 hex>` with a fixture HMAC key); update it so no builder implements the HMAC. Not mentioned in the architect's last post.
+- **M1, MUST-FIX: a dispute must survive a role-set reload** (R10). Its target is company eid + source + item + an internal hash of the disputed line's normalised content, re-applied after every load; the hash is never output, exported or logged (canary rule). Test `store/src/disputes.test.ts`: dispute officer A, add officer B, A stays suppressed and B shows. **Closed:** fixed in `faed2df`, verified by qa (`store/src/disputes.test.ts`, `store/src/person-targets.test.ts`).
+- **S1, SHOULD-FIX: a correction must not read as "a role ended".** Diff on the source's own row-local role id (LV officer `id`, EE `kirje_id`), internal only, else (role, start date); names are never compared. **Closed:** `faed2df`, verified by qa (`ingest/src/role-ended.test.ts`).
+- **S2, SHOULD-FIX: §3.4 is stale** (still `p-<20 hex>` with a fixture HMAC key); update it so no builder implements the HMAC. **Closed:** `faed2df`, verified by qa.
 - **Legal note:** the role-set hash and the dispute content hash are internal change detection only and fall under the PS5 canary scope.
 
 **cto's `benchmarks.md` corrections:** done in `b61002a` per the architect.
