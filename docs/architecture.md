@@ -709,7 +709,8 @@ type Verdict = {
   firedRules: { ruleId: string; findingIds: string[] }[];
   coverage: { ran: number; applicable: number; skipped: { checkId: CheckId; reason: SkipReason }[] };   // applicable = 11 minus checks whose data is not published in the country; those are skipped with reason not_published and named in the coverage line
   sourceCount: number;
-  explanation: { text: string; findingIds: string[] }[] | null;    // null = banned_term_fallback
+  explanation: { text: string; findingIds: string[] }[] | null;
+  explanationFallbackReason?: "banned_term_fallback";             // set when explanation is null (agents.md §6.4)
   explanationGeneratedBy: "ai";
 };
 
