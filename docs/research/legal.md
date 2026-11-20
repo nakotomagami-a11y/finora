@@ -211,3 +211,10 @@ Not legal advice. The architecture gives each person row an install-local HMAC o
 A per-company pseudonym is still personal data; condition 1 keeps it out of the direct-identifier class. **LAWYER** to confirm before the person rows are built.
 
 **Officer names vs the pseudonym (2026-11-20):** answer (b). Names of current officers in company context are CAVEAT (rule 2, Y), not blocked pending the pseudonym question. Conditions: the purpose gate, the rule 6 disclaimer, current roles only. Names can be shown with a non-persistent row id and no HMAC; the pseudonym (HMAC) waits for a lawyer. **Scope limit, LAWYER:** whether Latvian board and officer data stays public after the 9 Nov 2026 ruling (which concerned shareholders). Until a lawyer confirms, LV officer names stay behind the purpose gate as above; if a lawyer later rules against them, LV People falls to role counts and the LV promise is re-scoped.
+
+## US sources in the loader specs (phase 3, 2026-11-20)
+
+Not legal advice.
+1. **SAM.gov exclusions:** only the keyed Extracts API; a bulk or scraped pull falls under the ban on automated gathering, so the keyless route stays off. The "D&B Open Data" restriction on agency-entered exclusion fields is not verified: fields that might carry it are dropped until the terms are read (**LAWYER** if ever shown); addresses stay dropped.
+2. **FINRA BrokerCheck:** link-out only (`manual_lookup`). An LLM reading the result is automated access, and the terms are not verified to allow it; a compliance purpose does not settle the automation question.
+3. The organisation-only scope of the FJC court index and the US ≤ 1 GB budget raise no legal objection. The CO disclaimer and CT withdrawal tests are the right conditions.

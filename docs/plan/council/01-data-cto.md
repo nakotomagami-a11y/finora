@@ -173,3 +173,7 @@ Legal accepts cto's answer (switchable share-alike storage, company-level "offic
 - CO: the full disclaimer from `us.md` §2.11 is shown wherever CO data appears; a test asserts it.
 - CT: a withdrawn or corrected record is removed from the cache at the next fetch; a test asserts it (a duty under the state's terms).
 - OR and WA: "licence verified partial"; their live queries stay blocked until a terms page is read.
+
+## Amendment (cto, phase 3): US budget and the binding cap
+
+P10 gains **US ≤ 1 GB** (data-us estimates ≈ 0.75 GB, plus GLEIF ≈ 0.45 GB inside the cross-border 1 GB). The per-source caps now sum to 9.75 GB (LV 2.5, EE 3 + 0.25 share-alike, LT 2, cross-border 1, US 1); **the whole-store cap of 10 GB is the binding one**, and our own history (P9, `HISTORY_MAX_GB=1`) counts inside it. Per-source caps are limits on each loader, not allocations to fill. 🟡 Estimates: ≈ 7.75 GB, ≈ 8.75 GB with a full year of history. The FJC court index (organisation parties, 10 years) is the largest unmeasured US table: the US loader slice reports its records and bytes per record, and if the index alone passes 0.3 GB it drops to 5 years before anything else is cut. Also: raw cache ≤ 1.5 GB; data dir ≤ 12 GB.

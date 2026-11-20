@@ -98,7 +98,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | milestone A **closed** (store and loader contract, verified by qa at `faed2df`; `docs/plan/reviews/01-milestone-a.md`); milestone B in progress |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/README.md` (spec template and ownership) | coordinator | 3 | done |
-| `docs/plan/loaders/*.md` | data seats | 3 | landed: `markets.md`, `esma-firds.md` (data-markets, `d3fce4c`); `gleif.md`, `us-states.md`, `us-sec.md`, `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (data-us, `4e820f1`) |
+| `docs/plan/loaders/*.md` | data seats | 3 | landed: `markets.md`, `esma-firds.md` (data-markets, `d3fce4c`, fixed contract `384ddb4`); `gleif.md`, `us-states.md`, `us-sec.md`, `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (data-us, `4e820f1`) |
 | `docs/plan/agents.md` | data-osint | 3 | landed `1ecbbc4`; court portals (§4.5a) to follow; §16 lists contract additions for the architect |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
