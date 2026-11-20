@@ -218,3 +218,9 @@ Not legal advice.
 1. **SAM.gov exclusions:** only the keyed Extracts API; a bulk or scraped pull falls under the ban on automated gathering, so the keyless route stays off. The "D&B Open Data" restriction on agency-entered exclusion fields is not verified: fields that might carry it are dropped until the terms are read (**LAWYER** if ever shown); addresses stay dropped.
 2. **FINRA BrokerCheck:** link-out only (`manual_lookup`). An LLM reading the result is automated access, and the terms are not verified to allow it; a compliance purpose does not settle the automation question.
 3. The organisation-only scope of the FJC court index and the US ≤ 1 GB budget raise no legal objection. The CO disclaimer and CT withdrawal tests are the right conditions.
+
+## Sanctions lists: listed natural persons (phase 3, 2026-11-20)
+
+Not legal advice.
+1. **Officer screening against listed natural persons: live only (interim).** Names and aliases are personal data that screening needs, but storing a copy of the listing is the data-minimisation problem. Birth date and nationality are beyond what a screen needs. The officer screen reads the official list live, in memory, and stores only the citation (list, date, entry reference) and the match result; no natural-person row is stored; matches are "possible match, needs review" (rule 8). **LAWYER:** whether a stored name and alias for screening is acceptable behind the purpose gate.
+2. **The LV FIU list:** the frozen company's own record is company data and may be shown; the listed individual behind it is not named (the loader drops the name). **LAWYER** if the product later wants it.
