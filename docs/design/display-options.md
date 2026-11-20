@@ -1,5 +1,7 @@
 # Display options for council session 1
 
+> **Session 1 has ruled** (`docs/plan/council/01-data.md`). Where this page and that record differ, the council record wins: for example the fixed 11-check list, `paid_only` for Lithuanian names, S05 and S12 LATER, company-to-company network only, and the 12-hour purpose session. `DESIGN.md` and the screens follow the council record; this page stays as the advice trail.
+>
 > Designer's advice to the council. Updated for the legal memo (`docs/research/legal.md`) and the council's session 0 framing (rubric, three empty states, v1 agents, banned verdict words). Written before the display matrix is final. It offers **ways to show** each data item; the council decides **whether** to show it. Where the research changes a fact, the research wins and this page is updated.
 
 The council's decision for each item (show / show with caveat / hide / later) maps onto one of the display states below. Picking the state also picks the UI, so a builder never has to invent one.
