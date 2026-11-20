@@ -55,6 +55,10 @@ B1-B3 and S1-S4 are closed in `3c6cd90`: a `leases` table taken inside `BEGIN IM
 | Q4 | SHOULD-FIX | Absolute timing assertions (p95 < 100 ms, heartbeat ≤ 1 s late) will flake on shared CI runners | keep them as recorded benchmarks on `dev-desktop-1`; in CI assert relative budgets or a generous bound (≤ 3 s gap) | open |
 | Q5 | NIT | "Stale" keyed on commit + lockfile misses uncommitted changes | add the dirty-tree hash, or document `pnpm finora --rebuild` | open |
 
+**cto's corrected backup design (accepts qa 1-5; item 1 was cto's error):** user data lives in its own file, `finora-user.db` (investigations, runs, findings, citations, documents, `purpose_log`, disputes, judgements, settings, fund slots), attached like the share-alike store, with cross-file references by `eid` only. `finora-cli backup` runs `VACUUM INTO` on that file only, counted in the 12 GB; `finora.db` is never backed up (it re-derives from the raw cache). Deletions (user delete, TTL expiry, resolved disputes) are appended as ids and timestamps to `<data dir>/deletions.log`, never backed up or restored; `doctor --repair` restores, replays the log, runs retention and suppressions, then reopens for reads. 3 backups kept. Worker transactions close after ≤ 250 ms with main-thread retries on `SQLITE_BUSY`; absolute timings are `dev-desktop-1` benchmarks and CI asserts a ≤ 3 s heartbeat gap and relative regression; the staleness key adds the dirty-tree hash, plus `pnpm finora --rebuild`.
+
+**Legal's conditions on Q2 (gate 1):** the tombstone log holds only an opaque id and a deletion date; resolved disputes stay resolved after a restore (tested); new LAWYER row `LAW-BACKUP-RETENTION` with the interim **person-level rows excluded from backups entirely**; a second `doctor.test.ts` case: a backup that held a person row never restores it.
+
 ## Council decision
 
 Pending.
