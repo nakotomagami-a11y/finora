@@ -37,7 +37,7 @@ S16.US.01 (press releases as news) is LATER and is covered by S11.US.04 (Part C)
 ## Field map (what the tool returns to the agent; nothing is written to the store)
 | Feed field | Returned as | Personal? | Rule |
 |---|---|---|---|
-| RSS `title`, `link`, `pubDate`, `description` | candidate item: title, URL, date, excerpt (first 300 characters) | maybe | the excerpt is a cited quote; banned-word rules exempt verbatim quotes |
+| RSS `title`, `link`, `pubDate`, `description` | candidate item: title, URL, date, excerpt (first 300 characters) | maybe | title and excerpt pass through the same P8 document filter as fetched pages (`agents.md` §9) **before** the model sees them: names not proven to be companies become "a private individual"; the quote is verified against the filtered text; banned-word rules exempt verbatim quotes |
 | DOJ `title`, `url`, `date`, `component`, `topic` | candidate item | maybe | query by the company name; *verify the API's keyword filter*, else page the last 90 days and match locally |
 | FTC CSV respondent, case name, date, action type, link | candidate item | maybe | |
 

@@ -11,8 +11,9 @@ Courts are **agent-only** in v1 (Part G S10: "CAVEAT, agent only"; possible matc
 
 - `officialHosts`: `www.courtlistener.com`, `www.fjc.gov`.
 - **CourtListener:** `storage: agent-only`. `requires`: `["COURTLISTENER_TOKEN"]` (**deferred: key pending**). `limits`: "5 requests per minute, 50 requests per hour, and 125 requests per day" (wiki.free.law v4 overview, read 2026-11-20), enforced globally across investigations; results cached per investigation. `deepLink`: `https://www.courtlistener.com{absolute_url}` from the result. `asOf`: `[in_file_field]` (result `dateFiled`, `date_modified`).
-- **FJC civil:** `storage: store`, as a **court index** (not entity statements): one row per (case, organisation party), read only by the agent tool `search_courts`, never rendered without an agent finding. `cadence`: `quarterly` (*observed: file updated with filings to 2026-06-30*). `asOf`: `[max_date_in_data]` over `FILEDATE`. `maxPurgeShare`: 0.05. `deepLink`: null (FJC has no per-case page); the agent cites the docket (court, docket number, filing date) and, when found, the CourtListener docket via `idb_data_id`. `requires`: none.
+- **FJC civil:** `storage: store`, as a **court index** (not entity statements): one row per (case, organisation party), read only by the agent tool `search_courts`, never rendered without an agent finding. `cadence`: `quarterly` (*observed: file updated with filings to 2026-06-30*). `asOf`: `[max_date_in_data]` over `FILEDATE`. `deepLink`: null (FJC has no per-case page); the agent cites the docket (court, docket number, filing date) and, when found, the CourtListener docket via `idb_data_id`. `requires`: none.
 - `attribution`: "Federal Judicial Center, Integrated Database" / "CourtListener (Free Law Project)".
+- `verifiedOn`: FJC 2026-11-20, `https://www.fjc.gov/research/idb` (no licence statement on the page; federal work); CourtListener 2026-11-20, `https://wiki.free.law/c/courtlistener/help/api/bulk-data/bulk-legal-data` and `https://wiki.free.law/c/courtlistener/help/api/rest/v4/overview`.
 
 ### Contract fields (milestone A.1 checklist)
 - `asOf`: FJC `[max_date_in_data]` over `FILEDATE`; CourtListener per result.
@@ -73,4 +74,4 @@ LATER, not read: S09.US.02 (FJC bankruptcy: no debtor names), S09.US.03 (PACER, 
 - FJC file unchanged for more than 184 days (2 × quarterly): the index is shown as Stale in the check line.
 
 ## Open questions
-For `architect`: the FJC court index is a separate table (`court_index`), not statements, because it holds no entity attributes and is read only by an agent tool. Please confirm it in §3.8, or name the table you prefer.
+None. The `court_index` table and its class row are confirmed in `architecture.md` §3.5 and §3.8 (architect, `1f3fc7f`, `91a002e`).

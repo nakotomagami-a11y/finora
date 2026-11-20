@@ -32,10 +32,13 @@ Five source modules, `packages/sources/src/us/sec-tickers/`, `sec-company/`, `se
 - `purgeScope` and `maxPurgeShare`:
   - tickers: `full`, **0.02** (floor; daily delistings are a small fraction of about 10,000 rows, to be measured over two pulls in the key-testing round).
   - insiders and Form D data sets: `window` (8 quarters), **0.02 inside the window** (cto, 7029779579): records whose quarter has aged out of the window are expected deletions and are not counted against the guard; records missing from a quarter still inside the window are counted against `max(2%, 5x measured)`. Quarterly files are immutable once published, so the measured in-window removal share is expected near 0 and the floor applies. A truncated quarterly file therefore ends `purge_guard` instead of deleting the store.
-  - company and holders: `none` (filings are never deleted).
+  - company: `none` (filings are never deleted).
+  - holders: `window` (3 years by event date), **0.02 inside the window**; filings older than 3 years are expected deletions.
+  - *Key-pending (C7):* every `asOf` strategy and removal share above comes from SEC documentation and is proven on real files in the key-testing round; the values are interim until then.
 - `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4; here the module includes the XBRL concept fallback table.
 - Record unit and sort order: see Refresh and change (one record per issuer-quarter for insider transactions; one role set per issuer for current insiders; one per Form D filing; one per company document).
-- `personRecordKey`: insiders `roles:<issuerCik>` (the issuer's role set), Form D `formd-people:<issuerCik>` (the related persons of the issuer's newest Form D), holders `holders:<subjectCik>:<accession>` (one filing's reporting persons). Hash input: role lines (relationship, title, name) in source order. **The reporting owner's CIK is a person identifier and is dropped (PS6): never a key, never a hash input, never stored.** Role-end detection: the data sets carry no row-local role id and no role start date, so identity is (relationship, occurrence); `finora.role_ended` fires when a relationship's line count falls.
+- **Accession numbers (qa #15, PS1, PS6).** An accession number's 10-digit prefix is the CIK of whoever submitted the filing; for a self-filed Form 3/4/5 or a 13D/G filed by an individual, that is the person's CIK. Rule, in the parser: an accession is **kept** (as a filing key, hash input and link) only when its prefix differs from every reporting person's CIK in that filing (the issuer or a filing agent submitted it); otherwise the accession is **dropped** and the filing is keyed on `<issuerCik>:<filingDate>:<n>` (n = position among that issuer's filings of the day, in source order). The filing link then falls back to the issuer's ownership-filing list, `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={issuerCik}&type=4&owner=include`. Forms 3/4/5 data sets carry both `ACCESSION_NUMBER` and `RPTOWNERCIK`, so the parser compares them and then discards `RPTOWNERCIK`; 13D/G XML carries the reporting persons' CIKs, used the same way. Form D and company filings are submitted by the issuer or its agent, never by a related person, so their accessions are kept.
+- `personRecordKey`: insiders `roles:<issuerCik>` (the issuer's role set), Form D `formd-people:<issuerCik>` (the related persons of the issuer's newest Form D), holders `holders:<subjectCik>` (the subject company's 13D/G lines of the last 3 years, one line per filing, newest first). Hash input: role lines (relationship, title, name) in source order. **The reporting owner's CIK is a person identifier and is dropped (PS6): never a key, never a hash input, never stored.** Role-end detection: the data sets carry no row-local role id and no role start date, so identity is (relationship, occurrence); `finora.role_ended` fires when a relationship's line count falls.
 - Share-alike events: none.
 
 ## Items
@@ -72,7 +75,7 @@ LATER, not read: S03.US.04 (DEF 14A), S05.US.01 (EX-21), S14.US.03, S17.US.01. *
 |---|---|---|---|---|---|
 | `cik` | text | entity key | resolution key | no | |
 | `name` | text | `Company.name` | S01.US.01 | no | |
-| `formerNames[].name`, `.from`, `.to` | text, dates | `previousName` + event `finora.renamed` dated `to` | S01.US.01 | no | |
+| `formerNames[].name`, `.from`, `.to` | text, dates | `previousName` + event `finora.name_changed` dated `to` | S01.US.01 | no | |
 | `entityType` | text | `legalForm` (verbatim) | S01.US.01 | no | e.g. operating, other |
 | `sic`, `sicDescription` | text | `sector` | S01.US.01 | no | |
 | `stateOfIncorporation`, `stateOfIncorporationDescription` | text | `jurisdiction` | S01.US.01 | no | `us-<state>` |
@@ -128,7 +131,7 @@ Each fiscal year is one `fact_reports` row (`kind = annual_accounts`, `period_st
 | Source field | Target | item_id | Personal? | Transform |
 |---|---|---|---|---|
 | daily `company.idx` rows with form `SCHEDULE 13D`, `SCHEDULE 13D/A`, `SCHEDULE 13G`, `SCHEDULE 13G/A` | index of (subject CIK, accession) | resolution key | no | a 13D/G appears twice in the index (subject and filer); keep pairs where the CIK is a subject company *verify in the key-testing round* |
-| `primary_doc.xml`: issuer CIK, CUSIP, reporting person name, citizenship or place of organisation, type of reporting person, aggregate amount, percent of class, event date | `Ownership` of the subject company: owner name, percent, shares, as-of event date | S04.US.01 | **yes** when the type of reporting person is IN (individual); otherwise no | numeric values only (the XML schema enforces numbers); last 3 years, listed newest first, one line per filing (no de-duplication across filings: that would need a person key) |
+| `primary_doc.xml`: issuer CIK, CUSIP, reporting person name, type of reporting person, aggregate amount, percent of class, event date; place of organisation **only for organisations** (citizenship of an individual is dropped) | `Ownership` of the subject company: owner name, percent, shares, as-of event date | S04.US.01 | **yes** when the type of reporting person is IN (individual); otherwise no | numeric values only (the XML schema enforces numbers); last 3 years, listed newest first, one line per filing (no de-duplication across filings: that would need a person key) |
 
 ## Party gate
 
@@ -145,11 +148,11 @@ Each fiscal year is one `fact_reports` row (`kind = annual_accounts`, `period_st
 
 - Tickers: content hash per daily file; row hash per CIK; removed CIKs lose their `Security` statements (delisted), the company stays.
 - Company (on view): re-fetch when older than 24 h; row hash per document section; events added, never deleted (filings don't disappear).
-- Insiders: one record per issuer and calendar quarter (A8): `record_key` = `insiders:<issuerCik>:<yyyy>q<n>`, holding the quarter's transaction aggregate and its filing events; `hashInput` = the quarter's rows (accession, relationship, code, shares, price) sorted by accession and row (no owner identifier). Current roles are one record per issuer: `roles:<issuerCik>`, `hashInput` = the role lines (relationship, title, name) in source order. On a new quarterly file, load it and drop the quarter that leaves the 8-quarter window; unchanged quarters write nothing.
-- Form D: one record per filing: `record_key` = `formd:<accession>`, `hashInput` = the issuer, offering and related-person lines in table order.
-- Tickers: one record per CIK: `tickers:<cik>`. Company: `submissions:<cik>` and `companyfacts:<cik>` (one record each per company, grouped as A8). Holders: `holders:<subjectCik>:<accession>`.
+- Insiders: one record per issuer and calendar quarter (A8): `record_key` = `insiders:<issuerCik>:<yyyy>q<n>`, holding the quarter's transaction aggregate and its filing events; `hashInput` = the quarter's rows (filing key per the accession rule, relationship, code, shares, price) sorted by filing key and row (no owner identifier). Current roles are one record per issuer: `roles:<issuerCik>`, `hashInput` = the role lines (relationship, title, name) in source order. On a new quarterly file, load it and drop the quarter that leaves the 8-quarter window; unchanged quarters write nothing.
+- Form D: two record shapes, no overlap: `formd:<accession>` per filing holds the issuer and offering lines only (`hashInput` in table order); the people are the role set `formd-people:<issuerCik>` from the issuer's newest Form D (see `personRecordKey`).
+- Tickers: one record per CIK: `tickers:<cik>`. Company: `submissions:<cik>` and `companyfacts:<cik>` (one record each per company, grouped as A8). Holders: `holders:<subjectCik>` (role-set shape, as `personRecordKey`).
 - Holders: index rows appended daily; documents fetched on view, cached as records.
-- History events: `finora.renamed` (from `formerNames` and from changes between fetches), `finora.role_ended` (insider roles), `filing.*` events.
+- History events: `finora.name_changed` (from `formerNames` and from changes between fetches), `finora.role_ended` (insider roles), `filing.*` events.
 
 ## Size and time budget
 
@@ -175,7 +178,7 @@ All estimated until the key-testing round:
 | `sources/src/us/sec-company/items-502.test.ts` | an 8-K with item 5.02 produces `filing.8k.5.02`; no person name is extracted |
 | `sources/src/us/sec-user-agent.test.ts` (slice S16) | no request leaves without `SEC_USER_AGENT`; 8 requests per second across concurrent loaders; the User-Agent never appears in logs |
 | `ingest/src/insiders-window.test.ts` | a new quarter that drops the oldest quarter passes the guard; a file missing half of a quarter still inside the window ends `purge_guard` and deletes nothing; a role missing from the new window emits `finora.role_ended` without a name |
-| `sources/src/person-fields.test.ts` (US cases) | no SEC loader's hash input or stored fields contain `RPTOWNERCIK` or any CIK of a reporting person |
+| `sources/src/person-fields.test.ts` (US cases) | no SEC loader's hash input or stored fields contain `RPTOWNERCIK` or any reporting person's CIK; **no stored accession has a prefix equal to a reporting person's CIK** (fixtures include a self-filed Form 4 and an individual's 13D) |
 | `ingest/src/party-gate.test.ts` (SEC cases) | 13D/G type IN → personal person; type CO → company; Forms 3/4/5 owners → personal |
 | `domain/src/items/hide.test.ts` | OUT.US.01 has no loader, field map or agent tool |
 | `web/e2e/us-public-needs-key.spec.ts` | with no `SEC_USER_AGENT`, a US public profile shows KEY states and promises nothing |

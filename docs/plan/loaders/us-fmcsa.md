@@ -5,10 +5,10 @@ Module `packages/sources/src/us/fmcsa/`. Research: `docs/research/us.md` §4.10,
 ## Source
 - Publisher: Federal Motor Carrier Safety Administration (U.S. Department of Transportation). `officialHosts`: `data.transportation.gov`, `safer.fmcsa.dot.gov`.
 - Datasets (Socrata, no key): Company Census `az4n-8mr2` (4,533,061 rows, 147 columns); Carrier (Licensing & Insurance) `6eyk-hxee` (1,860,604); Revocation `sa6p-acbp` (1,529,083). All updated 2026-11-19 (daily).
-- `id`: `us-fmcsa`. `licence`: `us-gov-work` (portal metadata states none; federal work, 17 U.S.C. 105; verified partial). `attribution`: "Source: FMCSA, U.S. Department of Transportation".
-- `storage`: brokers `store` (bulk, filtered to active broker authority); carriers `live-cached` with `cacheTtl` `{ refetchHours: 24, purgeUnviewedDays: 30 }` (see Refresh). `cadence`: `daily`. `publishedAtUtc`: null (portal refresh time observed overnight).
+- `id`: `us-fmcsa-brokers` and `us-fmcsa-carriers` (below). `licence`: `us-gov-work` (portal metadata states no licence; federal work, 17 U.S.C. 105). `verifiedOn`: 2026-11-19, `https://data.transportation.gov/d/az4n-8mr2` (licence field empty in the dataset metadata). `attribution`: "Source: FMCSA, U.S. Department of Transportation".
+- **Two source ids, one storage class each (§3.5):** `us-fmcsa-brokers` (`store`, bulk, filtered to active broker authority) and `us-fmcsa-carriers` (`live-cached`, `cacheTtl` `{ refetchHours: 24, purgeUnviewedDays: 30 }`). Both share the parser and field map below. `cadence`: `daily`. `publishedAtUtc`: null (portal refresh time observed overnight).
 - `asOf`: `[portal_metadata]` (`rowsUpdatedAt`), then `[max_date_in_data]` over census `mcs150_date`.
-- `maxPurgeShare`: 0.05. `deepLink`: `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string={recordKey}` (*pattern not verified*). `orderUrl`: null. `requires`: none (optional `SOCRATA_APP_TOKEN`). `limits`: `{ requestsPerSecond: 5 }`.
+- `deepLink`: `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string={recordKey}` (*pattern not verified*). `orderUrl`: null. `requires`: none (optional `SOCRATA_APP_TOKEN`). `limits`: `{ requestsPerSecond: 5 }`.
 
 ### Contract fields (milestone A.1 checklist)
 - `asOf`: `[portal_metadata, max_date_in_data]`.
@@ -51,7 +51,7 @@ Module `packages/sources/src/us/fmcsa/`. Research: `docs/research/us.md` §4.10,
 ## Party gate
 Many carriers and some brokers are one-person businesses (sole proprietors: natural persons, legal rule 5). The census field `business_org_desc` is filled on only 7% of active carriers (measured 2026-11-20: CORPORATION 95,458, INDIVIDUAL 50,989, PARTNERSHIP 4,843, empty 2,097,094), so it can't be the only test. Rule, in `ingest/src/party-gate.ts`:
 - **Company** (`natural_person = 0`) if `business_org_desc` is CORPORATION or PARTNERSHIP, or the legal name carries a legal-form token (LLC, L.L.C., INC, CORP, CORPORATION, CO, COMPANY, LTD, LP, LLP, PLLC, PC; the P8 token list).
-- **Natural person** (`natural_person = 1`) otherwise, including every INDIVIDUAL: caption "Carrier, USDOT [number]" or "Broker, MC [number]", address reduced to the state, no fleet facts, facts-only variant (P6), never in a verdict; drop reason `natural_person_carrier` for the reduced fields.
+- **Natural person** (`natural_person = 1`) otherwise, including every INDIVIDUAL: caption "Carrier, USDOT [number]" or "Broker, MC [number]", address reduced to the country (Part H item 7), `legal_name` and `dba_name` **not stored** (a sole proprietor's business name is often the person's name), no fleet facts, facts-only variant (P6), never in a verdict; drop reason `natural_person_carrier` for the reduced fields.
 
 ## Identity and joins
 `eid` `us-dot-<dot_number>`. No EIN or state id in the files; links to state entities or SEC filers only by an exact normalised name **and** state, shown as "possible same company" (never merged, never an official-ID link). Search by name, USDOT and MC number.
@@ -68,7 +68,7 @@ Brokers: ≈ 25,000 entities × 8 statements ≈ 0.03 GB. Carriers: cache only (
 `fixtures/us/fmcsa/*.json` (Socrata arrays) with 4 fictional entities: a broker with a bond, a carrier with fleet facts, a sole-proprietor carrier (must be reduced), and a revoked authority. USDOT fixture numbers ≥ 9,900,000,000 (above any assigned number).
 
 ## Tests
-`sources/src/us/fmcsa/fmcsa.test.ts` (filters, field map; email and phone columns never selected), `ingest/src/party-gate.test.ts` (sole proprietor → natural person reductions).
+`sources/src/us/fmcsa/fmcsa.test.ts` (filters, field map; email and phone columns never selected), `ingest/src/party-gate.test.ts` (sole proprietor → natural person reductions: country-only address, no name stored), `ingest/src/live-cache.test.ts` (FMCSA carrier cases: 24 h re-fetch, 30-day purge, the two-miss rule as in `us-states.md`).
 
 ## Failure modes
 Portal down: keep the last load; Stale after 2 days. Schema change: `schema_changed`.

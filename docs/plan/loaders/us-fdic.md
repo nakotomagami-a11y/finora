@@ -5,14 +5,15 @@ Module `packages/sources/src/us/fdic/`. Research: `docs/research/us.md` §4.3, p
 ## Source
 - Publisher: Federal Deposit Insurance Corporation. `officialHosts`: `api.fdic.gov`, `banks.data.fdic.gov`.
 - Endpoints (JSON, no key): `https://api.fdic.gov/banks/institutions`, `/failures`, `/history`, `/financials`; paging with `limit` (max 10,000) and `offset`; `fields=` selects columns.
-- `id`: `us-fdic-bankfind`. `licence`: `us-gov-work` (the API page states no licence; "Users are currently not required to register…"; federal work, 17 U.S.C. 105; verified partial 2026-11-19, https://api.fdic.gov/banks/docs/). `attribution`: "Source: FDIC BankFind Suite".
+- `id`: `us-fdic-institutions` and `us-fdic-financials` (below). `licence`: `us-gov-work` (the API page states no licence; "Users are currently not required to register…"; federal work, 17 U.S.C. 105; verified partial 2026-11-19, https://api.fdic.gov/banks/docs/). `attribution`: "Source: FDIC BankFind Suite".
+- **Two source ids (qa #20):** `us-fdic-institutions` (institutions, failures, history; `purgeScope: full`) and `us-fdic-financials` (call-report financials; `purgeScope: window`, the last 20 quarters; quarters that age out are expected deletions, missing in-window quarters count against 0.02).
 - `storage`: `store`. `cadence`: `weekly` (index files rebuilt about weekly: institutions 2026-11-13, financials 2026-11-16). `publishedAtUtc`: null.
 - `asOf`: `[in_file_field]` — the response's `meta.index.createTimestamp`; then `[max_date_in_data]` over `REPDTE` for financials.
 - `maxPurgeShare`: 0.02. `deepLink`: `https://banks.data.fdic.gov/bankfind-suite/bankfind/details/{recordKey}` (*pattern not verified*; falls back to the BankFind search page). `orderUrl`: null. `requires`: none. `limits`: `{ requestsPerSecond: 2 }` (rate-limit header 20 seen; no published number).
 
 ### Contract fields (milestone A.1 checklist)
 - `asOf`: `[in_file_field, max_date_in_data]` (response `meta.index.createTimestamp`, then `REPDTE`).
-- `purgeScope`: `full`. `maxPurgeShare`: **0.02**. Measurement: failures and mergers remove a few institutions a week out of 27,835 (failures: 4 in 2026 to 2026-07-17), well under 0.4%, so the floor applies.
+- `purgeScope`: institutions `full`; financials `window` (above). `maxPurgeShare`: **0.02**. Measurement: failures and mergers remove a few institutions a week out of 27,835 (failures: 4 in 2026 to 2026-07-17), well under 0.4%, so the floor applies.
 - `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4.
 - Record unit: one record per institution, per failure, per bank's history set, and per bank-quarter of financials; API order.
 - `personRecordKey`: none. Share-alike events: none.
@@ -30,7 +31,7 @@ Module `packages/sources/src/us/fdic/`. Research: `docs/research/us.md` §4.3, p
 |---|---|---|---|---|---|
 | `CERT` | int | entity key `us-fdic-<CERT>` | resolution key | no | |
 | `FED_RSSD` | int | `rssdId` | resolution key | no | 100% of active |
-| `RSSDHCR`, `NAMEHCR` | int, text | holding company link (`Ownership`, derived parent) | S02.US.03 | no | 84% of active |
+| `RSSDHCR`, `NAMEHCR` | | **dropped**: group structure is S05, which is LATER | - | - | |
 | `NAME` | text | `Company.name` | S02.US.03 | no | |
 | `ACTIVE`, `INACTIVE`, `ENDEFYMD` | flags, date | `status`, `dissolutionDate` | S02.US.03 | no | |
 | `ESTYMD` | date | `incorporationDate` | S02.US.03 | no | |
@@ -44,11 +45,11 @@ Module `packages/sources/src/us/fdic/`. Research: `docs/research/us.md` §4.3, p
 Not applicable: every row is an insured institution (a company).
 
 ## Identity and joins
-- `eid` `us-fdic-<CERT>`. Link to an SEC filer: holding company RSSD ↔ nothing in SEC files, so no automatic link; GLEIF has no RSSD. A bank is shown as its own entity; the holding company name is shown as a "Derived by Finora" parent line.
+- `eid` `us-fdic-<CERT>`. Link to an SEC filer: holding company RSSD ↔ nothing in SEC files, so no automatic link; GLEIF has no RSSD. A bank is shown as its own entity; the holding company is not shown (S05 LATER).
 - Search: by name from the stored institutions.
 
 ## Refresh and change
-- Weekly: re-download institutions (about 28k rows, `fields=` limited), failures, history; financials for the latest quarter only after the first load.
+- Weekly: `us-fdic-institutions` re-downloads institutions (about 28k rows, `fields=` limited), failures and history. `us-fdic-financials` fetches the newest quarter weekly and keeps 20 quarters; its purge is limited to its window, so fetching one quarter never deletes the others.
 - `record_key`: `inst:<CERT>`, `fail:<CERT>:<FAILDATE>`, `hist:<CERT>` (all history rows of a bank, A8 grouping), `fin:<CERT>:<REPDTE>`. Removal: delete. History events: `finora.name_changed`, `finora.status_changed`.
 
 ## Size and time budget

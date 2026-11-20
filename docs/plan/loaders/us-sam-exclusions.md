@@ -43,7 +43,7 @@ Only rows with `Classification = Firm` are read (8,367 rows; 7,770 with a UEI). 
 
 ## Party gate
 - Only `Classification = Firm` rows; drop reason `not_firm` (counted by classification).
-- A firm whose name has no legal-form token may be a sole proprietor: it is loaded as a list entry, but a match to a profile is shown only as "possible match, needs review" (S11 rule: a hit needs a second identifier).
+- **Proven-company gate (qa #21):** a Firm row is loaded only if its name carries a legal-form token (the shared P8 list). Measured 2026-11-20: 5,260 of 8,367 firms pass; 3,107 are not loaded (`firm_without_form_token`, counted; 2,885 of them have a UEI), because they may be sole proprietors. The check line states the scope: "Checked federal exclusions (companies with a legal form in their name) as of [date]".
 
 ## Identity and joins
 - Exclusions are list entries, not entities: each is a `Sanction` row linked to a profile only by **UEI** (exact; an official-ID link) or by **exact normalised name + state** (possible match → question card, never auto-confirmed).
@@ -53,7 +53,7 @@ Only rows with `Classification = Firm` are read (8,367 rows; 7,770 with a UEI). 
 Daily: download the extract, content hash, row hash per `SAM Number`. A row absent from today's file is deleted and emits `finora.exclusion_cleared` on any linked profile ("No longer on the federal exclusion list since [date]"); a new row on a linked profile emits `finora.exclusion_listed`.
 
 ## Size and time budget
-8,367 firm rows × 8 statements ≈ 8 MB. Download 12 MB a day; parse < 5 s. Share: US.
+5,260 firm rows × 8 statements ≈ 5 MB. Download 12 MB a day; parse < 5 s. Share: US.
 
 ## Fixtures
 `fixtures/us/sam-exclusions/SAM_Exclusions_Public_Extract_V2_99001.ZIP` with the real 31-column header and 6 rows: 2 firms (one with UEI, one without), 1 individual, 1 vessel, 1 special entity designation (all three must be skipped), 1 terminated firm. Fixture UEIs start with `FX` (12 characters, never assigned).

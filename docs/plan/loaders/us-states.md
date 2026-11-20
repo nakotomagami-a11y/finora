@@ -12,7 +12,7 @@ Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, 
 | Datasets | `n9v6-gdp6` Active Corporations; `3gg2-jgnp` Entity Status History; `k4vb-judh` Daily Filings | `4ykn-tg5h` Business Entities; `casm-dbbj` Transaction History; `8upq-58vz` UCC Debtors | `n7gp-d28j` Business Master; `ka36-64k6` Principals; `ah3s-bes7` Filing History; `xfev-8smz` UCC Liens | `xvd7-5r2c` Registered Businesses |
 | `licence` | `ny-open-ny-terms` | `co-portal-terms` (dataset: Public Domain) | `ct-portal-terms` (master and UCC: Public Domain; principals and history: none stated) | `pa-data-policy` |
 | `attribution` | "New York State Department of State" | "CDOS" plus the **required disclaimer** below | "Connecticut Secretary of the State" | "Data retrieved from data.pa.gov (https://www.data.pa.gov/)" (requested, not required) |
-| `verifiedOn` | 2026-11-20, OPEN-NY Terms of Use PDF | 2026-11-20, `https://data.colorado.gov/terms` | 2026-11-20, `https://data.ct.gov/terms` | 2026-11-20, `https://data.pa.gov/data-policy` |
+| `verifiedOn` | 2026-11-20, `https://data.ny.gov/download/77gx-ii52/application/pdf` (OPEN-NY Terms of Use) | 2026-11-20, `https://data.colorado.gov/terms` | 2026-11-20, `https://data.ct.gov/terms` | 2026-11-20, `https://data.pa.gov/data-policy` |
 
 - **Colorado's required disclaimer** (`co-portal-terms`, shown wherever CO data appears; legal condition, hub 7029000097): "The data made available here has been modified for use from its original source, which is the State of Colorado. THE STATE OF COLORADO MAKES NO REPRESENTATIONS OR WARRANTY AS TO THE COMPLETENESS, ACCURACY, TIMELINESS, OR CONTENT OF ANY DATA MADE AVAILABLE THROUGH THIS SITE. THE STATE OF COLORADO EXPRESSLY DISCLAIMS ALL WARRANTIES, WHETHER EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. The data is subject to change as modifications and updates are complete. It is understood that the information contained in the Web feed is being used at one's own risk."
 - `storage`: `live-cached` (§3.5). Written only for an entity the user opens.
@@ -31,7 +31,7 @@ Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, 
 | Search (parallel to the four portals, `$limit=20` each) | NY `$where=upper(current_entity_name) like '<PREFIX>%'`; CO `upper(entityname)`; CT `upper(name)`; PA `upper(business_name)`. `<PREFIX>` is the user's text upper-cased, with `'` doubled and `%`, `_` escaped. Results are shown, **not stored** |
 | Open (writes the cache) | the entity's row by key, plus its people, history and UCC rows below |
 | NY people and history | `3gg2-jgnp?corpid_num=<dos_id>`; `k4vb-judh?dos_id=<dos_id>` |
-| CO history and UCC | `casm-dbbj?entityid=<entityid>`; `8upq-58vz?$where=organizationid='<entityid>' OR upper(organizationname)='<NAME>'` |
+| CO history and UCC | `casm-dbbj?entityid=<entityid>`; `8upq-58vz?organizationid=<entityid>` (id match only) |
 | CT people, history, UCC | `ka36-64k6?business_id=<id>`; `ah3s-bes7?account=<accountnumber>`; `xfev-8smz?$where=upper(debtor_nm_bus)='<NAME>'` |
 | PA | `xvd7-5r2c?filing_number=<n>` (one row per party) |
 
@@ -127,9 +127,12 @@ PA publishes no status field: `status` stays empty and the UI shows "Status: not
 
 ## Party gate
 
-Not applicable to the register rows: each row is the registered entity itself, and these datasets list business entities only (no sole proprietors; trade-name files are not read). `natural_person = 0` for every state entity.
+Not applicable to the register rows: each row is the registered entity itself, and these datasets list business entities only (no sole proprietors; trade-name files are not read). `natural_person = 0` for every state entity. The legal-form tables (`legal-forms.ts`) hold only the organisation forms measured on 2026-11-20 (NY 15+, CO 15, CT 15, PA 15 values, all organisations); a row whose form is not in the table is skipped (`unknown_form`), so a sole proprietorship can't enter through a new code. PA party types "Owner" and "Member" are people in an organisation's context (behind the purpose gate), not the entity itself.
 
-UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`: a debtor is attached only when it is proven to be the company (CO `organizationid` equals the entity id, or an exact normalised-name match on an organisation debtor column). Person debtor columns are never selected, so a person debtor can't reach the store. Drop reasons: `ucc_name_mismatch`, `ucc_person_columns_not_read`.
+UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`:
+- **CO:** attached as a fact only when `organizationid` equals the entity id (an official-ID match).
+- **CT:** the lien file has no entity id, so an exact normalised-name match on `debtor_nm_bus` (with a legal-form token) is attached as a **possible match only**: "UCC filing under this exact name, needs review". It never feeds a verdict rule and never reads as a fact about the company (S09 caveat).
+- Person debtor columns are never selected, so a person debtor can't reach the store. Drop reasons: `ucc_name_mismatch`, `ucc_no_form_token`, `ucc_person_columns_not_read`.
 
 ## Identity and joins
 
@@ -142,10 +145,12 @@ UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`: a 
 
 - No bulk load. **Open:** fetch the entity and its related rows. One record per entity per dataset (architecture A8, long-format rows grouped):
   - `record_key` = `<dataset>:<entity key>`: NY `n9v6-gdp6:<dos_id>`, `3gg2-jgnp:<dos_id>`, `k4vb-judh:<dos_id>`; CO `4ykn-tg5h:<entityid>`, `casm-dbbj:<entityid>`, `8upq-58vz:<entityid>`; CT `n7gp-d28j:<accountnumber>`, `ka36-64k6:<accountnumber>`, `ah3s-bes7:<accountnumber>`, `xfev-8smz:<accountnumber>`; PA `xvd7-5r2c:<filing_number>` (all party rows of a business are one record).
-  - `hashInput`: the field-map columns of each row in the order listed above, normalised, rows sorted by their natural key (NY history `film_num|date_filed`; CO `transactionid`; CO UCC `fileid|debtorid`; CT principal `name__c|designation`; CT filing `filing_date|type|volume|pages`; CT UCC `id_lien_flng_nbr`; PA `party_type|last_name|first_name|middle_name`).
+  - `hashInput`: the field-map columns of each row in field-map order, normalised. Row order: history and UCC rows by their natural key (NY history `film_num|date_filed`; CO `transactionid`; CO UCC `fileid|debtorid`; CT filing `filing_date|type|volume|pages`; CT UCC `id_lien_flng_nbr`); **people rows in source order** (never sorted by name; §3.3). This is the only definition of the hash order.
   - A change in any row rewrites that dataset's record for the entity. People: see `personRecordKey` above for role-end detection.
 - **Re-fetch on view** when the cached copy is older than 24 h. Two cases (cto 7029779579, legal 7029000097):
   - **The registry returns the entity.** Its rows are replaced from the response: a line that is gone (a withdrawn or corrected CT principal, an ended role, a released UCC lien) is **deleted** (no tombstone). A removed person line emits `finora.role_ended` with no name (P4).
+  - **NY first:** NY's master file holds active entities only, so a NY entity missing from it is looked up in Entity Status History (`3gg2-jgnp`) before anything else; if its latest status there is Inactive, Suspended or Discontinued, that status is shown with its date (a register fact, not a miss).
+  - **The miss rule applies per dataset query (qa #16).** An empty 200 from any one dataset (principals, parties, history, UCC) counts as a miss for that dataset only: the first miss keeps and withholds that dataset's rows ("[State] registry returned no [principals | filings | UCC filings] on [date]"), and a second miss at least 24 h later deletes them, emitting `finora.role_ended` for people lines. A line missing from a **non-empty** response is a real change and is deleted at once (CT withdrawal).
   - **The registry does not return the entity** (HTTP 200 with an empty result, while the same portal answers other queries). An empty response is not proof of removal, so nothing is deleted on the first miss: the cached values are **withheld from display** (not shown on any surface) and the profile reads "[State] registry did not return this company on [date]". A second miss at least 24 h later deletes the entity's rows, which meets the CT duty to drop withdrawn records while a one-off portal glitch deletes nothing. Errors (5xx, timeouts, 429) never count as a miss.
   - Legal's conditions (7029827748): on the second miss the principal and party rows are deleted by this withdrawal rule; no purge-guard exemption applies to them (these sources have no window). The "did not return" line names no principal and never says or implies the company is struck off, dissolved or inactive; its status pill shows "Not confirmed by [State] registry since [date]", not a register status.
 - **Purge:** entities not viewed for 30 days are deleted with all their rows (`live_cache_views`, P5).
@@ -160,7 +165,7 @@ UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`: a 
 ## Fixtures
 
 - `packages/sources/src/us/socrata/fixtures/<dataset>.json`: Socrata JSON arrays with exactly the selected columns, plus `views/<dataset>.json` with `rowsUpdatedAt`.
-- Fixture ids use the `FX` prefix: `us-ny-FX000001`, `us-co-FX000000001`, `us-ct-FX00001`, `us-pa-FX0000001` (§3.4). Names are obviously fictional ("Example Roofing LLC").
+- Fixture ids use the `FX` prefix: `us-ny-FX000001`, `us-co-FX000000001`, `us-ct-FX00001`, `us-pa-FX0000001` (§3.4). Names are obviously fictional ("Example Roofing LLC"). The id validators run in two modes: production rejects `FX` ids; the `fixtures` load profile accepts only `FX` ids (`fixtures/ids.test.ts` tests both).
 - The layout writer `fixtures/us/socrata.ts` emits one company per state with: a NY corporation with a chairman, a CO entity with history and one UCC debtor row, a CT company with one principal (residence columns present in the fixture file but not selected) and one withdrawn principal on the second fetch, and a PA company with two parties and no status.
 
 ## Tests
@@ -169,7 +174,7 @@ UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`: a 
 |---|---|
 | `sources/src/us/state-ny/state-ny.test.ts`, `state-co.test.ts`, `state-ct.test.ts`, `state-pa.test.ts` | parse the fixtures; every statement has an item id; field map equals `meta.items` |
 | `sources/src/us/socrata/select.test.ts` | every request's `$select` equals the field-map columns: residence, email, phone and agent columns are never requested (HIDE-field negative test) |
-| `ingest/src/live-cache.test.ts` (shared) | fake clock: re-fetch after 24 h; day 29 survives, day 30 purged; **CT withdrawal**: a principal absent while the company is returned is deleted and a `finora.role_ended` event without a name is written; **empty re-fetch**: the first miss keeps the rows but withholds them and shows "did not return", a second miss 24 h later deletes them, principals included; a 5xx never counts as a miss; the "did not return" text contains no person name and none of the status words struck off, dissolved, inactive |
+| `ingest/src/live-cache.test.ts` (shared) | fake clock: re-fetch after 24 h; day 29 survives, day 30 purged; **CT withdrawal**: a principal absent while the company is returned is deleted and a `finora.role_ended` event without a name is written; **empty re-fetch**: the first miss keeps the rows but withholds them and shows "did not return", a second miss 24 h later deletes them, principals included; **per dataset**: an empty principals answer while the company is returned withholds the principals only, and a second miss deletes them with `role_ended`; **NY**: an entity missing from the master shows its status-history status, not a miss; a 5xx never counts as a miss; the "did not return" text contains no person name and none of the status words struck off, dissolved, inactive |
 | `web/e2e/co-disclaimer.spec.ts` + `domain/src/report/attribution.test.ts` | **CO disclaimer**: every report, API response and MCP response containing a CO value carries the full disclaimer text; the source chip shows it |
 | `ingest/src/party-gate.test.ts` (US cases) | a UCC debtor with a different name is not attached; person debtor columns can't reach the store |
 | `sources/src/licences.test.ts` | OR and WA have no enabled `live-cached` source (P11) |

@@ -82,7 +82,7 @@ Rows are kept only when `Entity.LegalAddress.Country` or `Entity.LegalJurisdicti
 
 ## Fixtures
 - `fixtures/intl/gleif/lei2-golden-copy.csv` with the real header (338 columns; generated from the column list, not copied) and 12 rows: one per RA code above, one RA999999, one LAPSED, one SOLE_PROPRIETOR (must be dropped), one FUND, one non-target country (must be filtered).
-- Fixture LEIs: 18 characters + 2 check digits that **fail** mod 97 (§3.4: the fixture variant), so they can never be real LEIs; `fixtures/ids.test.ts` checks the rule.
+- Fixture LEIs: 18 characters + 2 check digits that **fail** mod 97 (§3.4: the fixture variant), so they can never be real LEIs; the LEI validator runs in fixture mode for the `fixtures` profile (accepts only the failing variant) and production mode otherwise (rejects it); `fixtures/ids.test.ts` checks both.
 
 ## Tests
 | File | Proves |
