@@ -25,7 +25,7 @@ This is a group spec: one shared part (series model, maths, scheduling, settings
 | `M07.X.01` | SHOW | Brent, WTI ($/barrel) | `us-fred-open` (`DCOILBRENTEU`, `DCOILWTICO`) | no: price only |
 | `M08.X.01` | SHOW, "Ticker is an estimate" | US national debt | `us-treasury-debt` | n/a |
 
-**Not built (LATER, no connector, negative-tested):** `M05.X.02a` and `M06.X.01a` (the oracle route, O5), `M09.X.01` (macro tiles). No code may call an oracle contract or create an M09 tile; see `tiles.test.ts` in 1.9.
+**Not built (LATER, no connector, negative-tested):** `M05.X.02a` and `M06.X.01a` (the oracle route, O5), `M09.X.01` (macro tiles). No code may call an oracle contract or create an M09 tile; see `items.test.ts` in 1.9.
 
 **Value lost** is shown only where the row says yes (council: "only where the source's terms allow it and are quoted"). Fund rows, index rows and gold show drawdown only, until legal clears one cited cap figure per market (`markets.md` open question 1). The tile config carries `valueLost: "series" | "supply" | null`, and nothing else computes it.
 
@@ -112,33 +112,45 @@ Inputs per series: observations `obs` (date ascending, within the window), the o
    A `latest` row older than 2× its poll interval is ignored (step 2 falls back to the last close).
 10. **Debt ticker** (M08): `anchor` = `record_date` at 21:00 UTC (close of business in Washington, as an approximation). `yearAgo` is the latest row dated on or before `record_date − 365 days`. `perSecond = (total − yearAgo.total) / secondsBetween(yearAgo.anchor, anchor)`. The client shows `total + perSecond × (now − anchor)`, labelled "Ticker is an estimate", beside the official figure and its date.
 
-Tile view returned by `getCrashMonitor()` (Zod schema in `packages/api-contract`):
+**The row DTO is `MarketRow` in `docs/architecture.md` §8**, served by `GET /api/v1/markets/crash` from the server cache. The maths above fill it as follows:
 
-```ts
-type MarketRow = {
-  itemId: ItemId; rowKey: string;              // e.g. "M03.X.01:taiwan"
-  state: "ok" | "peak_unknown" | "needs_key" | "needs_symbol" | "stale" | "error" | "loading";
-  current: SourcedValue<number> | null; currentAt: string | null;
-  peak: number | null; peakDate: string | null; peakKnown: boolean; trackingSince: string | null;
-  drawdownPct: number | null; dayChangePct: number | null;
-  valueLost: SourcedValue<number> | null;      // only where the tile config allows it
-  unit: Unit; caveatKey: string | null; symbol: string | null;   // symbol only for fund slots
-  cadence: "quarterly" | "monthly" | "daily_exchange" | "daily_7d" | "live";
-  delayed: boolean;
-  peakBasis: "since" | "all_time" | "seeded";
-};
-```
+| §8 field | From |
+|---|---|
+| `itemId`, `label` | the tile config row (`label` is an i18n key) |
+| `state` | `needs_symbol`, `needs_key`, `error` from the source; `peak_unknown` when `peakKnown` is false; `stale` per step 9; otherwise `ok` |
+| `value` | `current` (step 2) |
+| `unit` | `market_series.unit` |
+| `peak` | `{ value: peak, date: peakDate, basis: peakBasis }` (steps 3-4); absent when `peakKnown` is false |
+| `drawdownPct` | step 5; absent when `peakKnown` is false (never 0) |
+| `valueLostMicroUsd` | step 7, as an integer number of micro-USD (`Math.round(usd × 1e6)`); absent unless the tile config allows value lost |
+| `cadence`, `delayed` | below |
+| `asOf` | `currentAt` (step 2) |
+| `sources` | the `SourceRef`s of the series used, plus `derived: true` and the input series for computed values |
 
-Three fields from the frontend plan (frontend, 7029664310), defined here so the UI never guesses:
+`CrashResponse.totalWiped.valueMicroUsd` is step 8, and `rowItemIds` and `oldestAsOf` are as defined there.
 
-- **`cadence`** is `"live"` when `current` comes from a `market_latest` row inside its freshness limit (1.4 step 2). Otherwise it is the series' `frequency`.
-- **`delayed`** is a fixed property of the source: true when the source publishes its observation at least one day after the observation date. It is true for Treasury (1 business day), FRED oil (≈ 2 days), FRED Japan (next day), Z.1 (about 10 weeks), the World Bank (the next month), TWSE (the evening after the session) and S7 or S3 end-of-day closes. It is false for X4, C1 and O3, and for S7 when its intraday endpoint is available. It sits in the tile config beside each series, and `tiles.test.ts` asserts every series has it.
-- **`peakBasis`:**
+**Four fields this spec needs that §8 doesn't have yet** (architect, for the S04b contract):
+
+| Field | Why |
+|---|---|
+| `rowKey: string` (e.g. `"M03.X.02:japan"`) | one item has up to 7 rows (`M03.X.02`); tests, the UI and polling need a stable key per row |
+| `trackingSince?: string` | the Taiwan empty state (Part G, verbatim) is "Peak not known yet: tracking since [date]"; the row must carry the date |
+| `dayChangePct?: number` | step 6; change since the previous close for daily series |
+| `symbol?: string` | the fund caveat reads "Via [your symbol], a US-listed fund"; present only for fund-slot rows |
+
+Three fields from the frontend plan (frontend, 7029664310) are defined here so the UI never guesses:
+
+- **`cadence`** is `"live"` when `value` comes from a `market_latest` row inside its freshness limit (step 2). Otherwise it is the series' `frequency`.
+- **`delayed`** is a fixed property of the source: true when the source publishes its observation at least one day after the observation date.
+  - true: Treasury (1 business day), FRED oil (≈ 2 days), FRED Japan (next day), Z.1 (about 10 weeks), the World Bank (the next month), TWSE (the evening after the session), and S7 or S3 end-of-day closes
+  - false: X4, C1, O3, and S7 when its intraday endpoint is available
+
+  It sits in the tile config beside each series, and `items.test.ts` asserts every series has it.
+- **`peak.basis`:**
   - `"since"`: the highest close since `peakSince`, the normal case
   - `"all_time"`: the total-crypto row, whose peak is the C3 all-time high
   - `"seeded"`: the peak or the window start comes from `seeds.ts`, and the row cites the seed
-
-  A row with `peakKnown: false` keeps `peakBasis: "since"` and renders "tracking since".
+  A row with `peakKnown: false` has no `peak`; it renders "tracking since [trackingSince]".
 
 ### 1.5 Settings (P12)
 
@@ -223,11 +235,12 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 |---|---|
 | `packages/markets/src/calc.test.ts` | peak, peak date and drawdown on the planted series; `peakKnown = false` gives `drawdownPct = null` and never 0; value lost only for `series`/`supply`; `totalWiped` lists its rows; the stale thresholds per frequency, including a Monday after a Friday close (not stale) |
 | `packages/markets/src/debt.test.ts` | per-second rate and ticker from two fixture rows; label key present |
-| `packages/markets/src/tiles.test.ts` | every M SHOW/CAVEAT item in `items.generated.ts` has a tile row; `M05.X.02a`, `M06.X.01a` and `M09.X.01` have none, and no connector lists an oracle host (LATER negative tests) |
+| `packages/markets/src/items.test.ts` | one case per M item: every M SHOW/CAVEAT item in `items.generated.ts` has a tile row; `M05.X.02a`, `M06.X.01a` and `M09.X.01` have none, and no connector lists an oracle host (LATER negative tests) |
 | `packages/markets/src/settings.test.ts` | no slot has a default symbol; `needs_symbol` vs `needs_key`; a symbol change deletes the slot's rows |
 | `packages/markets/src/schedule.test.ts` | with a fake clock, one full day of jobs stays within every limit in 1.6, and crypto drops to hourly 30 min after the last client leaves |
-| `packages/markets/src/connector-cache.test.ts` | connector-cache rows never appear in export, list endpoints or MCP bulk tools; removing a key deletes its rows; C1 rows older than 24 h are deleted |
+| `packages/markets/src/connectors.test.ts` | connector-cache rows never appear in export, list endpoints or MCP bulk tools; removing a key deletes its rows; C1 rows older than 24 h are deleted |
 | `packages/markets/src/provenance.test.ts` | every `MarketRow` value carries a `SourceRef` with licence, retrieval time and as-of; derived values are flagged and cite their inputs |
+| `apps/server/src/routes/v1/markets/crash/route.contract.test.ts` | the response validates against `CrashResponse`; it is served from the server cache with no upstream call; with no keys, official rows are `ok` and fund rows `needs_symbol` |
 | `apps/web/e2e/crash-monitor.spec.ts` | zero keys: the official rows render with numbers, fund slots show "Choose a fund in settings", and Taiwan renders "Peak not known yet: tracking since [date]" with no % |
 | guard (CI) | committed files hold no real ticker (denylist) |
 
@@ -506,7 +519,7 @@ Two registry entries share one parser because their licences differ (one storage
 
 **Items:** `M06.X.02` CAVEAT "Personal use; attribution"; `M06.X.01b` (ether supply for value lost).
 **Field map:** the four fields above; nothing else is read.
-**Fixtures:** `fixtures/c1-global.json`, `fixtures/c1-markets.json` in the measured key sets. **Tests:** `packages/sources/src/intl/c1/c1.test.ts` (parse; the demo-key header only when set; the 24 h expiry in `connector-cache.test.ts`).
+**Fixtures:** `fixtures/c1-global.json`, `fixtures/c1-markets.json` in the measured key sets. **Tests:** `packages/sources/src/intl/c1/c1.test.ts` (parse; the demo-key header only when set; the 24 h expiry in `connectors.test.ts`).
 **Failure modes:** 429 → backoff to hourly; HTTP 200 with an `error` body (the keyless refusals seen in the probes) → `failed` with the provider's error code; rows expire after 24 h.
 **Open questions:** none.
 
