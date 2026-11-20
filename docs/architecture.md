@@ -342,15 +342,15 @@ The registers publish current state only, so history exists from install day. It
 | `entities_fts` | FTS5 `unicode61 remove_diacritics 2` over company names, codes and former names; never person names, never `natural_person = 1` names (sole traders are found by code only) |
 | `entities_trigram` | FTS5 `trigram remove_diacritics 1` over the same names, for substring and typo search |
 | `links` | official-ID links between entities (LEI ↔ registry code, CIK ↔ LEI, VAT ↔ code), with the asserting record |
-| `judgements` | resolution decisions (same / different / unsure), by rule, agent or human; never overridden by a reload |
+| (in `finora-user.db`) `judgements` | resolution decisions (same / different / unsure), by rule, agent or human; never overridden by a reload |
 | `live_cache_views` | last view time per `live-cached` entity (P5) |
 | `labels` | classifier labels too large for generated config (LT's 2,302 activity labels, per language); legal forms and statuses stay generated config in `domain/config/` |
 | `court_index` | US federal court index (FJC): one row per case and organisation party, 10 years (5 if it passes 0.3 GB), read only by the legal agent's `search_courts` tool, never rendered directly (`docs/plan/loaders/us-courts.md`) |
-| `disputes`, `suppressions` | R10, L5: applied at read time on every surface |
-| `purpose_log` | P2: append-only, one row per company whose person data is opened, with the purpose in force; never updated |
-| `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `cost_ledger`, `verdicts` | agent runtime (§7) |
+| (in `finora-user.db`) `disputes`, `suppressions` | R10, L5: applied at read time on every surface |
+| (in `finora-user.db`) `purpose_log` | P2: append-only, one row per company whose person data is opened, with the purpose in force; never updated |
+| (in `finora-user.db`) `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `cost_ledger`, `verdicts` | agent runtime (§7) |
 | `market_series`, `market_obs`, `market_latest` | Crash monitor series (§8; DDL in `docs/plan/loaders/markets.md` §1.2); the same tables in `connector-cache.db` for licensed series |
-| `jobs`, `settings` | background work; local settings (fund tickers, P12) |
+| `jobs`; (in `finora-user.db`) `settings` | background work; local settings (fund tickers, P12) |
 | `leases` | cross-process locks: resource (`sync:<source>`, `runner`, `recover`), holder (pid + boot id), heartbeat, expiry (§1) |
 
 Pragmas: WAL, `foreign_keys=ON`, `synchronous=NORMAL`, `busy_timeout=5000`. Migrations are forward-only and numbered, each in a transaction, tracked with `PRAGMA user_version`. **On the three large tables (`statements`, `facts`, `records`) a migration is additive only** (new nullable columns, new indexes, new tables); anything that would rebuild them is a re-derive through `parserVersion` instead, because a rebuild doubles disk use and takes minutes on a ~7 GB store (cto S3). `store/src/migrations.test.ts` fails on a migration that rewrites one of them. Secondary indexes on `statements`, `facts` and the FTS tables are built after the first load of a source, not row by row.
@@ -473,7 +473,7 @@ Tests (S04/S05 acceptance; names from the early review): `ingest/src/purge.test.
 | Daily refresh | ≤ 5 min, in the background, never blocking reads |
 | Unchanged reload | one `syncs` row, 0 statement writes |
 | Raw cache | ≤ 1.5 GB (latest artifact per source, gzip) |
-| Whole data dir | ≤ 12 GB (store + share-alike store + raw cache + connector cache + backups) |
+| Whole data dir | ≤ 12 GB (store + share-alike store + user store + raw cache + connector cache + backups) |
 
   CI cannot hold absolute times, so CI checks relative regression budgets against a stored baseline on the fixture world (qa #23); the absolute numbers are recorded per release in `docs/plan/benchmarks.md`.
 
@@ -692,7 +692,7 @@ Investigation (subject, purpose, locale, cap, status)
   └─ follow-ups (≤ $0.25 each), reruns of one specialist
 ```
 
-Tables (all in `finora.db`, written **before** anything is broadcast): `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `cost_ledger`, `verdicts`. A browser refresh, a crash or a restart loses nothing; on boot, runs that were `running` in a dead process resume from their last persisted model turn, exactly once, under the `recover` lease (`agents/src/recovery.test.ts`).
+Tables (all in `finora-user.db`, §16, written **before** anything is broadcast): `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `cost_ledger`, `verdicts`. A browser refresh, a crash or a restart loses nothing; on boot, runs that were `running` in a dead process resume from their last persisted model turn, exactly once, under the `recover` lease (`agents/src/recovery.test.ts`).
 
 ### 7.2 Types the rest of the system relies on
 
@@ -1089,12 +1089,12 @@ runs `scripts/finora.mjs`, which: checks Node ≥ 24 and pnpm; **checks free dis
 
 The CLI (`apps/cli`) runs as `pnpm finora-cli <command>`: `data sync [source|--profile p] [--allow-mass-purge]`, `data status`, `search`, `show <eid>`, `resolve`, `suppress`, `doctor` (disk preflight, `PRAGMA quick_check`, lease status), `backup`, `mcp` (the stdio MCP server, also the `finora` binary for MCP client configs).
 
-**Integrity and backup** (cto S2; qa's session 2 review).
-- **What is backed up:** only what cannot be re-derived: investigations and their runs, findings, citations and documents, `purpose_log` (a legal record), disputes, judgements and settings. The registry data comes back from the raw cache.
-- **How:** `finora-cli backup` attaches a new file `<data dir>/backups/backup-<date>.db` and copies those tables with `INSERT ... SELECT` per table. It never uses `VACUUM INTO`, which always copies the whole multi-GB database. The app runs it daily and keeps the last 7. Backups count inside the 12 GB data-dir budget (expected: a few MB each).
-- **Deletions survive a restore:** every deletion of non-derivable data (a user deletes an investigation, the TTL expires an investigation's documents, a dispute is resolved, a suppression is lifted) appends one line to `<data dir>/deletions.log`, a separate append-only file holding ids and dates only (no names, no values), never restored. The same deletion is applied to every backup file at once, so a deleted investigation does not live on in the backups.
-- **Repair:** if `PRAGMA quick_check` fails at boot, the app refuses writes and tells the user. `finora-cli doctor --repair` restores the non-derivable tables from the newest backup, re-applies `deletions.log`, runs the retention job and re-applies suppressions and disputes **before reads resume**, then re-derives the registry from the raw cache.
-- Tests: `cli/src/backup.test.ts` (the backup holds only those tables and stays under its size budget on the fixture world; a deletion removes the rows from existing backups), `cli/src/doctor.test.ts` (a fixture store with a corrupted page is detected and repaired; an investigation deleted before the corruption does not come back; an expired document stays gone).
+**Integrity and backup** (cto S2; qa, cto and legal in session 2).
+- **User data lives in its own file** (cto): `finora-user.db` holds what cannot be re-derived: investigations and their runs, tasks, events, signals, findings, citations, documents, questions, verdicts and the cost ledger; `purpose_log`, disputes, suppressions, judgements, settings (fund slots included) and `leases`. It is attached like the share-alike store, and every reference across files uses the public `eid`, never an integer id (SQLite foreign keys cannot span files; the A6 rule). The registry store `finora.db` is never backed up: it re-derives from the raw cache.
+- **Backups hold company-level data only** (legal, `LAW-BACKUP-RETENTION`): `finora-cli backup` attaches a new `backups/backup-<date>.db` and copies the user tables with `INSERT ... SELECT ... WHERE personal = 0`. Every user-table row that names or derives from a natural person carries `personal = 1` (findings and citations citing a personal item or a person document, person documents, `purpose_log` rows of person sections, disputes about a person line); `documents` are never backed up (a fetched page may name people). The app runs it daily and keeps **3** backups; a backup older than 3 days is deleted whole. Backups count inside the 12 GB data dir. Anything longer, or any person-level content in a backup, needs the lawyer.
+- **Deletions survive a restore, and fail closed** (qa): every deletion of user data (a user delete, a TTL expiry under P5/R11, a resolved dispute, a lifted suppression) appends `{table, id, deletedAt}` to `<data dir>/deletions.log` and **fsyncs it before the deletion is acknowledged**; if the append fails, the deletion fails. The same deletion is applied to every existing backup at once. The log is never inside a backup and never restored.
+- **Repair:** if `PRAGMA quick_check` fails at boot, the app refuses writes and tells the user. `finora-cli doctor --repair` refuses to restore if `deletions.log` is missing or unreadable; otherwise it restores the company-level user data from the newest backup, replays `deletions.log`, runs the retention job and re-applies suppressions and disputes **before reads resume**, then re-derives the registry from the raw cache. Person-level findings of a restored investigation are not recovered; its report says "Some findings could not be restored" and offers a rerun.
+- Tests: `cli/src/backup.test.ts` (the backup holds only the user tables, no `personal = 1` row and no `documents` row, under a size budget on the fixture world; a deletion is pruned from existing backups; a backup older than 3 days is deleted), `cli/src/doctor.test.ts` (corruption detected and repaired; an investigation deleted before the corruption stays gone; an expired document stays gone; a dispute resolved after the backup stays resolved; a fixture person row is never restored; a missing or corrupt `deletions.log` makes `--repair` refuse with nothing restored), `store/src/deletions-log.test.ts` (a failed append fails the deletion).
 
 ---
 
