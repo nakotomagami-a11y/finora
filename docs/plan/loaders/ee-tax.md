@@ -19,7 +19,16 @@ Two `SourceMeta` entries, both share-alike and both switched by `SHARE_ALIKE_MOD
 - **Cadence and publication time:**
   - debtors: stated daily ("Uuendame tabelit kodulehel üks kord päevas"); `Last-Modified` 05:05 UTC on 19 Nov 2026. Job daily at 05:30 UTC. `cadence: "daily"`.
   - taxes: stated quarterly, "igale kvartalile järgneva kuu 10. kuupäeval" (on the 10th of the month after the quarter; the working day before if the 10th is a weekend or holiday); the 10 Oct 2026 file had `Last-Modified` 06:22 UTC. Job at 07:00 UTC on days 8-12 of every month; most runs end `unchanged`. `cadence: "monthly"` (cto's table).
-- **As-of inside the artifact:** taxes: column `Andmete seis` (`dd.mm.yyyy`, the same on every row); debtors: column `Andmed on seisuga`. A file whose rows carry more than one as-of value fails with `schema_changed`.
+- **Contract values (§4.2):**
+
+  | Source id | `asOf` (strongest first) | Value seen | `purgeScope` | `maxPurgeShare` | Removal measurement |
+  |---|---|---|---|---|---|
+  | `ee-emta-taxes` | `in_file_field` `Andmete seis` (same on every row; more than one value fails `schema_changed`); `http_last_modified` | 2026-10-10; header 2026-10-10 06:22 UTC | `periods_in_file`: purge only inside the (year, quarter) periods that have a non-empty column in the files, so quarters we already hold and that left the files stay as our history | 0.02 | companies leave the file when they are deleted from the register: 217 of 153,997 companies in the 2026 Q3 rows were no longer in the register 40 days later (≈ 0.14%, so ≈ 0.3% per quarterly refresh); 5 x 0.3% = 1.6%, below the 2% floor |
+  | `ee-emta-debtors` | `in_file_field` `Andmed on seisuga`; `http_last_modified` | 2026-11-19; header 2026-11-19 05:05 UTC | `full` | 0.02 interim | not measured: one pull held. Measure with `python -I research/probes/baltics/ee/diff_pulls.py diff` between the stored 19 Nov snapshot and the next day's, over at least 10 working days including a tax due date (the 10th or 20th). Daily exits from the list may exceed 0.4% around due dates; a guard hit then ends `partial` (safe, nothing deleted) and the value is raised to 5 x the measured share |
+
+  `in_file_field` wins today for both. `checkedAt` (A5) comes from the latest `content` or `unchanged` sync, so "Checked: not on the tax board's debtor list" reads as checked today even on a day the file did not change.
+- **`parserVersion`:** sha256 of `packages/sources/src/ee/ee-emta-tax/`, its field maps and the generated item list; the `SHARE_ALIKE_MODE` value is not part of it (a mode switch is a storage-class change, below).
+- **Record units and order (A8):** `ee-emta-taxes`: one record per CSV row (one taxpayer and year), `recordKey` = `<Registrikood>:<Aasta>`, hash input = the read fields in field-map order with each quarter's three values in quarter order. `ee-emta-debtors`: one record per row, `recordKey` = `Registrikood`. `row_hash` 16 bytes. No sort order is relied on; a repeated key is skipped `duplicate_key` (1 duplicate code in the 19 Nov debtor file).
 - **Keys:** none. **Limits:** none published. Politeness: page read once per run, then one download per file; `If-None-Match` with the stored ETag (the server sends ETag and `Last-Modified`), then sha256 decides (§4.4 step 1).
 - **Format:**
   - taxes: UTF-8 without BOM, `,` delimiter, every field quoted, Estonian headers, whole euros as integer strings, empty string for "no value". Header: `"Andmete seis","Registrikood","Nimi","Liik","Maakond","Tegevusala","Aasta","Riiklikud maksud I kv","Riiklikud maksud II kv","Riiklikud maksud III kv","Riiklikud maksud IV kv","Tööjõumaksud I kv",...,"Tööjõumaksud IV kv","Käive I kv",...,"Käive IV kv","Töötajate arv I kv",...,"Töötajate arv IV kv"`. One row per taxpayer and year.
@@ -78,7 +87,7 @@ Both files go through `ingest/src/party-gate.ts`, row by row, against the main s
 
 ## Identity and joins
 - Code → `ee-<code>` only; no other join. The register must have loaded first in the same boot; if the register is not loaded yet, the tax sync waits (it is scheduled after `ee-rik-basic`).
-- In `store` mode the rows live in `finora-sa.db` (same schema as the main store, attached read-only at query time). Its `fact_reports.entity_id` and `events.entity_id` refer to the main store's `entities.id` by `eid` lookup at write time; the share-alike store holds no `entities` rows of its own.
+- In `store` mode the rows live in `finora-sa.db`, whose tables mirror the main ones but **key every row on the entity's public `eid` (text)**, never on `finora.db` integer ids (A6): `records`, `fact_reports` and `events` carry `entity_eid` instead of `entity_id`, so a rebuild of either file cannot break the join (`store/src/share-alike-rebuild.test.ts`). The share-alike store holds no `entities` rows of its own; the read path joins on `eid` at query time.
 
 ## Refresh and change
 
@@ -87,13 +96,14 @@ Both files go through `ingest/src/party-gate.ts`, row by row, against the main s
 - **Debtors:** one `debt_snapshot` report per listed company, replaced daily (no daily copies, P9). History events, written to **`finora-sa.db`'s `events`** (they are derived from share-alike rows, so P1 keeps them out of the main store):
   - a code that appears: `finora.debtor_listed`, date = as-of, data = `{ "band": "<band>" }` with band `100-999`, `1000-9999`, `10000-99999` or `100000+` (companies only; natural persons never reach this step);
   - a code that disappears from a complete sync: the record and its report are purged and `finora.debtor_cleared` is written, date = as-of. "No longer on the debtor list since [date]" reads `not_evaluated{trackedSince}` until our snapshots cover the window (P14).
-- An unchanged file: one `syncs` row of kind `unchanged` (in the main store's `syncs`, counts only; it holds no share-alike value).
+- An unchanged file and `parserVersion`: one `syncs` row of kind `unchanged` (in the main store's `syncs`, counts only; it holds no share-alike value).
+- **Storage-class change** (§4.2, A7): flipping `SHARE_ALIKE_MODE`, or a licence change for these sources, is a migration: the next sync is a full reload into the new class, then every row of these sources is purged from the old location, and the class in force is recorded on each sync (`ingest/src/class-change.test.ts`).
 - Export, the bulk API and bulk MCP tools never read `finora-sa.db` (P1).
 
 ### Mode `live-no-store` (`SHARE_ALIKE_MODE=live-no-store`)
 - **Taxes:** not fetched. S07.EE.01 and S08.EE.01b render `not_checked{reason: "later"}` with "Not checked: licence question pending (live-no-store mode)" (§3.5: large files in this mode).
 - **Debtors:** fetched at boot and daily at 05:30 UTC, **streamed into memory** (the polite fetcher is called with the raw cache disabled for this source, so no artifact file is written), parsed and party-gated in memory into a map `ee-<code> → { arrears, disputed, deferred, ageDays, asOf }`. The read path for S08.EE.01a and S18.EE.01 reads the map. The previous map is replaced only after a complete parse.
-- Never written in this mode: no `finora-sa.db`, no `records`, `fact_reports`, `facts` or `events` row, no raw-cache file, no temp file, no log line or error message containing a code, amount or date from the file. `syncs` gets one row with counts and the as-of date only (see Open questions 2). No `finora.debtor_listed`/`cleared` events, so "no longer on the debtor list since" is `not_evaluated` in this mode.
+- Never written in this mode: no `finora-sa.db`, no `records`, `fact_reports`, `facts` or `events` row, no raw-cache file, no temp file, no log line or error message containing a code, amount or date from the file. `syncs` gets one row with counts and the as-of date only (§3.5 allows it). No `finora.debtor_listed`/`cleared` events, so "no longer on the debtor list since" is `not_evaluated` in this mode.
 - Before the first successful fetch after boot, and when a fetch fails: S08.EE.01a renders `not_checked{reason: "source_unavailable"}`, never "Checked: no tax debt".
 - **Switching modes:** at boot in `live-no-store`, an existing `finora-sa.db` is detached and deleted, and the raw-cache files of both sources are deleted (one log line naming the file, no values). Switching back to `store` starts a fresh share-alike store at the next refresh; debtor history is then "tracked since" that day.
 
@@ -126,6 +136,10 @@ CI runs every test below in both modes (`SHARE_ALIKE_MODE=store` and `live-no-st
 - `ingest/src/party-gate.test.ts`: EE debtor and taxes cases (register company, not in register, bad check digit, FIE code, `Liik = FIE`).
 - `ingest/src/share-alike.test.ts` (`store` mode): after a full fixture load the main store contains no sentinel value and no row whose sync belongs to an `ee-emta-*` source, except `syncs` rows; `finora-sa.db` holds the reports, facts and debtor events; day 2 writes one `finora.debtor_listed` and one `finora.debtor_cleared`, both in `finora-sa.db`.
 - `ingest/src/live-no-store.test.ts` (`live-no-store` mode): with a spied filesystem and logger, a debtor sync writes no file, no store row other than a counts-only `syncs` row, and no log line containing a sentinel; the taxes source is never fetched (fetcher spy); the read path serves the sentinel debtor from memory; after a simulated restart and before a fetch the item is `not_checked{source_unavailable}`; at boot an existing `finora-sa.db` is deleted.
+- `store/src/share-alike-rebuild.test.ts`: rebuild `finora.db` from fixtures; the `finora-sa.db` rows still attach by `eid`.
+- `ingest/src/class-change.test.ts`: switch `store` → `live-no-store` → `store` on the fixture; afterwards no row of these sources remains in the old location.
+- `ingest/src/as-of.test.ts`: both fixtures sync with `as_of_basis = in_file_field`; a taxes file with two `Andmete seis` values fails `schema_changed`.
+- `ingest/src/purge-guard.test.ts`: a debtor file with half the rows ends `purge_guard` and writes no `finora.debtor_cleared`; a taxes file purges only inside its periods (`periods_in_file`).
 - `domain/src/export/export.test.ts`: the FtM export, the bulk API and the bulk MCP tool contain no sentinel value in either mode.
 - `apps/server/src/routes/report.test.ts`: a single-company report carries the CC BY-SA attribution and licence link on S07/S08 values (`store` mode) and the "Not checked: licence question pending (live-no-store mode)" state for S07.EE.01 and S08.EE.01b (`live-no-store`).
 - `domain/src/report/workforce-ee.test.ts`: the three S07 states from the fixture rows; no salary computed.
@@ -137,11 +151,11 @@ CI runs every test below in both modes (`SHARE_ALIKE_MODE=store` and `live-no-st
 - A share link changed and the page no longer lists a file name: `failed` with `url_discovery_failed`.
 - Header change: `failed` with `schema_changed`, nothing written.
 - Stale as-of (older than the last content sync): `stale_skipped`.
-- A debtor list far shorter than yesterday's (below 80% of the rows): treated as `partial`, nothing purged, no `finora.debtor_cleared` events (a truncated file must never look like mass repayment).
-- UI: S08.EE.01a with no row → CN "Checked: not on the tax board's debtor list ([as-of date])"; S08.EE.01b and S07.EE.01 per the states above.
+- A debtor list far shorter than yesterday's: the purge guard (`maxPurgeShare`) ends the sync `partial` with `purge_guard`: nothing purged, no `finora.debtor_cleared` events (a truncated file must never look like mass repayment). In `live-no-store` the same check keeps the previous in-memory map.
+- UI: S08.EE.01a with no row → CN "Checked: not on the tax board's debtor list ([checkedAt date])"; S08.EE.01b and S07.EE.01 per the states above.
 
 ## Open questions
 1. **New concept `tax_arrears_age_days`** (days since the oldest unpaid due date, at the list's as-of date). It is the only age signal the EE list gives; S18 can use it. If the concept list should not grow, drop the column instead.
-2. **`syncs` row in `live-no-store`.** §3.5 says "no store row"; this spec writes one `syncs` row with counts and as-of only (no values) so the Sources page and health check work. Architect and legal to confirm a counts-only row is allowed.
-3. **Taxable turnover (`Käive`)** is not read: no Part G item covers it, though the shared concept list has `taxable_turnover`. It is a quarterly revenue signal for companies without published annual figures. Council to decide whether S08.EE.01b (or a new item) shows it.
-4. **`taxes_paid` vs `state_taxes`.** EMTA's "Riiklikud maksud" is the sum of all state taxes paid; this spec maps it to `taxes_paid` (the cross-country headline) and leaves `state_taxes` unused for EE. Confirm.
+2. **Taxable turnover (`Käive`)** is not read: no Part G item covers it, though the shared concept list has `taxable_turnover`. It is a quarterly revenue signal for companies without published annual figures. Council to decide whether S08.EE.01b (or a new item) shows it.
+3. **`taxes_paid` vs `state_taxes`.** EMTA's "Riiklikud maksud" is the sum of all state taxes paid; this spec maps it to `taxes_paid` (the cross-country headline) and leaves `state_taxes` unused for EE. Confirm.
+4. **Extra drop reasons:** `natural_person_tax` (in the shared list), `duplicate_key`, `url_discovery_failed`. Proposal: add the last two to the unions.

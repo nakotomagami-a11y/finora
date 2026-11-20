@@ -4,7 +4,7 @@ Covers three `SourceMeta` entries:
 
 | Source id | Artifact(s) | Fills |
 |---|---|---|
-| `lt-rc-jar-statements` | P&L key lines + balance-sheet key lines + the register UUID map (three API artifacts, one record per company and period end) | S06.LT.01, S13.LT.01 |
+| `lt-rc-jar-statements` | P&L key lines + balance-sheet key lines + the register UUID map (three API artifacts, one record per filed report: company, period end, template) | S06.LT.01, S13.LT.01 |
 | `lt-rc-jar-documents` | founding documents + the register UUID map | S13.LT.01 |
 | `lt-rc-jar-nonfilers` | companies that have not filed statements + late filers + the register UUID map | S13.LT.01 |
 
@@ -14,7 +14,7 @@ The list of companies with a missing auditor's opinion (`fa_nepateike_auditoriu_
 
 - Publisher: Registrų centras, through the State Data Agency's API. Dataset pages: `https://data.gov.lt/datasets/1666/` (P&L), `https://data.gov.lt/datasets/1806/` (balance sheet); founding documents and non-filers are listed under the same publisher (`https://get.data.gov.lt/datasets/gov/rc/jar/:ns`).
 - Endpoints (Spinta UAPI; `/:format/csv` streams the whole result without a limit; no key):
-  - P&L: `https://get.data.gov.lt/datasets/gov/rc/jar/pelno_ataskaitos/PelnoAtaskaita/:format/csv?select(juridinis_asmuo,standard_name,line_type_id,reiksme,laikotarpis_nuo,laikotarpis_iki,reg_date)&laikotarpis_iki>="<Y-5>-01-01"`
+  - P&L: `https://get.data.gov.lt/datasets/gov/rc/jar/pelno_ataskaitos/PelnoAtaskaita/:format/csv?select(juridinis_asmuo,template_id,standard_name,line_type_id,reiksme,laikotarpis_nuo,laikotarpis_iki,reg_date)&laikotarpis_iki>="<Y-5>-01-01"`
   - Balance sheet: the same on `.../balanso_ataskaitos/BalansoAtaskaita/...`
   - Founding documents: `.../dokumentai/Dokumentas/:format/csv?select(juridinis_asmuo,dokumento_tipas,dokumento_potipis,dok_data,dok_reg_data)`
   - Document classifiers (labels LT + EN): `.../dokumentu_tipai_potipiai/DokumentoTipas/:format/csv`, `.../DokumentoPotipis/:format/csv`
@@ -23,10 +23,19 @@ The list of companies with a missing auditor's opinion (`fa_nepateike_auditoriu_
   `<Y-5>` = the current calendar year minus 5 (2021 in 2026): the window that holds the latest 5 fiscal years.
 - Licence: `cc-by-4.0` ("Creative Commons Attribution 4.0", data.gov.lt pages 1666 and 1806, verified 2026-11-19; the same publisher and licence on the document and non-filer datasets). Attribution: "Source: Registrų centras, Register of Legal Entities: financial statements (open data), CC BY 4.0". Storage: `store`.
 - Cadence: stated weekly, observed monthly (loads on 2026-10-26 and 2026-10-28; documents and non-filers 2026-10-23). Scheduled **monthly** (cto §2), with a daily cheap probe (below). `publishedAtUtc`: unknown (irregular loads).
-- As-of: no as-of inside the data. Rule: `portal_metadata` = `_created` of the newest change-log entry of the model (`<model>/:changes/-1`); fallback `max_date_in_data` = the latest `reg_date` (statements) or `dok_reg_data` capped at today (documents). Recorded as `as_of_basis`.
-- Cheap probe: before downloading, `fetch` reads `<model>/:changes/-1`; if `_cid` equals the `_cid` stored in the last content sync's `report_json`, it returns `{ unchanged: true }` without downloading (the 5-year statement pull is about 15 minutes of download).
+- As-of and change token: see Contract values below. The cheap probe is the contract's `changeToken` (§4.2): before downloading, `fetch` reads `<model>/:changes/-1` for each data model; if every `_cid` equals the one stored in the last content sync's `report_json`, it returns `{ unchanged: true }` without downloading (the 5-year statement pull is about 15 minutes of download). The UUID map is not part of the token: new register UUIDs do not change unchanged statements.
 - Limits: none on the API for sequential requests. One `count()` on the balance-sheet table was answered by a WAF block page once: never call `count()` on the full tables; a non-CSV body (HTML) fails the fetch with `schema_mismatch`. The catalogue site `data.gov.lt` answers 429 after a few requests and is never called by the loader.
 - `officialHosts`: `get.data.gov.lt`, `data.gov.lt`. `deepLink`: `null` (no per-company statement page). `orderUrl`: `null`.
+
+### Contract values (§4.2-§4.4)
+
+| Source | `asOf` (strongest first; the first wins today) | `maxPurgeShare` (measurement) | `purgeScope` | Record unit, hash input, sort order |
+|---|---|---|---|---|
+| `lt-rc-jar-statements` | 1. `portal_metadata`: the newer `_created` of the P&L and balance-sheet change logs (wins; 2026-10-28); 2. `max_date_in_data`: latest `reg_date`; 3. `http_last_modified` | **0.02**: the change feeds show 0 deletes on the loads of 2026-10-26 (balance sheet, 120,001 inserts of 10,329,853 rows) and 2026-10-27/28 (P&L, 110,903 + 9,098 inserts of 6,643,810); `removal_shares.py` | `window` on `laikotarpis_iki` ≥ `<Y-5>-01-01`: reports whose period end leaves the window are expected deletions; a report missing inside the window counts against the guard | one record per filed report = (company UUID, `laikotarpis_iki`, `template_id`); P&L and balance-sheet lines share the template (209,812 of 209,827 periods with both); hash input below; the stream is sorted by the line's own `_id`, unrelated to the company, so the parser groups through an on-disk temp table keyed (UUID, period end, template) |
+| `lt-rc-jar-documents` | 1. `portal_metadata`: change-log `_created` (wins; 2026-10-23); 2. `http_last_modified`. `max_date_in_data` is not used: `dok_reg_data` holds dates up to 2046 | **0.02**: 0 deletes on the loads of 2026-03-16, 08-24 and 10-23 (16,180 to 82,866 inserts) | `full` | one record per document row; no order assumed |
+| `lt-rc-jar-nonfilers` | 1. `portal_metadata`: the newer change-log `_created` of the two lists (wins; 2026-10-23); 2. `http_last_modified` | **0.02**: 0 deletes on the loads of 2025-09-03, 2026-03-16 and 2026-10-23 for non-filers, and 2025-05-15, 2025-09-03, 2026-10-23 for late filers (the lists only grow) | `full` | one record per (company, year) or (company, late); no order assumed |
+
+`parserVersion` (A1): the hash of the loader module (with the duplicate and conflict rules), its field map (with the concept map below) and the generated item list. The document classifiers and the UUID map are fetched artifacts, not part of the parser.
 
 ## Items
 
@@ -41,7 +50,7 @@ S18.LT.01 reads these rows (statements filed, non-filer flags) but has no field 
 
 ### `lt-rc-jar-statements` (P&L and balance-sheet rows have the same columns)
 
-One fact report per (company, period end). P&L and balance-sheet lines of the same company and period end go into the same report.
+One record and one fact report per filed report: (company, period end, template). P&L and balance-sheet lines of the same filing share `template_id` and go into the same report. 786 company periods have more than one template (a filing redone on another template): each is its own record, and `domain/report` shows one report per period end, the one with the latest filing date, then the full form over the abbreviated one (both read from the `filing.annual_report` event of each record).
 
 | Source field | Type | Target | item_id | Personal? | Transform and validation |
 |---|---|---|---|---|---|
@@ -50,9 +59,10 @@ One fact report per (company, period end). P&L and balance-sheet lines of the sa
 | `laikotarpis_iki` | date | `fact_reports.period_end`; part of `record_key` | S06.LT.01 | no | ISO date; ≤ as-of date |
 | `line_type_id` | text | fact concept (table below) | S06.LT.01 | no | unmapped ID → not read (counted `unmapped_line`) |
 | `reiksme` | integer (EUR) | fact value | S06.LT.01 | no | integer; `currency` = `EUR`, `unit_scale` = 1 |
-| `standard_name` | text | tie-break only (abbreviated vs full form), not stored | - | no | "(Trumpa)" or "(Sutrumpintas)" = abbreviated |
-| `reg_date` | date | event `filing.annual_report` (date = `reg_date`, data `{ periodEnd }`); tie-break | S13.LT.01 | no | ISO date |
-| `line_name`, `template_id`, `template_name`, `standard_id`, `forma`, `statusas`, `_id` | | not read (`select()` leaves them out) | - | - | - |
+| `template_id` | text (`FS` + 4 digits) | part of `record_key`; event data `template` | S13.LT.01 | no | non-empty |
+| `standard_name` | text | event data `form`: `abbreviated` when the name contains "(Trumpa)" or "(Sutrumpintas)", else `full` | S13.LT.01 | no | - |
+| `reg_date` | date | event `filing.annual_report` (date = the latest `reg_date` of the record, data `{ periodEnd, template, form }`) | S13.LT.01 | no | ISO date |
+| `line_name`, `template_name`, `standard_id`, `forma`, `statusas`, `_id` | | not read (`select()` leaves them out) | - | - | - |
 
 Concept map (line IDs measured on the 2024+ pulls; one concept can have several IDs, one per statement template):
 
@@ -69,13 +79,12 @@ Concept map (line IDs measured on the 2024+ pulls; one concept can have several 
 
 `BSLT00393` (tangible fixed assets) is not read: no concept. `total_assets` is stored only when the source states it (BSLT00115); the report may show non-current + current assets as a sum with the "Derived by Finora" chip (computed in `domain/report`, never stored).
 
-Duplicate and conflicting lines (measured: 45.7% of reports repeat a line ID; 98% of repeats are byte-identical rows):
-1. identical (concept, value) rows collapse to one;
+Duplicate and conflicting lines inside one record (measured: 45.7% of company periods repeat a line ID; 98% of repeats are byte-identical rows; the rest differ by template, which is now a separate record, or by filing date):
+1. identical (line ID, value) rows collapse to one;
 2. different values: the row with the latest `reg_date` wins (an amended filing; 0.3% of reports have more than one filing date);
-3. same `reg_date`, different values: the full-form standard wins over the abbreviated one;
-4. still tied: the concept is left out of the report and counted `conflicting_line`.
+3. same `reg_date`, different values: the concept is left out of the report and counted `conflicting_line`.
 
-Window: keep the latest 5 period ends per company (load rule 3). Deregistered companies: no statements (identity only), skip `struck_off_identity_only`. Natural-person forms: loaded (S06 for sole traders is CAVEAT behind the purpose gate, Part H 8; access follows the entity's `natural_person` flag).
+Window: every report whose period ends on or after `<Y-5>-01-01` (load rule 3: the latest 5 fiscal years, plus the current one when filed early). Deregistered companies: no statements (identity only), skip `struck_off_identity_only`. Natural-person forms: loaded (S06 for sole traders is CAVEAT behind the purpose gate, Part H 8; access follows the entity's `natural_person` flag).
 
 ### `lt-rc-jar-documents`
 
@@ -108,16 +117,21 @@ Not applicable: every row is the filing company itself, keyed by the register UU
 
 - Company: `juridinis_asmuo._id` → UUID map (`_id` → `ja_kodas`) → `lt-<ja_kodas>`. 100% of 2024+ statement, document and non-filer rows resolve on 2026-11-19. The map is fetched in the same sync as the data, so both are from the same load.
 - The entity must already exist from `lt-rc-jar-entities`; otherwise the record is skipped (`code_not_in_register`) and retried next month.
-- `record_key`: statements `<ja_kodas>:<laikotarpis_iki>`; documents `<ja_kodas>:<subtype>:<dok_data>:<dok_reg_data>` (documented derivation: the API `_id` is not proven stable across the publisher's full reloads); non-filers `<ja_kodas>:<nepateikta_iki>`, late filers `<ja_kodas>:late`.
-- `hashInput`: statements = the sorted `(concept, value)` pairs after the duplicate rules + `period_start` + the winning `reg_date`; documents = `[type, subtype, documentDate, dok_reg_data]`; non-filers = `[kind, fiscalYear]`.
+- `record_key`: statements `<ja_kodas>:<laikotarpis_iki>:<template_id>`; documents `<ja_kodas>:<subtype>:<dok_data>:<dok_reg_data>` (documented derivation: the API `_id` is not proven stable across the publisher's full reloads); non-filers `<ja_kodas>:<nepateikta_iki>`, late filers `<ja_kodas>:late`.
+- `hashInput` (`row_hash` = sha256 truncated to 16 bytes): statements = `[period_start, latest reg_date, form]` followed by every `(line_type_id, value)` pair after the duplicate rules, sorted by line ID (the group has no source order: the stream is sorted by line `_id`); documents = `[type, subtype, documentDate, dok_reg_data]`; non-filers = `[kind, fiscalYear]`.
 
 ## Refresh and change
 
 - Monthly full pull of the 5-year window, preceded by the daily `_cid` probe. Unchanged artifacts (sha256 and `parserVersion`) → one `unchanged` sync row.
-- A period that leaves the 5-year window is purged with its report (expected each January).
+- A period that leaves the 5-year window is purged with its report (expected each January; `purgeScope: window`, so these deletions do not count against `maxPurgeShare`).
 - A changed report (an amended filing) replaces its facts; no history event (financial history is the reports themselves).
 - Non-filer rows disappear when the company files: purged with their events (the lists are current state; no `finora.*` event).
-- `maxPurgeShare`: statements 25% (January window shift drops about a fifth of the reports), documents 5%, non-filers 30% (the list shrinks during the filing season).
+- `maxPurgeShare` and `purgeScope` per source: Contract values above.
+- A change of storage class or licence is a full reload into the new class plus a purge from the old one (§4.2, A7).
+
+### Check 5: accounts filed on time (Part H, Baltic-spec call 4)
+
+The non-filer list says that a year's statements are missing; the soft flag "Annual report for [year] not filed; due [date]" needs the due date. Lithuanian deadline: the ordinary general meeting approves the annual statements within **4 months** of the financial year's end (Law on Companies, the article on the ordinary general meeting), and the approved set goes to the Register of Legal Entities within **30 days** of approval (Civil Code art. 2.66(4), unless a law sets another term). Due date = year end + 4 months + 30 days (31 May + 30 days = 30 June for a calendar year), the same as the council's interim of 5 months + 30 days within a day; no extra grace is added on top. Citation status: from secondary sources read on 2026-11-20 (a law firm's 2023 note on the 4-month meeting rule; a Ministry of Finance explanation applying art. 2.66(4) to small partnerships); a 2025 draft amendment would extend the meeting deadline to 5 months, adoption not confirmed. Until the law texts are read on the official register (e-tar.lt), the due date is labelled "Finora's estimate" and "late" is not presented as a statutory fact (legal's condition). Config: `domain/config/filing-deadlines.ts`, LT `{ approvalMonths: 4, filingDays: 30, basis: "estimate" }`.
 
 ## Size and time budget
 
@@ -136,29 +150,30 @@ Total ≈ 0.23 GB of the LT budget (2 GB, P10). 🟡 First load: download domina
 
 `packages/sources/src/lt/lt-rc-jar-statements/fixture.ts` (and the other two) write the API CSV layout: UTF-8, LF line ends, `,` delimiter, `"` quoting, header = the selected property names in API order with refs as `name._id`, for example `juridinis_asmuo._id,standard_name,line_type_id,reiksme,laikotarpis_nuo,laikotarpis_iki,reg_date`. Plus a fixture `:changes/-1` JSON body (`{"_data":[{"_cid":<n>,"_created":"<ISO>","_op":"patch",...}]}`) and a UUID map CSV `_id,ja_kodas`.
 
-Content: the fixture companies of `lt-register` (fixture codes per the fixture rule; random UUIDs from a fixed seed). Cases: a full-form and an abbreviated-form report; one report with every concept; byte-identical duplicate lines; an amended filing (two `reg_date`s, different values); a same-date conflict (counted `conflicting_line`); six periods for one company (the oldest dropped); a deregistered company's statement (skipped); a sole proprietorship's statement (loaded, natural-person flag); an unmapped line ID; a document with a 2046 registration date; a non-filer with two years; a late filer; an unresolved UUID.
+Content: the fixture companies of `lt-register` (fixture codes per the fixture rule; random UUIDs from a fixed seed). Cases: a full-form and an abbreviated-form report; one report with every concept; byte-identical duplicate lines; an amended filing (two `reg_date`s, different values); a same-date conflict (counted `conflicting_line`); a report whose period ends before the window (not loaded; a later fixture day moves the window and purges one report as an expected deletion); a deregistered company's statement (skipped); a sole proprietorship's statement (loaded, natural-person flag); an unmapped line ID; a document with a 2046 registration date; a non-filer with two years; a late filer; an unresolved UUID.
 
 ## Tests
 
-- `packages/sources/src/lt/lt-rc-jar-statements/lt-rc-jar-statements.test.ts`: P&L and balance lines merge into one report; concept map; the four duplicate rules in order; 5-period window; struck-off skip; natural-person report flagged; `filing.annual_report` event per report; unmapped lines counted; every fact report carries `record_id` and the sync's licence.
+- `packages/sources/src/lt/lt-rc-jar-statements/lt-rc-jar-statements.test.ts`: P&L and balance lines merge into one report; concept map; the four duplicate rules in order; window rule; struck-off skip; natural-person report flagged; `filing.annual_report` event per report; unmapped lines counted; every fact report carries `record_id` and the sync's licence.
 - `.../lt-rc-jar-documents/lt-rc-jar-documents.test.ts`: classifier codes in event data; future-date skip; documented `record_key` derivation is stable across a reordered file.
 - `.../lt-rc-jar-nonfilers/lt-rc-jar-nonfilers.test.ts`: one event per (company, year); late filers without a year; a row that disappears is purged (current-state list); the S06 empty state "[year] not filed" is assembled from the event (`domain/report/assemble.test.ts` case).
 - `packages/sources/src/lt/lt-uuid-map.test.ts`: shared map parsing; unresolved rows counted.
 - Probe test: `lt-rc-jar-statements.fetch.test.ts` with a fake API: same `_cid` → `{ unchanged: true }` and no data request; new `_cid` → download.
-- Shared ingest tests: `unchanged.test.ts`, `purge.test.ts` (January window shift under `maxPurgeShare`), `partial.test.ts` (a stream cut mid-file purges nothing), `stale.test.ts`, `parser-version.test.ts` (A1).
+- Grouping: `lt-rc-jar-statements.test.ts` shuffles the fixture lines (the source order is by line `_id`) and asserts the same records and `row_hash` values; two templates for one period give two records, and `domain/report/assemble.test.ts` shows the later filing.
+- Shared ingest tests: `unchanged.test.ts`, `purge.test.ts`, `purge-guard.test.ts` (window: a January shift passes; half the reports missing inside the window ends `purge_guard`), `partial.test.ts` (a stream cut mid-file purges nothing), `stale.test.ts`, `parser-version.test.ts` (A1), `as-of.test.ts` (`portal_metadata` and `max_date_in_data` cases), and the change-token case in `lt-rc-jar-statements.fetch.test.ts`.
+- `domain/src/verdict/filing-deadline.test.ts`: LT due date for a calendar year and for a year ending 30 June; the flag text carries "Finora's estimate" while `basis` is `estimate`.
 - Live check `lt-rc-jar-statements.live.test.ts` (nightly): endpoints return CSV with the fixture headers; the newest change log is ≤ 70 days old (two missed monthly loads); a WAF HTML body is detected as `schema_mismatch`.
 
 ## Failure modes
 
 - API down or HTML instead of CSV: `failed`; last month's figures stay with their as-of; S06 shows "as of [date]".
-- Stream cut (the 5-year pull is large): fewer rows than 75% of the last content sync → `partial` (`purge_guard`); nothing deleted; retried next day.
+- Stream cut (the 5-year pull is large): reports missing inside the window exceed `maxPurgeShare` (2%) → `partial` (`purge_guard`); nothing deleted; retried next day.
 - Publisher reload with new UUIDs (the 2025-05-15 full reload touched 524,710 register rows): the map is fetched in the same sync, so joins still resolve; `record_key` uses `ja_kodas`, so no false churn.
 - Stale data (no load for > 70 days, as in the register's six-month gap): the source shows the stale badge; S06 figures stay, labelled with their period ends.
 - New line IDs (a new template): unmapped lines are counted in `report_json`; the live check alerts when the count exceeds 1% of lines.
 
 ## Open questions
 
-1. **As-of basis (review item A3):** `portal_metadata` from the change log, as in `lt-register`.
-2. **Fetch-time `{ unchanged: true }` from the change-log `_cid`** (not an artifact sha): §4.4 step 1 says sha equality decides. This spec uses the probe to avoid a 15-minute download; the architect to confirm that `fetch` may return `unchanged` on a source-specific change token, recorded in `report_json`.
-3. **Concept for deferred or other lines:** none needed now; `cash`, `current_liabilities` and `non_current_liabilities` are not in the LT key lines.
-4. **5-year window shape:** "the latest 5 fiscal years" is applied per company (latest 5 period ends), with the fetch window at `<Y-5>-01-01`. A company with a gap year keeps 5 periods only if they fall inside the fetch window.
+1. **Names to add once to the shared config:** event data fields `template`, `form` on `filing.annual_report`; drop and skip reasons `unmapped_line`, `conflicting_line`, `struck_off_identity_only`, `future_date`.
+2. **Concepts:** none new; `cash`, `current_liabilities` and `non_current_liabilities` are not in the LT key lines.
+3. **Check 5 law text:** read the Law on Companies (ordinary general meeting) and Civil Code art. 2.66(4) on e-tar.lt, then set `basis: "statute"`; also whether the 2025 amendment to 5 months was adopted.

@@ -36,19 +36,25 @@ Not loaded from the same publisher, with the reason: `legal-entity-duration` (no
 - Observed regeneration: nightly at about 21:26 UTC (CKAN `last_modified` 2026-11-18T21:25, HTTP Last-Modified 2026-11-19 21:26 GMT). `publishedAtUtc: "21:40"`; the scheduler runs after it.
 - The name-history file has not changed since 2025-04-02 (stale upstream). It still syncs daily: one `unchanged` row a day.
 
-**As-of rule (`AsOfRule`).** The UR files carry no as-of date in the file, a field or the name, so the as-of date is the newest valid date inside the data. Dates later than the sync's UTC date are ignored (the VAT file has removal dates up to 2053).
+**`asOf`, `maxPurgeShare`, `purgeScope` per family.** The UR files carry no export date in a header, a column or the file name. Three strategies were proved on the 2026-11-19 and 2026-11-20 pulls, in this order:
+1. `max_date_in_data` over the fields below; dates after the sync's UTC date are ignored. **This one wins today.**
+2. `portal_metadata`: the CKAN resource `last_modified` from `package_show`.
+3. `http_last_modified`: the HTTP header. It changes at every nightly regeneration, even when the content doesn't.
 
-| Source | `asOf` = max of |
-|---|---|
-| `lv-ur-register` | `registered`, `terminated` |
-| `lv-ur-name-history` | `date_to` |
-| `lv-ur-liquidations` | `registered_on`, `last_modified_at` (date part) |
-| `lv-ur-reorganizations` | `registered` |
-| `lv-ur-equity-capitals` | `last_modified_at` |
-| `lv-ur-memorandum-dates` | `registered_on` |
+An equal as-of on a quiet day (a weekend) is normal; only an older one is `stale_skipped`.
 
-- An equal as-of on a quiet day (a weekend) is normal and is not `stale_skipped`. Only an older as-of is.
-- The CKAN `last_modified` of the resource is recorded in `report_json.ckan_last_modified` for diagnosis only. See Open questions: the contract wants an in-file as-of.
+`maxPurgeShare` = max(0.02, 5 × the measured removal share per day), from the 19 → 20 Nov content diff (`diff_pulls.py`, `baltics.md`). Every family is `purgeScope: "full"`: each daily file is the complete current state.
+
+| Source | `max_date_in_data` fields | Value on 2026-11-19 | Removed / rows per day | `maxPurgeShare` |
+|---|---|---|---|---|
+| `lv-ur-register` | `registered`, `terminated` | 2026-11-17 | 0 / 490,496 (0%) | 0.02 |
+| `lv-ur-name-history` | `date_to` | 2025-04-02 (stale upstream) | 0 / 90,974 | 0.02 |
+| `lv-ur-liquidations` | `registered_on`, `last_modified_at` | 2026-11-17 | 13 / 9,651 (0.13%; ×5 = 0.67%) | 0.02 |
+| `lv-ur-reorganizations` | `registered` | 2026-11-17 | 1 / 10,930 (0.01%) | 0.02 |
+| `lv-ur-equity-capitals` | `last_modified_at` | 2026-11-17 | 31 / 144,550 (0.02%) | 0.02 |
+| `lv-ur-memorandum-dates` | `registered_on` | 2026-11-17 | 13 / 150,776 (0.01%) | 0.02 |
+
+**`parserVersion`:** sha256 of the loader module, its field map, `items.generated.ts` and the LV part of `domain/config/legal-forms.ts`. The legal-form table decides `natural_person` and the schema, so a change to it re-parses.
 
 **Keys, limits, politeness.**
 - No key and no account (`requires: []`).
@@ -56,8 +62,7 @@ Not loaded from the same publisher, with the reason: `legal-entity-duration` (no
 - Size caps: 400 MB for `register.csv` (129 MB measured), 50 MB for the others.
 
 **Deep link (`deepLink`).**
-- `https://info.ur.gov.lv/#/legal-entity/{recordKey}` for `lv-ur-register`, where the record key is the 11-digit code. This is the register's free public portal. The route is taken from the portal's own route list (`/legal-entity/:regNumber`). Linking terms are not stated; a plain link to a public government page is the default (`baltics.md`).
-- The other five families use the company's page too, with `{recordKey}` replaced by the company code (see Open questions).
+- `https://info.ur.gov.lv/#/legal-entity/{entityCode}` for all six families: the company page on the register's free public portal (route `/legal-entity/:regNumber` from the portal's own route list). Linking terms are not stated; a plain link to a public government page is the default (`baltics.md`).
 - `orderUrl`: `null`.
 
 ## Items
@@ -147,7 +152,7 @@ Header: `id;legal_entity_registration_number;equity_capital_type;equity_capital_
 | `date_from` | date | `finora.capital_changed` compares on change | S01.LV.01 | no | - |
 | `id`, `equity_capital_type_text`, `last_modified_at` | - | as-of only (`last_modified_at`) | - | - | - |
 
-Active, non-NP entities only. NP entities have no capital.
+Active, non-NP entities only. NP entities have no capital. Share capital is SHOW as an optional S01 field that never feeds the verdict (Part H, "Calls from the Baltic loader specs", 3).
 
 ### `lv-ur-memorandum-dates` (`memorandum_date.csv`, `;`)
 
@@ -178,8 +183,20 @@ Not applicable to the identity rows: `register.csv` is the register itself, and 
 ## Refresh and change
 
 - **Full load and refresh** are the same pipeline (§4.4). `lv-ur-register` is fetched daily.
-- **Content hash.** sha256 of the downloaded file. Equal → one `syncs` row of kind `unchanged`, nothing else. HTTP ETag and Last-Modified change at every nightly regeneration even without content changes (measured), so they are not used.
-- **Row hash.** Over the field-map fields in table order, normalised as written. Measured churn between two daily pulls: register 43 added, 0 removed, 56 changed; liquidations 14 added, 13 removed; reorganisations 3 added, 1 removed; equity 55 added, 31 removed; memorandum 42 added, 13 removed.
+- **Unchanged test.** sha256 of the downloaded file plus `parserVersion`; both equal → one `syncs` row of kind `unchanged`, nothing else. HTTP ETag and Last-Modified change at every nightly regeneration without content changes (measured), so they are not used.
+- **Record unit, hash input, sort order.** One record per file row; `row_hash` = sha256 truncated to 16 bytes, over the field-map fields in table order, normalised as written.
+
+  | Source | `recordKey` | Hash input (in order) | Sort order relied on |
+  |---|---|---|---|
+  | register | `regcode` | `regcode`, `name`, `regtype`, `type`, `registered`, `terminated`, `closed`, `address`, `index`, `addressid` | none: row-wise |
+  | name history | `<regcode>\|<date_to>\|<sha8(name)>` | `regcode`, `date_to`, `name` | none |
+  | liquidations | `id` | `legal_entity_registration_number`, `liquidation_type`, `date_from` | none |
+  | reorganisations | `id` | `reorganization_type`, `source_entity_regcode`, `final_entity_regcode`, `registered` | none |
+  | equity capital | `<regcode>\|<equity_capital_type>` | the kept row's `amount`, `currency`, `date_from` | none: the parser picks the kept row per key with an in-memory map (≈ 145,000 rows; the file is unsorted, 241 contiguity breaks) |
+  | memorandum dates | `id` | `legal_entity_registration_number`, `document_date`, `registered_on` | none |
+
+- **Measured churn between two daily pulls:** register 43 added, 0 removed, 56 changed; liquidations 14 added, 13 removed; reorganisations 3 added, 1 removed; equity 55 added, 31 removed; memorandum 42 added, 13 removed.
+- **Purge guard:** `maxPurgeShare` 0.02 per family (table in § Source). An empty or cut-off file ends `partial` with `purge_guard`.
 - **History events** (ingest step 5, §3.7), from the old and new statements of a changed register record:
   - `name` changed → `finora.renamed` (`data = {old, new}`; NP: no names in `data`, only `{changed: true}`);
   - `address` changed → `finora.address_changed` (NP: never emitted, there is no address);
@@ -192,6 +209,7 @@ Not applicable to the identity rows: `register.csv` is the register itself, and 
   - A `register.csv` code that disappears (0 seen in our diff; terminated entities stay in the file with `closed` set) → the entity keeps its identity statements and gets `tombstone_since` and a `finora.tombstoned` event.
   - Liquidation, reorganisation, equity and memorandum records that disappear are deleted with their events. There are no tombstones for events, and no finora event: a lifted liquidation record is the register correcting itself.
 - **Partial or interrupted** → no purge (§4.4 step 6).
+- **Storage or licence class change** (A7): a full reload into the new class, then a purge from the old one. None is foreseen for these CC0 sources.
 
 ## Size and time budget
 
@@ -266,9 +284,6 @@ The LV total across the five LV specs is ≈ 1.25 GB of rows, ≈ 1.6 GB with se
 
 ## Open questions
 
-1. **As-of inside the file (architecture §3.2 `upstream_as_of`, §4.4 step 2: "Missing → `failed` with `as_of_missing`").** No LV file states an as-of date. This spec uses the newest valid date in the data, with CKAN `last_modified` as a diagnostic. Architect: accept "max date in data" as an `AsOfRule` kind, or allow CKAN `last_modified` from `package_show` (it is read from a response, not an HTTP header).
-2. **Deep link for non-register records (§4.2 `deepLink: string | null; // URL pattern with {recordKey}`).** The record keys of liquidations, equity and memorandum rows are not company codes. Proposal: allow `{entityCode}` (the code part of the record's entity eid) in the pattern. Until then they link to the company page through the entity.
-3. **New values not in the brief's lists:** status `reorganised` (closed code `R`); drop reasons `legacy_code`, `no_item`, `free_text`, `natural_person_name`, `natural_person_address`, `unknown_enum`; event type `register.renamed` is **not** used (former names are statements; renames we see are `finora.renamed`).
-4. **Share capital item.** The display-matrix row for S01.LV.01 lists the register, NACE, VAT and LEI, not share capital. This spec maps `capital` to S01.LV.01 as an identity attribute (architecture §3.7 lists "capital" among company attributes). Council: confirm, or capital is not loaded.
-5. **9-digit legacy codes.** Skipped (`legacy_code`): 30,805 terminated legacy entries plus 3,435 active media outlets (register `M`, no item). If the council wants struck-off legacy companies searchable, the eid rule needs `lv-<9 digits>` without a check digit (§3.4 says 11 digits).
-6. **FtM property names** used: `registrationNumber`, `legalForm`, `incorporationDate`, `dissolutionDate`, `status`, `address`, `country`, `previousName`, `capital`. The extension `finora:addressId` needs a line in `schema/ftm-subset.test.ts`.
+1. **New names** (once): status `reorganised` (closed code `R`); drop reasons `no_item`, `free_text`, `natural_person_name`, `natural_person_address`, `unknown_enum`; extension prop `finora:addressId` (needs a line in `schema/ftm-subset.test.ts`). FtM props used: `registrationNumber`, `legalForm`, `incorporationDate`, `dissolutionDate`, `status`, `address`, `country`, `previousName`, `capital`.
+2. **Label tables.** Legal-form, register-type and liquidation-type labels are Latvian only in the files. Proposal: a bundled `domain/config/labels/lv.ts` (Latvian from the files plus our English gloss), counted in `parserVersion` only where the parser reads it (legal forms).
+3. **Purge-guard floor on small files.** 0.02 of a few thousand records is fine here. For the 63-row sanctions-links file (`lv-risk.md`) it allows only one removal per sync. Proposal: max(share, 5 records).

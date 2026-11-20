@@ -13,16 +13,24 @@ The current insolvency **status** of every company comes from the daily register
 
 - Publisher: AVNT. Dataset page: `https://data.gov.lt/datasets/1979/` ("Įmonių bankroto ataskaitų duomenys"). Endpoint (Spinta UAPI, no key): `https://get.data.gov.lt/datasets/gov/avnt/imoniu_bankrotas/BankrotoAtaskaitosDatos/:format/csv?select(imones_kodas,bankroto_iniciatorius,bankroto_data,apygardos_teismas,ne_teismo_tvarka,nutraukimo_data,nutraukimo_priezastis,likvidavimo_data,supaprastintas_bankrotas,nutrauktas_supaprastintas,tycinis_bankrotas,tycinio_bankroto_nutraukimas,sprendimas_del_pabaigos)`
 - Licence: `cc-by-4.0` ("Creative Commons Attribution 4.0", data.gov.lt page 1979, verified 2026-11-20). Attribution: "Source: AVNT, bankruptcy reports of companies, CC BY 4.0". Storage: `store`.
-- Cadence: quarterly (catalogue: "Kas ketvirtį"). Last load 2026-09-19; the newest event in the data is 2025-10-03, so the content lags about a year behind its loads. Scheduled weekly (a cheap change-log probe), content expected quarterly.
-- As-of: `portal_metadata` (newest change-log `_created`) for freshness, plus `max_date_in_data` (the latest event date in the file) recorded in `report_json.contentAsOf`, which the S09 caveat line uses (see Open questions).
+- Cadence: quarterly (catalogue: "Kas ketvirtį"). Change-log loads on 2026-03-30, 2026-09-19 and 2026-11-19 (6 to 16 patches each, no inserts or deletes); the newest event in the data is 2025-10-03, so the content lags about a year behind its loads. Scheduled weekly (`changeToken`: the change-log `_cid`), content expected quarterly.
+- As-of: see Contract values below. Besides the as-of, the latest event date in the file is recorded in `report_json.contentAsOf`; the S09 caveat reads "Bankruptcy reports published up to [month]" with that month (Part H, Baltic-spec call 6).
 - Limits: none observed. Politeness: one request per sync.
 - `officialHosts`: `get.data.gov.lt`, `data.gov.lt`. `deepLink`: `null`. `orderUrl`: `null`.
+
+### Contract values (§4.2-§4.4)
+
+| `asOf` (strongest first; the first wins today) | `maxPurgeShare` (measurement) | `purgeScope` | Record unit, hash input, sort order |
+|---|---|---|---|
+| 1. `portal_metadata`: change-log `_created` (wins; 2026-11-19); 2. `http_last_modified`. `max_date_in_data` is not an as-of strategy here (it would mark the source stale for a year); it feeds the caveat month only | **0.02**: 0 deletes on the loads of 2026-03-30, 2026-09-19 and 2026-11-19 of 5,937 rows (`removal_shares.py`) | `full` | one record per bankruptcy case = (company code, opening date); the stream is ordered by the row `_id`, unrelated to the company, so the parser groups the 5,937 rows in memory before mapping; hash input below |
+
+`parserVersion` (A1): the hash of the loader module (with the case grouping and merge rule), its field map (with the initiator table) and the generated item list.
 
 ## Items
 
 | item_id | Call | Caveat text | Empty state |
 |---|---|---|---|
-| S09.LT.01 | CAVEAT | Bankruptcy reports published up to Oct 2025 | CN |
+| S09.LT.01 | CAVEAT | Bankruptcy reports published up to [month] (Part H call 6; Part G's row still reads "Oct 2025", the month this data gives today) | CN |
 
 S18.LT.01 reads the status and these events; no field of its own.
 
@@ -57,13 +65,14 @@ Every case is an insolvency row tied to a party (`ingest/src/party-gate.ts`, LT 
 
 - `eid` = `lt-<imones_kodas>`; the entity must exist (identity from `lt-register`; most bankrupt companies end in the deregistered file and keep identity only, while their insolvency events stay: events are not "financials").
 - `record_key` = `<imones_kodas>:<opening date>` (documented derivation; the API `_id` is unique per row but a case spans several rows).
-- `hashInput` = the merged case: `[opening date, procedure, initiator, court, each event date in field-map order, reason]`.
+- `hashInput` (`row_hash` = sha256 truncated to 16 bytes) = the merged case: `[opening date, procedure, initiator, court, each event date in field-map order, reason]`; the merge does not depend on row order.
 
 ## Refresh and change
 
 - Weekly probe, quarterly content. sha256 + `parserVersion` equal → `unchanged`.
 - A changed case (a new date, for example the end decision) replaces the case's events; no `finora.*` event (the dated register events are the history).
-- A case absent from a new file is purged with its events. The publisher only adds; `maxPurgeShare` = 2%, so a shrunken file ends `partial`.
+- A case absent from a new file is purged with its events. The publisher only adds and patches; `maxPurgeShare` = 0.02 (Contract values), so a shrunken file ends `partial` with `purge_guard`.
+- A change of storage class or licence is a full reload into the new class plus a purge from the old one (§4.2, A7).
 
 ## Size and time budget
 
@@ -78,7 +87,7 @@ API CSV layout: UTF-8, LF, `,` delimiter, `"` quoting, header = the selected col
 - `packages/sources/src/lt/lt-avnt-bankruptcy/lt-avnt-bankruptcy.test.ts`: case grouping and the merge rule; one event type per date column; initiator normalisation; every event carries `record_id` and item S09.LT.01.
 - **HIDE negative test (natural-person insolvency, Part H 9):** `packages/ingest/src/natural-insolvency.test.ts` (shared across countries) asserts that the sole proprietorship's case writes no record, event or log value, and that its entity's S09 shows no insolvency event on UI, API, MCP and export; the drop is counted as `natural_person_form`.
 - `packages/domain/src/report/assemble.test.ts` (LT case): S09 for a company combines the register status (from `lt-register`) with these events and shows the caveat with the content as-of month.
-- Shared ingest tests: `party-gate.test.ts`, `unchanged.test.ts`, `purge.test.ts` (`maxPurgeShare`), `stale.test.ts`.
+- Shared ingest tests: `party-gate.test.ts`, `unchanged.test.ts`, `purge.test.ts`, `purge-guard.test.ts` (a file missing 5% of cases ends `purge_guard`), `as-of.test.ts` (`portal_metadata` case), `parser-version.test.ts`, `stale.test.ts`; the case-grouping test shuffles the fixture rows and expects the same records and hashes.
 - Live check `lt-avnt-bankruptcy.live.test.ts` (weekly): header unchanged; warns when the newest event is more than 15 months old.
 
 ## Failure modes
@@ -89,6 +98,5 @@ API CSV layout: UTF-8, LF, `,` delimiter, `"` quoting, header = the selected col
 
 ## Open questions
 
-1. **Caveat date:** Part G's caveat text hard-codes "up to Oct 2025". Proposal: the caveat key takes the month of `report_json.contentAsOf` ("Bankruptcy reports published up to [month]"), so it stays true after the next load. Council to confirm the wording change.
-2. **New event types** for `domain/config/event-types.ts`: `register.insolvency_simplified`, `register.insolvency_simplified_ended`, `register.intentional_bankruptcy`, `register.intentional_bankruptcy_lifted`, `register.insolvency_ended` (next to `register.insolvency_opened`, `register.insolvency_closed`, `register.liquidation`).
-3. **As-of basis** (`portal_metadata` plus a content as-of): review item A3.
+1. **Names to add once to the shared config:** event types `register.insolvency_simplified`, `register.insolvency_simplified_ended`, `register.intentional_bankruptcy`, `register.intentional_bankruptcy_lifted`, `register.insolvency_ended` (next to `register.insolvency_opened`, `register.insolvency_closed`, `register.liquidation`); skip reason `conflicting_value`; `report_json.contentAsOf`.
+2. **Part G text:** S09.LT.01's caveat still reads "Oct 2025"; the coordinator to update the row to "Bankruptcy reports published up to [month]" (Part H call 6), so `gen-items.mjs` emits a caveat key with a month parameter.

@@ -23,7 +23,7 @@ Why one source for registered + deregistered: a company moves from the first fil
   - `https://www.registrucentras.lt/aduomenys/?byla=JAR_KAPITALAS.csv`
   These are the stable URLs the data.gov.lt pages list as their CSV distributions. Do not use the API copy of the register (`get.data.gov.lt/datasets/gov/rc/jar/iregistruoti`) for identity: its loads are irregular (gaps up to six months, newest load 28 days old on 2026-11-19).
 - Licence: `cc-by-4.0` ("Creative Commons Attribution 4.0" on data.gov.lt pages 1484 and 1564, verified 2026-11-19). Attribution (no wording stated by the publisher; recorded in `baltics.md` round 2): "Source: Registrų centras, Register of Legal Entities (open data), CC BY 4.0". Storage: `store`.
-- Cadence: daily. `publishedAtUtc`: unknown (the files had not regenerated at 00:00 UTC on 2026-11-20); schedule after 07:00 UTC with the other LT sources and rely on the as-of check. As-of: `in_file_field` = column `formavimo_data` (the same date on every row). A file whose `formavimo_data` is older than the last content sync is `stale_skipped`.
+- Cadence: daily. `publishedAtUtc`: unknown (the files had not regenerated at 00:00 UTC on 2026-11-20); schedule after 07:00 UTC with the other LT sources and rely on the as-of check. As-of: see Contract values below (`formavimo_data`, the same date on every row). A file whose `formavimo_data` is older than the last content sync is `stale_skipped`.
 - Keys: none. Limits: none observed. Politeness: one file at a time, 2 s between files, `User-Agent` from the shared polite fetcher. No HTTP validators are sent (no ETag, no Last-Modified, `Cache-Control: private`), so change detection is the artifact sha256 only.
 - `officialHosts`: `www.registrucentras.lt`, `data.gov.lt`.
 - `deepLink`: `null`. The free search page (`https://www.registrucentras.lt/jar/p/index.php`) needs a form post with a check number and allows 100 searches a day, so there is no per-company URL. The report links the search page as a plain "Search the register" link.
@@ -34,11 +34,22 @@ Why one source for registered + deregistered: a company moves from the first fil
   - `https://get.data.gov.lt/datasets/gov/lsd/cl/ja_asmenys/JuridinisAsmuo/:format/csv?select(_id,kodas,veikla,veikla_atnaujinta)`
   - `https://get.data.gov.lt/datasets/gov/lsd/cl/evrk/EkonominesVeiklosRusis/:format/csv?select(_id,kodas,pavadinimas_lt,pavadinimas_en)`
 - Licence: `cc-by-4.0` ("Creative Commons Attribution 4.0" on data.gov.lt pages 2088 and 1927, verified 2026-11-20). Attribution: "Source: State Data Agency (Statistics Lithuania), economic activities of legal entities and EVRK 2, CC BY 4.0". Storage: `store`.
-- Cadence: daily (catalogue: "Kasdien"); newest load 2026-11-19 12:52 UTC. As-of: `portal_metadata` = `_created` of the newest change-log entry (`.../JuridinisAsmuo/:changes/-1`), recorded as `as_of_basis: portal_metadata` (see Open questions on A3).
+- Cadence: daily (catalogue: "Kasdien"); newest load 2026-11-19 12:52 UTC. As-of: see Contract values below.
 - Keys: none. The API streams a whole model without a limit (the 552,531-row table took 88 s). Politeness: sequential, 2 s apart. ETag and Last-Modified are sent and `If-Modified-Since` answers 304; use it as a hint only.
 - `officialHosts`: `get.data.gov.lt`, `data.gov.lt`. `deepLink`: `null`. `orderUrl`: `null`.
 
 **Why the activity code comes from Statistics Lithuania:** it covers 97.3% of active companies, every code resolves in the classifier, and the classifier has English labels for all of them. The tax-payer register (activity on 83.5% with the social-insurance file) and the social-insurance file (Lithuanian labels only) are not used for activity.
+
+### Contract values (§4.2-§4.4)
+
+| Source | `asOf` (strongest first; the first wins today) | `maxPurgeShare` (measurement) | `purgeScope` | Record unit, hash input, sort order |
+|---|---|---|---|---|
+| `lt-rc-jar-entities` | 1. `in_file_field`: column `formavimo_data` (wins; the files send no Last-Modified, so there is no second strategy) | **0.02**: removal 0 of 550,482 codes over 48 days (every code in the API copy of 2026-10-02 is in the daily union of 2026-11-19); a strike-off is a change, not a removal | `full` | one record per company code across both files; hash input in Identity and joins; no order assumed (records are independent; a code in both files keeps the deregistered row, counted `duplicate_code`) |
+| `lt-rc-jar-bodies` | 1. `in_file_field`: `formavimo_data` (wins) | **0.02**: removals are strike-offs, 618 in 48 days of 235,095 rows = 0.005% a day | `full` | one record per company (one row each); no order assumed |
+| `lt-rc-jar-capital` | 1. `in_file_field`: `formavimo_data` (wins) | **0.02**: removals are strike-offs of limited companies (same measurement, ≤ 0.005% a day) | `full` | one record per company; no order assumed |
+| `lt-lsd-activity` | 1. `portal_metadata`: `_created` of the newest change-log entry, `.../ja_asmenys/JuridinisAsmuo/:changes/-1` (wins; 2026-11-19 12:52 UTC); 2. `http_last_modified` (same timestamp on 2026-11-19) | **0.02**: the change feed shows 0 deletes on the loads of 2026-11-17, 18 and 19 (53-74 inserts and 85-274 patches a day of 552,531 rows; `removal_shares.py`); records also leave when a company is struck off (≈ 13 a day) | `full` | one record per company code (registered entities only); the activity table is sorted by its `_id`, the classifier is read into memory first, so no order is assumed |
+
+`parserVersion` (A1) for all four: the hash of the loader module, its field map and the generated item list, plus, for `lt-rc-jar-entities` and `lt-rc-jar-bodies`, the generated LT tables in `legal-forms.ts` and `statuses.ts` (the natural-person form set and the status mapping change what is stored). The EVRK classifier is a fetched artifact, not part of the parser.
 
 ## Items
 
@@ -95,7 +106,7 @@ Rows of natural-person forms are dropped whole (`natural_person_form`): the mana
 | Source field | Type | Target | item_id | Personal? | Transform and validation |
 |---|---|---|---|---|---|
 | `ja_kodas` | int | the company entity; `record_key` | S01.LT.01 | no | check digit; must exist in `lt-rc-jar-entities` |
-| `ist_kapitalas` | decimal | statement `finora:shareCapital` (decimal string) | S01.LT.01 | no | > 0 |
+| `ist_kapitalas` | decimal | statement `finora:shareCapital` (decimal string): an optional S01 field, SHOW (Part H, Baltic-spec call 3), never a verdict input | S01.LT.01 | no | > 0 |
 | `valiuta` | text | statement `finora:shareCapitalCurrency` | S01.LT.01 | no | `Eur` → `EUR`, `Lt` → `LTL`; other → skip `unknown_currency` |
 | `ist_kap_nuo` | date | statement `finora:shareCapitalSince` | S01.LT.01 | no | ISO date |
 | `ja_pavadinimas`, `adresas`, `ja_reg_data`, `form_kodas`, `form_pavadinimas` | | not read (duplicates of the entities file) | - | - | - |
@@ -144,7 +155,7 @@ Not applicable: these files describe companies only, with no party rows. They ar
 
 - `eid` = `lt-<ja_kodas>`. The code is issued for life; no code appears in both files (0 overlap measured).
 - `record_key`: `lt-rc-jar-entities` = `ja_kodas`; bodies, capital, activity = `ja_kodas`.
-- `hashInput` (fixed order): entities = `[file, ja_pavadinimas, adresas, ja_reg_data, form_kodas, stat_kodas, stat_data_nuo, isreg_data]` (the name and address of natural-person forms are hashed but not stored, so a change still emits no event with personal content: see history below); bodies = the 8 role columns read; capital = `[ist_kapitalas, valiuta, ist_kap_nuo]`; activity = `[veikla code, veikla_atnaujinta]`.
+- `hashInput` (fixed order; `row_hash` = sha256 truncated to 16 bytes): entities = `[file, ja_pavadinimas, adresas, ja_reg_data, form_kodas, stat_kodas, stat_data_nuo, isreg_data]` (the name and address of natural-person forms are hashed but not stored, so a change still emits no event with personal content: see history below); bodies = the 8 role columns read; capital = `[ist_kapitalas, valiuta, ist_kap_nuo]`; activity = `[veikla code, veikla_atnaujinta]`.
 - Bodies, capital and activity rows whose code is not in `lt-rc-jar-entities` are skipped (`code_not_in_register`) and retried on the next sync. Sync order within LT: entities first, then the rest (§4.5: the country is searchable once entities land).
 - Labels: `packages/domain/src/config/legal-forms.ts` gets an LT table (form code → LT label, EN label, `naturalPerson`) and `statuses.ts` an LT table (code → normalised status, LT and EN labels), generated once by `scripts/gen-lt-classifiers.mjs` from `get.data.gov.lt/datasets/gov/rc/jar/formos_statusai/Forma` and `.../Statusas` (CC BY 4.0, attribution in the generated file header). 168 forms and 31 statuses; re-run when the register adds one (a row with an unknown code is skipped and counted as `unknown_legal_form` / `unknown_status`, visible in `data status`).
 - `links`: none here (LEI comes from GLEIF `registeredAs` with authority `RA000430`; VAT from `lt-tax`).
@@ -152,13 +163,14 @@ Not applicable: these files describe companies only, with no party rows. They ar
 ## Refresh and change
 
 - Daily full files. Unchanged sha256 (and unchanged `parserVersion`, review item A1) → one `unchanged` sync row, nothing else.
-- Removal: a code absent from both entity files is deleted with its rows (it should not happen; the register keeps deregistered codes). `maxPurgeShare` (review item A2): 0.5% for `lt-rc-jar-entities` (normal day: about 40 new registrations and 13 moves to the deregistered file, none removed from the union), 2% for bodies and capital, 1% for activity.
+- Removal: a code absent from both entity files is deleted with its rows (it should not happen; the register keeps deregistered codes). `maxPurgeShare` and `purgeScope` per source: Contract values above. A normal day has about 40 new registrations and 13 moves to the deregistered file and no removal from the union.
 - History events (§3.7), emitted by comparing the old and new record of an entity:
   - `finora.renamed` (old and new name; companies only, never natural-person forms), `finora.address_changed` (companies only), `finora.status_changed` (old and new normalised status and `stat_kodas`), `finora.legal_form_changed`, all item S02.LT.01;
   - `finora.capital_changed` (old and new amount and currency), item S02.LT.01;
   - `finora.role_ended` from bodies: a flag going 1 → 0, or a `*Since` date changing (a new appointment), writes "a [manager | board | council | supervisory board] role ended on [sync date]" with no name, item S03.LT.01.
   - Natural-person forms emit only `finora.status_changed` and `finora.legal_form_changed`.
 - No tombstones: deregistered companies stay in the deregistered file.
+- A change of storage class or licence for any of these sources is a full reload into the new class plus a purge from the old one (§4.2, A7).
 
 ## Size and time budget
 
@@ -192,7 +204,7 @@ Content: about 30 entities. Names like "Demo Logistics UAB", "Example Timber AB"
 - `packages/sources/src/lt/lt-lsd-activity/lt-lsd-activity.test.ts`: classifier join, unresolved UUID counted, labels LT and EN exposed through the label lookup, deregistered codes not loaded.
 - `packages/sources/src/lt/policy.test.ts` (slice S08): every LT field-map target is a `show`/`caveat` item or a resolution key; `items` equals the field-map items; S04.LT.01 has no field.
 - `packages/domain/src/ids/lt.test.ts`: the check-digit algorithm on hand-made codes, including both s = 10 branches.
-- Shared ingest tests this source relies on: `ingest/src/unchanged.test.ts`, `purge.test.ts` (with `maxPurgeShare`), `partial.test.ts`, `stale.test.ts` (older `formavimo_data`), `history.test.ts` (rename, address change, struck-off move as `finora.status_changed`, `finora.role_ended` without a name, no rename event for a natural-person form), `party-gate.test.ts` (the LT rule: a code of form 810 is not a company).
+- Shared ingest tests this source relies on: `ingest/src/unchanged.test.ts`, `purge.test.ts`, `purge-guard.test.ts` (a header-only entities file deletes nothing), `parser-version.test.ts` (a new natural-person form in the generated table re-parses the unchanged file), `as-of.test.ts` (`in_file_field` and `portal_metadata` cases), `partial.test.ts`, `stale.test.ts` (older `formavimo_data`), `history.test.ts` (rename, address change, struck-off move as `finora.status_changed`, `finora.role_ended` without a name, no rename event for a natural-person form), `party-gate.test.ts` (the LT rule: a code of form 810 is not a company).
 - HIDE negative test for S04.LT.01 (LATER, nothing loaded): `web/e2e/hide-items.spec.ts` asserts the LT owners section shows only the PAID empty state with the `orderUrl` link and no member data on UI, API, MCP and export.
 - Live check: `lt-rc-jar-entities.live.test.ts` (nightly): the four files answer 200, headers match the fixture headers, `formavimo_data` ≤ 2 days old, and the fixture codes are still unassigned.
 
@@ -206,10 +218,10 @@ Content: about 30 entities. Names like "Demo Logistics UAB", "Example Timber AB"
 
 ## Open questions
 
-1. **As-of basis for API sources (review item A3):** `lt-lsd-activity` and every get.data.gov.lt source have no as-of inside the data; this spec uses the newest change-log `_created` (`portal_metadata`). Needs A3's ordered `AsOfRule` to accept it.
-2. **Where classifier labels live:** legal forms (168) and statuses (31) are proposed as generated config; EVRK labels (2,302 rows, LT + EN) are too many for config. Proposal: a `labels` intern table (`scheme`, `code`, `lang`, `label`, `record_id`) written by `lt-lsd-activity`. Architect to confirm or name another home.
-3. **New property names** (FtM extensions, to list in `schema/ftm-subset.test.ts`): `finora:statusSince`, `finora:hasManager`, `finora:managerSince`, `finora:hasBoard`, `finora:boardSince`, `finora:hasCouncil`, `finora:councilSince`, `finora:hasSupervisoryBoard`, `finora:supervisoryBoardSince`, `finora:shareCapital`, `finora:shareCapitalCurrency`, `finora:shareCapitalSince`, `finora:sectorSince`.
-4. **New normalised statuses:** `restructuring` and `reorganising` are proposed for `statuses.ts`, next to `active`, `liquidating`, `insolvent`, `struck_off`.
-5. **Share capital as S01.LT.01:** no Part G row names capital; this spec files it under identity (the register shows it on the company record, and `finora.capital_changed` exists). Council to confirm, or drop `lt-rc-jar-capital` (0.04 GB).
-6. **Sole-proprietorship names not stored:** the spec drops them (`natural_person_name`), going beyond §3.1's list, because the name is the owner's name and the publisher anonymises it in its own API datasets. Legal to confirm.
-7. **EVRK 2.1:** Statistics Lithuania already publishes an EVRK 2.1 code (97.3% of active companies). This spec loads EVRK 2 (`veikla`), the code the tax and social-insurance files use. Switch when the national classification switches.
+1. **Where classifier labels live:** legal forms (168) and statuses (31) are proposed as generated config; EVRK labels (2,302 rows, LT + EN) are too many for config. Proposal: a `labels` intern table (`scheme`, `code`, `lang`, `label`, `record_id`) written by `lt-lsd-activity`.
+2. **Names to add once to the shared config:**
+   - extension properties (`schema/ftm-subset.test.ts`): `finora:statusSince`, `finora:hasManager`, `finora:managerSince`, `finora:hasBoard`, `finora:boardSince`, `finora:hasCouncil`, `finora:councilSince`, `finora:hasSupervisoryBoard`, `finora:supervisoryBoardSince`, `finora:shareCapital`, `finora:shareCapitalCurrency`, `finora:shareCapitalSince`, `finora:sectorSince`;
+   - normalised statuses: `restructuring`, `reorganising`;
+   - drop and skip reasons: `natural_person_name`, `natural_person_address`, `gender`, `unknown_legal_form`, `unknown_status`, `unknown_currency`, `activity_unresolved`, `duplicate_code`, `as_of_inconsistent`.
+3. **Sole-proprietorship names not stored:** dropped (`natural_person_name`), beyond §3.1's list, because the name is the owner's name and the publisher anonymises it in its own API datasets. Legal to confirm.
+4. **EVRK 2.1:** Statistics Lithuania already publishes an EVRK 2.1 code (97.3% of active companies). This spec loads EVRK 2 (`veikla`), the code the tax and social-insurance files use; switch when the national classification switches.

@@ -14,9 +14,16 @@ Files `2.EMTAK_myygitulu_...` (revenue by activity) and `3.myygitulu_geograafili
 - **URLs: there is no stable alias.** File names carry the cut-off date and a duplicate counter, for example `/sites/default/files/1.aruannete_yldandmed_kuni_31102026_1.zip`. Tested 2026-11-20: the name without date or counter returns 404; `/jsonapi`, `/sitemap.xml` and the files directories return 404; the counter is not predictable (`_0` one month, `_1` the next); old monthly files stay online (the September file still returned 200). **So `fetch` reads the download page** (`/en/downloading-open-data`, fallback `/et/avaandmete-allalaadimine`), takes every href matching `^/sites/default/files/([14])\.(?:(\d{4})_)?(aruannete_yldandmed|aruannete_elemendid)_kuni_(\d{8})(?:_\d+)?\.zip$`, groups them by family (`1`, and `4` + year), and keeps the newest cut-off date per family. A family missing from the page, or two hrefs with the same family and cut-off, fails the sync with `url_discovery_failed`.
 - **Load window (load rule 3):** the five newest report years on the page (2021-2025 on 20 Nov 2026), so five `4.<year>` zips plus the `1.` zip. When a new year appears, the oldest year's figures are purged with its reports.
 - **Licence:** `cc-by-4.0` (verified 2026-11-19, same page and licence link as the register). `storage: "store"`. **Attribution:** "Source: RIK, e-Business Register annual-report open data, CC BY 4.0".
-- **officialHosts:** `avaandmed.ariregister.rik.ee`, `ariregister.rik.ee`. **deepLink:** `https://ariregister.rik.ee/eng/company/{companyCode}` (no per-report page). **orderUrl:** none (full reports in PDF/XBRL exist only through the contract API; not in v1).
+- **officialHosts:** `avaandmed.ariregister.rik.ee`, `ariregister.rik.ee`. **deepLink:** `https://ariregister.rik.ee/eng/company/{entityCode}` (no per-report page). **orderUrl:** none (full reports in PDF/XBRL exist only through the contract API; not in v1).
 - **Cadence:** stated "initially updated once a month". Observed: files cut at 31 Oct 2026, `Last-Modified` 9 Nov 2026 11:49 UTC. Schedule: read the download page daily at 12:00 UTC (about 48 KB); fetch the zips only when a family's cut-off date is newer than the last content sync's. `cadence: "monthly"`.
-- **As-of (`AsOfRule`):** the cut-off date in the file name (`kuni_31102026` → 2026-10-31), cross-checked with the max `esitatud_kpv` inside the reports CSV (must be ≤ the cut-off, else `schema_changed`). Both are part of the artifact; HTTP headers are not used.
+- **Contract values (§4.2), both sources:**
+
+  | Field | Value |
+  |---|---|
+  | `asOf` (strongest first) | `in_file_name`: the cut-off date in the zip name (`kuni_31102026` → 2026-10-31); `max_date_in_data` on the reports CSV's `esitatud_kpv` (2026-10-31 in the October files; must be ≤ the cut-off, else `schema_changed`); `http_last_modified` (2026-11-09 11:49 UTC). `in_file_name` wins today. No in-file export date exists |
+  | `purgeScope` | `window`: the window field is `aruandeaasta` (report year), the five newest years on the page. Reports of a year that leaves the window are expected deletions and do not count against the guard; reports missing inside the window do |
+  | `maxPurgeShare` | 0.02. Not measured as a two-pull diff (one monthly file held; diff the November and December files with `research/probes/baltics/ee/diff_pulls.py snapshot <file> report_id` then `diff`). Proxy: the files keep reports of deleted companies (45,370 such codes), so upstream removals are near 0; our own removals are reports of companies that left the register in a month, about 0.1-0.3% (217 of 153,997 companies in the tax file left the register in 40 days), so 5 x share stays under 2% |
+  | `parserVersion` | sha256 of `packages/sources/src/ee/ee-rik-annual-reports/`, its field map, the element → concept table, the table-precedence list and the generated item list |
 - **Keys:** none. **Limits:** none published. Politeness as in `ee-register.md`.
 - **Format:** zip with one CSV: UTF-8 with BOM, `;` delimiter, `"` quoting, Estonian headers, values as decimal strings (`"946.0"`), dates `dd.mm.yyyy`. Headers:
   - reports: `"report_id";"taidetud_aruanne_report_id";"registrikood";"õiguslik vorm";"staatus";"aruandeaasta";"kas konsolideeritud?";"period_start";"period_end";"esitatud_kpv";"kas auditeeritud?";"valitud aruanne kategooria";"minimaalne kategooria andmete alusel";"auditi töövõtu liik";"audiitori otsuse tüüp";"modifikatsioon asjaolu rõhutamine";"modifikatsioon muu asjaolu";"modifikatsioon tegevuse jatkuvus";"Audiitorettevõtja (AEV)"`
@@ -33,6 +40,10 @@ Copied from `docs/plan/council/01-data.md` Part G.
 Sole traders do not file annual reports in these files (0 reports carry an FIE code), so the sole-trader S06 rule (Part H item 8) has nothing to act on here.
 
 ## Field map
+
+**Record unit, hash input and order (§3.2, A8).** One record per `report_id`, owned by `ee-rik-ar-reports`; `recordKey` = `report_id`. The record joins the report's row in the reports CSV with all its rows in the matching `4.<year>` figures CSV (long format, one row per element).
+- **Order relied on:** the figures CSV is grouped by `report_id` (cto verified). The parser streams it group by group; a `report_id` that reappears after its group closed fails the sync with `schema_changed` (no silent merge). The reports CSV is not assumed sorted: its window rows (≈ 1.18 M) are staged in a temp table keyed by `report_id` first, then each figure group looks up its report; reports with no figure group are emitted after the figures pass.
+- **Hash input** (`row_hash`, 16 bytes): the reports-CSV fields in field-map order, then the selected (concept, value) pairs sorted by concept id, then `figuresPublished` and `liquidation`.
 
 ### `ee-rik-ar-reports` (record key = `report_id`)
 
@@ -90,11 +101,12 @@ Not applicable: a report belongs to the company whose code it carries; no other 
 - "[year] not filed" (S06 empty state) is computed in `domain/report`, not here: for a company with `accountingObligation = true` and a `fiscalYearEnd` (both from `ee-rik-general`), year Y is "not filed" when no report for Y exists and the filing deadline has passed (6 months after the fiscal year end; the deadline is to be confirmed against the Commercial Code before the slice, see Open questions). The register's own warning rulings (`filing.overdue`, `ee-register.md`) are shown next to it as the source's statement.
 
 ## Refresh and change
-- Full re-publication monthly. Record = one report (`report_id`): `rowHash` over the reports-CSV fields read plus the sorted (concept, value) pairs from the figure files.
+- Full re-publication monthly; `purgeScope: "window"` on `aruandeaasta`. Record = one report (`report_id`), `row_hash` as defined under Field map.
 - A changed report (corrected figures): its `fact_reports` row and facts are replaced; no event beyond the existing `filing.annual_report`.
-- A report absent from the new files, or a year leaving the window: purged with its facts and event.
+- A year leaving the window: its reports are purged with their facts and events, as expected deletions (not counted by the purge guard).
+- A report missing inside the window: purged, counted against `maxPurgeShare` (0.02); above it, nothing is purged and the sync ends `partial` with `purge_guard`.
 - When only some family files are newer (for example a new `4.2025` but the same `1.`), all six artifacts of the window are still parsed together, because records span both families; the content hash is over all six.
-- Unchanged page (same cut-off dates): no download, one `syncs` row of kind `unchanged`.
+- Unchanged page (same cut-off dates) and the same `parserVersion`: no download, one `syncs` row of kind `unchanged`. A new `parserVersion`: the six zips are re-parsed from the raw cache (kept as downloaded).
 
 ## Size and time budget
 Measured on the files cut at 31 Oct 2026 (🟡: 16 B per fact and 32 B per event from cto; 60 B per `fact_reports` and records row).
@@ -121,6 +133,9 @@ Download per refresh: about 0.15 GB zipped (the `1.` file 21 MB plus five figure
 - `packages/sources/src/licences.test.ts`, `packages/sources/src/field-maps.test.ts`: as in `ee-register.md`.
 - `ingest/src/purge.test.ts` (shared): month 2 removes the old year's reports and facts and updates the changed revenue.
 - `ingest/src/unchanged.test.ts`: same cut-off dates → no download, one `unchanged` sync.
+- `ingest/src/as-of.test.ts`: the fixture syncs with `as_of_basis = in_file_name`; a figures group that reappears after closing fails `schema_changed`.
+- `ingest/src/purge-guard.test.ts` (window case): month 2 dropping the oldest year passes; a month 2 file missing half of one year's reports ends `purge_guard`.
+- `ingest/src/parser-version.test.ts`: same zips with a changed element → concept table are re-parsed from the raw cache.
 - `domain/src/report/not-filed.test.ts`: "[year] not filed" for an obliged company with no report after the deadline; no such line for a company without accounting obligation or before the deadline.
 - `store/src/provenance.test.ts`: every fact report resolves to a `SourceRef` with `cc-by-4.0` and the attribution text.
 
@@ -128,12 +143,13 @@ Download per refresh: about 0.15 GB zipped (the `1.` file 21 MB plus five figure
 - Download page unreachable or changed so that no family matches: `failed` with `url_discovery_failed`; the previous figures stay with their as-of date.
 - A zip URL from the page returns 404 (renamed between page read and download): retry the page once, then `failed`.
 - Header change in either CSV: `failed` with `schema_changed`.
-- Truncated CSV (row count far below the previous month's, or an unclosed quote): `partial`, nothing purged.
-- Cut-off date older than the last content sync: `stale_skipped`.
+- Truncated CSV (an unclosed quote, or a file that parses but lacks many reports): `partial`; the purge guard keeps every report in the window.
+- Cut-off date older than the last content sync: `stale_skipped`. No strategy yields a date: `failed` with `as_of_missing`.
 - UI: no report for a year → S06 NP or "[year] not filed"; a PDF-only report → "Filed [date]; figures not in the open data (PDF filing)".
 
 ## Open questions
 1. **`liabilities`** is in the shared concept list but is not one element here. Options: leave it empty for EE (this spec), or derive `current_liabilities + non_current_liabilities` with the "Derived by Finora" chip. Council or architect to choose.
 2. **Filing deadline for "[year] not filed".** This spec assumes 6 months after the fiscal year end (from the Commercial Code's annual-report rule); it was not read on the primary text during research. To be verified before the S06 slice.
 3. **Non-profit lines** (`TotalRevenue`, `NetSurplusDeficitForPeriod`, ...) are not read: the concept list has no `total_income`. If S06 should show non-profits' income, a new concept is needed.
-4. **New drop reasons:** `url_discovery_failed` (a sync failure kind), `duplicate_period`, `unknown_table`, `invalid_value`, `orphan_figure`.
+4. **Extra drop reasons and sync reasons:** `url_discovery_failed` (a sync failure kind), `duplicate_period`, `unknown_table`, `invalid_value`, `orphan_figure`. Proposal: add them to the unions.
+5. **Classifier labels:** the size-category and audit-opinion labels are Estonian; English glosses by data-baltics. Proposal: ship them in `domain/config/` like the register labels (`ee-register.md` question 4).

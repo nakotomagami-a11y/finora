@@ -11,7 +11,7 @@ Person keys are read only in memory to run the test; nothing about a person is p
 
 Reads, under research/.cache/baltics/:
   lv/raw/officers/officers.csv
-  ee/raw/ariregister/x/ettevotja_rekvisiidid__kaardile_kantud_isikud.json
+  ee/raw/ariregister/x/ettevotja_rekvisiidid__{kaardile_kantud_isikud,kandevalised_isikud,osanikud}.json
 
 Usage: python -I research/probes/baltics/common/role_key_check.py
 """
@@ -27,6 +27,13 @@ HERE = Path(__file__).resolve().parent
 CACHE = HERE.parents[2] / ".cache" / "baltics"
 sys.path.insert(0, str(HERE.parent / "ee"))
 from jsonstream import iter_objects  # noqa: E402
+
+
+EE_FILES = [
+    ("persons on the card", "ettevotja_rekvisiidid__kaardile_kantud_isikud.json", "kaardile_kantud_isikud"),
+    ("persons off the card", "ettevotja_rekvisiidid__kandevalised_isikud.json", "kaardivalised_isikud"),
+    ("members", "ettevotja_rekvisiidid__osanikud.json", "osanikud"),
+]
 
 
 def spearman(pairs: list[tuple[float, float]]) -> float:
@@ -75,11 +82,12 @@ def main() -> None:
             lv.append((r["id"], r["at_legal_entity_registration_number"], person, m.group(1) if m else ""))
     report("LV officers.csv `id`", lv)
 
-    ee = []
-    for obj in iter_objects(CACHE / "ee" / "raw" / "ariregister" / "x" / "ettevotja_rekvisiidid__kaardile_kantud_isikud.json"):
-        for p in obj.get("kaardile_kantud_isikud") or []:
-            ee.append((str(p["kirje_id"]), str(obj["ariregistri_kood"]), p.get("isikukood_hash") or "", ""))
-    report("EE persons on the card `kirje_id`", ee)
+    for label, name, array in EE_FILES:
+        ee = []
+        for obj in iter_objects(CACHE / "ee" / "raw" / "ariregister" / "x" / name):
+            for p in obj.get(array) or []:
+                ee.append((str(p["kirje_id"]), str(obj["ariregistri_kood"]), p.get("isikukood_hash") or "", ""))
+        report(f"EE {label} `kirje_id`", ee)
 
 
 if __name__ == "__main__":

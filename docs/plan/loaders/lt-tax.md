@@ -21,12 +21,19 @@ The tax authority's other datasets (declarations, tax audits, control actions, l
   `<Y-2>` = the current year minus 2 (3 years: 2024-2026 in 2026).
 - Licence: `cc-by-4.0` ("Creative Commons Attribution 4.0" on pages 607, 673 and 1202, verified 2026-11-19). Attribution: "Source: State Tax Inspectorate (VMI), <dataset>, CC BY 4.0"; for taxes paid "Source: State Data Agency, taxes paid by legal entities (VMI data), CC BY 4.0". Storage: `store`.
 - Cadence and publication: taxpayer register daily (load 01:08 UTC on 2026-11-19); arrears daily (load 07:03 UTC, two consecutive days observed); taxes paid monthly (catalogue), last load 2026-11-17 with data to October. Schedule: taxpayers and arrears daily after 07:30 UTC; taxes paid weekly probe, monthly expected.
-- As-of:
-  - taxpayers: `portal_metadata` (newest change-log `_created`);
-  - taxes paid: `max_date_in_data` = the last day of the latest (`metai`, `menuo`); the change log of this model answers HTTP 500, so the change-log probe is not used here;
-  - arrears: `max_date_in_data` = max(`atnaujinta`), cross-checked against `portal_metadata`; the event and report date is this list date.
+- As-of: see Contract values below; the arrears event and report date is the list date.
 - Limits: none observed on sequential requests. Politeness: 2 s between requests. ETag and Last-Modified are sent and `If-Modified-Since` answers 304: used as a hint only.
 - `officialHosts`: `get.data.gov.lt`, `data.gov.lt`. `deepLink`: `null` (no per-company public page found). `orderUrl`: `null`.
+
+### Contract values (§4.2-§4.4)
+
+| Source | `asOf` (strongest first; the first wins today) | `maxPurgeShare` (measurement) | `purgeScope` | Record unit, hash input, sort order |
+|---|---|---|---|---|
+| `lt-vmi-taxpayers` | 1. `portal_metadata`: change-log `_created` (wins; loads on 2026-11-18, 19 and 20); 2. `http_last_modified` | **0.02**: the change feed shows 0 deletes on 2026-11-18, 19 and 20 (200-204 inserts and 9,000-22,400 patches a day of 931,948 rows); records also leave when a company is struck off (≈ 13 a day) | `full` | one record per company: the 931,744 rows (one per company × branch × activity) are grouped by `ja_kodas` in memory (≈ 297,000 keys); the stream is ordered by the row `id`, not by company |
+| `lt-vmi-taxes-paid` | 1. `max_date_in_data`: the last day of the latest (`metai`, `menuo`) (wins; 2026-10-31); 2. `portal_metadata`: change-log `_created` (2026-11-17; the change log answered HTTP 500 on 2026-11-19 and worked on 2026-11-20, so it is the second strategy, not the first); 3. `http_last_modified` | **0.047**: the monthly load of 2026-11-17 re-issued the current year (58,088 inserts, 61,478 deletes of 744,645 rows); keyed on (company, year) that is 3,390 net removals, 0.94% of the ≈ 360,000 records we hold, × 5 | `periods_in_file` on `metai`: only years present in the pulled file are purged, so a year that rolls out of the 3-year pull stays as our history (Part H, Baltic-spec call 8; counted against `HISTORY_MAX_GB`) | one record per row = (company, year); no grouping; no order assumed |
+| `lt-vmi-arrears` | 1. `max_date_in_data`: max(`atnaujinta`) (wins; 2026-11-19); 2. `portal_metadata`; 3. `http_last_modified` | **0.234**: the change feed's daily deletes were 196 (0.61%) on 2026-11-16, 1,498 (4.68%) on 2026-11-18 and 1,379 (4.31%) on 2026-11-19 of 31,989 rows; 5 × the largest measured day (5 × 4.31% = 0.216 would block a day like 2026-11-18) | `full` (a current list) | one record per company (one row each); no order assumed |
+
+`parserVersion` (A1), all three: the hash of the loader module, its field map and the generated item list; for `lt-vmi-taxpayers` also the VAT selection rule (in the module). The UUID map is a fetched artifact (§4.3 allows a second artifact), not part of the parser.
 
 ## Items
 
@@ -74,7 +81,7 @@ One row per company on the list date. List-based: a company not on the list has 
 | `nepriemoka` | decimal (EUR) | report kind `debt_snapshot`, fact `tax_arrears`; `period_end` = list date | S08.LT.01 | no | ≥ 0 |
 | `pradelsta_nepriemoka` | decimal | fact `tax_arrears_overdue` | S08.LT.01 | no | ≥ 0 |
 | `atideta_nepriemoka` | decimal | fact `tax_arrears_deferred` | S08.LT.01 | no | ≥ 0 |
-| `sukurta` | date | event data `listedSince` on `finora:debtor_listed` (see Open questions) | S08.LT.01 | no | ISO date |
+| `sukurta` | date | event data `listedSince` on `finora.debtor_listed`: "On the arrears list since [date]" and the 180-day check (Part H, Baltic-spec call 5) | S08.LT.01 | no | ISO date; ≤ list date |
 | `atnaujinta` | date | as-of (max over the file) | - | no | - |
 | `atideta_pradelsta` | decimal | not read (no concept; see Open questions) | - | - | - |
 | `id`, `ja_pavadinimas`, `sav_kodas` | | not read | - | - | - |
@@ -95,7 +102,7 @@ Counts go into `syncs.report_json` by reason. Dropped rows are never written any
 
 - `lt-vmi-taxpayers`, `lt-vmi-arrears`: `ja_kodas` → `lt-<code>`. `lt-vmi-taxes-paid`: `mm_kodas._id` → UUID map → `lt-<code>`.
 - `record_key`: taxpayers `<ja_kodas>`; taxes paid `<ja_kodas>:<metai>`; arrears `<ja_kodas>`.
-- `hashInput`: taxpayers `[vatCode, pvm_iregistruota, pvm_isregistruota]`; taxes paid `[menuo, suma]`; arrears `[nepriemoka, pradelsta_nepriemoka, atideta_nepriemoka, sukurta]` (the list date is not hashed, so an unchanged debt keeps its record; the report's `period_end` is updated to the list date on every content sync, see below).
+- `hashInput` (`row_hash` = sha256 truncated to 16 bytes): taxpayers `[vatCode, pvm_iregistruota, pvm_isregistruota]` of the selected VAT row; taxes paid `[menuo, suma]`; arrears `[nepriemoka, pradelsta_nepriemoka, atideta_nepriemoka, sukurta]` (the list date is not hashed, so an unchanged debt keeps its record; the report's `period_end` is updated to the list date on every content sync, see below).
 - `links`: one VAT ↔ code row per VAT company, asserted by the taxpayer record (§6 linking).
 - A company missing from the register is skipped and retried next sync.
 
@@ -108,7 +115,17 @@ Counts go into `syncs.report_json` by reason. Dropped rows are never written any
   - every listed company's report `period_end` is set to the list date (one UPDATE per sync, not a re-insert), so "as of [date]" is true for unchanged rows.
   Amount bands for events (companies only, §3.7): `<100`, `100-1k`, `1k-10k`, `10k-100k`, `>=100k` EUR. Only on-list and off-list events are stored (P9); no daily copies.
 - Measured churn (change feed, 2026-11-18 → 19): 875 inserts, 1,379 deletes, 4,498 patches of 31,989 rows.
-- Taxes paid: a year leaving the 3-year window is purged (January). `maxPurgeShare`: taxpayers 2%, taxes paid 40% (January), arrears 15%.
+- Taxes paid: a year leaving the 3-year pull is **kept** (`purgeScope: periods_in_file`): only years present in the new file are compared and purged.
+- `maxPurgeShare` and `purgeScope` per source: Contract values above. The arrears guard applies to each full-file sync (the loader reads the whole list, not the change feed).
+- A change of storage class or licence is a full reload into the new class plus a purge from the old one (§4.2, A7).
+
+### Listing date (`sukurta`) and the 180-day check
+
+Council (Part H, Baltic-spec call 5): LT arrears age is evaluated from day one from the list entry's own creation date, a lower bound; P14 does not apply. cto's condition is that the date is stable for an entry whose debt continues. Evidence so far (`removal_shares.py` and the change feed, 2026-08-30 to 2026-11-19, 50 load days):
+- 246,135 patches; **none changed `sukurta`** (or the row `id`): while an entry stays on the list, its date does not move.
+- 76,379 deletes. Of the 58,787 whose company is known from an earlier insert in the window, 1,526 (2.6%) were re-inserted the same day and 2,471 (4.2%) on the next load day, with a new `sukurta`. A company that leaves and re-enters gets a new date, so its age restarts: that can only under-flag, which keeps the lower-bound reading true.
+- Still to do (cto's proof): compare the 2026-11-19 snapshot with a pull at least 7 days later (on or after 2026-11-26) and record the share of continuing entries whose `sukurta` changed. If any continuing entry's date resets without a delete, P14 applies to LT arrears age and the check reads "Not evaluated: tracked since [date]".
+Loader rule: `listedSince` = the entry's current `sukurta`; a re-inserted entry writes `finora.debtor_cleared` and a new `finora.debtor_listed` with the new date; a `sukurta` change on a continuing record takes the later date (never extends the age).
 - VAT changes produce no history event (not one of the §3.7 attributes).
 
 ## Size and time budget
@@ -131,7 +148,8 @@ API CSV layout (UTF-8, LF line ends, `,`, header = the selected property names i
 - `.../lt-vmi-taxes-paid/lt-vmi-taxes-paid.test.ts`: UUID map join; `ytd_tax` periods (Jan 1 to the end of `menuo`); 3-year window; unresolved UUID counted.
 - `.../lt-vmi-arrears/lt-vmi-arrears.test.ts`: three facts per report; `period_end` = list date; 10-digit code → `invalid_code`.
 - **HIDE negative test (sole-trader tax, Part H 8):** `packages/ingest/src/lt-natural-tax.test.ts` loads the fixture day 1 and day 2 and asserts that no record, report, fact, event or log line carries the sole proprietorship's code or amounts, and that UI, API, MCP and export for its entity show no S08 values (`web/e2e/hide-items.spec.ts` LT case).
-- Shared ingest tests: `party-gate.test.ts` (one case per LT reason), `history.test.ts` (`debtor_listed` with band and `listedSince`, `debtor_cleared` on removal, no event for a dropped natural person), `unchanged.test.ts`, `purge.test.ts`, `stale.test.ts`, `domain/src/verdict/history-window.test.ts` (the 180-day rule returns `not_evaluated` on a fresh install unless Open question 1 is accepted).
+- Shared ingest tests: `party-gate.test.ts` (one case per LT reason), `history.test.ts` (`debtor_listed` with band and `listedSince`, `debtor_cleared` on removal, no event for a dropped natural person), `unchanged.test.ts`, `purge.test.ts`, `purge-guard.test.ts` (arrears: a day removing 4.7% purges, a file missing 30% ends `purge_guard` and clears nobody; taxes paid: a year absent from the file is kept), `as-of.test.ts` (`max_date_in_data` and `portal_metadata` cases), `parser-version.test.ts`, `stale.test.ts`.
+- `domain/src/verdict/lt-arrears-age.test.ts` (both outcomes of cto's condition): a fixture entry whose `sukurta` is unchanged across day 1 and day 8 reports an age from `sukurta` on the first day; an entry deleted and re-inserted with a new `sukurta` restarts its age; a `sukurta` that moves earlier on a continuing record is ignored (the later date stays).
 - Live check `lt-vmi-arrears.live.test.ts`: header unchanged; max `atnaujinta` ≤ 2 days old on weekdays.
 
 ## Failure modes
@@ -143,7 +161,7 @@ API CSV layout (UTF-8, LF line ends, `,`, header = the selected property names i
 
 ## Open questions
 
-1. **Listing date from the source:** the arrears list carries `sukurta`, the date the debt entry was created (from 2023-03). P14 says the LT 180-day arrears age reads "not evaluated" until our snapshots cover the window. With `sukurta` the age is source-stated from day one. Council and cto to decide whether the 180-day rule may use `listedSince`; this spec stores it either way.
+1. **Names to add once to the shared config:** drop reason `natural_person_tax`; event data field `listedSince` on `finora.debtor_listed`; extension properties `finora:vatRegistered`, `finora:vatRegisteredSince`, `finora:vatDeregisteredOn`.
 2. **Deferred overdue arrears** (`atideta_pradelsta`): no concept in the shared list; not read. Add `tax_arrears_deferred_overdue` if a check needs it.
-3. **VAT number of sole proprietorships:** dropped with the rest of their tax lines (`natural_person_tax`). It is an identifier, not credit-type data; legal to confirm whether it may be shown in the facts-only variant.
-4. **As-of basis** for the taxpayer register (`portal_metadata`): review item A3, as in `lt-register`.
+3. **VAT of sole proprietorships:** dropped with their tax lines (`natural_person_tax`). Part H call 1 allows "VAT registered: yes / no" for LV sole traders; an LT sole proprietorship's VAT number does not embed a personal code, so legal may allow the same yes/no for LT. Until then nothing is shown.
+4. **The 7-day `sukurta` check** above (due on or after 2026-11-26).

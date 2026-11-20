@@ -17,20 +17,26 @@ The tax authority's own activity-suspension list is in `lv-tax.md` (`lv-vid-susp
 - **Attribution:** "Source: Register of Enterprises of the Republic of Latvia, Insolvency proceedings / Securing measures / Suspensions and prohibitions / Sanctions, data.gov.lv, CC0 1.0".
 - **Storage:** `store`.
 - **Cadence:** `daily` (cto §2). Regenerated nightly at about 21:26 UTC; `publishedAtUtc: "21:40"`.
-- **As-of** (newest valid date in the data; dates after the sync date ignored):
+- **`asOf`**: three strategies, proved on the 2026-11-19 and 2026-11-20 pulls, in this order:
+  1. `max_date_in_data` over the field below, ignoring dates after the sync date. **This one wins today.**
+  2. `portal_metadata`: the CKAN resource `last_modified`.
+  3. `http_last_modified`: changes nightly.
 
-  | Source | As-of field |
-  |---|---|
-  | insolvency | `entry_created_on` |
-  | securing measures | `date_from` |
-  | suspensions | `date_from` |
-  | sanctions links | `registered_on` |
+  Securing measures and suspensions have no registration-time field, so a quiet week can leave the date unchanged. That is not stale; only an older date is.
+- **`maxPurgeShare`** = max(0.02, 5 × the measured removal share per day, 19 → 20 Nov). **`purgeScope: "full"`** for all four: each file is the complete current state.
 
-  Securing measures and suspensions have no registration-time field, so a quiet week can leave the as-of unchanged. That is not stale (see `lv-register.md` Open question 1).
+  | Source | `max_date_in_data` field | Value on 2026-11-19 | Removed / rows per day | `maxPurgeShare` |
+  |---|---|---|---|---|
+  | insolvency | `entry_created_on` | 2026-11-17 | 0 / 18,073 | 0.02 |
+  | securing measures | `date_from` | 2026-11-17 | 35 / 34,363 (0.10%; ×5 = 0.51%) | 0.02 |
+  | suspensions | `date_from` | 2026-11-17 | 4 / 10,605 (0.04%) | 0.02 |
+  | sanctions links | `registered_on` | 2026-10-20 | 0 / 63 | 0.02 (with 58 records this allows 1 removal per sync; see Open questions) |
+
+- **`parserVersion`:** sha256 of the loader module, its field map, `items.generated.ts` and the LV part of `domain/config/legal-forms.ts` (used by the party gate).
 - **Keys and limits:** no key; ≤ 2 requests/s; size cap 50 MB each.
 - **Deep links:**
-  - Insolvency: `https://info.ur.gov.lv/#/legal-entity/{entityCode}/insolvency/{recordKey}`. The route `/legal-entity/:regNumber/insolvency/:proceedingId` is in the portal's route list; whether its proceeding id equals the file's `proceeding_id` is unverified (Open question 3).
-  - The other three: the company page `https://info.ur.gov.lv/#/legal-entity/{entityCode}`.
+  - All four: the company page `https://info.ur.gov.lv/#/legal-entity/{entityCode}`.
+  - The portal also has `/legal-entity/:regNumber/insolvency/:proceedingId`. It replaces the insolvency link once a manual check confirms that it takes the file's `proceeding_id` (Open questions).
 - `officialHosts`: `data.gov.lv`, `info.ur.gov.lv`.
 
 ## Items
@@ -129,7 +135,7 @@ The *sanctions subject* (`sanctions_subject_*`) is the Latvian register entity. 
 | empty code | dropped | `no_code` | securing 728; sanctions 2 |
 | failed check digit | dropped | `invalid_code` | 0 |
 | code not in `lv-ur-register` | dropped | `code_not_in_register` | sanctions 1 |
-| code with an NP form (`IK`, `ZEM`, `ZVJ`, `IND`, `GIM`) | dropped | **insolvency:** `natural_person_insolvency` (Part H 9) · **securing measures and suspensions:** `natural_person_form` (Open question 1) · **sanctions links:** `natural_person_form` | insolvency 409; securing 1,357; suspensions 2,983; sanctions 2 |
+| code with an NP form (`IK`, `ZEM`, `ZVJ`, `IND`, `GIM`) | dropped | **insolvency:** `natural_person_insolvency` (Part H 9) · **securing measures and suspensions:** `natural_person_form`: HIDE by council call 1 (Part H, "Calls from the Baltic loader specs") · **sanctions links:** `natural_person_form` | insolvency 409; securing 1,357; suspensions 2,983; sanctions 2 |
 | any other register entity | loaded | - | insolvency 17,661; securing 32,252; suspensions 7,619; sanctions 58 |
 
 The sanctions-link *party* gets a second check: natural-person parties keep only their type and role, never their name. A `LEGAL_ENTITY` party is linked only if its code resolves to a non-NP register entity.
@@ -141,12 +147,20 @@ The sanctions-link *party* gets a second check: natural-person parties keep only
 
 ## Refresh and change
 
-- **Cadence:** daily, content hash first, then a row hash.
+- **Cadence:** daily. Unchanged = the same sha256 and `parserVersion` → one sync row.
+- **Record unit:** one record per file row. `recordKey`: insolvency `proceeding_id`; the other three `id`. `row_hash` = sha256 truncated to 16 bytes, over the field-map fields in table order:
+  - insolvency: `debtor_registration_number`, `proceeding_started_on`, `proceeding_ended_on`, `proceeding_form`, `proceeding_type`, `proceeding_subtype`, `proceeding_resolution_type`, `court_case_initial_number`, `court_name`;
+  - securing measures: `legal_entity_registration_number`, `securing_measure_type`, `date_from`, `case_number`, `institution_registration_number`;
+  - suspensions: `legal_entity_registration_number`, `suspension_code`, `date_from`;
+  - sanctions links: the subject code, `position`, `entity_type`, the party code or foreign name and country, `list`, `program`, `entry_date`, `legal_base_url`.
+
+  No sort order is relied on (row-wise). Dropped fields (names, birth dates, masked codes, free text) are never hash input.
 - **Measured churn per day:** insolvency 3 added, 2 changed; securing measures 61 added, 35 removed; suspensions 7 added, 4 removed; sanctions 0.
 - **Insolvency** rows are kept by the register with end dates. A changed row (proceeding ended) replaces its events: `register.insolvency_closed` appears, and `finora.status_changed` follows from the derived status.
-- **A securing measure or suspension that disappears has been lifted:** the register keeps no end date. Its event is deleted with the record, and the loader writes `finora.securing_measure_lifted` (or `finora.suspension_lifted`) on the company, with `date` = sync date and `data = {kind, from: <original date_from>}` (Open question 2). So "an open securing measure" is always the current file, and history shows when it went away.
-- A removed sanctions-link row → its event is deleted and `finora.sanctions_link_removed` is written (Open question 2).
-- **No tombstones.** A partial or interrupted sync purges nothing, so no false "lifted" events.
+- **A securing measure or suspension that disappears has been lifted:** the register keeps no end date. Its event is deleted with the record, and the loader writes `finora.securing_measure_lifted` (or `finora.suspension_lifted`) on the company, with `date` = sync date and `data = {kind, from: <original date_from>}` (Open question 1). So "an open securing measure" is always the current file, and history shows when it went away.
+- A removed sanctions-link row → its event is deleted and `finora.sanctions_link_removed` is written (Open question 1).
+- **No tombstones.** A partial or interrupted sync, or one stopped by the purge guard, purges nothing, so no false "lifted" events.
+- **Storage or licence class change** (A7): a full reload into the new class and a purge from the old one. None is foreseen (CC0).
 
 ## Size and time budget
 
@@ -200,7 +214,6 @@ The sanctions-link *party* gets a second check: natural-person parties keep only
 
 ## Open questions
 
-1. **Securing measures and suspensions on sole traders** (1,357 + 2,983 rows). They are register measures, not insolvency, so Part H 9 does not cover them. Part H 8 makes credit-type data on natural persons HIDE, and an arrest of a sole trader's property reads as credit-type data. This spec drops them (`natural_person_form`). Council/legal: confirm.
-2. **New event types**, not in the brief's list: `register.sanctions_link`, `finora.securing_measure_lifted`, `finora.suspension_lifted`, `finora.sanctions_link_removed`. Without the "lifted" events, history cannot show that a measure went away (the register keeps no end date).
-3. **Insolvency deep link:** confirm that the portal's `/insolvency/:proceedingId` route takes the file's `proceeding_id`. Testing it with a real code is a one-time manual check before the slice. Until confirmed, the link is the company page.
-4. **New drop reasons:** `natural_person_insolvency`, `natural_person_party`, `free_text`, `link_host`.
+1. **New names** (once): event types `register.sanctions_link`, `finora.securing_measure_lifted`, `finora.suspension_lifted`, `finora.sanctions_link_removed`. Without the "lifted" events, history cannot show that a measure went away (the register keeps no end date). Drop reasons: `natural_person_insolvency`, `natural_person_party`, `free_text`, `link_host`.
+2. **Insolvency deep link:** a one-time manual check that the portal's `/insolvency/:proceedingId` route takes the file's `proceeding_id`. Until then the link is the company page.
+3. **Purge-guard floor for small files:** with 58 sanctions-link records, 0.02 allows one removal per sync. Proposal: max(share, 5 records) in `ingest/src/purge-guard.ts`.

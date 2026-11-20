@@ -21,16 +21,21 @@
   - `weekly` for the taxes, rating and VAT files (cto §2). None changed in 24 h. The quarterly file updates about a month after each quarter (Q3 2026 file dated 2026-11-03); the yearly file once a year; the rating file about monthly (dated 2026-11-11); the VAT file is regenerated daily at about 06:01 UTC.
   - `daily` for `lv-vid-suspensions`: an activity suspension is a hard flag (Part B), the file is 7.5 MB, and CKAN showed it modified 2026-11-19 06:01.
   - `publishedAtUtc: "06:30"` for all five.
-- **As-of:**
+- **`asOf`, `purgeScope`, `maxPurgeShare` per source.**
+  - Every source lists three strategies, proved on the 2026-11-19 and 2026-11-20 pulls, in this order: its first strategy below, then `portal_metadata` (the CKAN resource `last_modified`), then `http_last_modified`.
+  - `maxPurgeShare` = max(0.02, 5 × the measured removal share per refresh period). For the four weekly files only a 24-hour diff exists (0 removals), so the weekly share is **not measured**; the interim is 0.02. To measure it, run `research/probes/baltics/lv/diff_pulls.py` on two pulls 7 days apart, and for the quarterly file across the next quarter's release.
+  - The tax files are `periods_in_file` (§4.2; Part H, "Calls from the Baltic loader specs", 8): a period that rolls out of the publisher's file stays as our history and does not count against the guard. Records missing inside a period present in the file do count.
 
-  | Source | As-of rule |
-  |---|---|
-  | quarterly | the newest quarter in `Taksacijas_gads_ceturksnis`, as its period end (Q3 2026 → 2026-09-30) |
-  | yearly | the newest `Taksacijas_gads`, as Dec 31 |
-  | rating | `Informacijas_atjaunosanas_datums`: one stated date in every row (the only LV file with a real as-of field) |
-  | VAT | the maximum of `Registrets` and `Izslegts`, ignoring dates after the sync date (the file holds removal dates up to 2053) |
-  | suspensions | the maximum of `Lemuma_datums` |
+  | Source | First strategy (wins today) | Value on 2026-11-19 | `purgeScope` (period field) | Removed / rows | `maxPurgeShare` |
+  |---|---|---|---|---|---|
+  | quarterly | `max_date_in_data`: `Taksacijas_gads_ceturksnis`, parsed to its period end | 2026-09-30 (Q3 2026) | `periods_in_file` (`Taksacijas_gads_ceturksnis`) | 0 / 462,376 in 24 h; weekly not measured | 0.02 (interim) |
+  | yearly | `max_date_in_data`: `Taksacijas_gads`, as 31 Dec | 2024-12-31 | `periods_in_file` (`Taksacijas_gads`) | 0 / 291,512 in 24 h; weekly not measured | 0.02 (interim) |
+  | rating | `in_file_field`: `Informacijas_atjaunosanas_datums` (one stated date in every row) | 2026-11-11 | `full` | 0 / 145,690 in 24 h; monthly release not measured | 0.02 (interim) |
+  | VAT | `max_date_in_data`: `Registrets`, `Izslegts` (dates after the sync date ignored; the file holds removal dates up to 2053) | 2026-11-19 | `full` | 0 / 285,909 in 24 h | 0.02 (interim) |
+  | suspensions | `max_date_in_data`: `Lemuma_datums` | 2026-11-17 | `full` | 0 / 72,990 in 24 h | 0.02 |
 
+  - The yearly file's as-of is a year end, so its stale rule uses the publisher's yearly cadence (stale after 2 years), not our weekly job.
+- **`parserVersion`:** sha256 of the loader module, its field map, `items.generated.ts` and the LV part of `domain/config/legal-forms.ts` (the natural-person rule).
 - **Keys and limits:** no key; ≤ 2 requests/s; size cap 100 MB per file.
 - **Deep link:** none per record (VID has no per-company page). Every record links to the company page `https://info.ur.gov.lv/#/legal-entity/{entityCode}`.
 - **Manual lookup** for S08.LV.01 (debt amount): `not_checked{reason: "manual_lookup", url: "https://www.vid.gov.lv/lv/nodoklu-paradnieki"}`.
@@ -68,7 +73,7 @@ Header: `"Registracijas_kods","Nosaukums","Taksacijas_gads_ceturksnis","Samaksat
 | `Taja_skaita_PVN_iemaksa` | decimal | `vat_paid` | S08.LV.01 | no | as above |
 | `Taja_skaita_IIN_summa` + `Taja_skaita_VSAOI_summa` | decimal | `labour_taxes` = their sum (personal income tax withheld + social contributions) | S08.LV.01 | no | the sum is documented in `concepts.ts`; both empty → no fact |
 | `Videjais_nodarbinato_personu_skaits_cilv` | int | `employees` | S07.LV.01 | no | 0 stored as 0. The UI says "0 employees reported", not "none" |
-| `Nosaukums`, `Taja_skaita_PVN_atmaksa` | - | not read | - | - | VAT refund: no concept (Open question 3) |
+| `Nosaukums`, `Taja_skaita_PVN_atmaksa` | - | not read | - | - | VAT refund: no concept (Open questions) |
 
 ### `lv-vid-taxes-yearly`
 
@@ -102,7 +107,7 @@ Header: `"Numurs","Nosaukums","Aktivs","Registrets","Buvniecibas_pazime","PVN139
 
 | Source field | Type | Target | item_id | Personal? | Transform and validation |
 |---|---|---|---|---|---|
-| `Numurs` | text `LV` + 11 digits | record key; statement `vatCode` (when active); `links` VAT ↔ code (ingest §6) | S01.LV.01 (R) | no | Prefix `LV` required. The code part must pass the check digit and be in the register (not: 6,747 → `code_not_in_register`). NP form (25,923) → `natural_person_tax` (Open question 2). Several rows per number (12 duplicates): merged, active if any row is active |
+| `Numurs` | text `LV` + 11 digits | record key; statement `vatCode` when active; `links` VAT ↔ code (ingest §6). For NP entities: **no `vatCode`**; statement `finora:vatRegistered` = `yes`/`no` instead (Part H, "Calls from the Baltic loader specs", 1: an LV VAT number of a natural person embeds the personal code, P3) | S01.LV.01 (R) | NP: yes (dropped) | Prefix `LV` required; the code part must pass the check digit and be in the register (otherwise 6,747 → `code_not_in_register`). NP form (25,923): number dropped `natural_person_vat`, yes/no kept. Several rows per number (12 duplicates): merged, active if any row is active |
 | `Aktivs` | `ir` / `nav` | active → `vatCode` statement; inactive → no statement | S01.LV.01 | no | - |
 | `Registrets`, `Izslegts` | date ` DD.MM.YYYY ` (space-padded) | as-of only | - | no | trim, then parse |
 | `Nosaukums`, `Buvniecibas_pazime`, `PVN139_2_pazime` | - | not read | - | - | - |
@@ -130,7 +135,7 @@ Not a party list. Every row is the tax record of the entity named by its code, b
 |---|---|---|
 | code fails format or check digit | skip | `invalid_code` |
 | code not in `lv-ur-register` | skip | `code_not_in_register` |
-| code has an NP form (`IK`, `ZEM`, `ZVJ`, `IND`, `GIM`) | the row is **dropped**: tax, rating, VAT and suspension lines of natural persons are HIDE | `natural_person_tax` |
+| code has an NP form (`IK`, `ZEM`, `ZVJ`, `IND`, `GIM`) | the row is **dropped**: tax, rating and suspension lines of natural persons are HIDE. VAT: the number is dropped, and only `finora:vatRegistered` yes/no is kept | `natural_person_tax` (VAT: `natural_person_vat`) |
 | otherwise | loaded | - |
 
 Counts by reason go to `syncs.report_json.dropped`.
@@ -144,10 +149,13 @@ Counts by reason go to `syncs.report_json.dropped`.
 ## Refresh and change
 
 - **Weekly** for the taxes, rating and VAT files; **daily** for suspensions. Content hash first; unchanged → one sync row (the usual case for the taxes files).
-- **Record keys:** quarterly `<code>|<YYYY>Q<n>`; yearly `<code>|<YYYY>`; rating `<code>`; VAT `<Numurs>`; suspensions `<code>|<Lemuma_datums ISO>`.
-- **Purge scope for the two tax files** (Open question 1): only records whose period appears in the current file are purge candidates. When the publisher drops 2026 Q1 from the file, our stored 2026 Q1 report stays, so S07's 24-month line and the taxes-by-year table build up from install day.
+- **Record unit:** one record per file row; for VAT, one per number. Record keys: quarterly `<code>|<YYYY>Q<n>`; yearly `<code>|<YYYY>`; rating `<code>`; VAT `<Numurs>`; suspensions `<code>|<Lemuma_datums ISO>`.
+- **Hash input:** the field-map fields in table order (`row_hash` = sha256 truncated to 16 bytes). For VAT: every row of the number, in file order, as (`Aktivs`, `Registrets`, `Izslegts`).
+- **Sort order:** none is relied on. VAT rows are merged per number in an in-memory map (≈ 286,000 rows).
+- **Unchanged** = the same sha256 and `parserVersion` → one sync row.
+- **Purge scope for the two tax files:** `periods_in_file` (above). When the publisher drops 2026 Q1, our 2026 Q1 report stays, so S07's 24-month line and the taxes-by-year table build up from install day. Retained periods count against `HISTORY_MAX_GB` (≈ 25 MB a quarter).
 - **History events:**
-  - a changed rating → `finora.tax_rating_changed` (`data = {old, new}`; Open question 4);
+  - a changed rating → `finora.tax_rating_changed` (`data = {old, new}`);
   - a VAT number turning inactive or disappearing → `finora.vat_deregistered`;
   - a removed suspension row (the register of decisions corrected) → event deleted, `finora.suspension_lifted`, the same type as in `lv-risk.md`.
 - **No tombstones.** Partial or interrupted → no purge.
@@ -206,13 +214,14 @@ The yearly row is written at load. Tax history grows by about 155,000 quarterly 
 | Quarter label format changed | every row `bad_period` → the sync is `failed` (more than 50% skipped is a failure, not a content sync) | as above |
 | Stale as-of (older quarter or rating date) | `stale_skipped` | unchanged |
 | Rating date more than 62 days old (2× the observed monthly cadence) | source `stale` | "Tax authority's rating: [value], as of [date]" in the warning style |
+| Storage or licence class change (A7) | full reload into the new class, purge from the old one; none foreseen (CC0) | - |
 | Company has no tax row | - | S08: "Taxes paid: not in the tax authority's file for [period]"; debt amount always MANUAL "Check manually at [official site]" |
 | No rating row | - | S08 rating: CN "Checked State Revenue Service rating as of [date]: none found" |
 
 ## Open questions
 
-1. **Purge scope by period (architecture §4.4 step 6: "records whose key is absent from the temp table are deleted").** For publishers that roll periods out of the file (the tax authority publishes 3 quarters and 2 years at a time), the contract as written deletes our only copy of the older periods. Proposal: a `SourceMeta.purgeScope: "all" | "periods-in-artifact"` (default `all`), with `ingest/src/purge-scope.test.ts`. The same applies to the LT and EE period files.
-2. **VAT numbers of sole traders.** A VAT number is a resolution key, not a tax amount, but this spec drops it for NP entities under `natural_person_tax` (Part H 8, conservative). Council: confirm, or keep it as identity.
-3. **VAT refunds:** `Taja_skaita_PVN_atmaksa` has no concept, so it is not read. Add `vat_refunded` only if an item needs it.
-4. **New names:** event types `finora.tax_rating_changed` and `finora.vat_deregistered`; statement prop `finora:taxAuthorityRating` (extension); drop reasons `natural_person_tax` (from the brief), `bad_period`, `bad_nace`, `bad_date`. FtM prop for NACE: `classification` (confirm, or use `sector`).
-5. **Average salary:** LATER per Part G. When it ships (LV, 10 or more employees), it would derive from social contributions ÷ 0.3409 ÷ employees ÷ 3 per month: a "Derived by Finora" value from facts already stored, with no loader change.
+1. **VAT refunds:** `Taja_skaita_PVN_atmaksa` has no concept, so it is not read. Add `vat_refunded` only if an item needs it.
+2. **New names** (once): event types `finora.tax_rating_changed`, `finora.vat_deregistered`; extension props `finora:taxAuthorityRating`, `finora:vatRegistered`; drop reasons `natural_person_vat`, `bad_period`, `bad_nace`, `bad_date` (and `natural_person_tax` from the brief); the FtM prop `classification` for NACE (or `sector`).
+3. **Label table:** the rating explanation is Latvian only. The English gloss for A/B/C/N/J lives in the bundled `domain/config/labels/lv.ts` (see `lv-register.md`).
+
+Average salary (S07) stays LATER. When it ships (LV, 10 or more employees), it is a "Derived by Finora" value from the stored social contributions and employees, with no loader change.

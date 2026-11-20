@@ -17,7 +17,13 @@ One `SourceMeta`, `lv-ur-annual-reports`, reads three files of the dataset `gada
 - **Attribution:** "Source: Register of Enterprises of the Republic of Latvia, Annual report financial data, data.gov.lv, CC0 1.0".
 - **Storage:** `store`.
 - **Cadence:** `weekly` (cto §2: about 0.003% of rows change a day). The files are regenerated nightly at about 21:26 UTC; the job runs once a week after `publishedAtUtc: "21:40"`, on a different night from the heavy EE general-data job.
-- **As-of:** the maximum of `financial_statements.created_at` (date part), ignoring dates after the sync date. Measured 2026-11-18 on the 19 Nov pull.
+- **`asOf`**: three strategies, proved on the 2026-11-19 and 2026-11-20 pulls, in this order:
+  1. `max_date_in_data` over `financial_statements.created_at` (date part), ignoring dates after the sync date. **This one wins today:** 2026-11-18 on the 19 Nov pull.
+  2. `portal_metadata`: the CKAN resource `last_modified`.
+  3. `http_last_modified`: changes nightly.
+- **`purgeScope: "window"`**. The window field is `year_ended_on`, and the window is each company's 5 newest fiscal years in the current file (load rule 3). A record whose fiscal year falls behind its company's 5th-newest year is an expected deletion and does not count against the guard. A record missing *inside* its company's window counts.
+- **`maxPurgeShare`: 0.02.** Measured 6 statements removed of 1,986,939 in one day (0.0003%). That is about 42 a week (0.002%), and ×5 is still under the floor. Records in the window number ≈ 540,000.
+- **`parserVersion`:** sha256 of the loader module (it holds the window length of 5 and the `source_type` selection), its field map and `items.generated.ts`.
 - **Keys and limits:** no key; ≤ 2 requests/s; size cap 400 MB per file.
 - **Deep link:** the company page `https://info.ur.gov.lv/#/legal-entity/{entityCode}`. The statements themselves have no public per-document URL. `officialHosts`: `data.gov.lv`, `info.ur.gov.lv`.
 
@@ -30,6 +36,11 @@ One `SourceMeta`, `lv-ur-annual-reports`, reads three files of the dataset `gada
 
 - Sole traders and other NP entities (2.2% of statements): S06 is CAVEAT behind the purpose gate, facts only, with the rule 6 disclaimer, and never in a verdict (Part H 8). The loader stores their figures like any other; the flag comes from the entity's `natural_person`.
 - Checks fed: check 5 ("accounts filed on time") reads S13.LV.01; check 6 ("financial position") reads S06.LV.01.
+- **Check 5 deadline, cited from the law.** The Annual Accounts and Consolidated Annual Accounts Law, Section 97(1), as amended on 8 March 2023 (*Latvijas Vēstnesis* 57A, 21.03.2023; applies from the 2022 financial year; text at `https://likumi.lv/ta/id/340392`, read 2026-11-20), requires the annual report to reach the State Revenue Service:
+  - micro and small companies: "ne vēlāk kā piecus mēnešus pēc pārskata gada beigām" (no later than 5 months after the financial year ends);
+  - medium and large companies, and parent companies preparing a consolidated report: "ne vēlāk kā septiņus mēnešus" (7 months).
+- **What the verdict uses.** The files carry no size class, so `domain/config` uses the council's interim of 7 months plus 30 days of grace for every LV company (Part H, "Calls from the Baltic loader specs", 4). That can only under-flag small companies. The soft flag reads "Annual report for [year] not filed; due [date]", labelled Finora's estimate until the size class is known (Open question 1).
+- **Measured lag** from year end to `created_at` (FY 2020+): p50 150 days (≈ the 5-month statutory date), p95 431 days.
 - Employees from the statements (`employees_avg`) are part of the annual accounts (S06.LV.01). The quarterly headcount in S07.LV.01 comes from `lv-tax.md`.
 
 ## Field map
@@ -87,8 +98,9 @@ Header: `statement_id;file_id;net_turnover;by_nature_inventory_change;by_nature_
 - **Window** (load rule 3): per company, the statements of its 5 latest fiscal years by `year_ended_on`, after dropping consolidated reports. Globally that is ≈ 548,000 statements of FY 2022-2026 (measured: 548,424 statements with `year` > 2021).
 - **Corrections:** where a company has more than one statement for the same `year_ended_on` (0.3% of company-years), the latest `created_at` wins, then the highest `id`.
 - **Struck-off entities** (`status` ≠ `active` in `lv-ur-register`): no financials. Rows are dropped with `struck_off_identity_only` (load rule 3).
-- **Record key:** `<regcode>|<year_ended_on>`, so a corrected statement replaces the old one in place.
-- **Hash input:** the selected statement `id`, `created_at`, and every read value in field-map order.
+- **Record unit:** one record per company fiscal year. `recordKey` = `<regcode>|<year_ended_on>`, so a corrected statement replaces the old one in place.
+- **Hash input, in order:** the selected statement `id`, `created_at`, `year_started_on`, `year_ended_on`, `employees`, `rounded_to_nearest`, `currency`; then the balance values `cash`, `total_current_assets`, `total_non_current_assets`, `total_assets`, `current_liabilities`, `non_current_liabilities`, `equity`; then the income values `net_turnover`, `income_before_income_taxes`, `net_income`. An empty value is hashed as an empty string. `row_hash` = sha256 truncated to 16 bytes.
+- **Sort order:** none is relied on. `financial_statements.csv` is neither grouped by company (1.7 M contiguity breaks) nor in ascending id order, hence the temp-table join below.
 - One record writes one `fact_reports` row (`kind = 'annual_accounts'`), up to 11 `facts`, and one `filing.annual_report` event.
 
 ### Join procedure
@@ -115,7 +127,8 @@ Not applicable: every row belongs to the register entity named by its code. Thes
 - **When a company's 6th-newest year leaves the window,** its record is absent from the staged set and is purged with its report, facts and event. That is load rule 3, not history.
 - **Removed statement** (withdrawn upstream) → purged. No `finora.*` event: the "[year] not filed" state appears by itself.
 - **No tombstones.**
-- **Partial or interrupted** (any of the three files failed) → the whole sync is `partial`, and nothing is purged.
+- **Partial or interrupted** (any of the three files failed), or the purge guard tripped → the whole sync is `partial`, and nothing is purged.
+- **Storage or licence class change** (A7): a full reload into the new class and a purge from the old one. None is foreseen (CC0).
 
 ## Size and time budget
 
@@ -172,7 +185,6 @@ This fits within LV ≤ 2.5 GB (LV total ≈ 1.6 GB, `lv-register.md`).
 
 ## Open questions
 
-1. **Filing deadline for check 5 ("accounts filed on time").** Measured lag from fiscal-year end to `created_at` (FY 2020+, filed 2021+): p50 150 days, p95 431 days. The legal deadline by company size is not settled in `docs/research`. Proposal: `LV_ACCOUNTS_DUE_DAYS` in `domain/config`, interim 7 months (213 days) after FY end, flagged LAWYER/council. The loader only emits the dates.
-2. **Consolidated reports** (`UKGP`) are dropped, so one report per company-year stays. If the council wants group figures, they need a separate `fact_reports.kind` (`annual_accounts_consolidated`, a new kind).
-3. **New drop reasons:** `consolidated_report`, `struck_off_identity_only`.
-4. **The weekly first parse (≈ 5 min)** exceeds the 5-minute daily-refresh budget (§4.5) on its night. It is a separate weekly job; cto to confirm that this is within the budget's intent.
+1. **Size class for check 5.** The deadline is in the law (Items), but the files carry no size class. Proposal: 7 months for every company until a size rule from the statements (turnover, assets, employees, per the law's thresholds) is specified and cited. Using 7 months can only under-flag micro and small companies.
+2. **Consolidated reports** (`UKGP`) are dropped, so one report per company-year stays. Group figures would need a new `fact_reports.kind`, `annual_accounts_consolidated`.
+3. **New names** (once): drop reasons `consolidated_report`, `struck_off_identity_only`.

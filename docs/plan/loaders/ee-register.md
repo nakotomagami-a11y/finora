@@ -18,15 +18,20 @@ People (officers, members) are in `ee-people.md`; annual reports in `ee-annual-r
 - **Licence:** `cc-by-4.0` (the page's "License information" links the CC BY 4.0 legal code; downloads require accepting the licence terms; verified 2026-11-19). `storage: "store"`.
 - **Attribution** (the publisher states no wording; this is the recorded proposal): "Source: Centre of Registers and Information Systems (RIK), e-Business Register open data, CC BY 4.0".
 - **officialHosts:** `avaandmed.ariregister.rik.ee`, `ariregister.rik.ee`.
-- **deepLink:** `https://ariregister.rik.ee/eng/company/{recordKey}` (recordKey = the 8-digit registry code). No term restricts linking. **orderUrl:** none.
+- **deepLink:** `https://ariregister.rik.ee/eng/company/{entityCode}` (the 8-digit registry code; for `ee-rik-pledges` the record key is a pledge id, so the pattern uses `{entityCode}` everywhere). No term restricts linking. **orderUrl:** none.
 - **Publication time:** all files carried `Last-Modified` 09:17-09:24 UTC on 19 Nov 2026. Schedule daily jobs at 09:45 UTC; weekly jobs (general, rulings) on Sunday 09:45 UTC.
-- **As-of inside the artifact (`AsOfRule`):** the files state none. Derive it from the data:
-  - `ee-rik-basic`: max of `ettevotja_esmakande_kpv` (newest first-entry date; 2026-11-18 in the 19 Nov file).
-  - `ee-rik-general`: max of `yldandmed.staatused[].algus_kpv` and `yldandmed.arinimed[].algus_kpv`.
-  - `ee-rik-cards`: max of `registrikaardid[].kanded[].kpv`.
-  - `ee-rik-rulings`: max of `maarused[].maaruse_kpv`.
-  - `ee-rik-pledges`: max of `kommertspandiandmed[].algus_kpv`.
-  Dates are `dd.mm.yyyy`; ignore values after `as-of + 2 years` (the general file holds planned period ends up to 2027-12-31). See Open questions 1 for why this is a derived as-of.
+
+**Contract values per source (§4.2).** `asOf` lists only strategies proved on the 19 Nov 2026 files, strongest first; dates are `dd.mm.yyyy`, and values later than the sync day + 2 years are ignored (the general file holds planned period ends up to 2027-12-31). None of the files states an export date, so `in_file_field` and `in_file_name` are not offered. `max_date_in_data` wins today for every source; `http_last_modified` is the fallback (present on every file, 304 on `If-Modified-Since`).
+
+| Source id | `asOf` (strongest first) | Value on the 19 Nov 2026 file | `purgeScope` | `maxPurgeShare` | Removal measurement |
+|---|---|---|---|---|---|
+| `ee-rik-basic` | `max_date_in_data` on `ettevotja_esmakande_kpv`; `http_last_modified` | 2026-11-18; header 2026-11-19 09:17 UTC | `full` (tombstone, never delete) | 0.02 | two-pull diff not measured yet (one pull held; `research/probes/baltics/ee/diff_pulls.py diff` on the next daily file settles it). Proxy: 15-27 dissolution entries (`kandeliik` 8, "Lõpetamiskanne") per weekday of 381,685 entities, ≤ 0.007% a day, so 5 x share is far below 2% |
+| `ee-rik-general` | `max_date_in_data` on `yldandmed.staatused[].algus_kpv` and `yldandmed.arinimed[].algus_kpv`; `http_last_modified` | 2026-11-19 | `full` | 0.02 | same entity set as basic; a weekly refresh removes ≤ 7 x 0.007% ≈ 0.05% (proxy) |
+| `ee-rik-cards` | `max_date_in_data` on `registrikaardid[].kanded[].kpv`; `http_last_modified` | 2026-11-19 | `full` (records are entities; the 5-year event window is applied inside each record) | 0.02 | as basic (proxy) |
+| `ee-rik-rulings` | `max_date_in_data` on `maarused[].maaruse_kpv`; `http_last_modified` | 2026-11-19 | `full` (as cards) | 0.02 | as general (proxy, weekly) |
+| `ee-rik-pledges` | `max_date_in_data` on `kommertspandiandmed[].algus_kpv`; `http_last_modified` | 2026-11-18 | `full` | 0.02 | 12 commercial-pledge deletion entries (`kandeliik` 22) in 30 days of 8,078 pledges: ≈ 0.005% a day |
+
+- **`parserVersion`:** sha256 of the module `packages/sources/src/ee/ee-rik-register/` (all five parsers), its field maps, the generated item list, and the EE rows of `packages/domain/src/config/legal-forms.ts` and the status map (both are inputs of the parse).
 - **Keys:** none. **Limits:** none published for the files. Politeness: one file at a time, `If-Modified-Since` with the last `Last-Modified` (the server answers 304), then compare sha256 (§4.4 step 1). The CDN sends `Cache-Control: max-age=1209600`: never treat a 304 or a cache hit as proof of freshness; the as-of rule decides.
 - **Format:** zip with one file. CSV: UTF-8 with BOM, `;` delimiter, `"` quoting, Estonian headers. JSON: one array, pretty-printed with a 4-space indent, one object per entity. Stream the JSON by line blocks: an object starts at a line beginning `    {` and ends at a line beginning `    }` (`research/probes/baltics/ee/jsonstream.py` is the reference). Never `JSON.parse` the whole file (the general file is 4.6 GB).
 
@@ -46,6 +51,13 @@ Copied from `docs/plan/council/01-data.md` Part G.
 S17.EE.01 and S18.EE.01 are derived in `ingest` (§4.4 step 7) from the statements below; this spec supplies their inputs (address id, status, pledges, filing warnings). Not filled here and not read: S04.EE.02 (HIDE, see `ee-people.md`), S09 bankruptcy notices (LATER), S12.EE.* (LATER), S05.EE.01 (LATER), S16.EE.01 (LATER).
 
 ## Field map
+
+**Record units and order (§3.2, A8).** `row_hash` is sha256 truncated to 16 bytes over `hashInput`, which lists the field-map rows of each table below in table order (normalised: trimmed text, ISO dates, decimals as canonical strings, booleans as `1`/`0`; an absent value is the empty string, so positions never shift).
+- `ee-rik-basic`: one record per CSV row, `recordKey` = `ariregistri_kood`.
+- `ee-rik-general`, `ee-rik-cards`, `ee-rik-rulings`: one record per top-level JSON object (one per entity), `recordKey` = `ariregistri_kood`. Inside a record, array items are hashed in source order (entries by `kande_nr`, rulings in file order).
+- `ee-rik-pledges`: one record per pledge, `recordKey` = `pandi_id`, taken from the nested array of each entity object.
+- Sort order relied on: **none across records.** Each object or row is complete in itself (the files are not sorted by code: the first two objects of the 19 Nov file are out of code order), so no grouping or temp table is needed. A repeated `recordKey` in one file: the second is skipped `duplicate_key`, counted.
+
 
 Status codes map to `status`: `R` registrisse kantud → `active`; `L` likvideerimisel → `liquidating`; `N` pankrotis → `insolvent`; `K` kustutatud → `struck_off` (2 rows on 19 Nov 2026). Any other value: record skipped with reason `unknown_status`, counted.
 
@@ -157,13 +169,13 @@ Only the paths below are read. Everything else in the object (registry-card book
 - S17.EE.01 derive step: companies sharing an `addressId` (registered offices only; never an address of an FIE entity) and corporate members from `ee-people.md`.
 
 ## Refresh and change
-- Every file is a full snapshot of current entities (statuses R, L, N). No deltas.
-- Change detection per record: `rowHash` over the normalised fields the field map reads, in table order. Unchanged hash: nothing is written.
+- Every file is a full snapshot of current entities (statuses R, L, N). No deltas. `purgeScope: "full"` for all five sources.
+- Change detection per record: `row_hash` (16 bytes) over `hashInput` as defined under Field map. Unchanged hash: nothing is written. Same artifact sha256 and same `parserVersion`: one `syncs` row of kind `unchanged`, nothing else; same artifact with a new `parserVersion`: re-parsed from the raw cache as a content sync (§4.4 step 1; the zips are kept as downloaded).
 - **Removal from `ee-rik-basic` means deletion from the register: tombstone, never delete.** The entity keeps its identity statements (name, code, form, last status, dates), gets `tombstone_since` = the as-of date of the first sync it is missing from, and an event `finora.tombstoned` (S02.EE.01: "Not in the register's open data since [date]"). Its general, cards, rulings and pledge records are purged with their statements and events (load rule 3: struck-off companies keep identity only). A tombstoned code that reappears: `tombstone_since` cleared, event `finora.status_changed`.
+- **Purge guard (§4.4 step 6, A2):** tombstones count as removals. If one sync would tombstone or delete more than `maxPurgeShare` (0.02) of a source's records, nothing is tombstoned or deleted and the sync ends `partial` with `purge_guard`; only `finora-cli data sync <source> --allow-mass-purge` overrides it. A batch of compulsory deletions by the registry (for example for unfiled annual reports) stays far below 2% of 381,685 (the largest batch kind seen, "Registrist kustutamine: majandusaasta aruanne esitamata", totals 2,722 rulings over the whole file).
 - History events (§3.7), emitted by comparing old and new values of a changed record: `finora.renamed` (`name`), `finora.address_changed` (`full` address), `finora.status_changed` (`status`), `finora.legal_form_changed`, `finora.capital_changed` (general). FIE entities never get `finora.renamed` or `finora.address_changed` (their names and addresses are not stored).
 - Removal from the other four files: the record is purged with its rows (a pledge deleted from the register is gone; no event, the register entry event covers it).
-- An unchanged artifact (same sha256): one `syncs` row of kind `unchanged`, nothing else.
-- Change volume measured: 380-590 register entries per weekday, 10-45 on weekend days (mean 313 a day over 30 days). Rows changed between two consecutive basic files: not yet measured; `research/probes/baltics/ee/diff_pulls.py` holds the 19 Nov 2026 snapshots.
+- Change volume measured: 380-590 register entries per weekday, 10-45 on weekend days (mean 313 a day over 30 days). Rows changed between two consecutive basic files: not yet measured; `research/probes/baltics/ee/diff_pulls.py` holds the 19 Nov 2026 snapshots for the diff.
 
 ## Size and time budget
 Measured row counts from the 19 Nov 2026 pull; bytes at 123 B per statement, 32 B per event (cto), 60 B per records row and per entities row (🟡).
@@ -187,26 +199,27 @@ Download per full pull: 0.30 GB zipped for these five files (basic 19 MB, genera
 - Two fixture days (`day1`, `day2`) for the refresh tests.
 
 ## Tests
-- `packages/sources/src/ee/ee-rik-basic/ee-rik-basic.test.ts`: parses the fixture CSV (BOM, `;`, quoting); maps every field per the table; FIE rows yield no name, no address beyond `ee`, caption "Sole trader <code>"; a bad check digit is skipped `invalid_code`; unknown status and form are counted; derived as-of = max first-entry date.
+- `packages/sources/src/ee/ee-rik-basic/ee-rik-basic.test.ts`: parses the fixture CSV (BOM, `;`, quoting); maps every field per the table; FIE rows yield no name, no address beyond `ee`, caption "Sole trader <code>"; a bad check digit is skipped `invalid_code`; unknown status and form are counted; a repeated code is skipped `duplicate_key`; the 16-byte `row_hash` is stable across two parses of the same file.
 - `packages/sources/src/ee/ee-rik-general/ee-rik-general.test.ts`: the line-block streamer handles a 4-space-indented array and a final object without a trailing comma; only the listed paths are read; emails and phones never appear in any `ParsedRecord` (sentinel values searched in the serialised output); website normalised; current rows chosen by empty `lopp_kpv`.
 - `packages/sources/src/ee/ee-rik-cards/ee-rik-cards.test.ts`: entries before the 5-year window are dropped; event types and dates.
 - `packages/sources/src/ee/ee-rik-rulings/ee-rik-rulings.test.ts`: K1 entries skipped; unfiled-report warnings also emit `filing.overdue`.
 - `packages/sources/src/ee/ee-rik-pledges/ee-rik-pledges.test.ts`: EEK kept as EEK; F pledgee dropped and its sentinel code absent from the output and the spied logger; J pledgee linked when its code resolves.
 - `packages/sources/src/licences.test.ts`: all five sources `cc-by-4.0` + `store`; deep link and fetch hosts in `officialHosts`; `items` equals the field-map item ids.
 - `packages/sources/src/field-maps.test.ts`: every target is a `show`/`caveat` item or a resolution key.
-- Shared ingest tests this spec relies on: `ingest/src/unchanged.test.ts`, `ingest/src/stale.test.ts` (a basic file whose max first-entry date is older than the last sync is skipped), `ingest/src/partial.test.ts`, `ingest/src/purge.test.ts`, `ingest/src/history.test.ts` (rename, address, status events on fixture day 2), `ingest/src/party-gate.test.ts` (pledgee J/F/none; the FIE at a company address creates no S17 link), plus a tombstone case added to `purge.test.ts`: the company missing on day 2 keeps name, code, form and status, gets `tombstone_since`, loses its pledges and events.
+- Shared ingest tests this spec relies on: `ingest/src/as-of.test.ts` (the EE fixtures sync with `as_of_basis = max_date_in_data`; with the date fields blanked they fall back to `http_last_modified`), `ingest/src/parser-version.test.ts` (unchanged zip plus a field map that newly drops a field: re-parsed, the field is gone), `ingest/src/purge-guard.test.ts` (fixture day 2 with half the basic rows ends `purge_guard` and tombstones nothing), `ingest/src/unchanged.test.ts`, `ingest/src/stale.test.ts` (a basic file whose max first-entry date is older than the last sync is skipped), `ingest/src/partial.test.ts`, `ingest/src/purge.test.ts`, `ingest/src/history.test.ts` (rename, address, status events on fixture day 2), `ingest/src/party-gate.test.ts` (pledgee J/F/none; the FIE at a company address creates no S17 link), plus a tombstone case added to `purge.test.ts`: the company missing on day 2 keeps name, code, form and status, gets `tombstone_since`, loses its pledges and events.
 - `store/src/provenance.test.ts`: every statement and event of these sources resolves to a `SourceRef` with `cc-by-4.0`, the attribution text and the deep link.
 
 ## Failure modes
 - **Source down / HTTP error:** sync `failed`; the previous data stays; the Sources page shows the last content sync. Report sections render from the store with their as-of date.
 - **Schema change** (a header or JSON key the field map needs is missing, or a new status or form): the parser fails the sync as `failed` with `schema_changed` naming the field; nothing is written; the health check turns red.
 - **Partial or corrupt zip, truncated JSON** (the last object does not close): sync `partial`, nothing purged (§4.4 step 6).
-- **Stale as-of** (derived as-of older than the last content sync): `stale_skipped`.
-- **More than 1% of entities missing versus the last sync** (a truncated upstream file that still parses): treat as `partial`, purge and tombstone nothing, alert. On 19 Nov 2026 a normal day removes well under 0.1%.
-- UI: a company with no record shows the Part G empty state (S01.EE.01 NP; S09.EE.01 CN "Checked: no pledges, status [status]").
+- **Stale as-of** (`max_date_in_data` older than the last content sync's): `stale_skipped`. A weekend file whose newest date equals Friday's is not older and syncs normally. If neither strategy yields a date: `failed` with `as_of_missing`.
+- **A truncated file that still parses** (fewer objects, valid JSON): caught by the purge guard (`partial`, `purge_guard`); nothing is tombstoned.
+- UI: a company with no record shows the Part G empty state (S01.EE.01 NP; S09.EE.01 CN "Checked: no pledges, status [status]"). "Checked as of" uses `checkedAt` (the latest content or unchanged sync, A5).
 
 ## Open questions
-1. **§4.4 step 2 vs this source.** The contract says the as-of date is "read inside the artifact ... never only HTTP Last-Modified", and a missing one fails the sync with `as_of_missing`. These files state no as-of date at all. This spec derives it from the newest date in the data (max first-entry date, max entry date, ...). On a day with no new registrations it equals yesterday's, which the stale check treats as "not older", so it passes. Architect to confirm the derived rule is acceptable as an `AsOfRule` kind (`max-date-in-field`).
-2. **New drop reasons** not in §4.3's list: `natural_person_name`, `natural_person_address`, `natural_person_contact`, `contact_not_item`, `unknown_status`, `unknown_legal_form`, `form_mismatch`, `invalid_vat`, `schema_changed`. Architect to add them to the `DropReason` union.
-3. **Extension properties** not in FtM: `legalFormSubtype`, `addressId`, `naceCode`, `capital`, `fiscalYearEnd`, `accountingObligation`, `statusSince`. They need entries in the FtM-subset extension list (`schema/ftm-subset.test.ts`).
-4. **Rulings cadence.** Weekly per cto. The unfiled-report warnings then lag up to 7 days; acceptable for S18, confirm.
+1. **Extra drop reasons** not in §4.3's list: `natural_person_name`, `natural_person_address`, `natural_person_contact`, `contact_not_item`, `unknown_status`, `unknown_legal_form`, `form_mismatch`, `invalid_vat`, `duplicate_key`, `schema_changed`. Proposal: add them to the `DropReason` union.
+2. **Extension properties** not in FtM: `legalFormSubtype`, `addressId`, `naceCode`, `capital`, `fiscalYearEnd`, `accountingObligation`, `statusSince`. Proposal: list them in `schema/ftm-subset.test.ts` as extensions.
+3. **Event types** used here that are not in the shared list: `register.entry.<kandeliik>` and `register.ruling.<maaruse_liik>` (the shared list has `register.ruling.<kind>`; entries need their own prefix), `finora.tombstoned`. Statuses: `struck_off` for code K (2 rows). Proposal: add them.
+4. **Classifier labels.** The English legal-form, status, role and entry-type labels are glosses written by data-baltics; the official English is only in the contract API. Proposal: ship the glosses in `domain/config/` with a "translation by Finora" note, and the EMTAK labels (Estonian) plus NACE English labels (Eurostat) in the `labels` table.
+5. **Rulings cadence.** Weekly per cto: the unfiled-report warnings lag up to 7 days. Proposal: accept for S18.
