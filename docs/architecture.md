@@ -224,7 +224,7 @@ facts(report_id INTEGER NOT NULL, concept_id INTEGER NOT NULL, value REAL NOT NU
 events(
   id         INTEGER PRIMARY KEY,
   entity_id  INTEGER NOT NULL,
-  type_id    INTEGER NOT NULL,            -- interned: 'register.ruling', 'filing.8k.5.02', 'finora.renamed', 'finora.role_ended', 'finora.debtor_listed', ...
+  type_id    INTEGER NOT NULL,            -- interned: 'register.ruling', 'filing.8k.5.02', 'finora.name_changed', 'finora.role_ended', 'finora.debtor_listed', ...
   date       TEXT NOT NULL,
   data       TEXT,                        -- small JSON: old and new value for company attributes; never a person name or key
   item_id    INTEGER NOT NULL,
