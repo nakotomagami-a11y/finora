@@ -191,10 +191,14 @@ def sec_frames(probe_id):
 
 
 def firds_shares(mic):
-    """ESMA FIRDS reference data: shares (CFI ES*) admitted on a venue and not terminated."""
+    """ESMA FIRDS reference data: shares (CFI ES*) admitted on a venue and not terminated.
+
+    FIRDS keeps every version of a record; only latest_received_flag=1 is current. Superseded versions
+    carry valid_to_date and would double-count a listing."""
     def probe(probe_id):
         q = urllib.parse.urlencode([("q", "*:*"), ("fq", f"mic:{mic}"), ("fq", "gnr_cfi_code:ES*"), ("fq", "type_s:parent"),
-                                    ("fq", "-mrkt_trdng_trmination_date:*"), ("rows", "500"), ("wt", "json")])
+                                    ("fq", "-mrkt_trdng_trmination_date:*"), ("fq", "latest_received_flag:1"),
+                                    ("rows", "500"), ("wt", "json")])
         status, body, hdrs, s = get(probe_id, f"https://registers.esma.europa.eu/solr/esma_registers_firds/select?{q}")
         resp = as_json(body)["response"]
         docs = resp["docs"]

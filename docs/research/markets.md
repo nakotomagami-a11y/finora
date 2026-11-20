@@ -148,7 +148,8 @@ Tiles use the IDs in `docs/research/README.md`. "Peak" is the highest daily clos
 #### ESMA FIRDS (instrument reference data, for company profiles)
 - Access: public Solr endpoint `registers.esma.europa.eu/solr/esma_registers_firds/select`, JSON, no key; 335,294,213 records in total.
 - Fields used: `isin`, `lei`, `mic`, `gnr_full_name`, `gnr_cfi_code`, `mrkt_trdng_start_date`, `mrkt_trdng_trmination_date`.
-- Coverage measured, shares (CFI `ES*`) with no termination date: Riga main market 10 records (9 distinct ISINs), Tallinn 20, Vilnius 22; the three growth markets 5, 12 and 4. **73 venue records, 72 distinct per venue.** LEI filled on 73/73, ISIN on 73/73.
+- Coverage measured, current shares (CFI `ES*`, `latest_received_flag` 1, no termination date): Riga main market 8, Tallinn 19, Vilnius 22; the three growth markets 5, 10 and 3. **67 live listings.** LEI filled on 67/67, ISIN on 67/67.
+- Versioning: FIRDS keeps every version of a record. Only `latest_received_flag` 1 is current; superseded versions carry `valid_to_date`. A count without that filter gave 73 (corrected 2026-11-20). One listing's latest version carries a later admission date than its first version, so "listed since" is the earliest `mrkt_trdng_start_date` across versions.
 - Join keys: LEI (to GLEIF and the registers), ISIN.
 - Licence: "Reproduction of all information on this site (ESMA Library) is authorised except as otherwise stated", source acknowledged (https://www.esma.europa.eu/legal-notice, verified 2026-11-19).
 - Tested with: `official.py` probes `firds_shares_<MIC>`.
@@ -301,7 +302,7 @@ Each value carries its own as-of date (observation date, or block time for on-ch
 ## Company profiles (S14 Securities)
 
 - **US public companies:** shares outstanding and public float from SEC XBRL (`dei` facts; deferred until `SEC_USER_AGENT` is set). Price and market cap only with the user's key (S7 or S6). Join: CIK → ticker comes from SEC's ticker file (owned by `data-us`).
-- **Baltic listed companies:** 73 listed-share records found in ESMA FIRDS (LEI and ISIN, venue, admission date). No free, reusable price source found: the Baltic exchange operator publishes prices on its website, terms not checked (unknown; settle by reading the operator's website terms). Show "listed on <venue> since <date>" from FIRDS; price only through a user key, if a provider covers these venues (unknown).
+- **Baltic listed companies:** 67 live listings found in ESMA FIRDS (LEI and ISIN, venue, admission date). No free, reusable price source found: the Baltic exchange operator publishes prices on its website, terms not checked (unknown; settle by reading the operator's website terms). Show "listed on <venue> since <date>" from FIRDS; price only through a user key, if a provider covers these venues (unknown).
 
 ## Deferred: key pending
 
@@ -344,7 +345,7 @@ Each value carries its own as-of date (observation date, or block time for on-ch
 | M07 | - | EIA spot via FRED | B | 2/2 | CSV/API; licence verified Y; 2-day lag; licence caveat: vendor-permission note (open question 3), A once legal clears it |
 | M08 | - | Treasury Fiscal Data, Debt to the Penny | A | 1/1 | API; licence verified Y; daily, ticker is an estimate |
 | M09 | - | FRED `DGS10`, `UNRATE` (proposal) | A | 2/2 | CSV/API; licence verified Y; both public domain |
-| S14 | LT, LV, EE | ESMA FIRDS | A | 73/73 LEI and ISIN | API; licence verified Y; reference data only, no prices |
+| S14 | LT, LV, EE | ESMA FIRDS | A | 67/67 LEI and ISIN | API; licence verified Y; reference data only, no prices |
 | S14 | LT, LV, EE | prices | D | 0 | no free reusable source found |
 | S14 | US | SEC XBRL `dei` facts; price with user key | B | deferred | API; licence verified Y; key pending (`SEC_USER_AGENT`) |
 
@@ -358,4 +359,4 @@ The "entities" for Crash monitor are its 20 series (M01 3, M02 1, M03 7, M04 2, 
 | M01-M08 | - | A + D: official plus keyless on-chain/exchange/aggregator | 20 | 10 (strict: 9) | 50% (strict: 45%) | adds bitcoin, ether, total crypto; strict count excludes Taiwan |
 | M01-M08 | - | A + D + one stock key (S7) | 20 | 20 (estimated) | 100% (estimated) | stock tiles via ETF proxies; not measured: key pending |
 | M01-M08 | - | strictly hostable in public (open licences only) | 20 | 6 (strict: 5) | 30% (strict: 25%) | Japan drops out (redistribution needs the owner's permission); crypto too, until oracle and exchange licences are confirmed |
-| S14 | LT, LV, EE | listed-share records with ISIN and LEI | 73 | 73 | 100% | FIRDS reference data; no prices |
+| S14 | LT, LV, EE | live listings with ISIN and LEI | 67 | 67 | 100% | FIRDS reference data; no prices; corrected from 73 (superseded versions), 2026-11-20 |
