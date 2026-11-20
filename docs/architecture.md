@@ -1,6 +1,6 @@
 # Finora architecture
 
-> **Status: draft (phase 3 input).** Written during phase 1 so the build never waits. Everything that depends on the data research (which sources, which fields, what is shown) is marked **[pending: ...]** and is filled from `docs/research/display-matrix.md`, `docs/research/legal.md` and `docs/plan/council/01-data.md` once they land. The slice plan is `docs/plan/slices.md`.
+> **Status: phase 3, in revision.** Milestone A (§3 data model, §4 loaders) is revised against council session 1 and is the contract the loader specs implement. Milestone B (every other section and `docs/plan/slices.md`) follows. Remaining **[pending: ...]** markers belong to milestone B.
 
 This document is for the people and agents who build Finora. It says where code goes, which way dependencies point, how data flows from a public registry to a sentence in a verdict, and which rules the code enforces. A builder should never have to guess; if this document leaves you guessing, that is a bug in the document.
 
@@ -56,7 +56,8 @@ apps/
 packages/
   domain/         Pure: types, entity schema subset, value sets, policies, report assembly, verdict rules. No IO
   store/          SQLite: migrations, statement/fact/entity repositories, search, investigations, jobs
-  sources/        Loaders (one module per source), licence registry, polite fetcher, raw-file cache
+  sources/        Loaders (one module per source: meta, fetch, parse, field map), licence registry, polite fetcher
+  ingest/         The sync pipeline: change detection, gates, writes, purge, history events, linking, sync reports
   resolve/        Entity resolution: official-ID linking, name normalisation, candidate scoring, judgements
   agents/         Agent runtime: orchestrator, LLM providers, budget ledger, event bus, citation verifier
   agent-tools/    Tool definitions shared by agents and MCP
@@ -83,12 +84,13 @@ Each package may import only the packages in its row. The row **is** its `packag
 | `store` | `domain` |
 | `sources` | `domain` |
 | `resolve` | `domain`, `store` |
+| `ingest` | `domain`, `store`, `sources`, `resolve` |
 | `markets` | `domain` |
 | `agent-tools` | `domain`, `store`, `resolve`, `markets` |
 | `agents` | `domain`, `store`, `agent-tools` |
 | `apps/server` | all packages except `ui` |
 | `apps/mcp` | `domain`, `store`, `agent-tools`, `api-contract` |
-| `apps/cli` | `domain`, `store`, `sources`, `resolve` |
+| `apps/cli` | `domain`, `store`, `ingest` |
 | `apps/web` | `api-contract`, `ui`, `i18n`, `domain` (types and pure helpers only), `apps/server` (seam files only) |
 
 Lint rules on top of the graph:
@@ -107,7 +109,8 @@ Lint rules on top of the graph:
 | API paths | `API_ROUTES` in `packages/api-contract/src/routes.ts`; UI paths in `apps/web/src/lib/page-routes.ts` |
 | Business logic | `packages/domain` if pure, else the package that owns the IO (`store`, `sources`, `agents`, `markets`) |
 | HTTP plumbing (SSE, guards, body limits) | `apps/server/src/lib/` |
-| A loader | `packages/sources/src/<country>/<source-id>/` |
+| A loader | `packages/sources/src/<country>/<source-id>/` (spec: `docs/plan/loaders/<source-id>.md`) |
+| The sync pipeline, gates, history events | `packages/ingest/src/` |
 | An agent tool | `packages/agent-tools/src/<tool-name>.ts` |
 | A product tool's pages | `apps/web/src/app/[locale]/(tools)/<tool-id>/` + `apps/web/src/tools/<tool-id>/manifest.ts` |
 
@@ -115,186 +118,317 @@ Lint rules on top of the graph:
 
 ## 3. Data model
 
-### 3.1 Entities and statements
+> Revised in phase 3 (milestone A) against council session 1 (`docs/plan/council/01-data.md` Parts E, G, H), cto's calls (`01-data-cto.md`) and the early plan review (`docs/plan/reviews/00-early-plan-review.md`). Loader specs in `docs/plan/loaders/` implement this section and §4.
 
-Entities follow a subset of the FollowTheMoney (FtM) schema: the same schema names (`Company`, `Organization`, `LegalEntity`, `Person`, `Address`, `Directorship`, `Ownership`, `Membership`, `Sanction`, `Security`, `Identification`, `Representation`) and the same property names (`name`, `registrationNumber`, `leiCode`, `jurisdiction`, `incorporationDate`, `dissolutionDate`, `status`, `director`, `organization`, `owner`, `asset`, `percentage`, `startDate`, `endDate`, `role`, ...). That buys interoperability (FtM JSON export, existing tooling) without depending on any FtM runtime. The subset and our few extensions live in `packages/domain/src/schema/` as data, with a test that every property we use exists in the upstream FtM model or is listed as an extension.
+### 3.1 What is stored, and what is not
 
-**Every value is a statement.** We never store "the company's name"; we store "source X said, on date D, that entity E has `name` = V".
+Four rules decide everything the store holds (cto load rules 1-4, adopted by the council):
+
+1. **Statements hold entity attributes and relationships only** (name, code, legal form, status, address, roles, members). Numbers by period go to **facts**; dated register entries and our own change records go to **events**.
+2. **Every stored value maps to an `item_id`** from Part G whose call is SHOW or CAVEAT, or to a **resolution key** that linking or a verdict rule needs (registry code, LEI, VAT, CIK, legal form). Nothing else is read from a source file. One generated list (§3.6) drives this rule, the rendered-field registry (qa checklist 9) and the HIDE negative tests.
+3. **Financials: the latest 5 fiscal years** at load. Deregistered and struck-off companies keep identity properties only (name, code, form, status, dates).
+4. **HIDE and LATER items are never loaded.** A field mapped to one is dropped in the parser, counted in the sync report, and has a negative test.
+
+Never stored, whatever the source offers (policy P3, legal rules 1 and 5): personal codes (masked or not), birth dates or ages derived from them, the EE person hash, gender, personal emails, home addresses, sole-trader addresses finer than the country, natural-person insolvency, and tax or arrears lines tied to a natural person.
+
+### 3.2 Provenance: syncs and records
+
+Every value carries its provenance through two rows, not through columns repeated on every value (that is what makes the lean layout 3x smaller):
+
+```sql
+-- one row per attempt to refresh a source, whatever happened
+syncs(
+  id            INTEGER PRIMARY KEY,
+  source_id     INTEGER NOT NULL REFERENCES sources(id),
+  kind          TEXT NOT NULL,   -- 'content' | 'unchanged' | 'stale_skipped' | 'partial' | 'failed'
+  licence_id    TEXT NOT NULL,   -- the licence in force for this sync (R3; a later licence change never rewrites old rows)
+  storage       TEXT NOT NULL,   -- storage class in force (§3.5)
+  started_at    TEXT NOT NULL,   -- ISO 8601 UTC
+  finished_at   TEXT,
+  upstream_as_of TEXT,           -- the as-of date read inside the file or response; never only HTTP Last-Modified
+  content_hash  TEXT,            -- sha256 of the raw artifact(s)
+  report_json   TEXT             -- counts: read, written, unchanged, deleted, dropped by reason, duration
+);
+
+-- one row per source record (a CSV row, a JSON object, an API item), the unit of change detection
+records(
+  id                   INTEGER PRIMARY KEY,
+  source_id            INTEGER NOT NULL,
+  record_key           TEXT NOT NULL,     -- the source's own stable key, or a documented derivation (loader spec)
+  row_hash             BLOB NOT NULL,     -- hash of the normalised fields the field map reads
+  first_sync_id        INTEGER NOT NULL,
+  last_changed_sync_id INTEGER NOT NULL,  -- the sync that wrote the current values: licence and retrieval come from it
+  UNIQUE (source_id, record_key)
+);
+```
+
+Every statement, fact report and event points at its `record_id`. From the record the read path derives the full `SourceRef` (R3, R16):
+
+| `SourceRef` field | Derived from |
+|---|---|
+| `sourceId`, `sourceName`, `attribution`, `licenceUrl` | `sources` row + the source registry (§4.2) |
+| `licenceId` | `syncs.licence_id` of `last_changed_sync_id` |
+| `retrievedAt` | `syncs.started_at` of `last_changed_sync_id` |
+| `asOf` | `upstream_as_of` of the source's latest `content` sync (a live record was confirmed by it) |
+| `sourceUrl` | the source's deep-link pattern applied to `record_key`, when the source has one |
+| `accessTier`, `personal` | the value's `item_id` (§3.6) plus the entity's `natural_person` flag |
+| `derived` | true for values Finora computes (events of kind `finora.*`, shared-address counts, parent links): rendered with the "Derived by Finora" chip, citing the records they were computed from |
+
+`SourcedValue<T> = { value: T; sources: SourceRef[] }` with `sources.min(1)` in the Zod schema, so no value can reach the API, MCP or UI without one. The hop tests are unchanged in intent: `store/src/provenance.test.ts`, `domain/src/report/assemble.test.ts`, the route and MCP contract tests, `web/e2e/report-sources.spec.ts`. Added test: `store/src/licence-history.test.ts` (change a source's licence; rows written before keep the old licence, rows written after carry the new one).
+
+### 3.3 Entities, statements, facts and events
+
+**Entities** use FollowTheMoney schema and property names for a small subset (`Company`, `Organization`, `LegalEntity`, `Person`, `Address`, `Directorship`, `Ownership`, `Membership`, `Sanction`, `Security`), defined as data in `packages/domain/src/schema/`; `schema/ftm-subset.test.ts` checks every name exists upstream or is a listed extension. FtM JSON export is generated from the same rows.
+
+```sql
+entities(
+  id              INTEGER PRIMARY KEY,
+  eid             TEXT NOT NULL UNIQUE,   -- public id, §3.4
+  schema_id       INTEGER NOT NULL,       -- interned FtM schema
+  country         TEXT NOT NULL,          -- 'lt' | 'lv' | 'ee' | 'us' | 'intl'
+  legal_form      TEXT,                   -- normalised code, per-country table in domain/config/legal-forms.ts
+  natural_person  INTEGER NOT NULL,       -- 1 for persons and sole traders (legal rule 5), from the legal form
+  status          TEXT,                   -- normalised: active | liquidating | insolvent | struck_off | ...
+  caption         TEXT NOT NULL,          -- display name; for natural_person = 1: legal form + registry code, never the name (title, search, URL)
+  tombstone_since TEXT,                   -- set when the entity left the source's open data (EE), identity kept
+  first_sync_id   INTEGER NOT NULL
+);
+
+statements(
+  id         INTEGER PRIMARY KEY,
+  entity_id  INTEGER NOT NULL,
+  prop_id    INTEGER NOT NULL,            -- interned FtM property
+  value      TEXT NOT NULL,               -- normalised: ISO dates, ISO 3166 lower-case, trimmed text
+  lang       TEXT,                        -- BCP 47 where the source states one
+  item_id    INTEGER NOT NULL,            -- §3.6; NOT NULL is the load-rule-2 guarantee
+  record_id  INTEGER NOT NULL
+);
+
+-- facts: narrow, provenance on the report row (16 B per figure measured, vs 123 B as statements)
+fact_reports(
+  id           INTEGER PRIMARY KEY,
+  entity_id    INTEGER NOT NULL,
+  kind         TEXT NOT NULL,             -- 'annual_accounts' | 'quarterly_tax' | 'monthly_insured' | ...
+  period_start TEXT, period_end TEXT NOT NULL,
+  currency     TEXT, unit_scale INTEGER NOT NULL DEFAULT 1,  -- "reported in thousands" stays visible
+  record_id    INTEGER NOT NULL
+);
+facts(report_id INTEGER NOT NULL, concept_id INTEGER NOT NULL, value REAL NOT NULL, PRIMARY KEY (report_id, concept_id)) WITHOUT ROWID;
+
+-- events: dated register entries, and our own change records
+events(
+  id         INTEGER PRIMARY KEY,
+  entity_id  INTEGER NOT NULL,
+  type_id    INTEGER NOT NULL,            -- interned: 'register.ruling', 'filing.8k.5.02', 'finora.renamed', 'finora.role_ended', 'finora.debtor_listed', ...
+  date       TEXT NOT NULL,
+  data       TEXT,                        -- small JSON: old and new value for company attributes; never a person name or key
+  item_id    INTEGER NOT NULL,
+  record_id  INTEGER                      -- NULL for finora.* events, which cite the records they compare in data
+);
+```
+
+Concepts (`revenue`, `net_profit`, `equity`, `total_assets`, `employees`, `taxes_paid`, `tax_arrears`, `insured_persons`, ...) live in `packages/domain/src/config/concepts.ts`, each mapped to its `item_id`. Every loader spec maps its source fields to concepts in its field map.
+
+**People exist only inside a company** (legal rules 1-2, P4, the HMAC withdrawal). A person row is a `Person` entity scoped to one company's role record: its `eid` is `p-` + HMAC-SHA256(install key, source id + company eid + record key), truncated to 20 hex characters. The same human in two companies is two unrelated rows; no join key, code or hash links them, so the store cannot build a person-to-person link or a person profile. The install key is generated at first run into `<data dir>/install.key`, never exported or logged; fixtures use a fixed key.
+
+### 3.4 Entity IDs
+
+| Entity | `eid` | Fixture rule (qa #9) |
+|---|---|---|
+| LV company | `lv-<11-digit registration number>` | fixture variant of the check digit if data-baltics confirms one, else reserved prefix |
+| EE company | `ee-<8-digit registry code>` | fixture variant of the official check digit (fails the real algorithm) |
+| LT company | `lt-<9-digit company code>` | as LV |
+| US SEC filer | `us-cik-<10-digit CIK>` | reserved range `99xxxxxxxx` |
+| US state record | `us-<state>-<state id>` | prefix `FX` |
+| LEI-only entity | `lei-<LEI>` | fixture variant of ISO 7064 mod 97 |
+| Person in company context | `p-<20 hex>` | fixed fixture HMAC key |
+
+The nightly `live` job asserts the reserved ranges stay unassigned in the real registers. `fixtures/ids.test.ts` checks every fixture id against its rule.
+
+### 3.5 Storage classes
+
+Every source's registry entry (§4.2) has exactly one storage class. The class decides where rows may exist; CI tests each class's guarantee.
+
+| Class | Where | Used for | Guarantee and test |
+|---|---|---|---|
+| `store` | `finora.db` | open-licence registers, GLEIF, official sanctions lists, SEC | the default; licence invariants (§4.2) |
+| `share-alike-store` | `finora-sa.db`, same schema, attached read-only at query time | EE tax board (S07.EE.01, S08.EE.01), switchable | P1: the main store never holds a share-alike row; export, bulk API and bulk MCP exclude it; single-company responses carry its attribution and licence link. Tests: `ingest/src/share-alike.test.ts`, `domain/src/export/export.test.ts` |
+| `live-no-store` | memory only | the share-alike sources when `SHARE_ALIKE_MODE=live-no-store`; small daily lists | the file is read into memory at refresh and never written: no store row, no cache row, no file, no log line containing its values. Test: `ingest/src/live-no-store.test.ts` with sentinel values and a spied filesystem and logger (legal condition 1). Large files in this mode (EE taxes paid) show `not_checked{reason: "later"}` with "Not checked: licence question pending" |
+| `live-cached` | `finora.db`, rows with a cache marker | US state registries (NY, CO, CT, PA) | written only for an entity the user opens; re-fetched on view when older than `LIVE_CACHE_REFETCH_HOURS` (24); purged when not viewed for `PERSON_DATA_TTL_DAYS` (30); a withdrawn or corrected upstream record is removed at the next fetch (CT terms). Tests: `ingest/src/live-cache.test.ts` (fake clock: day 29 survives, day 30 deleted; 24 h re-fetch; CT withdrawal) |
+| `agent-only` | investigation `documents` only | courts, WHOIS-free web checks, live national sanctions lists, UN list, news | fetched by agents at query time, cited, kept only as investigation documents under the R11 TTL |
+| `connector-cache` | `connector-cache.db` | licensed market series (user keys) | never exported, never served to another user (R17) |
+
+`SHARE_ALIKE_MODE` (`store` default, or `live-no-store`) switches the EE share-alike sources with no code change (legal's condition for clearing the share-alike store). CI runs the EE loader tests in both modes.
+
+### 3.6 Items: the one list behind load rule 2
+
+`scripts/gen-items.mjs` parses the Part G table in `docs/plan/council/01-data.md` into `packages/domain/src/items/items.generated.ts`:
 
 ```ts
-// packages/domain/src/types/statement.ts (shape, not final code)
-type Statement = {
-  id: string;              // hash(entityId, schema, prop, value, sourceId)
-  entityId: string;        // see 3.3
-  schema: SchemaName;      // FtM schema of the entity
-  prop: PropName;          // FtM property
-  value: string;           // normalised; dates ISO-8601, countries ISO-3166 alpha-2 lower
-  lang: string | null;     // BCP 47 for text that has one (activity descriptions)
-  sourceId: SourceId;      // registry entry in packages/sources, carries the licence
-  sourceRecord: string;    // the row/record key inside the source, for "show me the original"
-  sourceUrl: string | null;// deep link to the official page when one exists
-  accessTier: AccessTier;  // "open" | "purpose" (natural-person data: shown only after a stated purpose, R2)
-  personal: boolean;       // true when the value is about a natural person or a sole trader (R4, R5, R11)
-  firstSeen: string;       // ISO timestamp the value first appeared in a load
-  lastSeen: string;        // ISO timestamp of the latest load that still had it
-  retrievedAt: string;     // when the raw file was downloaded
+type Item = {
+  id: ItemId;                       // "S08.EE.01a"
+  section: SectionId;               // "S08"
+  country: "lt" | "lv" | "ee" | "us" | "all" | "x";
+  call: "show" | "caveat" | "later" | "hide";
+  caveatKey: string | null;         // i18n key for the caveat line
+  emptyState: EmptyStateKey;        // NP | CN | NC | PAID | LOCK | KEY | MANUAL | AGENT | none
+  personal: boolean;                // natural-person data: purpose gate, disclaimer, TTL
+  accessTier: "open" | "purpose";
 };
 ```
 
-The licence is not copied onto each row: `sourceId` is a foreign key to the source registry, which carries the licence (§4.2). The store refuses a statement whose `sourceId` is unknown, so **no value can exist without a licence**.
+A test fails when the generated file is stale against `01-data.md`. Items marked `personal` and the restricted-section rules (country, legal form, section, legal basis key) live next to it in `packages/domain/src/items/policy.ts`, hand-written, reviewed by legal. Consumers:
+- `ingest`: a field map entry whose target item is `hide` or `later` fails `sources/src/field-maps.test.ts`; every target must be a `show`/`caveat` item or a resolution key.
+- `domain/report`: section states and caveats come from the item (`assembleReport`).
+- the rendered-field registry: every UI value renders through `FieldRow itemId=...`; `web/src/field-registry.test.ts` compares the ids rendered on `/design` and the fixture pages with the `show`/`caveat` ids (qa checklist 9).
+- the HIDE negative tests: one per HIDE id, on UI, API, MCP, export and the agent path (§10).
 
-**Provenance survives every hop (R3).** Each value leaves the store as a `SourcedValue`:
+### 3.7 History: our own snapshots (P9, P4, P14)
 
-```ts
-type SourceRef = { sourceId; sourceName; licenceId; licenceUrl; attribution; retrievedAt; sourceUrl; accessTier };
-type SourcedValue<T> = { value: T; sources: SourceRef[] };   // sources.length >= 1, enforced by the Zod schema
-```
+The registers publish current state only, so history exists from install day. It is stored as events, never as full daily copies.
 
-| Hop | Where | Test |
-|---|---|---|
-| loader → store | `StatementInput` schema requires `sourceId`, `retrievedAt`; FK to `sources` | `packages/store/src/statements.test.ts` |
-| store → report DTO | `assembleReport` builds `SourcedValue` for every field | `packages/domain/src/report/assemble.test.ts` |
-| DTO → API / MCP | response schemas in `api-contract` require `sources.min(1)` | `apps/server/src/routes/**/route.contract.test.ts`, `apps/mcp/src/tools.contract.test.ts` |
-| API → UI | `SourceChip` renders from `SourceRef`; a value without one is not rendered | `apps/web/e2e/report-sources.spec.ts` |
+| Change seen between two content syncs | Stored as |
+|---|---|
+| A company attribute changed (name, address, status, legal form, capital) | `finora.<attribute>_changed` event with old and new value; the statement holds the new value |
+| A person role disappeared | `finora.role_ended`: "a board member's role ended on [date]", with no name and no person key (P4, legal condition 2). The person row is deleted |
+| An entity entered or left a debtor list (LT, EE) | `finora.debtor_listed` / `finora.debtor_cleared`, with amount band only for companies |
+| An EE company vanished from the open files | `tombstone_since` set; identity statements kept; "Not in the register's open data since [date]" |
+| A sole trader vanished | identity fields only, company context, purpose note (legal condition 3) |
 
-### 3.2 Facts (time series)
+`HISTORY_MAX_GB` (1) only warns, in the health check and on Settings; history is never deleted silently (P9). Rules that need a window of history (renamed in 6 months, the LT 180-day arrears age, "no longer on the debtor list since") return `not_evaluated{trackedSince}` until our snapshots cover the window (P14); `domain/src/verdict/history-window.test.ts` proves a 10-day-old install cannot report "no rename in 6 months".
 
-Financial statements, employee counts, taxes paid and debts are numbers by period, which FtM models poorly. They live in a `facts` table with the same provenance columns:
-
-```ts
-type Fact = {
-  entityId: string;
-  concept: ConceptId;       // our concept list: revenue, net_profit, total_assets, equity, employees, avg_salary, taxes_paid, tax_debt, ...
-  periodStart: string | null;
-  periodEnd: string;        // instant facts use periodEnd only
-  value: number;
-  unit: "EUR" | "USD" | "persons" | ...;
-  sourceId: SourceId;
-  sourceRecord: string;
-  sourceConcept: string;    // the source's own field or XBRL tag, for audit
-  retrievedAt: string;
-};
-```
-
-`packages/domain/src/config/concepts.ts` maps each source's field (an LV statement line, an EE key figure, a US-GAAP XBRL tag) to a concept. **[pending: concept list from the display matrix rows S06, S07, S08]**
-
-### 3.3 Entity IDs
-
-Deterministic and readable, so a loader re-run produces the same IDs and URLs are stable:
-
-| Entity | ID | Example (made up) |
-|---|---|---|
-| Company with a national registry code | `<cc>-<registry>-<code>` | `lv-ur-40000000000`, `ee-ar-10000000`, `lt-jar-100000000` |
-| US SEC filer | `us-cik-<10-digit CIK>` | `us-cik-0000000001` |
-| US state registry entity | `us-<state>-<registry id>` | `us-ny-0000000` |
-| Entity known only by LEI | `lei-<LEI>` | `lei-00000000000000000000` |
-| Person | `p-` + hash of (source, source person key) | `p-3f9c...` |
-| Relationship (Directorship, Ownership) | `r-` + hash of its endpoints, role and source | |
-
-Person IDs are opaque hashes on purpose: no name or personal code appears in a URL, a log line or an API path.
-
-### 3.4 Tables (initial migration)
+### 3.8 Tables
 
 | Table | Purpose |
 |---|---|
-| `sources` | Mirror of the source registry: id, licence id, last sync, row counts, status. Upserted from code at boot |
-| `statements` | §3.1. Indexes: `(entity_id)`, `(prop, value)` for ID lookups, `(source_id, last_seen)` for purges |
-| `entities` | Materialised view per entity: id, schema, caption, country, status, `search_text`; rebuilt from statements per affected entity after each load |
-| `entities_fts` | FTS5 over `entities.search_text`, `unicode61 remove_diacritics 2` (word search) |
-| `entities_trigram` | FTS5 `trigram remove_diacritics 1` over names (substring and typo-tolerant search) |
-| `facts` | §3.2 |
-| `links` | Official-ID links between entities from different sources (§6) |
-| `judgements` | Resolution decisions: same / different / unsure, by rule, agent or human |
-| `suppressions` | Data-subject restrictions applied at read time (§10) |
-| `disputes` | Corrections and objections from the entity page; open disputes suppress their statements (R10) |
-| `purpose_log` | Every access to `purpose`-tier data: actor, entity, section, stated purpose, surface (UI, API, MCP, agent), time (R2) |
-| `investigations`, `agent_runs`, `run_events`, `questions`, `findings`, `citations`, `documents`, `cost_ledger` | Agent runtime (§7) |
-| `jobs` | Scheduled and queued background work |
-| `settings` | Key-value app settings (no secrets in v1) |
+| `sources` | mirror of the source registry: id, storage class, last content sync, status |
+| `syncs`, `records` | §3.2 |
+| `entities`, `statements`, `fact_reports`, `facts`, `events` | §3.3 |
+| `props`, `schemas`, `concepts`, `event_types`, `items` | intern tables (integer ids for repeated strings) |
+| `entities_fts` | FTS5 `unicode61 remove_diacritics 2` over company names, codes and former names; never person names, never `natural_person = 1` names (sole traders are found by code only) |
+| `entities_trigram` | FTS5 `trigram remove_diacritics 1` over the same names, for substring and typo search |
+| `links` | official-ID links between entities (LEI ↔ registry code, CIK ↔ LEI, VAT ↔ code), with the asserting record |
+| `judgements` | resolution decisions (same / different / unsure), by rule, agent or human; never overridden by a reload |
+| `live_cache_views` | last view time per `live-cached` entity (P5) |
+| `disputes`, `suppressions` | R10, L5: applied at read time on every surface |
+| `purpose_log` | P2: append-only, one row per company whose person data is opened, with the purpose in force; never updated |
+| `investigations`, `agent_runs`, `run_events`, `questions`, `findings`, `citations`, `documents`, `cost_ledger` | agent runtime (§7) |
+| `jobs`, `settings` | background work; local settings (fund tickers, P12) |
 
-Migrations are forward-only, numbered, each in a transaction, tracked with `PRAGMA user_version`. Pragmas: WAL, `foreign_keys=ON`, `synchronous=NORMAL`, `busy_timeout=5000`. Loaders write in batches of 5,000 rows per transaction.
+Pragmas: WAL, `foreign_keys=ON`, `synchronous=NORMAL`, `busy_timeout=5000`. Migrations are forward-only and numbered, each in a transaction, tracked with `PRAGMA user_version`. Secondary indexes on `statements`, `facts` and the FTS tables are built after the first load of a source, not row by row.
 
 ---
 
 ## 4. Data loaders
 
-### 4.1 The loader contract
+### 4.1 Packages
 
-```ts
-// packages/sources/src/types.ts (shape)
-interface SourceLoader {
-  meta: SourceMeta;                                   // 4.2
-  fetch(ctx: FetchContext): Promise<RawArtifact[]>;   // download into the raw cache; conditional (ETag / Last-Modified / checksum)
-  parse(raw: RawArtifact[], ctx: ParseContext): AsyncIterable<LoaderRecord>; // pure given the files
-}
-type LoaderRecord =
-  | { kind: "statement"; statement: StatementInput }
-  | { kind: "fact"; fact: FactInput }
-  | { kind: "link"; link: LinkInput }                 // an official-ID equivalence the source asserts
-  | { kind: "skip"; reason: SkipReason };             // counted, never silent
-```
+- `packages/sources`: one module per source (`src/<country>/<source-id>/`): metadata, `fetch`, `parse`, and its field map. Depends on `domain` only, so parsers are pure and testable on fixtures.
+- `packages/ingest`: the pipeline that runs a loader against the store: change detection, the gates, writes, purge, history events, linking, sync reports, the scheduler entry points. Depends on `domain`, `store`, `sources`, `resolve`. Used by `apps/cli` (`finora-cli data sync`) and by `apps/server` (`boot()` jobs). This closes qa #10.
 
-`fetch` and `parse` are separate so `parse` is tested on committed synthetic fixtures with no network, and so a re-parse after a code fix needs no download.
-
-The pipeline that runs a loader (`finora data sync <source>`) is shared code, not per loader:
-
-1. `fetch` through the polite fetcher: per-host rate limit from `meta.limits` (SEC: 10 requests/s, with `User-Agent` from the `SEC_USER_AGENT` environment variable, refused at boot if unset when an SEC source is enabled), retries with backoff, a host allowlist per source, size caps.
-2. `parse` streams records.
-3. **Policy filter** (§10): drops every statement whose `(sourceId, prop)` the display policy marks `hide`, and every person statement a legal rule excludes. Dropped values are counted per reason, never stored. Data minimisation happens here, before the store.
-4. Validate each record against the schema subset (Zod); invalid records become `skip` with a reason.
-5. Write in batches; set `last_seen` on every statement seen.
-6. Purge: after a **complete** load, statements of this source with `last_seen` older than the load start are deleted (a value the registry removed disappears here too). A partial load (an incremental feed) never purges.
-7. Rebuild `entities` rows and FTS for affected entities; run official-ID linking (§6) for them.
-8. Record a sync report: rows read, written, skipped by reason, purged, duration, upstream date. `finora data status` and the Sources page show it.
-
-### 4.2 Source metadata and licences
+### 4.2 Source registry and licences
 
 ```ts
 type SourceMeta = {
-  id: SourceId;                 // "lv-ur-register", "ee-ar-open-data", "us-sec-submissions", ...
+  id: SourceId;                     // "lv-ur-register"
   country: "lt" | "lv" | "ee" | "us" | "intl";
-  publisher: string;            // official body (registries may be named)
-  homepage: string;
-  licence: LicenceId;           // key into LICENCES
-  attribution: string | null;   // exact wording the licence or publisher asks for
-  cadence: "daily" | "weekly" | "monthly" | "quarterly" | "on-demand";
-  storage: "store" | "connector-cache" | "agent-only";
+  publisher: string; homepage: string;
+  officialHosts: string[];          // every host the loader, deep links and orderUrl may use (R14)
+  licence: LicenceId;               // key into LICENCES
+  attribution: string | null;       // wording recorded in docs/research, shown in the UI (R16)
+  storage: StorageClass;            // §3.5
+  cadence: "daily" | "weekly" | "monthly" | "quarterly" | "on-view";
+  publishedAtUtc: string | null;    // observed publication time; the scheduler runs after it
+  asOf: AsOfRule;                   // how to read the as-of date inside the artifact
+  deepLink: string | null;          // URL pattern with {recordKey}
+  orderUrl: string | null;          // paid_only target; official register page only
+  cacheTtl?: { refetchHours: number; purgeUnviewedDays: number }; // live-cached only
+  requires: EnvKey[];               // e.g. ["SEC_USER_AGENT"]
   limits: { requestsPerSecond?: number; dailyRequests?: number };
-  requires: EnvKey[];           // e.g. ["SEC_USER_AGENT"]
-  sections: SectionId[];        // S01..S18 it fills
+  items: ItemId[];                  // every item it fills; must equal the item_ids in its field map
 };
 ```
 
-`packages/sources/src/licences.ts` lists every licence we accept, with flags:
+`packages/sources/src/licences.ts` lists every licence with `attributionRequired`, `shareAlike`, `nonCommercial`, `redistribution`, `verifiedOn` (date and URL from docs/research). Invariants, checked by `sources/src/licences.test.ts` (R12, R13, P1, P11):
+
+1. `storage: "store"` requires `shareAlike = false`, `nonCommercial = false`, `redistribution = true`.
+2. `shareAlike = true` requires `share-alike-store` or `live-no-store`.
+3. `nonCommercial = true` or `redistribution = false` requires `agent-only`, `live-no-store` or `connector-cache`.
+4. Every source has a licence with a `verifiedOn` date; a `live-cached` source without one cannot be enabled (P11: OR and WA stay off).
+5. `orderUrl`, `deepLink` and every fetch host are in `officialHosts`.
+6. `items` equals the set of item ids in the field map, and every one is `show` or `caveat`.
+
+### 4.3 The loader contract
 
 ```ts
-type Licence = {
-  id: LicenceId;                // "cc0-1.0", "cc-by-4.0", "us-public-domain", "sec-reuse", "eu-reuse-2011-833", ...
-  url: string;
-  attributionRequired: boolean;
-  shareAlike: boolean;          // must be false for storage: "store"
-  nonCommercial: boolean;       // must be false for storage: "store"
-  redistribution: boolean;      // false => storage must be "connector-cache" or "agent-only"
-  verifiedOn: string;           // date the official page was read, from docs/research
+interface SourceLoader {
+  meta: SourceMeta;
+  fetch(ctx: FetchContext): Promise<FetchResult>;              // raw artifacts into the raw cache, or { unchanged: true }
+  parse(raw: RawArtifact[], ctx: ParseContext): AsyncIterable<ParsedRecord>;
+}
+
+type ParsedRecord = {
+  recordKey: string;                // stable key per loader spec
+  hashInput: string[];              // the normalised fields the field map read, in a fixed order
+  entity?: EntityInput;             // eid, schema, country, legal form, natural_person, status, caption
+  statements: StatementInput[];     // { prop, value, lang?, itemId }
+  reports: FactReportInput[];       // { kind, period, currency, unitScale, facts: { concept, value }[] }
+  events: EventInput[];             // { type, date, data?, itemId }
+  parties: PartyRef[];              // members, debtors, insolvency subjects, sanctions links: go through the party gate
+  dropped: DropReason[];            // fields dropped by rule: 'hide_item' | 'later_item' | 'personal_code' | ...
 };
 ```
 
-Enforced by a unit test over the registry, so a pull request that adds a share-alike or non-commercial source to the store fails CI:
-- `storage: "store"` requires `shareAlike = false`, `nonCommercial = false`, `redistribution = true`.
-- `redistribution = false` requires `storage: "connector-cache"` (user's key, user's machine) or `"agent-only"` (fetched live by an agent, cited, not persisted beyond the investigation's `documents`).
-- Every `meta.licence` exists in `LICENCES`, and every licence has a `verifiedOn` date.
+`parse` is pure given the artifacts, so `sources/src/<cc>/<id>/<id>.test.ts` runs it on committed synthetic fixtures with no network.
 
-**[pending: the source list and each licence from the phase-1 catalogs.]** Expected candidates from desk research: LV Enterprise Register files, LV annual-report financial data, LV tax authority data; EE e-Business Register open data, EE tax authority data; LT JAR, LT tax authority datasets, LT social-insurance files; US SEC submissions, company facts (XBRL), insider and Form D data sets, selected state registries, federal court data; GLEIF; the official EU, UN, OFAC and UK sanctions lists.
+### 4.4 The pipeline (`packages/ingest`)
 
-### 4.3 Load profiles
+For one source, one sync:
 
-A full US load (all EDGAR filers, all XBRL facts) is large; Baltic registers are small. `finora data sync --profile <name>`:
+1. **Fetch.** Through the polite fetcher: `officialHosts` allowlist, private-address refusal after DNS, per-source rate limit (SEC ≤ 10 requests/s with `SEC_USER_AGENT`), retries with backoff, size caps. The artifact's sha256 is compared with the last content sync; **equal means unchanged** (HTTP validators are only a hint: LV's ETag changes on every regeneration). Unchanged → write one `syncs` row of kind `unchanged`, touch nothing else, stop.
+2. **As-of check.** Read the as-of date inside the artifact (`meta.asOf`). Older than the last content sync's → `stale_skipped`, stop. Missing → `failed` with `as_of_missing`.
+3. **Parse and gate**, streaming, per record:
+   - **Field-map gate:** every value targets a `show`/`caveat` item or a resolution key (load rule 2); everything else was never read.
+   - **Personal-code gate (P3):** person properties are scanned against the country patterns (`domain/policy/personal-codes.ts`); a match is dropped and counted. Organisation `registrationNumber` is never scanned (qa #20).
+   - **Proven-company gate (council, final round):** every party row (members, debtor-list rows, social-insurance debts, insolvency rows, sanctions links) goes through `ingest/src/party-gate.ts`. A party is loaded only if it is proven to be a company: the register's own type field says so (LV `LEGAL_ENTITY`, `FOREIGN_ENTITY`; EE `J`), or its code resolves to a register entity with a non-natural-person legal form. Everything else (LV `JOINT_OWNERS`, bare personal names, the ~298 EE debtor codes not in the register) is not loaded and is counted by reason. Court-party masking (P8) calls the same function.
+   - **Natural-person rules (rule 5, Part H 6-9):** a sole trader's address is reduced to the country; its tax and arrears lines are dropped; natural-person insolvency is dropped.
+   - Zod validation of every record; an invalid record is a counted `skip`, never silent.
+4. **Stage.** `(recordKey, rowHash)` pairs go into a temp table.
+5. **Write**, one writer, batches of 5,000 records per transaction:
+   - new or changed `rowHash` → upsert the record (`last_changed_sync_id` = this sync), replace its statements, reports and events, and emit the history events of §3.7 by comparing old and new company attributes;
+   - unchanged `rowHash` → nothing.
+6. **Purge**, only if the sync completed (`content`, never `partial` or an interrupted run): records whose key is absent from the temp table are deleted with their rows. If the record held an entity's identity and the source's spec says "tombstone" (EE), the entity keeps its identity statements and gets `tombstone_since`; person rows are deleted with a `finora.role_ended` event (P4).
+7. **Derive.** Rebuild `entities` rows and FTS for touched entities; run official-ID linking (§6) for them; recompute derived values (shared-address counts, registered offices only, never addresses shared with a natural person: Part H 3).
+8. **Report.** Close the `syncs` row with counts by outcome and drop reason, duration and upstream as-of. `finora-cli data status` and the Sources page show it.
+
+Tests (S04/S05 acceptance; names from the early review): `ingest/src/purge.test.ts` (1,000 records, 1 changed, 1 removed → 999 live, 1 updated, 1 deleted, 998 untouched), `ingest/src/unchanged.test.ts` (content sync then unchanged sync: everything live, nothing purged, as-of kept), `ingest/src/partial.test.ts` (interrupted sync purges nothing), `ingest/src/stale.test.ts` (an older as-of is skipped), `ingest/src/party-gate.test.ts` (one case per type value; a fixture sole trader at a company address creates no S17 link), `ingest/src/history.test.ts` (rename event; role ended without a name), `store/src/retention.test.ts` (a source unchanged for 40 days keeps its current officers).
+
+### 4.5 Scheduling and budgets
+
+- **Cadence** per source from cto's table (`01-data-cto.md` §2): daily registers, officers, debtor lists, sanctions and GLEIF deltas; weekly LV financial statements and VID files, EE general data; monthly EE annual reports, LT statements, EE taxes paid; on view for SEC and the live US states. Each job runs after the source's `publishedAtUtc`.
+- **First load:** countries parse in parallel (worker threads), one writer. Each country's register file loads first, and the country is searchable as soon as it lands; financials and the rest follow in the background.
+- **Budgets (P10, loader acceptance criteria)**, measured on the named machine profile in `docs/plan/benchmarks.md` with cto's probes (`research/probes/cto/`):
+
+| Budget | Value |
+|---|---|
+| Disk, per country | LV ≤ 2.5 GB · EE ≤ 3 GB (+ ≤ 0.25 GB share-alike) · LT ≤ 2 GB · cross-border ≤ 1 GB · whole store ≤ 10 GB |
+| First core load | ≤ 30 min end to end; LV and LT searchable in ≈ 2 min, EE in ≈ 6 min |
+| Daily refresh | ≤ 5 min, in the background, never blocking reads |
+| Unchanged reload | one `syncs` row, 0 statement writes |
+
+  CI cannot hold absolute times, so CI checks relative regression budgets against a stored baseline on the fixture world (qa #23); the absolute numbers are recorded per release in `docs/plan/benchmarks.md`.
+
+### 4.6 Load profiles
 
 | Profile | What | Used by |
 |---|---|---|
-| `fixtures` | The synthetic datasets in `fixtures/` | tests, CI, e2e, offline demo |
-| `core` | Every Baltic register source in full; GLEIF for LT/LV/EE/US; sanctions lists; US SEC submissions (all filers' identities) + company facts and insider data for the most recent N years **[pending: N from data-us sizing]** | the default `pnpm finora` |
-| `full` | Everything every enabled loader offers | a long first run, then incremental |
+| `fixtures` | the synthetic world generated at test time from a seed (≈ 2,000 entities, never committed; qa #22) plus the small per-source layout fixtures (< 50 KB each, committed) | tests, CI, e2e, `pnpm finora --demo` |
+| `core` | every Baltic source with a SHOW or CAVEAT row, GLEIF filtered to LT/LV/EE/US, the stored sanctions lists; SEC when `SEC_USER_AGENT` is set | the default `pnpm finora` |
+| `full` | `core` plus anything a loader marks optional | a longer first run |
+
+### 4.7 What a loader spec must give the builder
+
+The template in `docs/plan/loaders/README.md`. In terms of this section: the `SourceMeta` values (§4.2), the field map with item ids and personal flags (§3.6), the record key and hash input (§4.3), the party-gate rule (§4.4 step 3), tombstone or delete on removal (§4.4 step 6), the history events it produces (§3.7), the fixture layout writer and fixture id rule (§3.4), its budget share (§4.5), and the named tests.
 
 ---
 
