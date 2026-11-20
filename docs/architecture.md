@@ -152,12 +152,14 @@ syncs(
   report_json   TEXT             -- counts: read, written, unchanged, deleted, dropped by reason, duration
 );
 
--- one row per source record (a CSV row, a JSON object, an API item), the unit of change detection
+-- one row per source record: the unit of change, not the file row (cto, measured). A wide source's record is one row or object;
+-- a long-format source (EE annual-report elements, LT P&L and balance lines, LT social-insurance months) groups its rows into
+-- one record per report or company-period. Every loader spec states its record unit and the sort order it relies on.
 records(
   id                   INTEGER PRIMARY KEY,
   source_id            INTEGER NOT NULL,
   record_key           TEXT NOT NULL,     -- the source's own stable key, or a documented derivation (loader spec)
-  row_hash             BLOB NOT NULL,     -- hash of the normalised fields the field map reads
+  row_hash             BLOB NOT NULL,     -- sha256 truncated to 16 bytes, over the record's hash input (per-key collisions are not a practical risk)
   first_sync_id        INTEGER NOT NULL,
   last_changed_sync_id INTEGER NOT NULL,  -- the sync that wrote the current values: licence and retrieval come from it
   UNIQUE (source_id, record_key)
@@ -232,7 +234,21 @@ events(
 
 Concepts (`revenue`, `net_profit`, `equity`, `total_assets`, `employees`, `taxes_paid`, `tax_arrears`, `insured_persons`, ...) live in `packages/domain/src/config/concepts.ts`, each mapped to its `item_id`. Every loader spec maps its source fields to concepts in its field map.
 
-**People exist only inside a company** (legal rules 1-2, P4, the HMAC withdrawal). A person row is a `Person` entity scoped to one company's role record: its `eid` is `p-` + HMAC-SHA256(install key, source id + company eid + record key), truncated to 20 hex characters. The same human in two companies is two unrelated rows; no join key, code or hash links them, so the store cannot build a person-to-person link or a person profile. The install key is generated at first run into `<data dir>/install.key`, never exported or logged; fixtures use a fixed key.
+**People exist only inside a company** (legal rules 1-2, P4, the HMAC withdrawal). A person row is a `Person` entity scoped to one company's role record: its `eid` is `p-` + HMAC-SHA256(install key, source id + company eid + record key), truncated to 20 hex characters. The same human in two companies is two unrelated rows; no join key, code or hash links them, so the store cannot build a person-to-person link or a person profile.
+
+Legal's light for this pseudonym is **Y on five conditions** (`docs/research/legal.md`, "Per-company person pseudonym"); if any fails, the light is R and person rows fall back to company-level data (role counts and dates, no person rows). Each condition has one enforcement point and a test:
+
+| # | Condition | Enforcement | Test |
+|---|---|---|---|
+| PS1 | The masked LV code and the EE person hash are never an HMAC input, directly or indirectly. The record key is a row-local identifier that is not a personal code or a function of one | `ingest/src/person-key.ts` builds the input from the loader's declared `personRecordKey` fields only; the loader spec names those fields and shows they are not code-derived; a person field list containing a code-pattern field fails `sources/src/person-key.test.ts` | `sources/src/person-key.test.ts`; `ingest/src/person-key.test.ts` (a fixture whose only key is the code is rejected at load with `person_key_code_derived`, and its person rows fall back to company-level data) |
+| PS2 | No cross-company join of person rows: no output, query, index or API | person rows are excluded from `entities_fts`, `links` and `judgements`; the store exposes person rows only through `readPurposeSection(companyEid, ...)`, which filters on that one company; no repository method takes a person eid as input | `store/src/person-scope.test.ts` (the same fixture human in two companies yields two rows with different eids, and no repository call returns both) |
+| PS3 | The key is install-local: never exported, served, logged, shown, backed up or shared | `<data dir>/install.key`, file mode 0600, outside the store file; excluded from export and from `finora-cli data backup`; the logger's redaction list includes it; deleted with the store | `ingest/src/install-key.test.ts` (export and backup archives do not contain the key bytes; a log capture during a full sync does not either) |
+| PS4 | The pseudonym is removed when the role ends (P4, 0 days interim); no same-company person history | §4.4 step 6 deletes the person row with its record and emits `finora.role_ended` without a name or eid | `ingest/src/history.test.ts` (after the role disappears, no row, event or log line carries the old eid) |
+| PS5 | The pseudonym appears in no API, MCP, export or agent output, and a fixture code never reaches the store | person DTOs carry a per-response opaque index (`p1`, `p2`, ...) instead of the eid; the P3 canary scanner covers the eid pattern too | `apps/server/src/canary.contract.test.ts`, `apps/mcp/src/canary.test.ts`, `domain/src/export/canary.test.ts`, `agents/src/canary.test.ts` (scan every surface for the fixture eids and the fixture codes), `store/src/canary.test.ts` (the fixture codes are absent from every table) |
+
+These are also a **P13 LAWYER register row** (`LAW-PSEUDONYM`): the person-row loaders (LV and EE officers) are not built until it is in the register with its interim value (`PERSON_ROWS=company_only` until a lawyer confirms, then `pseudonym`). With `company_only`, S03 shows role counts and start dates without names behind the purpose gate, and the HMAC is never computed.
+
+The install key is generated at first run into `<data dir>/install.key`; fixtures use a fixed key.
 
 ### 3.4 Entity IDs
 
@@ -386,8 +402,8 @@ interface SourceLoader {
 }
 
 type ParsedRecord = {
-  recordKey: string;                // stable key per loader spec
-  hashInput: string[];              // the normalised fields the field map read, in a fixed order
+  recordKey: string;                // stable key per loader spec: the row's key, or the report / company-period key for long-format sources
+  hashInput: string[];              // the normalised fields the field map read, in a fixed order; for a grouped record, every line of the group in a fixed order
   entity?: EntityInput;             // eid, schema, country, legal form, natural_person, status, caption
   statements: StatementInput[];     // { prop, value, lang?, itemId }
   reports: FactReportInput[];       // { kind, period, currency, unitScale, facts: { concept, value }[] }
@@ -425,7 +441,7 @@ Tests (S04/S05 acceptance; names from the early review): `ingest/src/purge.test.
 
 - **Cadence** per source from cto's table (`01-data-cto.md` §2): daily registers, officers, debtor lists, sanctions and GLEIF deltas; weekly LV financial statements and VID files, EE general data; monthly EE annual reports, LT statements, EE taxes paid; on view for SEC and the live US states. Each job runs after the source's `publishedAtUtc`.
 - **First load:** countries parse in parallel (worker threads), one writer. Each country's register file loads first, and the country is searchable as soon as it lands; financials and the rest follow in the background.
-- **Budgets (P10, loader acceptance criteria)**, measured on the named machine profile in `docs/plan/benchmarks.md` with cto's probes (`research/probes/cto/`):
+- **Budgets (P10, loader acceptance criteria)**, measured on the named machine profile in `docs/plan/benchmarks.md` with cto's probes (`research/probes/cto/`). Each loader slice also reports records per source and bytes per record:
 
 | Budget | Value |
 |---|---|
