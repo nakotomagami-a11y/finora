@@ -34,6 +34,16 @@ Read [the publishing checklist](docs/contributing/publishing-checklist.md) first
 node scripts/guard/install.mjs
 ```
 
+Then, with Node 24 and pnpm (the version is pinned in `package.json`):
+
+```bash
+pnpm install
+pnpm lint && pnpm typecheck && pnpm test
+pnpm check        # dependency table, tokens, lawyer register, generated items
+```
+
+Read `docs/architecture.md` before writing code; `docs/plan/slices.md` says what each slice builds and how it is tested.
+
 ## License
 
 - **Code:** [GNU AGPL-3.0](LICENSE). If you run a modified version as a service, you must offer its source to its users.

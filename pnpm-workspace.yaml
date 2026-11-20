@@ -1,0 +1,21 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Refuse versions published less than a day ago: compromised releases are usually pulled within hours.
+minimumReleaseAge: 1440
+# Some registry metadata lacks per-version publish times, which the age check needs to pick a
+# lowest version; resolving to the highest version that passes the age check avoids that.
+resolutionMode: highest
+
+# No dependency may run an install script unless it is listed here with a reason.
+# The store uses Node's built-in node:sqlite, so nothing native is needed today.
+allowBuilds: {}
+
+catalog:
+  "@types/node": ^24.19.2
+  eslint: ^10.15.0
+  globals: ^17.14.0
+  typescript: ~6.0.3
+  typescript-eslint: ^8.73.0
+  vitest: ^5.1.1

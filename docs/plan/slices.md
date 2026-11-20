@@ -90,6 +90,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-WHOIS-LV-EE | `agents/src/items.agent.test.ts` (LATER ids never queried) |
      | LAW-NATIONAL-LISTS | `agent-tools/src/check-live-list.test.ts` (live, cited, never stored) |
      | LAW-LV-FIU-PERSON | `sources/src/intl/sanctions-lv-fiu.test.ts` (the listed person's name is dropped; only proven companies load) |
+     | LAW-SANCTIONS-PERSONS | `resolve/src/person-index.test.ts`, `sources/src/intl/sanctions-no-persons.test.ts` (no listed person stored; a match keeps only list, entry id, list date and status) |
      | LAW-UN-LIVE | `agent-tools/src/check-live-list.test.ts`, `sources/src/licences.test.ts` (never stored) |
      | LAW-COURTS-LT, LAW-COURTS-LV | `agents/src/items.agent.test.ts` (no Baltic court portal is queried; MANUAL link rendered) |
      | LAW-SAM | `sources/src/us/sam-exclusions.test.ts` (fields dropped, keyed extract only) |
@@ -97,6 +98,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-CO-DISCLAIMER | `web/e2e/co-disclaimer.spec.ts` |
      | LAW-SHARE-ALIKE | `ingest/src/share-alike.test.ts`, `ingest/src/live-no-store.test.ts` |
      | LAW-SODRA-LICENCE | `agent-tools/src/read-live-source.test.ts` (read live, nothing written), `sources/src/licences.test.ts` |
+     | LAW-SINGLE-COUNTS | no surface in v1: sole traders get no agents (R5), so no insured count is read for them; a check is added with any slice that shows one |
      | LAW-ACCOUNTS-DEADLINE | dormant: needed only before a statutory date is ever shown as a deadline; `domain/src/checks/filing-window.test.ts` proves v1 never shows one |
      | LAW-P7-SCOPE | `domain/src/policy/purposes.test.ts` |
      | LAW-DEFAMATION | `agents/src/orchestrator.subject.test.ts` |

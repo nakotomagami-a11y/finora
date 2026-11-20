@@ -92,7 +92,7 @@ Each package may import only the packages in its row. The row **is** its `packag
 | `markets` | `domain` |
 | `agent-tools` | `domain`, `store`, `resolve`, `markets` |
 | `agents` | `domain`, `store`, `agent-tools` |
-| `apps/server` | all packages except `ui` |
+| `apps/server` | all packages except `ui`, plus `apps/mcp` (its HTTP handler, mounted at `/mcp`) |
 | `apps/mcp` | `domain`, `store`, `agent-tools`, `api-contract` |
 | `apps/cli` | `domain`, `store`, `ingest` |
 | `apps/web` | `api-contract`, `ui`, `i18n`, `domain` (types and pure helpers only), `apps/server` (seam files only) |
