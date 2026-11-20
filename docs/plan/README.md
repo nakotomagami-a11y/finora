@@ -94,7 +94,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | done 2026-11-20 |
 | `docs/plan/council/00-framing.md` (session 1 gates, matrix format, v1 frame) | council (committed by coordinator) | 1 | done |
 | `docs/plan/council/01-data-cto.md` (cto's feasibility, cost and scaling calls) | cto (committed by coordinator) | 2 | done 2026-11-20 |
-| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | **done** 2026-11-20: Part G final, 155 rows after the WHOIS ruling (SHOW 41, CAVEAT 59, LATER 50, HIDE 5), confirmed by council and cto |
+| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | **done** 2026-11-20: Part G final, 155 rows (SHOW 41, CAVEAT 56, LATER 53, HIDE 5 after the phase 3 calls), confirmed by council and cto |
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | milestone B pushed `0de4d5f` (27 slices, M1-M5); qa full review next; milestone A **closed** (store and loader contract, verified by qa at `faed2df`; `docs/plan/reviews/01-milestone-a.md`); milestone B in progress |
 | `DESIGN.md`, `docs/design/IA.md`, mockups (`docs/design/mockups/`) | designer | 3 | v1 and 8 mockup pages (~60 states) pushed `7dc2e76`; web-qa review next |
 | `docs/plan/loaders/README.md` (spec template and ownership) | coordinator | 3 | done |
@@ -140,7 +140,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 ### By the council
-Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (155 rows after splits and new S15 ids: SHOW 41, CAVEAT 59, LATER 50, HIDE 5; .lt WHOIS CAVEAT, .lv and .ee WHOIS and the web archive LATER); the policy table P1-P14; the proven-company gate for every party row; US live states NY, CO, CT, PA that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
+Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (155 rows after splits and new S15 ids: SHOW 41, CAVEAT 56, LATER 53, HIDE 5 after the phase 3 calls on Sodra and Baltic courts; .lt WHOIS CAVEAT, .lv and .ee WHOIS and the web archive LATER); the policy table P1-P14; the proven-company gate for every party row; US live states NY, CO, CT, PA that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
 
 Requirement (after H2): the estimated cost is shown before an investigation starts, as a range (typical to worst case under the cap) next to the cap and today's remaining daily spend. Owners: data-osint (estimation method), designer (pre-run state).
 
