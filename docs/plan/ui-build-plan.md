@@ -69,7 +69,7 @@ packages/ui/                         presentation only; no DTO types; no i18n ca
 apps/web/
   src/app/[locale]/(tools)/explorer/...        routes (architecture §5.3, plus the routes in §14 U4-U8)
   src/app/[locale]/(tools)/crash/page.tsx
-  src/app/[locale]/dev/states/...              state gallery (fixture builds only)
+  src/app/[locale]/design/...                  state gallery (demo and test builds only)
   src/components/
     shell/        AppShell, ToolRail, BottomBar, TopBar (command bar trigger, SpendPill, ThemeToggle), CommandBar, Footer
     search/       SearchBox, SearchResults, CountryGroup, NoMatch
@@ -128,7 +128,7 @@ Conventions:
 
 ## 4. Component inventory
 
-Notation: **States** are the states each component renders in the gallery (§12). Every interactive component also has *default, hover, focus-visible, active, disabled* unless stated. "Gallery" means a page under `/dev/states`.
+Notation: **States** are the states each component renders in the gallery (§12). Every interactive component also has *default, hover, focus-visible, active, disabled* unless stated. "Gallery" means a page under `/design`.
 
 ### 4.1 Primitives in `packages/ui`
 
@@ -339,7 +339,7 @@ All question cards pin to the top of `AgentPanel`, are announced once (§6.5), a
 | `entity_choice` | Asked by the lead; up to 5 cards: registry code, legal form, status, city, registered date, and **None of these**. Lithuanian name collisions are common, so the distinguishing facts are always shown | **No default and no countdown.** After 30 minutes the investigation ends and the report shows "Not enough data: company not confirmed". Blocks every lane |
 | `sanctions_match` | Asked by the legal agent. Side-by-side records. Rows appear only where at least one side has a value, marked match, differs or not on the list; official identifier rows come first. Buttons: Same entity, Different, Not sure. Outcome wording: "Confirmed: same registration number" (rule-based), "Confirmed by you" (with who and when), "Possible match, needs review". The word "sanctioned" renders only for `status: listed` | "Not sure" after 30 minutes, shown as "answered by default"; it blocks only the legal lane |
 | `scope` | Asked by the web agent when a candidate website has no anchor to the company: the site and why it is uncertain, then "Yes, it's theirs" / "No" / "Not sure" | "Not sure" after the timeout, marked "answered by default"; the site then stays "linked by name only" |
-| `cap_reached` | "Stop here and write the report" (default, the primary button) or "Allow up to $0.50 more", clipped to what is left of the daily cap. Offered once per investigation. Second time: only the stop button and "Extension already used for this investigation". Nothing left today: no option and the daily-cap text | stop, after 10 minutes. All lanes pause as `paused_at_cap` |
+| `cap_reached` | "Stop here and write the report" (default, the primary button) or "Allow up to $0.50 more", clipped to what is left of the daily cap. Offered once per investigation. Second time: only the stop button and "Extension already used for this investigation". Nothing left today: no option and the daily-cap text | stop, after 10 minutes. Every lane shows `waiting` with `waitingOn: "cap"` and the header says "Paused at cap" (architecture §7: no separate run status) |
 | `free_text` | Asked by the lead when free text names no country and the name exists in several registers: one text input with the candidate countries as quick replies | no default; times out like `entity_choice` |
 
 Keyboard: the card is a landmark region labelled with the question; options are a radio group (arrow keys), `Enter` submits, `Esc` does nothing (a question is never dismissed). The panel shows the timeout as plain text ("The default applies at 14:32") for kinds that have one.
@@ -621,9 +621,9 @@ Other rules:
 
 **Fixtures are synthetic.** Names are obviously fictional: "Example Company A SIA", "Sample Trading UAB", "Placeholder Foods OÜ", "Example Holdings Inc", people "Example Person One". One company has a 200-character fictional name. Registry codes use the fixture ID rules in `docs/plan/reviews/00-early-plan-review.md` (#9). Fund symbols are fictional (`FXAA`). No real entity appears in any fixture, screenshot or doc.
 
-**The state gallery.** `/[locale]/dev/states` lists every component and screen state; `/dev/states/<group>/<name>` renders one with `?theme=` and `?locale=`. It exists only when `FINORA_FIXTURE_UI=1` (dev, test and CI builds); production builds return 404 there. It is the target of the visual, axe, keyboard and e2e tests, and web-qa can reach any state by URL.
+**The state gallery.** `/[locale]/design` lists every component and screen state; `/design/<group>/<name>` renders one with `?theme=` and `?locale=`. It exists only when `FINORA_DEMO=1` (set by `pnpm finora --demo`, the dev server for tests and CI); a normal run returns 404 there. It is the target of the visual, axe, keyboard and e2e tests, and web-qa can reach any state by URL.
 
-**`?state=` on real pages.** In fixture mode (`FINORA_FIXTURE_UI=1`) the real routes read a state switch and serve DTOs from `fixtures/ui/` instead of the API. In any other mode the parameters are ignored. This is the same contract the designer's mockups use.
+**`?state=` on real pages.** In fixture mode (`FINORA_DEMO=1`) the real routes read a state switch and serve DTOs from `fixtures/ui/` instead of the API. In any other mode the parameters are ignored. This is the same contract the designer's mockups use.
 
 | Parameter | Values |
 |---|---|
@@ -671,26 +671,28 @@ Each rule has one place in the UI and a named test. Rules R1-R18 are the legal m
 
 The architect owns the numbering in `docs/plan/slices.md`. These are the UI slices, named `U1`-`U10` for now, with the architect slice each maps to. Each lands as one commit with its tests (slices.md "How slices work"), then qa review, then a web-qa pass. Every slice is checked by me in a real browser at the four widths before it goes to web-qa.
 
-**Order** follows the council's walking skeleton: one country end to end first (Latvia), then the rest. Slices U1 and U2 need nothing but the contract; the rest wait for the slice named under *Depends on*.
+**Order** follows the council's walking skeleton: Latvia end to end first (architect's M2), then the other countries. The numbers are the architect's (`docs/plan/slices.md`, accepted 2026-11-20); `U1`-`U10` stay as the names used inside this file.
 
-| Slice | Maps to | Name | Depends on |
+| Slice here | Slice in `slices.md` | Name | Depends on |
 |---|---|---|---|
 | U1 | S03 | Design system and state gallery | S02 |
-| U2 | S04b (consumer) | Client plumbing, fixtures and the stream | S04b contracts |
-| U3 | S14a | Shell, search and the command bar | U1, U2, S12 (or fixtures) |
-| U4 | S14b | Company profile, field system, sources page | U3 |
-| U5 | S17a | Investigate and live agents | U4, S15 (or the fake provider) |
-| U6 | S17b | Verdict and report | U5 |
-| U7 | S17c | Library | U6 |
-| U8 | network slice | Network explorer | U4, S12 |
-| U9 | S20 | Crash monitor | U1, U2, S19 (or fixtures) |
-| U10 | S21 (UI part) | Settings and connectors | U1, U2 |
+| U2 | S04b | Client plumbing, fixtures and the stream (with the architect's contracts) | S03, S04 |
+| U3 | S08 | Shell, search and the command bar | S03, S04b, S07 |
+| U4 | S08 | Company profile, field system, sources page | U3 |
+| U5 | S11 | Investigate and live agents | S08, S09 (S10 for real agents) |
+| U6 | S11 | Verdict and report | U5 |
+| U7 | S21 | Library | S11 |
+| U8 | S20 | Network explorer | S08, S13, S14 |
+| U9 | S23 | Crash monitor | S03, S04b, S22 |
+| U10 | S24 | Settings and connectors | S04b, S22 |
+
+U3 and U4 land as one S08 slice commit if they stay small enough to review, else as two commits under the same slice. Same for U5 and U6 under S11.
 
 Slices that depend only on fixtures start before the real API lands (the architect's S04b makes that possible). Each is re-verified against the real API when the API slice lands.
 
 ### U1 Design system and state gallery
 
-- **Scope:** `tokens.css`, `theme.css`, fonts, the `packages/ui` primitives of §4.1, theme and locale switching in the shell, `/dev/states` with a page for every primitive, `scripts/check-tokens.mjs`, the axe and keyboard harness, `banned.ts` and its test, the first visual baselines.
+- **Scope:** `tokens.css`, `theme.css`, fonts, the `packages/ui` primitives of §4.1, theme and locale switching in the shell, `/design` with a page for every primitive, `scripts/check-tokens.mjs`, the axe and keyboard harness, `banned.ts` and its test, the first visual baselines.
 - **Acceptance:**
   1. `tokens.css` defines every token of the `DESIGN.md` colour table in both themes; the sync test fails on a missing or changed token.
   2. Contrast: every listed text pair is ≥ 4.5:1 and every non-text pair ≥ 3:1, in both themes.
@@ -703,7 +705,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   9. `check-tokens` fails on a planted hex colour in a component file.
   10. A button with `variant=primary` and an `IconButton` without a `label` fail typecheck in a type test.
 - **Tests:** `ui/src/tokens.sync.test.ts`, `ui/src/tokens.contrast.test.ts`, `ui/src/primitives/**/*.test.tsx` (one per primitive), `ui/src/types.test-d.ts`, `scripts/check-tokens.test.mjs`, `web/e2e/gallery.a11y.spec.ts`, `web/e2e/gallery.keyboard.spec.ts`, `web/e2e/gallery.motion.spec.ts`, `web/e2e/theme.spec.ts`, `web/e2e/fonts.spec.ts`, `web/e2e/gallery.visual.spec.ts` (baselines per §15).
-- **Demo:** `FINORA_FIXTURE_UI=1 pnpm dev`, open `/en/dev/states`, tab through the Button page, switch the theme, switch to `/lv`.
+- **Demo:** `FINORA_DEMO=1 pnpm dev`, open `/en/design`, tab through the Button page, switch the theme, switch to `/lv`.
 
 ### U2 Client plumbing, fixtures and the stream
 
@@ -715,11 +717,11 @@ Slices that depend only on fixtures start before the real API lands (the archite
   4. The SSE client resumes with `Last-Event-ID` after a drop; backoff is 1, 2, 4, 8, 15 s with jitter; 45 s of silence forces a reconnect; `reconnecting` shows after 3 s (fake-clock tests).
   5. Money arithmetic is integer; formatting follows the locale (`en`, `lt`, `lv`, `et`); a test greps the reducer for float operations on money.
   6. Every `fixtures/ui` file validates against the `api-contract` schema, and every state in §12 has a file.
-  7. In a production build `?state=` is ignored and `/dev/states` returns 404.
+  7. In a production build `?state=` is ignored and `/design` returns 404.
   8. The purpose session expires after 12 h (fake clock) and survives a reload within it.
   9. Single-character shortcuts are ignored in editable fields, with modifiers, and when disabled in settings.
 - **Tests:** `web/src/state/investigation.test.ts`, `web/src/state/investigation.replay.test.ts`, `web/src/lib/sse.test.ts`, `web/src/lib/format.test.ts`, `web/src/lib/purpose-session.test.ts`, `web/src/lib/shortcuts.test.ts`, `web/src/fixtures/fixtures.test.ts`, `web/e2e/fixture-mode.spec.ts`.
-- **Demo:** `FINORA_FIXTURE_UI=1 pnpm dev`, open `/en/explorer/lv/00000000000?state=streaming` (a fixture code), watch the replay.
+- **Demo:** `FINORA_DEMO=1 pnpm dev`, open `/en/explorer/lv/00000000000?state=streaming` (a fixture code), watch the replay.
 
 ### U3 Shell, search and the command bar
 
@@ -895,7 +897,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 ## 16. Asks of other seats and open items
 
-**Architect (to fold into `docs/architecture.md` and `slices.md`):**
+**Architect.** Status after milestone B (2026-11-20): items 1, 2, 3, 4, 5, 6, 8 and 10 are accepted and in `architecture.md` §5 and `slices.md` (S04b lands every DTO schema; the gallery route is `/design`; the SSE client sends `Last-Event-ID` with `?lastEventId=` as the fallback; library delete is `DELETE /investigations/:id`; the re-run route and `typicalSeconds` are in). Still to confirm: item 7 (the generated item list path) and item 9 is done by the table above. The original list, kept for the record:
 1. Accept deviations D1-D4 (§1), including `FieldRow` and `SourceChip` in `apps/web`.
 2. Search response shape: `GET /search?q=` returns groups with state: `{ groups: { id, kind: "bulk" | "live", country, state: "ready" | "loading" | "error", percent?, results[] }[] }`. Live state registers are separate requests the client fires in parallel (`GET /search/live/{register}?q=`), each returning one group, so a slow register never blocks the rest. **[pending: architect]**
 3. SSE: `Last-Event-ID` header on the first request, with a `?lastEventId=` fallback.
