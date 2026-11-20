@@ -60,6 +60,31 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
   4. `check-lawyer-register` fails on a `[pending: lawyer]` marker with no register row.
   5. `gen-items` produces 155 items with their calls; the generated file is checked current in CI.
   6. `ci` runs on the hub PR beside `guard`; both green.
+  7. Every row of `docs/plan/lawyer-register.md` has the test below that holds its interim value; `check-lawyer-register` fails if a row has no entry here.
+
+     | LAWYER id | Interim enforced by |
+     |---|---|
+     | LAW-BO-LV-EE | `ingest/src/hide.negative.test.ts`, `domain/src/report/restricted.test.ts` |
+     | LAW-PSEUDONYM | `store/src/person-scope.test.ts`, `sources/src/person-fields.test.ts` (no HMAC computed, no person key) |
+     | LAW-LV-OFFICERS | `domain/src/report/lv-people.test.ts` |
+     | LAW-LLC-MEMBERS | `ingest/src/party-gate.test.ts` |
+     | LAW-RETENTION-ROLES | `ingest/src/history.test.ts` |
+     | LAW-CACHE-TTL | `store/src/retention.test.ts`, `ingest/src/live-cache.test.ts` |
+     | LAW-SOLE-ADDRESS | `ingest/src/natural-person.test.ts` |
+     | LAW-PERSON-LINKS | `domain/src/network/build.test.ts` |
+     | LAW-ANON-COUNT | `domain/src/checks/checks.test.ts` (check 4 not run where S04 is LOCK) |
+     | LAW-WHOIS-LT | `agent-tools/src/output-filter.test.ts` (holder never shown) |
+     | LAW-WHOIS-LV-EE | `agents/src/items.agent.test.ts` (LATER ids never queried) |
+     | LAW-SAM | `sources/src/us/sam-exclusions.test.ts` (fields dropped, keyed extract only) |
+     | LAW-FINRA | `agent-tools/src/check-live-list.test.ts` (link-out, no request) |
+     | LAW-SHARE-ALIKE | `ingest/src/share-alike.test.ts`, `ingest/src/live-no-store.test.ts` |
+     | LAW-P7-SCOPE | `domain/src/policy/purposes.test.ts` |
+     | LAW-DEFAMATION | `agents/src/orchestrator.subject.test.ts` |
+     | LAW-DISPUTE-WINDOW | `store/src/disputes.test.ts` |
+     | LAW-SODRA | `sources/src/licences.test.ts` (storage class), `ingest/src/live-no-store.test.ts` |
+     | LAW-FILING-DEADLINES | `domain/src/checks/filing-deadlines.test.ts` |
+     | LAW-MARKET-CAP | `markets/src/items.test.ts` (no value lost without quoted terms) |
+     | LAW-AGPL-HOSTED | no hosted build in v1; `web/e2e/source-link.spec.ts` (R18) |
 - **Tests:** `scripts/check-deps.test.mjs`, `scripts/check-lawyer-register.test.mjs`, `scripts/gen-items.test.mjs`, `tooling/eslint/rules.test.ts`, `tooling/eslint/rules/denylist.test.ts`, `domain/src/items/items.generated.test.ts`.
 - **Demo:** clone into a new folder, run the four commands, see them pass; open the hub PR checks and see `ci` and `guard` green.
 
@@ -198,7 +223,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S11 Investigation UI: live agents, verdict and report (U5, U6)
 - **Owner:** frontend · **with:** designer, data-osint · **Depends on:** S08, S09 (S10 for real agents) · **web-qa**
-- **Scope:** `ui-build-plan.md` U5 and U6: the Investigate sheet (purpose, estimate with `typicalSeconds`, cap, daily left, "add your key" without a key, "No agents run on a private individual" for natural persons), the lead row, four `AgentLane`s with tasks and per-lane cost, question cards per kind (no countdown on `entity_choice`), cap reached and daily cap sheets, stop, reconnecting, the `VerdictBlock` (rule-based level and coverage separate from the AI-written explanation), findings in their sections with citation chips opening the quoted span, rerun one agent, follow-ups.
+- **Scope:** `ui-build-plan.md` U5 and U6: the Investigate sheet (purpose, estimate with `typicalSeconds`, cap, daily left, "add your key" without a key, "No agents run on a private individual" for natural persons), six lanes (lead, the four specialists, verdict; the header counts "4 agents") with tasks and per-lane cost, question cards per kind (no countdown on `entity_choice`), cap reached and daily cap sheets, stop, reconnecting, the `VerdictBlock` (rule-based level and coverage separate from the AI-written explanation), findings in their sections with citation chips opening the quoted span, rerun one agent, follow-ups.
 - **Acceptance:** U5 and U6 in `ui-build-plan.md` §14, plus:
   1. Every DESIGN.md investigation state matches its mockup at four viewports (empty, loading, streaming, partial, error, each question kind, cap reached, report).
   2. Events show within 500 ms; a reload mid-run restores the same state from snapshot + stream.
@@ -232,8 +257,8 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S14 Lithuania loaders
 - **Owner:** data-baltics · **with:** architect · **Depends on:** M2
-- **Scope:** every `docs/plan/loaders/lt-*.md` spec: the daily register files with the classifier and address joins, the tax-authority datasets and the arrears change feed (purge guard on deletes), social-insurance files grouped per company-period, statements grouped per report, `paid_only` people with the register's own ordering page.
-- **Acceptance:** each spec's Tests; every LT SHOW/CAVEAT item renders; S03.LT names render `paid_only` with the official order link only; P10: LT ≤ 2 GB, searchable in ≈ 2 min.
+- **Scope:** every `docs/plan/loaders/lt-*.md` spec: the daily register files with the classifier and address joins, the tax-authority datasets and the arrears change feed (purge guard on deletes), social-insurance files grouped per company-period (storage `live-no-store` while `LAW-SODRA` is open, council), statements grouped per report, `paid_only` people with the register's own ordering page, the Statistics Lithuania activity table with English labels into `labels`, share capital as an optional S01 field.
+- **Acceptance:** each spec's Tests; every LT SHOW/CAVEAT item renders; S03.LT names render `paid_only` with the official order link only; social-insurance debts stay in the instant profile with nothing written to disk (`ingest/src/live-no-store.test.ts` on the LT fixtures); the 180-day arrears rule follows the stability-check outcome (`domain/src/verdict/lt-arrears-age.test.ts`); P10: LT ≤ 2 GB, searchable in ≈ 2 min.
 - **Tests:** the spec files' named tests under `sources/src/lt/`, `sources/src/lt/*.live.test.ts`.
 - **Demo:** `pnpm finora-cli data sync --country lt`, open a Lithuanian company, see arrears, insured counts and the paid-extract line for names.
 
@@ -275,7 +300,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 ### S20 Network explorer (U8)
 - **Owner:** frontend (UI) + architect (network service) · **Depends on:** S08, S13, S14 · **web-qa**
 - **Scope:** architecture §5.5 and `ui-build-plan.md` U8: `GET /companies/:eid/network`, registered offices only, no address shared with a natural person, hubs collapsed after 20, the canvas graph with the list twin (default under 768 px), no agent runs on browse.
-- **Acceptance:** U8 in `ui-build-plan.md`; a fixture sole trader at a company address creates no edge; every edge carries a `SourceRef`; S17 items render with their caveat.
+- **Acceptance:** U8 in `ui-build-plan.md`; a fixture sole trader at a company address creates no edge, and a sole trader's profile has no Network action; every edge carries a `SourceRef`; member edges show their `share` where the file states it; S17 items render with their caveat.
 - **Tests:** `domain/src/network/build.test.ts`, `server/src/routes/v1/companies/[eid]/network/route.contract.test.ts`, `web/e2e/network.spec.ts`, `web/e2e/network.visual.spec.ts`, `web/e2e/network.a11y.spec.ts`.
 - **Demo:** open a company's network, follow a shared-address hub to another company.
 

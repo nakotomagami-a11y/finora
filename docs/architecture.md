@@ -129,7 +129,7 @@ Four rules decide everything the store holds (cto load rules 1-4, adopted by the
 3. **Financials: the latest 5 fiscal years** at load. Deregistered and struck-off companies keep identity properties only (name, code, form, status, dates).
 4. **HIDE and LATER items are never loaded.** A field mapped to one is dropped in the parser, counted in the sync report, and has a negative test.
 
-Never stored, whatever the source offers (policy P3, legal rules 1 and 5): personal codes (masked or not), birth dates or ages derived from them, the EE person hash, gender, personal emails, home addresses, sole-trader addresses finer than the country, natural-person insolvency, and tax or arrears lines tied to a natural person.
+Never stored, whatever the source offers (policy P3, legal rules 1 and 5): personal codes (masked or not), birth dates or ages derived from them, the EE person hash, gender, personal emails, home addresses, sole-trader addresses finer than the country, natural-person insolvency, tax or arrears lines tied to a natural person, sole traders' securing measures and tax suspensions, and sole traders' VAT numbers (an LV VAT number embeds the personal code; the profile shows "VAT registered: yes / no" only). Council, `01-data.md` Part H, calls from the Baltic loader specs.
 
 ### 3.2 Provenance: syncs and records
 
@@ -279,7 +279,7 @@ Every source's registry entry (§4.2) has exactly one storage class. The class d
 |---|---|---|---|
 | `store` | `finora.db` | open-licence registers, GLEIF, official sanctions lists, SEC | the default; licence invariants (§4.2) |
 | `share-alike-store` | `finora-sa.db`, attached read-only at query time | EE tax board (S07.EE.01, S08.EE.01), switchable | P1: the main store never holds a share-alike row **or anything derived from one** (history events included). Its tables mirror the main ones but key every row on the entity's public `eid` (text), never on `finora.db` integer ids, so a rebuild of either file cannot break the join (A6). Export, bulk API and bulk MCP exclude it; single-company responses carry its attribution and licence link. Tests: `ingest/src/share-alike.test.ts` (no main-store row or event references a share-alike sync, in both modes), `store/src/share-alike-rebuild.test.ts` (rebuild `finora.db`; the share-alike rows still attach), `domain/src/export/export.test.ts` |
-| `live-no-store` | memory only | the share-alike sources when `SHARE_ALIKE_MODE=live-no-store`; small daily lists | the file is read into memory at refresh and never written: no store row, no cache row, no file, no log line containing its values. The sync still writes its one `syncs` row with counts only (no values), so health and Settings can report it. Test: `ingest/src/live-no-store.test.ts` with sentinel values and a spied filesystem and logger (legal condition 1). Large files in this mode (EE taxes paid) show `not_checked{reason: "later"}` with "Not checked: licence question pending" |
+| `live-no-store` | memory only | the share-alike sources when `SHARE_ALIKE_MODE=live-no-store`; the LT social-insurance files (S07.LT.01, S08.LT.02) while `LAW-SODRA` is open (council: a deterministic daily fetch, not `agent-only`, so social-insurance debts stay in the $0 instant profile; if the insured-count file is too large to fetch live, only the debts file stays and S07.LT.01 shows "Not checked: licence question pending"); small daily lists | the file is read into memory at refresh and never written: no store row, no cache row, no file, no log line containing its values. The sync still writes its one `syncs` row with counts only (no values), so health and Settings can report it. Test: `ingest/src/live-no-store.test.ts` with sentinel values and a spied filesystem and logger (legal condition 1). Large files in this mode (EE taxes paid) show `not_checked{reason: "later"}` with "Not checked: licence question pending" |
 | `live-cached` | `finora.db`, rows with a cache marker | US state registries (NY, CO, CT, PA) | written only for an entity the user opens; re-fetched on view when older than `LIVE_CACHE_REFETCH_HOURS` (24); purged when not viewed for `PERSON_DATA_TTL_DAYS` (30). A re-fetch that returns the company replaces its lines, and a withdrawn or corrected record is removed (CT terms). **An empty response is not proof of removal** (cto, data-us, legal): on the first miss (HTTP 200, empty, while the portal answers other queries) nothing is deleted, the cached values are withheld from every surface, and the profile reads "[State] registry did not return this company on [date]", naming no principal and implying no status; a second miss at least 24 h later deletes the rows, withdrawn principals included. 5xx, timeouts and 429 never count as a miss. Tests: `ingest/src/live-cache.test.ts` (fake clock: day 29 survives, day 30 deleted; 24 h re-fetch; CT withdrawal; an empty re-fetch withholds and keeps the rows; a second miss 24 h later deletes them; a 5xx is not a miss) |
 | `agent-only` | investigation `documents` only | live court portals, web checks, live national sanctions lists, UN list, news, US enforcement feeds | fetched by agents at query time, cited, kept only as investigation documents under the R11 TTL |
 | `store`, agent-read only | `finora.db` `court_index` | the FJC civil court index (1.56 M organisation-party rows, ≈ 0.2 GB, measured) | stored, read only by the legal agent's court tool, never rendered without an accepted agent finding |
@@ -371,7 +371,7 @@ type SourceMeta = {
   publishedAtUtc: string | null;    // observed publication time; the scheduler runs after it
   asOf: AsOfRule;                   // ordered strategies, strongest first (below)
   maxPurgeShare: number;            // largest share of records one sync may delete: max(0.02, 5 x the measured removal share per refresh period); the spec states the measurement
-  purgeScope: "full" | "window" | "periods_in_file" | "none"; // full: a complete file defines the source; window: purges only inside its date window; periods_in_file: rolling files (LV VID, LT and EE taxes) purge only periods present in the file, so older periods stay as our history; none: incremental sources never purge
+  purgeScope: "full" | "window" | "periods_in_file" | "none"; // full: a complete file defines the source; window: purges only inside its date window; periods_in_file: rolling files (LV VID, LT and EE taxes) purge only periods present in the file, so older periods stay as our history (counted against HISTORY_MAX_GB; EE share-alike quarters that roll out collapse into one annual report per company, cto); none: incremental sources never purge
   deepLink: string | null;          // URL pattern with {recordKey} or {entityCode} (most LV record keys are not company codes)
   changeToken?: ChangeTokenRule;    // optional cheap upstream check (for example the LT statements API change-log id): unmoved token => { unchanged: true } without the download
   orderUrl: string | null;          // paid_only target; official register page only
@@ -452,7 +452,7 @@ Tests (S04/S05 acceptance; names from the early review): `ingest/src/purge.test.
 
 ### 4.5 Scheduling and budgets
 
-- **Cadence** per source from cto's table (`01-data-cto.md` §2): daily registers, officers, debtor lists and sanctions; weekly LV financial statements and VID files, EE general data, and GLEIF as a full load (deltas cannot define removals; cto accepted, data-us), staggered so it never shares a window with the EE general-data parse; monthly EE annual reports, LT statements, EE taxes paid; on view for SEC and the live US states. Each job runs after the source's `publishedAtUtc`.
+- **Cadence** per source from cto's table (`01-data-cto.md` §2): daily registers, officers, debtor lists and sanctions; weekly LV financial statements and VID files, EE general data, and GLEIF as a full load (deltas cannot define removals; cto accepted, data-us). **Weekly jobs** (LV financial statements, about 5 min to parse; EE general data; GLEIF) each get their own night, outside the 5-minute daily budget and never in the same window as another weekly job or the daily refresh; reads are never blocked (WAL, one writer); monthly EE annual reports, LT statements, EE taxes paid; on view for SEC and the live US states. Each job runs after the source's `publishedAtUtc`.
 - **Extending shared config:** a loader spec adds its own drop reasons, FtM extension properties and event types to `domain/config/drop-reasons.ts`, `domain/schema/extensions.ts` and `domain/config/event-types.ts` in its slice; the schema-subset test and the sync-report schema read those lists.
 - **First load:** countries parse in parallel (worker threads), one writer. Each country's register file loads first, and the country is searchable as soon as it lands; financials and the rest follow in the background.
 - **Budgets (P10, loader acceptance criteria)**, measured on the named machine profile in `docs/plan/benchmarks.md` with cto's probes (`research/probes/cto/`). Each loader slice also reports records per source and bytes per record:
@@ -634,7 +634,8 @@ Company to company only, one hop, from stored data (council Part C, Part H item 
 ```ts
 type Network = {
   nodes: { eid: string; name: string; code: string; status: string; country: Country }[];
-  edges: { from: string; to: string; relation: "shared_address" | "corporate_member"; source: SourceRef; since?: string }[];
+  edges: { from: string; to: string; relation: "shared_address" | "corporate_member"; source: SourceRef; since?: string;
+           share?: number }[];                     // percent held, corporate_member edges only, where the member file states it
   hubs: { addressKey: string; companyCount: number; collapsed: boolean }[];   // a hub collapses after 20 companies
   truncated: boolean;
 };
@@ -717,6 +718,8 @@ type Check = { checkId: CheckId;
   state: "ran" | "not_run" | "not_possible" | "not_evaluated";   // not_evaluated{trackedSince}: P14, our history does not cover the window yet
   trackedSince?: string; outcome?: "none_found" | "point_to_check" | "concern"; signals: string[]; statementIds: string[]; reason?: SkipReason };
 ```
+
+**Two check inputs decided by the council** (`01-data.md` Part H, Baltic calls): check 5 ("accounts filed on time") uses each country's statutory filing deadline cited from the law text in `domain/config/filing-deadlines.ts`, plus 30 days of grace for register processing (interim: LV 7 months, EE 6, LT 5, labelled as an estimate until cited; `LAW-FILING-DEADLINES`); the soft flag reads "Annual report for [year] not filed; due [date]". The LT 180-day arrears age is evaluated from day one from the arrears list's own entry date ("On the arrears list since [date]", a lower bound), so P14 does not apply to it, **provided** data-baltics' 7-day stability check shows the entry date does not reset while the debt continues (cto); if it resets, P14 applies. Tests: `domain/src/checks/filing-deadlines.test.ts`, `domain/src/verdict/lt-arrears-age.test.ts` (both outcomes of the stability check).
 
 The same `computeChecks(entity)` (`packages/domain/src/checks/`) serves the instant profile's 11-check list (S18) and the investigation. The instant profile shows the checks and the coverage line but no verdict level: the level is produced only by an investigation, after checks 10 and 11 had their chance to run. (Open item O1: the council may decide in session 2 to show a level on the instant profile too; the rule table would then run there with checks 10-11 counted as not run.)
 
@@ -840,7 +843,9 @@ type MarketRow = {
   asOf: string; sources: SourceRef[];
 };
 type CrashResponse = { tiles: { tileId: TileId; rows: MarketRow[] }[];
-  totalWiped?: { valueMicroUsd: number; rowItemIds: ItemId[]; oldestAsOf: string } };
+  totalWiped?: { valueMicroUsd: number; rowItemIds: ItemId[]; excludedItemIds: ItemId[]; oldestAsOf: string } };
+// totalWiped sums only rows whose tile config has countInTotal: true (US corporate equities, total crypto market);
+// a counted row with no value is named in excludedItemIds, never replaced by adding its parts (markets.md step 8).
 ```
 
 - **Taiwan peak:** seeded once from a cited official figure if legal clears it; until then "Peak not known yet: tracking since [date]", never 0%.
@@ -912,7 +917,7 @@ Three rule sets apply, each rule with exactly one enforcement point and at least
 | P13 | LAWYER register: id, question, affected items, interim value, config key, test; CI fails on a `[pending: lawyer]` with no row | `docs/plan/lawyer-register.md` (legal owns the rows); `scripts/check-lawyer-register.mjs` | `scripts/check-lawyer-register.test.mjs` |
 | P14 | Snapshot-dependent rules read "Not evaluated: tracked since [date]" until our history covers the window | the check-level state `not_evaluated{trackedSince}` on `Check` (§7.2), not a section state; verdict rules treat it as not evaluated, never as clean | `domain/src/verdict/history-window.test.ts` (a 10-day-old install cannot report "no rename in 6 months") |
 
-LAWYER rows (P13), ids as legal supplied them (7029900878): `LAW-BO-LV-EE`, `LAW-PSEUDONYM` (`PERSON_ROWS=names_no_id`), `LAW-LV-OFFICERS` (`LV_PERSON_ROWS=names_no_id`), `LAW-LLC-MEMBERS`, `LAW-RETENTION-ROLES` (`PERSON_ROLE_RETENTION_DAYS=0`), `LAW-CACHE-TTL` (`PERSON_DATA_TTL_DAYS=30`), `LAW-SOLE-ADDRESS`, `LAW-PERSON-LINKS`, `LAW-ANON-COUNT`, `LAW-WHOIS-LT`, `LAW-WHOIS-LV-EE`, `LAW-SAM`, `LAW-FINRA`, `LAW-SHARE-ALIKE` (`SHARE_ALIKE_MODE=store`), `LAW-P7-SCOPE`, `LAW-DEFAMATION`, plus `LAW-DISPUTE-WINDOW` (`DISPUTE_SUPPRESS_AFTER=0`) and `LAW-ACCOUNTS-DEADLINE` ("accounts filed on time": 7 months LV, 6 months EE, interim). `check-lawyer-register` matches `[pending: lawyer <id>]` markers against these ids. Each config value's interim is the safe one, and nothing is upgraded without the lawyer's answer.
+LAWYER rows (P13) are the rows of `docs/plan/lawyer-register.md` (legal owns them; the coordinator commits). `check-lawyer-register` matches every `[pending: lawyer <id>]` marker against that file's ids, and `slices.md` S01 names the test that enforces each row's interim value. Ids: `LAW-BO-LV-EE`, `LAW-PSEUDONYM` (config `PERSON_ROWS=names_no_id`), `LAW-LV-OFFICERS` (`LV_PERSON_ROWS=names_no_id`), `LAW-LLC-MEMBERS`, `LAW-RETENTION-ROLES` (`PERSON_ROLE_RETENTION_DAYS=0`), `LAW-CACHE-TTL` (`PERSON_DATA_TTL_DAYS=30`), `LAW-SOLE-ADDRESS`, `LAW-PERSON-LINKS`, `LAW-ANON-COUNT`, `LAW-WHOIS-LT`, `LAW-WHOIS-LV-EE`, `LAW-SAM`, `LAW-FINRA`, `LAW-SHARE-ALIKE` (`SHARE_ALIKE_MODE=store`), `LAW-P7-SCOPE`, `LAW-DEFAMATION`, `LAW-DISPUTE-WINDOW` (`DISPUTE_SUPPRESS_AFTER=0`), `LAW-SODRA` (storage class `live-no-store`), `LAW-FILING-DEADLINES`, `LAW-MARKET-CAP`, `LAW-AGPL-HOSTED`. Each interim is the safe value, and nothing is upgraded without the lawyer's answer.
 
 ### 10.3 Other rules (L1-L6)
 
