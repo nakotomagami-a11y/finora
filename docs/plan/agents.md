@@ -204,12 +204,22 @@ Test: `agent-tools/src/check-live-list.test.ts` (fixture pages for every list id
 
 | Country | Item | Source | Notes |
 |---|---|---|---|
-| LT | S10.LT.01 | Courts' public decision search | §4.5a |
-| LV | S10.LV.01 | Court portal decision search; open anonymised-rulings metadata; case numbers already in insolvency (99.7%) and securing measures (97.8%) | §4.5a |
-| EE | S10.EE.01 | Riigi Teataja court-decision search | §4.5a |
+| LT | S10.LT.01 | LITEKO public decision search (keyword) | §4.5a; gated on a build-time probe and a legal light |
+| LV | S10.LV.01 | case numbers already loaded with insolvency (99.7%) and securing measures (97.8%); the portal search later | §4.5a |
+| EE | S10.EE.01 | none: the portal's `robots.txt` disallows decision search | §4.5a; MANUAL link only |
 | US | S10.US.01, S10.US.02 | FJC civil Integrated Database (loaded; name-only possible matches); CourtListener API with the user's `COURTLISTENER_TOKEN` (125 requests a day, `data-us`) | without the token: FJC only, and the coverage line says so |
 
-**§4.5a Baltic court portals:** [filled from the court-portal research before this section is final; see §13].
+**§4.5a Baltic court portals** (read 2026-11-20 on the official pages; quotes as fetched; not legal advice):
+
+| Country | Official source | Search by company? | Companies anonymised? | Automated access | v1 behaviour (proposed) |
+|---|---|---|---|---|---|
+| LT | LITEKO public decision search, `https://liteko.teismai.lt/viesasprendimupaieska/detalipaieska.aspx?detali=2` (National Courts Administration) | no party or company-code field; only "Raktažodžiai" (keywords: "įrašomas ieškomas žodis, jo dalis arba žodžių junginys, kurie turėtų būti teismo procesiniame sprendime", [help](https://liteko.teismai.lt/viesasprendimupaieska/pagalba_viesa.aspx)) | natural persons: removed before publication; companies: **unverified** (older rules anonymised company names, "UAB (duomenys neskelbtini)"; the 2025 consolidated rules could not be read) | no `robots.txt` (HTTP 404), no terms page, no captcha seen; ASP.NET postback forms, no API, no stable result URL found | `search_courts` posts one keyword search with the registry code and one with the legal name, from the 2018+ form; results are `court_case_name_only` unless the decision text shows the code (`court_case_party_by_code`). **Gate:** a build-time probe must confirm the form works and that company names or codes appear in published decisions; legal gives a light (no terms found). Until both, check 10 in LT is `not_run` with reason `not_possible_in_country` |
+| LV | Court portal decision search `https://manas.tiesas.lv/eTiesasMvc/nolemumi` (anonymised judgments in force since 1 Sep 2013); open dataset "Anonimizētie nolēmumi" (CC0 1.0, daily, metadata only, [data.gov.lv](https://data.gov.lv/dati/lv/dataset/anonimizetie-nolemumi)) | portal: unverified (the host refused connections); dataset: no party fields | natural persons only: Cabinet Regulation No. 123, point 12, "datus, kas ļauj identificēt fizisko personu, dzēš"; company names are not anonymised | portal: unverified; `www.tiesas.lv/robots.txt` disallows only its own site search | v1: check 10 in LV runs on what is already loaded: the court case numbers in insolvency (99.7%) and securing measures (97.8%) rows (data-baltics' LV loaders), shown with the court and a MANUAL link to the portal. The portal search becomes an agent tool only after a build-time probe and a legal light. Coverage: "Court cases: only cases linked to insolvency or securing measures" |
+| EE | Riigi Teataja court decisions `https://www.riigiteataja.ee/et/otsing/kohtulahendid`; Supreme Court decisions now at `https://rikos.rik.ee/Lahendid` | no party or registry-code field found (third-party API guide only) | courts may withhold "registration number and address" on request (e-Justice); routine company anonymisation unverified | **`robots.txt` forbids it:** `www.riigiteataja.ee/robots.txt` has `Disallow: */kohtulahendid/*` and `Disallow: */kohtuteave/*` (which also covers the `/public-api/api/v1/kohtuteave/...` paths); `rikos.rik.ee/robots.txt` has `Disallow: /`. The Ministry of Justice (2020): personal data "pole võimalik massiliselt kopeerida" | **No agent search** (fetch rule: `robots.txt` is honoured). Check 10 in EE is `not_run`, reason `not_possible_in_country`; the section shows MANUAL: "Check manually at Riigi Teataja". This changes the council's S10.EE.01 (CAVEAT, AGENT) to MANUAL; council to confirm |
+
+- No portal publishes a rate limit; `search_courts` uses the default 1 request per 2 s per host and at most 2 searches per investigation.
+- The EU e-Justice ECLI search engine adds nothing usable: its web service is "currently not available", and Lithuania is listed as not yet using ECLI (conflicting with a 2024 national newsletter).
+- A private republisher of Lithuanian decisions exists; its terms forbid reuse for "kitų duomenų bazių, informacinių sistemų, paieškos įrankių" and it is not an official source, so it is never fetched (not on the allowlist).
 
 Signals: `court_case_party_by_code` only when the decision or docket names the pinned registry code; `court_case_name_only` otherwise (shown as "possible match, needs review", S10 caveat). Test: `agent-tools/src/search-courts.test.ts`.
 
@@ -314,7 +324,7 @@ The model's findings are explanation, not input.
 - Sole traders and natural persons never reach this table (the lead refuses them, §2.1).
 
 ### 6.3 Coverage
-`coverage = { ran, applicable: 11, skipped: [{ checkId, reason }] }`, reasons: `not_possible_in_country` (for example check 4 when S04 is LOCK: "Owners: restricted in [country]"), `run_failed`, `stopped`, `budget_exceeded`, `needs_key` (US public without `SEC_USER_AGENT`; US courts without `COURTLISTENER_TOKEN` count check 10 as run on FJC only). The UI line: "7 of 11 checks ran · 2 not possible in [country]".
+`coverage = { ran, applicable: 11, skipped: [{ checkId, reason }] }`, reasons: `not_possible_in_country` (for example check 4 when S04 is LOCK: "Owners: restricted in [country]"; check 10 in EE, where the court portal disallows automated search), `run_failed`, `stopped`, `budget_exceeded`, `needs_key` (US public without `SEC_USER_AGENT`; US courts without `COURTLISTENER_TOKEN` count check 10 as run on FJC only). The UI line: "7 of 11 checks ran · 2 not possible in [country]".
 
 ### 6.4 The explanation
 - Prompt: §10.2. Structured output; each sentence must list ≥ 1 finding id that exists in this investigation; sentences without one are dropped by the server before storage and by the renderer (R7).
@@ -480,10 +490,11 @@ Test: `agents/src/scenarios.test.ts` replays every scenario and asserts events, 
 
 **Agent tools and specialists (data-osint):**
 1. Every scenario in §13 passes.
-2. Every Part G CAVEAT row filled by an agent (S10.*, S11 live rows, S15.LT.01, S15.LV.02, S15.EE.02, S15.US.01, S15.LT.whois, S16.ALL.01) has a fixture-backed test that renders its caveat text and its AGENT empty state.
-3. Every LATER or HIDE row in the agents' area (S15.LV.whois, S15.EE.whois, S15.ALL.archive, S16.ALL.02-04, S11.ALL.04, S12.*) has a negative test: no tool queries it and no finding can carry its `itemId`.
-4. `web-fetch.ssrf.test.ts`: private addresses, redirects into them, oversized bodies and disallowed hosts are refused.
-5. Demo step: `pnpm finora --demo`, open "Example Trading SIA", press Investigate, watch four lanes run, answer the sanctions question, read the cited verdict.
+2. Every Part G CAVEAT row filled by an agent (S10.LT.01, S10.LV.01, S10.US.01-02, S11 live rows, S15.LT.01, S15.LV.02, S15.EE.02, S15.US.01, S15.LT.whois, S16.ALL.01) has a fixture-backed test that renders its caveat text and its AGENT empty state.
+3. S10.EE.01 renders its MANUAL state and no tool fetches a `riigiteataja.ee` or `rikos.rik.ee` decision path (`robots.txt`).
+4. Every LATER or HIDE row in the agents' area (S15.LV.whois, S15.EE.whois, S15.ALL.archive, S16.ALL.02-04, S11.ALL.04, S12.*) has a negative test: no tool queries it and no finding can carry its `itemId`.
+5. `web-fetch.ssrf.test.ts`: private addresses, redirects into them, oversized bodies and disallowed hosts are refused.
+6. Demo step: `pnpm finora --demo`, open "Example Trading SIA", press Investigate, watch four lanes run, answer the sanctions question, read the cited verdict.
 
 ---
 
@@ -508,7 +519,7 @@ Test: `agents/src/scenarios.test.ts` replays every scenario and asserts events, 
 ---
 
 ## 16. Open items
-- **Court portals (§4.5a):** search mechanics, anonymisation and terms for LT, LV and EE; research running, filled before qa reviews this file.
+- **Court portals (§4.5a):** S10.EE.01 cannot be an agent check (`robots.txt`); proposed MANUAL, for the council. S10.LT.01 and the LV portal need a build-time probe and a legal light (no terms found).
 - **Rule table entries marked "proposed"** (§6.2): council confirms in session 2.
 - **Contract additions for the architect:** `Finding.kind` (`signal | context`) and `signalIds`; `get_checks` as a shared tool; the `run.task` label keys of §11; the role-specific question limits of §7.
 - **Measured run** (§12): waits for the key-testing round.
