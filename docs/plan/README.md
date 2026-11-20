@@ -97,6 +97,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | **done** 2026-11-20: Part G final, 158 rows (SHOW 41, CAVEAT 58, LATER 54, HIDE 5), confirmed by council and cto; open (non-blocking): data-osint's WHOIS and archive terms |
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | early draft exists; frozen until phase 3 opens |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
+| `docs/plan/loaders/README.md` (spec template and ownership) | coordinator | 3 | done |
 | `docs/plan/loaders/*.md` | data seats | 3 | |
 | `docs/plan/agents.md` | data-osint | 3 | |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | |
