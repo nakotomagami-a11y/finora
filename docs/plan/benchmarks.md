@@ -14,7 +14,7 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 
 | Budget | Value |
 |---|---|
-| Disk | LV ≤ 2.5 GB · EE ≤ 3 GB (+ ≤ 0.25 GB share-alike) · LT ≤ 2 GB · cross-border ≤ 1 GB · whole store ≤ 10 GB |
+| Disk | LV ≤ 2.5 GB · EE ≤ 3 GB (+ ≤ 0.25 GB share-alike) · LT ≤ 2 GB · cross-border ≤ 1 GB · US ≤ 1 GB · whole store ≤ 10 GB (binding; history inside it). Estimate ≈ 7.75 GB, ≈ 8.75 GB with a year of history |
 | First core load | ≤ 30 min; LV and LT searchable in ≈ 2 min, EE in ≈ 6 min |
 | Daily refresh | ≤ 5 min, never blocking reads |
 | Unchanged reload | one `syncs` row, 0 statement writes |

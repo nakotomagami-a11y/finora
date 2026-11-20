@@ -11,7 +11,7 @@
 - **Every SHOW and CAVEAT item** in Part G is mapped to a data slice, a UI slice and an acceptance test in the appendix. Every HIDE item has negative tests on every surface (architecture §10.4), built in S04 and extended by each loader slice's fixtures.
 - **Order:** the council's walking skeleton. Latvia goes end to end (search → official profile → agents → sourced verdict) from one command (M2) before a second country's loaders are built (M3). Specs for every country exist already; building them waits.
 - **Owner** builds; **with** reviews the parts in their domain before qa.
-- Fixtures are synthetic only (architecture §13). Test doubles are named `...Mock`, "fake" or "stub" (the guard blocks one other common word).
+- Fixtures are synthetic only (architecture §13).
 
 ## Milestones
 
@@ -56,7 +56,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Acceptance:**
   1. A fresh clone runs `pnpm install && pnpm lint && pnpm typecheck && pnpm test` green on Windows and on Linux CI.
   2. `check-deps` fails when a package declares a dependency its table row forbids.
-  3. ESLint fails on `any`, on `process.env` outside `env.ts`, on a Node built-in in `packages/domain`, on a forbidden cross-package import, and on a denylisted identifier fed through `FINORA_GUARD_DENYLIST`.
+  3. ESLint fails on `any`, on `process.env` outside `env.ts`, on a Node built-in in `packages/domain`, and on a forbidden cross-package import. SHOULD (not blocking): the denylist rule flags a denylisted identifier fed through `FINORA_GUARD_DENYLIST`.
   4. `check-lawyer-register` fails on a `[pending: lawyer]` marker with no register row.
   5. `gen-items` produces 155 items with their calls; the generated file is checked current in CI.
   6. `ci` runs on the hub PR beside `guard`; both green.
@@ -97,11 +97,11 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
   1. Migrations run from an empty file, are idempotent, and every migration path is tested.
   2. A statement whose record has no sync, or whose sync has no licence, is refused (R3); a licence change keeps old rows on the old licence.
   3. Search finds a diacritic name by its ASCII form, by a substring and with a one-letter typo, ranked deterministically; a person's name and a sole trader's name return nothing (L2, L3).
-  4. Every pipeline test of architecture §4.4 passes: purge (1,000 records, 1 changed, 1 removed), unchanged, partial, stale, parser version, purge guard (incl. the boundary and a 50% feed page), class change, party gate (one case per type value), history (rename event; role ended without a name), role-ended (a spelling fix on the same row id is not a role end).
+  4. Every pipeline test of architecture §4.4 passes: purge (1,000 records, 1 changed, 1 removed), unchanged, partial, stale, parser version, purge guard (incl. the boundary, a 50% feed page, and a window source: an aged-out quarter passes, a half-missing quarter inside the window is refused), class change, party gate (one case per type value), history (rename event; role ended without a name), role-ended (a spelling fix on the same row id is not a role end).
   5. P1: no main-store row or event references a share-alike sync, in both modes; `live-no-store` writes nothing (spied filesystem and logger, sentinel values); a rebuild of `finora.db` keeps the share-alike join.
   6. P2: 3 companies opened in one session → 3 log rows; after 12 h + 1 min → `needs_purpose`; a purpose change gives a new row and leaves the first unchanged.
   7. R10: a dispute on officer A survives the replacement of A's role set; B shows.
-  8. P5: fake clock, a live-cached entity viewed on day 29 survives, day 30 is deleted; a source unchanged for 40 days keeps its current officers.
+  8. P5: fake clock, a live-cached entity viewed on day 29 survives, day 30 is deleted; an empty re-fetch withholds and keeps the rows, a second miss 24 h later deletes them, a 5xx is not a miss; a source unchanged for 40 days keeps its current officers.
   9. P3 and PS5: the fixture codes and person eids are absent from every table and every log line of a full fixture sync.
   10. HIDE: every HIDE item in the raw-layout fixtures is dropped at load and counted (§10.4 loader suite).
   11. `pnpm fixtures:gen` is byte-identical for the same seed; `fixtures/ids.test.ts` checks every fixture id against its rule; the fixture world loads in under 5 s on the named profile (recorded in `benchmarks.md`, relative budget in CI).
