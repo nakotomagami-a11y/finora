@@ -335,7 +335,7 @@
     else if (state === "streaming" || state === "question") body = `${finding({ text: "The website names the same registration number in its footer, and certificate logs show the domain in use since 2014, the year the company was registered.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web", landing: true })}
       <div style="margin-top:10px">${running("web, domain and news", "reading the news index (query 2 of 4)")}</div>`;
     else if (state === "partial") body = `<div class="rows">${R("Website and domain", { state: "not_checked", reason: "error", text: "the company's website did not answer, so the web agent did not finish" })}</div>`;
-    else if (offer === "mismatch") body = `${finding({ text: "The offer's domain paraugs-timber-pay.example is not the company's website: its homepage shows no registration number and the company's own site doesn't link to it. Certificates seen since 29 Oct 2026.", sev: "point_to_check", conf: "corroborated", src: S.webCt, agent: "Web" })}
+    else if (offer === "mismatch" || offer === "other" || offer === "unresolvable") body = `${finding({ text: { mismatch: "paraugs-timber-pay.example is not linked to Paraugs Timber SIA in the register or on its own website: its homepage shows no registration number. Certificates seen since 29 Oct 2026.", other: "paraugs-timber-pay.example belongs to another company: its homepage states registration no. 40000FX0093, not this company's.", unresolvable: "paraugs-timber-pay.example does not resolve: no DNS record answers for it." }[offer], sev: "point_to_check", conf: "corroborated", src: S.webCt, agent: "Web" })}
       <div style="height:10px"></div>
       ${finding({ text: "The website named in the register, paraugs-timber.example, shows the same registration number in its footer.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web" })}`;
     else if (offer === "match") body = `${finding({ text: "The offer's domain paraugs-timber.example is the company's website: it shows the same registration number in its footer. Certificates seen since 2014.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web" })}`;
@@ -370,7 +370,9 @@
     if (level === "serious") { c[7] = [c[7][0], "hard", "Insolvency proceedings started 14 Nov 2026"]; }
     if (state === "partial") c[10] = [c[10][0], "notrun", "Web agent did not finish (the website did not answer)"];
     if (stopped) c[10] = [c[10][0], "notrun", "Stopped by you before the web agent finished"];
-    if (offer === "mismatch") c[10] = [c[10][0], "soft", "The offer's domain paraugs-timber-pay.example is not linked to this company (website_inconsistent)"];
+    if (offer === "mismatch") c[10] = [c[10][0], "soft", "paraugs-timber-pay.example is not linked to Paraugs Timber SIA in the register or on its own website"];
+    if (offer === "other") c[10] = [c[10][0], "soft", "paraugs-timber-pay.example belongs to another company: its homepage states registration no. 40000FX0093", "first"];
+    if (offer === "unresolvable") c[10] = [c[10][0], "soft", "paraugs-timber-pay.example does not resolve"];
     return c;
   }
 
@@ -422,9 +424,9 @@
   // check number; never inferred, name-only or context findings; fewer than three when fewer qualify.
   function keyFindings(checks) {
     const ANCHOR = ["status", "status", "people", "owners", "filings", "financials", "tax", "insolvency", "sanctions", "courts", "web"];
-    return checks.map((c, i) => ({ n: i + 1, text: c[2], hard: c[1] === "hard", fired: c[1] === "hard" || c[1] === "soft", anchor: ANCHOR[i] }))
+    return checks.map((c, i) => ({ n: i + 1, text: c[2], hard: c[1] === "hard", first: c[3] === "first", fired: c[1] === "hard" || c[1] === "soft", anchor: ANCHOR[i] }))
       .filter((k) => k.fired)
-      .sort((a, b) => (b.hard - a.hard) || a.n - b.n)
+      .sort((a, b) => (b.hard - a.hard) || (b.first - a.first) || a.n - b.n)
       .slice(0, 3);
   }
 
@@ -605,7 +607,7 @@
     { key: "install", label: "Snapshot history", options: [["established", "Covers 6 months"], ["new", "New install: not evaluated yet"]] },
     { key: "sec", label: "SEC contact (US public)", options: [["set", "Set"], ["missing", "Missing: needs key"]] },
     { key: "name", label: "Name length", options: [["normal", "Normal"], ["long", "Very long (Latvia)"]] },
-    { key: "offer", label: "Offer domain (report, Latvia)", options: [["none", "Not given"], ["match", "Matches the company"], ["mismatch", "Not linked to the company"]] },
+    { key: "offer", label: "Offer domain (report, Latvia)", options: [["none", "Not given"], ["match", "Tied to the company"], ["mismatch", "Not tied to the company"], ["other", "Belongs to another company"], ["unresolvable", "Does not resolve"]] },
     { key: "lvpeople", label: "Latvian officer names", options: [["names", "Names (v1 default)"], ["role_counts", "Role counts only (legal fallback)"]] },
   ]);
 })();
