@@ -26,3 +26,8 @@
 **Missing mockup states:** the reconnecting banner, stopped by the user and the report after Stop, retry of a single failed agent, the command bar open, and a standalone `not_evaluated` state (acceptable as text rows).
 
 **Not tested:** Firefox and WebKit, screen readers, failure injection, 200% text zoom, print. web-qa re-runs the full sweep when the designer posts the fixes.
+
+## Status (2026-11-20)
+
+- The designer fixed W1-W6 and most smaller findings in `05237c2` (popovers flip or become a bottom sheet; `.row-value { flex: none }` when rows stack; a compact lane list under the header plus a sticky run bar; the status pill under the name in search rows; `aria-expanded` reset; modal sheets), and added the missing states (`?state=reconnecting`, `?state=report&stopped=yes`, `?state=partial&country=lt`, `?cmd=open`, `?problem=open`).
+- web-qa's second run used `b9e961f`, which predates `05237c2`, so it re-measured the old files. Its Firefox and WebKit pass on that commit: 0 console errors, 0 failed requests, 0 overflow. A re-run from the tip is pending.
