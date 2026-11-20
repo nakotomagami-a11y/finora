@@ -11,8 +11,8 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 1. Data research | **done** | 2026-11-19 | 2026-11-20 |
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
-| 4. Council session 2: plan approval | **in progress** | 2026-11-20 | |
-| 5. Build, slice by slice | waiting for phase 4 | | |
+| 4. Council session 2: plan approval | **done**: S01-S03 approved; S04+ gated on 16 fixes | 2026-11-20 | 2026-11-20 |
+| 5. Build, slice by slice | **in progress**: S01-S03 | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
@@ -105,7 +105,8 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/agents.md` | data-osint | 3 | landed `1ecbbc4`; court portals (§4.5a) to follow; §16 lists contract additions for the architect |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | draft pushed |
 | `docs/plan/lawyer-register.md` (P13) | legal (committed by coordinator) | 3 | 32 rows, with affected items and tests |
-| `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | legal input and cto's red-team (3 blocking, architect) recorded; council decision pending |
+| `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | **done**: approved S01-S03; 16 gated fixes; O1 confirmed, O2 changed |
+| `docs/plan/council/session3-runbook.md` (milestone sessions) | coordinator | 4 | done |
 | `docs/plan/qa-plan-checklist.md` | qa (committed by coordinator) | 3 | done |
 | `docs/plan/reviews/02-plan-review.md` (qa's full plan review, milestone B) | qa (committed by coordinator) | 3 | **qa verdict: no open MUST-FIX; ready for council session 2** (`2314a54`) |
 | `docs/plan/reviews/03-mockups.md` (web-qa's mockup review) | web-qa (committed by coordinator) | 3 | **signed off** by web-qa at `d9441ad` |
@@ -193,4 +194,4 @@ Data seats add rows here through their `result` posts; the coordinator keeps the
 ## Council records
 - Session 0 (framing): `docs/plan/council/00-framing.md`, 2026-11-19
 - Session 1 (data): `docs/plan/council/01-data.md` (decision, confirmed 2026-11-20) and `docs/plan/council/01-data-cto.md` (technical calls)
-- Session 2 (plan): convened 2026-11-20; record to come in `docs/plan/council/02-plan.md`
+- Session 2 (plan): `docs/plan/council/02-plan.md`, 2026-11-20: approved S01-S03, S04+ gated on 16 fixes

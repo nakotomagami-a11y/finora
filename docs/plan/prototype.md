@@ -18,6 +18,7 @@ v1 is fully working when every line below holds on a clean machine, checked by s
 | D8 | **Green.** `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm e2e` locally and every CI job on the hub PR (including `guard`); qa has no open MUST-FIX on any slice; web-qa has no open MUST-FIX on any UI slice; the security reviews on the marked slices have no open finding | CI; `docs/plan/reviews/` |
 | D9 | **Quality gate on real data.** `node scripts/milestone-gate.mjs` on the regression set in `research/.cache/`: 0 wrong-company findings, 100% cited verdict claims, and a fresh random sample of 10 companies per country within 10 points of the reality-check fill rates. Output (aggregates only) pasted into the session 3 record | S12, S25, S26 |
 | D10 | **Council sign-off.** Session 3 at M5 runs the demo script in §3 and records "fully working" in `docs/plan/council/03-*.md`. Then the human merges the hub PR | S26 |
+| D11 | **Daily-use trial** (council session 2, item 1). 10 working days of real use, starting when M2 lands and running alongside M3-M5 without stalling the build. Counts only, kept locally: days the app was opened, real counterparty look-ups, investigations. **Pass:** opened on at least 8 of 10 days, at least 5 real look-ups, at least 2 investigations the human would have paid for. Every friction note becomes MUST-FIX or LATER before session 3 at M5. If the human doesn't run it, the M5 record says "daily use unmeasured". **Kill criterion:** fewer than 5 real look-ups in 10 days → v1 is not signed off as a daily company tool; stop adding countries and tools and build the change flags first | the trial's local counts, pasted into `03-m5.md` |
 
 **Not part of v1** (LATER in Part G, so their absence is not a defect): company groups (S05), public money (S12), reviews and social media, person-to-person network links, "also officer in N companies", the web archive and .lv/.ee WHOIS, average salary, macro tiles (M09), FL and OR/WA state registries, PEP lists, hosted or multi-user deployment, profile templates beyond the counterparty check.
 
@@ -29,7 +30,7 @@ Each scenario is a real task the maintainer does. The session 3 demos run them o
 |---|---|---|---|
 | U1 | **Morning check.** Open the app; look at Crash monitor | Tiles show drawdown from peak with as-of times; rows without a key say what to add; nothing reads "0%" without data | - |
 | U2 | **"Will this supplier still exist and deliver?"** Search a Latvian company by part of its name, open it | The profile shows status, officers (after a purpose), members that are companies, financials for 5 years, tax rating, insolvency and securing measures, sanctions lines, the 11 checks and the coverage line; every value has its source chip | LV |
-| U3 | **"An unknown company sent an invoice: is it real?"** Paste a name and a registry code from the invoice (in Lithuania, social-insurance debts come with the investigation, not the instant profile) | Search pins the exact entity by code; if two match by name, the app asks which; a deregistered company reads "Removed from the register" with its date, never "no match" | EE, LT |
+| U3 | **"An unknown company sent an invoice: is it real?"** Paste a name and a registry code from the invoice, and the sender's domain from the email or offer (in Lithuania, social-insurance debts come with the investigation, not the instant profile) | Search pins the exact entity by code; if two match by name, the app asks which; a deregistered company reads "Removed from the register" with its date, never "no match" | EE, LT |
 | U4 | **Deep dive before signing.** Press Investigate on the profile | The pre-run range shows (typical to worst case under the $1.50 cap) next to today's remaining spend; four lanes run at once with task rows ticking; a question card appears when needed; the report ends in a level with "N of 11 checks ran", findings each with a citation, and an AI-written label on prose | LV, EE, LT, US public |
 | U5 | **US counterparty.** Search a US private company | Live groups for NY, CO, CT and PA arrive one by one, each with a "did not answer" state when it times out; the profile names the registries checked and says owners and accounts are not published in the US | US private |
 | U6 | **US public company.** Open a listed US company | Filings, financials, officers, insider trades behind the purpose gate (with `SEC_USER_AGENT`); without it, a clear `needs_key` state | US public |
@@ -45,8 +46,8 @@ Run from a clean clone, on real data, by a council seat or the maintainer, in th
 1. **Install.** `git clone`, `pnpm install`, `pnpm finora`. Watch the progress view; search Latvia as soon as it lands (D1).
 2. **Morning check** (U1, D6). Open Crash monitor: official rows filled; one fund slot set from Settings fills its row on refresh.
 3. **Latvian supplier** (U2, D2, D3, D5). Search part of a name; open the company; state a purpose; read People; hover three values to see source, licence and dates; follow one link to the register.
-4. **Investigate** (U4, D4). Press Investigate; read the pre-run range; watch the four lanes; answer the question card; read the verdict, the coverage line and three citations; ask one follow-up.
-5. **Estonian invoice check** (U3). Search by registry code; open; see the tax-debtor line with its CC BY-SA attribution.
+4. **Investigate** (U4, D4), on a company where a question card is certain to appear. Press Investigate; read the pre-run range; watch the four lanes; answer the question card; read the verdict, the coverage line and three citations; ask one follow-up.
+5. **Estonian invoice check** (U3). Search by registry code; open; see the tax-debtor line with its CC BY-SA attribution; press Investigate with the sender's **offer domain** and see the web agent check it against the register (DNS, certificates, homepage, registry creation date).
 6. **Lithuanian company** (U3). Open; see tax arrears, the paid-extract line for names, and "Social-insurance data: checked when you investigate"; investigate and see the money agent read social-insurance debts live.
 7. **Sole trader** (U7, D5). Open one; see the facts-only variant.
 8. **US private and public** (U5, U6). Search a common US name; watch the state groups arrive; open a listed company with `SEC_USER_AGENT` set.
@@ -62,7 +63,7 @@ The council answers: would we use this every day? What is missing? Then signs of
 | # | Risk | Likelihood | Impact | Mitigation | Owner | Trigger to act |
 |---|---|---|---|---|---|---|
 | K1 | **Wrong company in a finding** (the council's worst failure) | M | H | Entity pinned to a registry id before any agent runs; `entity_choice` with no default; citations rejected if their entity isn't the subject or linked; milestone gate fails on any wrong-company finding | data-osint, architect | any wrong-company finding in a gate run: stop feature work |
-| K2 | **Keys not ready** (`SEC_USER_AGENT`, `ANTHROPIC_API_KEY`, `SAM_GOV_API_KEY`, `SOCRATA_APP_TOKEN`) blocks D2 for the US and D4's measured cost | M | H | Asked early; every key-gated path has a fixture mode and a `needs_key` state; the human's key round is scheduled before M3 (US) and before S10's measured run | coordinator | M2 demo reached without the key round |
+| K2 | **Keys not ready** (`SEC_USER_AGENT`, `ANTHROPIC_API_KEY`, `SAM_GOV_API_KEY`, `SOCRATA_APP_TOKEN`) blocks D2 for the US and D4's measured cost | M | H | Asked early; every key-gated path has a fixture mode and a `needs_key` state. `ANTHROPIC_API_KEY` is asked for at M1 exit, with a date. **Trigger:** S09 is green on the `fake` provider with no key; S09 may merge marked "pending the measured run", but M2 can't pass without the run. **Parallel lane** while critical-path seats wait: S22 after S04, S23 and S24 after S22, S19 after S09, S21 after S11, and S17 before S16 if `SEC_USER_AGENT` is late (it also brings Crash monitor earlier, so the trial has its daily habit) | coordinator | M1 exit without a key date |
 | K3 | **Measured agent cost exceeds the cap** | M | M | Runtime slice not accepted until the measured run replaces the model; council kill criterion: cut agents before raising the cap | data-osint, cto | measured p95 > $1.50 |
 | K4 | **Store budget overrun** (≤ 10 GB store, ≤ 12 GB data dir) | M | M | Narrow facts, record unit per report, load rules 1-4; each loader slice reports its share in `benchmarks.md`; a spec over budget cuts fields or years | cto, data seats | any loader over its country cap |
 | K5 | **Upstream schema or URL change** (EE annual-report zips have no stable URL; LT API pages unknown) | H | M | Parsers validate headers; failure modes in every spec; the nightly `live` job; sync failures shown on Settings, never silent | data seats | a `live` job failure |
@@ -98,9 +99,17 @@ The council answers: would we use this every day? What is missing? Then signs of
 
 | Before | What | Why |
 |---|---|---|
-| M2 (S10's measured run) | `ANTHROPIC_API_KEY` | replaces the modelled agent cost; calibrates the pre-run estimate (about $5) |
+| M1 exit (asked with a date), needed before M2 passes | `ANTHROPIC_API_KEY` | S10's measured run replaces the modelled agent cost and calibrates the pre-run estimate. **Build spend on the human's own key: about $45 expected, plan for $100** (the measured run plus three milestone-gate runs; council session 2 corrects the earlier "about $5") |
 | M3 (S16, S17, S18) | `SEC_USER_AGENT` (a real email), `SOCRATA_APP_TOKEN` (free, recommended), `SAM_GOV_API_KEY` (free) | US public companies, unthrottled state queries, federal exclusions |
 | M4 (S22-S24) | one free stock key, optionally a crypto aggregator demo key | the fund-proxy tiles |
 | Done | the final merge of the hub PR | the only merge |
 
 The full list with variable names is the register's "Keys: what each unlocks" table.
+
+## 7. The milestone gate (council session 2, item 5)
+
+- **Regression set:** `research/.cache/regression/set.json` in the main checkout (country, registry id; never committed), built and owned by the coordinator before S12 from the reality-check samples.
+- **Wrong-company finding:** a citation or anchor that resolves to an eid other than the subject or an entity linked to it by an official-id `same_as` (data-osint's definition in `agents.md`).
+- **Runs:** question cards are answered by script (`agents.md` §12); the gate investigates the regression set only; the fresh 10-per-country sample checks profile fill only, at $0. `--budget-usd` keeps its own ledger and never starts an investigation whose `high` exceeds what is left; spend appears in the totals, and gate runs feed the estimate history.
+- **Output:** a fixed table (wrong-company count, cited-claim rate, fill-rate delta per country, spend), exit 0 or 1.
+- **Calibration** (kill criterion): at least 90% of measured and M2 runs settle at or under `high`, with the median within ±30% of `typical`; otherwise S10 is not accepted and agent depth is cut before the cap is raised.
