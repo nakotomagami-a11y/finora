@@ -55,7 +55,7 @@
   }
 
   const tile = ({ id, title, big, sub, rows = [], foot, caveat, empty, spark }) => `<section class="tile ${empty ? "empty" : ""}" aria-labelledby="${id}-h">
-      <div class="tile-head"><h3 id="${id}-h">${title}</h3><span class="mono muted" style="font-size:11px;margin-left:auto">${id}</span></div>
+      <div class="tile-head"><h2 id="${id}-h">${title}</h2><span class="mono muted" style="font-size:11px;margin-left:auto">${id}</span></div>
       ${empty ? `<div class="tile-shape">${empty}</div>` : `<div style="display:flex;align-items:flex-end;gap:12px;justify-content:space-between"><span class="tile-big loss num">${big}</span>${spark ? `<span class="muted">${sparkline(spark, 110, 32)}</span>` : ""}</div>${sub ? `<span class="small ink2">${sub}</span>` : ""}`}
       ${rows.length ? `<div class="tile-rows">${rows.map(([k, v]) => `<div class="tile-row"><span class="muted">${k}</span><span class="num">${v}</span></div>`).join("")}</div>` : ""}
       ${caveat ? `<span class="caveat">${icon("info", "icon icon-sm")}<span>${caveat}</span></span>` : ""}
@@ -81,7 +81,7 @@
 
   function debt() {
     return `<section class="card" style="padding:20px;display:flex;flex-direction:column;gap:8px;flex:1 1 320px;min-width:0" aria-labelledby="debt-h">
-      <div class="tile-head"><h3 id="debt-h">US national debt</h3><span class="mono muted" style="font-size:11px;margin-left:auto">M08</span></div>
+      <div class="tile-head"><h2 id="debt-h">US national debt</h2><span class="mono muted" style="font-size:11px;margin-left:auto">M08</span></div>
       <span class="debt num" aria-live="off">$38,612,904,${state === "loading" ? "…" : "117,220"}</span>
       <span class="small ink2"><span class="tag tag-rule">estimate</span> ticking between official figures</span>
       <div class="tile-rows"><div class="tile-row"><span class="muted">Official, 18 Nov 2026</span><span class="num">$38,610,227,451,903</span></div><div class="tile-row"><span class="muted">Change in 30 days</span><span class="num delta-down">${icon("arrowUp", "icon icon-sm")}+$214 billion</span></div></div>

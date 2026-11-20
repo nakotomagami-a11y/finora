@@ -129,7 +129,7 @@ Every value renders through `FieldRow` with an `itemId` from Part G. The section
 
 ### 6.1 SourceChip
 
-A mono chip at the row end: `Register LV · 19 Nov`. Click or Enter opens a popover (Esc closes) with: source name, licence, access tier (open data / share-alike store / your key / display only / query time / shown after a stated purpose), the source's as-of date, retrieved at and by which loader or agent, an excerpt for agent findings, "Open the record" (where a stable per-record link exists) and "How this source is used" (Sources page). Variants: `web` (agent finding, `--info` text), `derived` ("Derived by Finora", dashed border, with "Computed from"), `stale` (amber).
+A mono chip at the row end: `Register LV · 19 Nov`. Click or Enter opens a popover (Esc closes it, returns focus to the chip and resets `aria-expanded`). On desktop the popover opens under the chip and flips left, right or up so it never leaves the viewport; under 768 px it is a bottom sheet across the screen. It with: source name, licence, access tier (open data / share-alike store / your key / display only / query time / shown after a stated purpose), the source's as-of date, retrieved at and by which loader or agent, an excerpt for agent findings, "Open the record" (where a stable per-record link exists) and "How this source is used" (Sources page). Variants: `web` (agent finding, `--info` text), `derived` ("Derived by Finora", dashed border, with "Computed from"), `stale` (amber).
 
 ### 6.2 Confidence
 
@@ -154,7 +154,7 @@ A small badge before the chip. Names, not percentages.
 Summary; routes and the tool manifest are in `docs/design/IA.md`.
 
 - **Tool rail** (left, 72 px, icon plus label; a bottom bar under 768 px): Explorer, Library, Crash monitor; Sources and Settings at the bottom. Built from tool manifests.
-- **Top bar:** the command bar (`/` or Ctrl+K: companies in all four jurisdictions, tools, past investigations), today's spend against the daily cap, the theme toggle. The language switch (EN, LT, LV, ET) lives in Settings, not the top bar.
+- **Top bar:** the command bar (`/` or Ctrl+K anywhere, or the top-bar field; `?cmd=open`): a modal palette with grouped results (companies with their distinguishing facts, investigations, tools and pages), ↑ ↓ Enter, Esc closes. On the search page `/` focuses the search box instead. Then today's spend against the daily cap, the theme toggle. The language switch (EN, LT, LV, ET) lives in Settings, not the top bar.
 - **The main flow is one page.** Search → company page with official data at once → Investigate → the same page gains the agent panel, findings land in their sections → the verdict appears on top and a chat docks in the aside. The URL becomes stable when the run starts (`.../runs/[id]`), so the run can be shared, reopened and re-run.
 
 ## 8. Screens and states
@@ -221,8 +221,10 @@ A well inside the People (and US Owners, Securities) section: legend "Why are yo
   - **task sub-rows** from `run.task`: icon (check, spinner, clock for queued, x for failed, skip), label, sources read or "queued"/"skipped".
 - **Findings land in their section** with a 600 ms accent ring; the section shows "The [agent] agent is checking this now: [step]" until then.
 - **Waiting lanes** get an amber border; failed lanes a red border.
-- **Under 1024 px** the agent panel sits below the sections, so a sticky **run bar** under the top bar carries the state ("4 agents · 2 running · $0.27 of $1.50", or "Needs you", or "Reconnecting") and a "Show agents" link that jumps to the panel. A question card always renders inline at the top of the content.
+- **Under 1024 px** a compact lane list sits right under the page header (one line per lane: status, name, current step or tasks done, time and cost; "All tasks and sources" jumps to the full panel), and a sticky **run bar** under the top bar carries the state ("4 agents · 2 running · $0.27 of $1.50", or "Needs you", or "Reconnecting") and a "Show agents" link that jumps to the panel. A question card always renders inline at the top of the content.
 - At most one question per run and three per investigation (`agents.md` §7).
+- **Stopped by you** (`?state=report&stopped=yes`): "Stop and write the report" ends every running lane as `stopped`, the verdict step writes from the findings so far, checks that had not finished count as not run, and an info banner says so with a Re-run link.
+- **A failed lane** shows "Retry this agent" on the lane; the report banner offers the same (`?state=partial`).
 - **Reconnecting** (`?state=reconnecting`): the header stats read "Reconnecting · last update [time]", running lanes add "last update N s ago", and a warn banner says "Connection lost at [time]. Reconnecting (attempt N)… The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost." with Retry now. The stream resumes from `Last-Event-ID`; nothing on the page is cleared.
 
 ### 9.2 Question cards
@@ -289,7 +291,8 @@ The frontend inventory (`docs/plan/ui-build-plan.md`) is the build list; these a
 
 | Component | Package | States and behaviour |
 |---|---|---|
-| Shell, ToolRail, TopBar, CommandBar | ui / web | rail ↔ bottom bar at 768; command bar opens on `/` |
+| Shell, ToolRail, TopBar, CommandBar | ui / web | rail ↔ bottom bar at 768; command bar opens on `/` or Ctrl+K, modal, focus trapped |
+| ReportProblemSheet | web | legal rule 10: what is wrong (value wrong, wrong company, objection about me), details, send; confirms that an objected statement is hidden while reviewed (`?problem=open`) |
 | Button | ui | primary, default, quiet, small, danger; focus ring |
 | StatusPill | ui | neutral, warn, bad; register word plus gloss |
 | SourceChip + popover | ui | official, web, derived, stale; Enter opens, Esc closes |
@@ -320,7 +323,8 @@ The frontend inventory (`docs/plan/ui-build-plan.md`) is the build list; these a
 - Icon-only buttons have an `aria-label`; decorative icons are `aria-hidden`. The network graph has a list twin with the same data; graph nodes are focusable buttons named by their visible text.
 - Scrollable tables are focusable regions named after their section.
 - The agent panel uses a polite live region, throttled to one announcement per lane step. Question cards are regions with an H2.
-- Sheets are modal dialogs with a label; Esc closes popovers and sheets.
+- Sheets are modal dialogs with a label: focus moves to the primary action on open, Tab stays inside, Esc triggers the sheet's Cancel or Close. This is an acceptance test for the sheet component.
+- **Touch targets** under 768 px: primary buttons 40 px high, small buttons and chips at least 28 px, link buttons 32 px, filter and index pills 36 px (WCAG 2.2 target size minimum is 24 px).
 - Keyboard: `/` search; ↑ ↓ Enter in results; `j` / `k` between findings in a report; Enter opens a source chip; `?` opens a small dialog that lists these shortcuts.
 - The mockups pass axe (no violations) on the main states in both themes at 1280 and 390 px.
 

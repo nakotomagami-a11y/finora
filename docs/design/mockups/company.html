@@ -30,6 +30,7 @@
   const longName = param("name", "normal") === "long" && subj.longName;
   const lvRoleCounts = subj.key === "lv" && param("lvpeople", "names") === "role_counts";
   const reconnecting = state === "reconnecting";
+  const stopped = state === "report" && param("stopped", "no") === "yes";
   const phase = ["streaming", "question", "reconnecting"].includes(state) ? "run" : ["report", "partial"].includes(state) ? "report" : "profile";
   const natural = !!subj.natural;
   const name = longName ? subj.longName : subj.name;
@@ -45,7 +46,7 @@
   /* ---------- Header ---------- */
   function header() {
     if (state === "loading") {
-      return `<div class="co-head" aria-busy="true"><span class="sk" style="width:120px;height:10px"></span><span class="sk" style="width:62%;height:36px;border-radius:8px"></span><span class="sk" style="width:48%"></span><span class="sk" style="width:100%;height:56px;border-radius:10px"></span></div>`;
+      return `<div class="co-head" aria-busy="true"><h1 class="sr-only">Loading the company</h1><span class="sk" style="width:120px;height:10px"></span><span class="sk" style="width:62%;height:36px;border-radius:8px"></span><span class="sk" style="width:48%"></span><span class="sk" style="width:100%;height:56px;border-radius:10px"></span></div>`;
     }
     const pillTone = { good: "", warn: "pill-warn", bad: "pill-bad" }[subj.status[2]] || "";
     const runStats = phase === "run"
@@ -58,12 +59,12 @@
       ? `${natural ? "" : `<a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate</a>`}
          ${natural ? "" : `<a class="btn" href="network.html?country=${subj.key}">${icon("network", "icon icon-sm")} Network</a>`}
          <button class="btn btn-quiet" type="button">Export</button>
-         <button class="link-btn" type="button">Report a problem</button>`
+         <button class="link-btn" type="button" data-problem="${esc(name)}">Report a problem</button>`
       : phase === "run"
-        ? `<button class="btn" type="button">${icon("stop", "icon icon-sm")} Stop and write the report</button><a class="btn btn-quiet" href="?${qs({ state: "report" })}">Skip to report</a>`
+        ? `<a class="btn" href="?${qs({ state: "report", stopped: "yes" })}">${icon("stop", "icon icon-sm")} Stop and write the report</a><a class="btn btn-quiet" href="?${qs({ state: "report" })}">Skip to report</a>`
         : `<a class="btn" href="network.html?country=${subj.key}">${icon("network", "icon icon-sm")} Network</a>
            <button class="btn" type="button">Re-run</button><button class="btn btn-quiet" type="button">Export</button>
-           <button class="link-btn" type="button">Report a problem</button>`;
+           <button class="link-btn" type="button" data-problem="${esc(name)}">Report a problem</button>`;
     return `<div class="co-head">
       <span class="label">${phase === "report" ? "Investigation report · 20 Nov 2026 09:46" : phase === "run" ? "Investigation running" : `Company · ${esc(subj.country)}`}</span>
       <h1 class="co-title" title="${esc(name)}">${esc(name)}</h1>
@@ -363,6 +364,7 @@
     if (level === "none") c.forEach((x) => { if (x[1] === "soft") { x[1] = "ok"; x[2] = "None found"; } });
     if (level === "serious") { c[7] = [c[7][0], "hard", "Insolvency proceedings started 14 Nov 2026"]; }
     if (state === "partial") c[10] = [c[10][0], "notrun", "Web agent did not finish (the website did not answer)"];
+    if (stopped) c[10] = [c[10][0], "notrun", "Stopped by you before the web agent finished"];
     return c;
   }
 
@@ -430,12 +432,14 @@
     ];
     if (state === "question" && q === "entity") L.forEach((l, i) => { if (i === 0) { l.st = "waiting"; l.step = "waiting for you: which company is it?"; l.meta = "12 s · $0.02"; } else { l.st = "queued"; l.tasks = undefined; l.step = ""; l.meta = "waits for the lead"; } });
     if (reconnecting) L.forEach((l) => { if (l.st === "running") l.meta = l.meta + " · last update 12 s ago"; });
+    if (stopped) L.forEach((l) => { if (l.st === "running" || l.st === "queued") { l.st = l.n === "Verdict" ? "done" : "stopped"; l.step = l.n === "Verdict" ? "written from the findings so far" : "stopped by you at 09:44:05"; } });
     if (state === "question" && (q === "cap" || q === "cap-used")) L.forEach((l) => { if (l.st === "running") { l.st = "waiting"; l.step = "paused at the cost cap"; } });
     const TI = { done: "check", running: null, queued: "clock", failed: "x", skipped: "skip" };
     const lane = (l) => `<div class="lane ${l.st}">
       <div class="lane-head"><span class="status ${l.st}"><span class="dot"></span>${l.st}</span><span class="lane-name">${esc(l.n)}</span></div>
       <span class="lane-meta num" style="margin-left:0">${esc(l.meta)}</span>
       ${l.step ? `<span class="lane-step">${esc(l.step)}</span>` : ""}
+      ${l.st === "failed" ? `<span><button class="btn btn-sm" type="button">Retry this agent</button></span>` : ""}
       ${l.tasks ? `<div class="tasks">${l.tasks.map(([s, t, n]) => `<div class="task ${s}"><span class="t-ic">${TI[s] ? icon(TI[s], "icon icon-sm") : '<span class="spinner"></span>'}</span><span class="t-label">${esc(t)}</span><span class="t-end num">${s === "queued" ? "queued" : s === "skipped" ? "skipped" : `${n} src`}</span></div>`).join("")}</div>` : ""}
     </div>`;
     return `<section class="card" id="agents" style="padding:16px;display:flex;flex-direction:column;gap:12px;scroll-margin-top:120px" aria-label="Agents">
@@ -523,28 +527,28 @@
         <div><span class="k">Cap for this run</span><span class="num">$1.50</span></div>
         <div><span class="k">Left today</span><span class="num">$8.16 of $10.00</span></div>
         <div><span class="k">Typical time</span><span>1 to 2 minutes</span></div>
-        <div><span class="k">Purpose</span><span>Checking a company I may do business with · <a href="#">change</a></span></div>
+        <div><span class="k">Purpose</span><span>Checking a company I may do business with · <a href="?${qs({ state: "full", purpose: "unset" })}#people">change</a></span></div>
       </div>
       <details><summary class="small">Cost per agent</summary><div class="kv small" style="margin-top:8px">
         <div><span class="k">Lead</span><span class="num">$0.02</span></div><div><span class="k">Registry and people</span><span class="num">$0.06</span></div><div><span class="k">Money and tax</span><span class="num">$0.06</span></div><div><span class="k">Legal, insolvency and sanctions</span><span class="num">$0.07</span></div><div><span class="k">Web, domain and news</span><span class="num">$0.20</span></div><div><span class="k">Verdict</span><span class="num">$0.05</span></div>
       </div></details>
       <p class="small muted">Estimate from default per-agent costs until this install has 10 finished investigations. Your own key pays; the cap is enforced in code.</p>`,
-      actions: `<a class="btn" href="?${qs({ state: "full" })}">Cancel</a><a class="btn btn-primary" href="?${qs({ state: "streaming" })}">Start investigation</a>` });
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Cancel</a><a class="btn btn-primary" href="?${qs({ state: "streaming" })}">Start investigation</a>` });
     if (state === "nokey") return sheet({ title: "Add your key to run agents", body: `
       <p class="ink2">The company profile works without a key. Agents need an AI model key of your own; Finora never pays for or stores usage elsewhere.</p>
       <ol class="small ink2" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Open <span class="mono">.env.local</span> in the Finora folder.</li><li>Set <span class="mono">ANTHROPIC_API_KEY</span>.</li><li>Restart Finora with <span class="mono">pnpm finora</span>.</li></ol>`,
-      actions: `<a class="btn" href="?${qs({ state: "full" })}">Close</a><a class="btn btn-primary" href="settings.html?state=keys-missing">Open settings</a>` });
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn btn-primary" href="settings.html?state=keys-missing">Open settings</a>` });
     if (state === "daily-cap") return sheet({ title: "Today's agent budget is used", body: `
       <div class="kv"><div><span class="k">Spent today</span><span class="num">$10.00 of $10.00</span></div><div><span class="k">Resets</span><span class="num">at 00:00, in 6 h 12 min</span></div></div>
       <p class="ink2">The company profile and the checks from official data keep working, because they cost nothing. The daily cap is set in Settings and can't be raised from inside a run.</p>`,
-      actions: `<a class="btn" href="?${qs({ state: "full" })}">Close</a><a class="btn" href="settings.html">Settings</a>` });
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn" href="settings.html">Settings</a>` });
     return "";
   }
 
   /* ---------- Page ---------- */
   function render() {
     if (state === "error") {
-      return `<div class="page"><div class="empty-state" role="alert"><span class="label">Company · ${esc(subj.country)}</span><h2>This company couldn't be loaded</h2>
+      return `<div class="page"><div class="empty-state" role="alert"><span class="label">Company · ${esc(subj.country)}</span><h1 class="serif" style="font-size:26px;line-height:32px">This company couldn't be loaded</h1>
         <p class="ink2">The local data store didn't answer. Nothing was changed. Search still works for countries that finished loading.</p>
         <span class="mono muted">error: store_unavailable · request 7f3a</span>
         <span style="display:flex;gap:8px"><a class="btn btn-primary" href="?${qs({ state: "full" })}">Retry</a><a class="btn" href="search.html">Back to search</a></span></div></div>`;
@@ -558,18 +562,21 @@
         </div><aside class="aside" tabindex="0" aria-label="Agents">${lanes()}</aside></div></div>`;
     }
     const top = phase === "report" || (natural && state === "full") ? verdictBlock() : "";
-    const banner = state === "partial" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One agent did not finish.</strong> The web agent stopped when the company's website did not answer, so check 11 counts as not run. Other findings are complete. <button class="link-btn" type="button">Re-run the web agent</button></span></div>` : "";
+    const banner = stopped ? `<div class="banner banner-info" role="status">${icon("stop")}<span><strong>You stopped this investigation at 09:44:05.</strong> Findings so far are kept, the verdict is written from them, and checks that had not finished count as not run. <a href="?${qs({ state: "streaming", stopped: "no" })}">Re-run</a></span></div>` : state === "partial" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One agent did not finish.</strong> The web agent stopped when the company's website did not answer, so check 11 counts as not run. Other findings are complete. <button class="link-btn" type="button">Re-run the web agent</button></span></div>` : "";
+    const lanesInline = phase === "run" && !(state === "question" && q === "entity") ? `<section class="lanes-inline" aria-label="Agents, compact">
+      ${[["done", "Registry and people", "5 of 5 tasks", "22 s · $0.05"], ["done", "Money and tax", "3 of 4 tasks, 1 skipped", "28 s · $0.06"], [q === "sanctions" && state === "question" ? "waiting" : "running", "Legal, insolvency and sanctions", q === "sanctions" && state === "question" ? "waiting for you: possible sanctions match" : "checking the UN list", "31 s · $0.05"], ["running", "Web, domain and news", "reading the news index (query 2 of 4)", "48 s · $0.09"], ["queued", "Verdict", "waits for the four agents", ""]].map(([st, n, step, meta]) => `<div class="li-row"><span class="status ${st}"><span class="dot"></span>${st}</span><span class="li-name">${n}</span><span class="li-meta num">${meta}</span><span class="li-step">${st === "done" ? "✓ " : "› "}${step}</span></div>`).join("")}
+      <a class="small" href="#agents">All tasks and sources</a></section>` : "";
     const runBar = phase === "run" ? `<div class="run-bar" role="status"><span>${reconnecting ? "Reconnecting" : state === "question" ? "Needs you" : "4 agents · 2 running"} · $0.27 of $1.50</span><a href="#agents">Show agents</a></div>` : "";
     const qcard = state === "question" ? questionCard() : reconnecting ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Connection lost at 09:43:12. Reconnecting (attempt 2)…</strong> The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost. <button class="link-btn" type="button">Retry now</button></span></div>` : "";
     const sections = [statusSection(), peopleSection(), ownersSection(), financialsSection(), workforceSection(), taxSection(), insolvencySection(), courtsSection(), sanctionsSection(), filingsSection(), securitiesSection(), webSection(), networkSection()].join("");
     const index = phase !== "run" && state !== "loading" ? `<nav class="sec-index" aria-label="Sections">${[["status", "Status"], ["people", "People"], ["owners", "Owners"], ["financials", "Financials"], ["tax", "Taxes"], ["insolvency", "Insolvency"], ["courts", "Courts"], ["sanctions", "Sanctions"], ["web", "Web"]].filter(([a]) => sections.includes(`id="${a}"`)).map(([a, l]) => `<a href="#${a}">${l}</a>`).join("")}</nav>` : "";
-    const aside = phase === "run" ? lanes() : phase === "report" ? chatDock() + (state === "partial" ? lanes() : "") : checksCard();
+    const aside = phase === "run" ? lanes() : phase === "report" ? chatDock() + (state === "partial" || stopped ? lanes() : "") : checksCard();
     const footer = `<footer class="small muted" style="padding-top:12px;display:flex;flex-direction:column;gap:4px">
       <span>Sources: ${subj.cc === "LV" ? "Register of Enterprises of the Republic of Latvia; State Revenue Service (CC0 1.0)" : subj.cc === "EE" ? "e-Business Register (CC BY 4.0); Tax and Customs Board (CC BY-SA 3.0, kept in its own store and left out of exports)" : subj.cc === "LT" ? (natural ? "Registrų centras, Register of Legal Entities (open data), CC BY 4.0" : "Registrų centras, Register of Legal Entities (open data), CC BY 4.0; State Tax Inspectorate (VMI), CC BY 4.0; Sodra, public insurer data") : "SEC EDGAR and state registers (US government works)"}. © European Union (EU sanctions list). Contains public sector information licensed under the Open Government Licence v3.0 (UK list).</span>
       <span>${natural ? "Not a credit report. Not for credit, employment, tenancy or insurance decisions. " : ""}AI-written text is labelled. <a href="#">Report an error or object</a></span>
     </footer>`;
     return `<div class="page"><div class="cols">
-      <div class="primary">${header()}${runBar}${banner}${qcard}${top}${index}${sections}${footer}</div>
+      <div class="primary">${header()}${runBar}${banner}${qcard}${lanesInline}${top}${index}${sections}${footer}</div>
       <aside class="aside" tabindex="0" aria-label="${phase === "run" ? "Agents" : phase === "report" ? "Follow-up questions" : "Checks"}">${aside}</aside>
     </div></div>${sheetFor()}`;
   }

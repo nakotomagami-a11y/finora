@@ -44,7 +44,7 @@
     `<svg class="${cls}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"'}>${P[name] || ""}</svg>`;
 
   /* ---------- Theme ---------- */
-  const theme = param("theme", localStorage.getItem("finora-theme") || "dark");
+  const theme = param("theme", localStorage.getItem("finora-theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
   document.documentElement.dataset.theme = theme;
 
   /* ---------- Shell: tool rail + top bar ---------- */
@@ -70,7 +70,7 @@
         </nav>
         <div class="main">
           <header class="topbar">
-            <button class="cmd" type="button" onclick="location.href='search.html?state=typing'">
+            <button class="cmd" type="button" aria-haspopup="dialog" onclick="Finora.openCmd()">
               ${icon("search")}<span>Search companies, tools, investigations</span><span style="margin-left:auto" class="kbd">/</span>
             </button>
             <div class="topbar-end">
@@ -160,15 +160,104 @@
       const pop = document.getElementById(btn.getAttribute("aria-controls"));
       pop.hidden = !pop.hidden;
       btn.setAttribute("aria-expanded", String(!pop.hidden));
+      if (!pop.hidden) placePop(pop);
     }
+    const problem = e.target.closest("[data-problem]");
+    if (problem) openProblem(problem.getAttribute("data-problem"));
   });
+  // Desktop: anchor under the chip, flipped so it never leaves the viewport. Phones: CSS turns it into a bottom sheet.
+  function placePop(pop) {
+    pop.style.left = ""; pop.style.right = ""; pop.style.top = ""; pop.style.bottom = "";
+    if (matchMedia("(max-width: 767px)").matches) return;
+    const v = pop.getBoundingClientRect();
+    if (v.bottom > innerHeight - 8 && v.height + 14 < pop.parentElement.getBoundingClientRect().top) { pop.style.top = "auto"; pop.style.bottom = "calc(100% + 6px)"; }
+    const r = pop.getBoundingClientRect();
+    if (r.left < 8) { pop.style.right = "auto"; pop.style.left = "0"; }
+    const r2 = pop.getBoundingClientRect();
+    if (r2.right > innerWidth - 8) { pop.style.left = "auto"; pop.style.right = "0"; }
+  }
+  function closePops() {
+    document.querySelectorAll(".pop:not([hidden])").forEach((p) => {
+      p.hidden = true;
+      const b = document.querySelector(`[aria-controls="${p.id}"]`);
+      if (b) { b.setAttribute("aria-expanded", "false"); b.focus(); }
+    });
+  }
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") document.querySelectorAll(".pop:not([hidden])").forEach((p) => { p.hidden = true; });
-    if (e.key === "/" && !/input|textarea|select/i.test(document.activeElement.tagName)) {
-      const box = document.querySelector("#q");
-      if (box) { e.preventDefault(); box.focus(); }
+    const typing = /input|textarea|select/i.test(document.activeElement.tagName);
+    if (e.key === "Escape") {
+      if (document.querySelector(".pop:not([hidden])")) return closePops();
+      const layer = document.querySelector("[data-layer]");
+      if (layer) return layer.remove();
+      const cancel = document.querySelector(".scrim .sheet-actions [data-cancel]");
+      if (cancel) return cancel.click();
     }
+    if ((e.key === "/" && !typing) || (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey))) {
+      e.preventDefault();
+      const box = document.querySelector("#q");
+      if (box && e.key === "/") box.focus(); else openCmd();
+    }
+    if (e.key === "Tab") trapFocus(e);
   });
+  // Modal layers (sheets, the command bar, the problem form) keep focus inside themselves.
+  function trapFocus(e) {
+    const layers = document.querySelectorAll("[data-layer] .sheet, [data-layer] .palette, .scrim .sheet");
+    const layer = layers[layers.length - 1];
+    if (!layer) return;
+    const f = [...layer.querySelectorAll('a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled && x.offsetParent !== null);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (!layer.contains(document.activeElement)) { e.preventDefault(); first.focus(); return; }
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  /* ---------- Command bar (mockup of the real palette) ---------- */
+  function openCmd() {
+    if (document.querySelector("[data-layer='cmd']")) return;
+    const g = (title, items) => `<div class="pal-group" role="group" aria-label="${esc(title)}"><span class="label">${esc(title)}</span>${items.map(([href, a, b, cc]) => `<a class="pal-item" href="${href}">${cc ? `<span class="cc">${cc}</span>` : icon("chev", "icon icon-sm")}<span class="pal-main"><span>${esc(a)}</span><span class="small muted">${esc(b)}</span></span></a>`).join("")}</div>`;
+    const el = document.createElement("div");
+    el.className = "scrim pal-scrim";
+    el.setAttribute("data-layer", "cmd");
+    el.innerHTML = `<div class="palette" role="dialog" aria-modal="true" aria-label="Command bar">
+      <div class="search-box" style="height:48px;border-radius:10px">${icon("search")}<label class="sr-only" for="cmd-q">Search companies, investigations and tools</label><input id="cmd-q" autocomplete="off" placeholder="Company, code, investigation or tool" value="paraugs"><span class="kbd">Esc</span></div>
+      ${g("Companies", [["company.html?country=lv", "Paraugs Timber SIA", "LV · 40000FX0017 · SIA · Rīga · 2014", "LV"], ["company.html?country=lv", "Paraugs Timber SIA", "LV · 40000FX0058 · SIA · Valmiera · 2022", "LV"], ["company.html?country=ee", "Paraugs Timber Eesti OÜ", "EE · 1FX000033 · OÜ · Tartu · 2020", "EE"]])}
+      ${g("Investigations", [["company.html?country=lv&state=report", "Paraugs Timber SIA", "Points to check · today 09:44", ""]])}
+      ${g("Tools and pages", [["crash.html", "Crash monitor", "Markets from their peaks", ""], ["sources.html", "Sources", "Licences and freshness", ""], ["settings.html", "Settings", "Keys, caps, language", ""]])}
+      <p class="small muted">↑ ↓ to move · Enter to open · Esc to close</p>
+    </div>`;
+    el.addEventListener("click", (e) => { if (e.target === el) el.remove(); });
+    document.body.appendChild(el);
+    el.querySelector("input").focus();
+  }
+
+  /* ---------- Report a problem (legal rule 10) ---------- */
+  function openProblem(what) {
+    const el = document.createElement("div");
+    el.className = "scrim";
+    el.setAttribute("data-layer", "problem");
+    el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pb-h"><form style="display:flex;flex-direction:column;gap:16px">
+      <h2 id="pb-h">Report a problem</h2>
+      <p class="small ink2">About: <strong>${esc(what)}</strong></p>
+      <fieldset style="border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:8px"><legend class="small" style="margin-bottom:6px;padding:0">What is wrong?</legend>
+        <label class="radio"><input type="radio" name="k" checked> <span>A value is wrong or out of date</span></label>
+        <label class="radio"><input type="radio" name="k"> <span>It is about the wrong company</span></label>
+        <label class="radio"><input type="radio" name="k"> <span>I object to a statement about me</span></label>
+      </fieldset>
+      <label class="small" for="pb-d" style="display:flex;flex-direction:column;gap:6px">Details<textarea id="pb-d" class="input" style="height:96px;padding:8px 12px;resize:vertical" placeholder="What should it say, and where did you see the correct value?"></textarea></label>
+      <p class="small muted">An objected statement is hidden while it is reviewed. This report stays on this machine until you export or send it.</p>
+      <div class="sheet-actions"><button class="btn" type="button" data-cancel onclick="this.closest('[data-layer]').remove()">Cancel</button><button class="btn btn-primary" type="submit">Send report</button></div>
+    </form></div>`;
+    document.body.appendChild(el);
+    el.querySelector("form").addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      ev.target.innerHTML = `<h2>Thank you</h2><p class="ink2">Your report is logged. If it objects to a statement about you, that statement is hidden while it is reviewed.</p><div class="sheet-actions"><button class="btn btn-primary" type="button" data-cancel>Close</button></div>`;
+      const close = ev.target.querySelector("[data-cancel]");
+      close.addEventListener("click", () => el.remove());
+      close.focus();
+    });
+    el.querySelector("input").focus();
+  }
 
   /* ---------- Confidence, tags, severity ---------- */
   const CONF = {
@@ -246,7 +335,7 @@
   function section({ id, sid, title, body, end = "", cls = "" }) {
     return `<section class="section ${cls}" id="${id}" aria-labelledby="${id}-h">
       <div class="section-head"><h2 id="${id}-h">${esc(title)}</h2><span class="sid">${esc(sid)}</span>
-        <span class="end">${end}<button class="link-btn" type="button" title="Report an error or object to this section">Report a problem</button></span></div>
+        <span class="end">${end}<button class="link-btn" type="button" data-problem="${esc(title)} (${esc(sid)})" title="Report an error or object to this section">Report a problem</button></span></div>
       ${body}
     </section>`;
   }
@@ -273,7 +362,11 @@
       el.setAttribute("aria-label", `${h ? h.textContent.trim() + " table" : "Table"}, scrolls sideways on small screens`);
     });
     if (controls) switcher(controls);
+    const s = document.querySelector(".scrim .sheet");
+    if (s) (s.querySelector(".btn-primary") || s.querySelector("a, button")).focus();
+    if (param("cmd", "") === "open") openCmd();
+    if (param("problem", "") === "open") openProblem("Paraugs Timber SIA, Securing measures (S09)");
   }
 
-  window.Finora = { esc, param, icon, chip, conf, aiTag, ruleTag, agentTag, sev, fieldRow, stateLine, notChecked, section, sparkline, sheet, mount, toggleTheme };
+  window.Finora = { esc, param, icon, chip, conf, aiTag, ruleTag, agentTag, sev, fieldRow, stateLine, notChecked, section, sparkline, sheet, mount, toggleTheme, openCmd, openProblem };
 })();

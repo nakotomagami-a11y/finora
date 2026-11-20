@@ -83,7 +83,7 @@
   function render() {
     return `<div class="page">
       <div class="search-hero">
-        ${state === "empty" ? `<h1>Who are we looking into?</h1><p class="ink2">Search a company in Latvia, Estonia, Lithuania or the US. The official profile opens instantly; agents dig further when you ask them to.</p>` : `<h1 class="label">Explorer · search</h1>`}
+        ${state === "empty" ? `<h1>Who are we looking into?</h1><p class="ink2">Search a company in Latvia, Estonia, Lithuania or the US. The official profile opens instantly; agents dig further when you ask them to.</p>` : `<h1 class="sr-only">Search results</h1><span class="label">Explorer · search</span>`}
         <form role="search" onsubmit="event.preventDefault();location.search='state=typing'">
           <label class="sr-only" for="q">Company name, registration code, VAT number, LEI or any text you have</label>
           <div class="search-box">${icon("search")}<input id="q" autocomplete="off" placeholder="Name, code, VAT, LEI, or paste what you know" value="${esc(query)}" aria-controls="results" ${state === "empty" ? "autofocus" : ""}><span class="kbd">/</span></div>
