@@ -4,12 +4,13 @@ Free, open-source, agentic company intelligence. Agents research a company (and 
 
 ## Status
 
-Research phase, run as an Agent Office mission (the hub is the open draft PR labelled `ao-mission`). No app code yet. Read in this order:
+Build phase (phase 5), run as an Agent Office mission (the hub is the open draft PR labelled `ao-mission`). The plan is approved; slices land one at a time per `docs/plan/slices.md`. Read in this order:
 1. This file
 2. `.local/CONTEXT.md`, if it exists (private context on the maintainer's machine; never quote it in public)
-3. `docs/plan/README.md` (the mission register, once it exists)
-4. `docs/research/00-feasibility.md` (first desk research: hypotheses, not facts)
-5. `docs/design/README.md` (the first prototype, described)
+3. `docs/plan/README.md` (the mission register: phases, decisions, deliverables)
+4. `docs/architecture.md` (the contract) and `docs/plan/slices.md` (the build order, acceptance criteria and tests)
+5. `docs/plan/council/01-data.md` (what each country shows) and `docs/plan/lawyer-register.md` (the interim legal values the build keeps)
+6. `DESIGN.md` for UI work; `docs/plan/agents.md` for the agent runtime; `docs/plan/loaders/` for a data source
 
 ## Hard rules
 
