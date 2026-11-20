@@ -134,7 +134,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S14.US.01 | S14 | US | SEC Forms 3/4/5 trades | A | 100% public (5/5) | bulk quarterly + live; licence verified Y | us |  |  |
 | S14.US.02 | S14 | US | Tickers and exchanges | A | deferred: User-Agent pending | bulk JSON; licence verified Y | us |  |  |
 | S14.US.03 | S14 | US | SEC XBRL `dei` facts; price with user key | B | deferred | API; licence verified Y; key pending (`SEC_USER_AGENT`) | markets |  |  |
-| S14.LTLVEE.01 | S14 | LT, LV, EE | ESMA FIRDS | A | 73/73 LEI and ISIN | API; licence verified Y; reference data only, no prices | markets |  |  |
+| S14.LTLVEE.01 | S14 | LT, LV, EE | ESMA FIRDS | A | 67/67 LEI and ISIN (corrected 2026-11-20: 73 counted superseded record versions) | API; licence verified Y; reference data only, no prices; "listed since" = earliest admission date across versions | markets |  |  |
 | S14.LTLVEE.02 | S14 | LT, LV, EE | prices | D | 0 | no free reusable source found | markets |  |  |
 | S15.LT.01 | S15 | LT | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code | osint |  |  |
 | S15.LV.01 | S15 | LV | Applicant website in EU funds; winner websiteURI in procurement | C | <3% | bulk; licence verified Y; incidental only, the web agent fills it | baltics |  |  |

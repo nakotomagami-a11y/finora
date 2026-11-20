@@ -98,7 +98,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | milestone A pushed `233b78f`; A1-A7 closed (`e78c8a8`, verified by qa); A8 (record unit) and cto's budget numbers open (`docs/plan/reviews/01-milestone-a.md`); milestone B next |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/README.md` (spec template and ownership) | coordinator | 3 | done |
-| `docs/plan/loaders/*.md` | data seats | 3 | |
+| `docs/plan/loaders/*.md` | data seats | 3 | landed: `markets.md`, `esma-firds.md` (data-markets, `d3fce4c`) |
 | `docs/plan/agents.md` | data-osint | 3 | landed `1ecbbc4`; court portals (§4.5a) to follow; §16 lists contract additions for the architect |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |

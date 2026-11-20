@@ -160,5 +160,5 @@ Population fill rates for active companies (Baltics, from `baltics.md`, "Coverag
 | M01-M08 | - | A + D: official plus keyless on-chain/exchange/aggregator | 20 | 10 (strict: 9) | 50% (strict: 45%) | adds bitcoin, ether, total crypto; strict count excludes Taiwan |
 | M01-M08 | - | A + D + one stock key (S7) | 20 | 20 (estimated) | 100% (estimated) | stock tiles via ETF proxies; not measured: key pending |
 | M01-M08 | - | strictly hostable in public (open licences only) | 20 | 6 (strict: 5) | 30% (strict: 25%) | Japan drops out (redistribution needs the owner's permission); crypto too, until oracle and exchange licences are confirmed |
-| S14 | LT, LV, EE | listed-share records with ISIN and LEI | 73 | 73 | 100% | FIRDS reference data; no prices |
+| S14 | LT, LV, EE | listed-share records with ISIN and LEI | 67 | 67 | 100% | FIRDS reference data; no prices (corrected 2026-11-20 from 73, which counted superseded versions) |
 
