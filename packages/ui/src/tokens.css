@@ -1,0 +1,134 @@
+/* Finora design tokens. Source of truth: DESIGN.md (values copied from docs/design/mockups/assets/tokens.css).
+   Dark is the default. Light applies with data-theme="light", or when the OS prefers light and no theme is chosen. */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f0e0d;
+  --surface: #171614;
+  --surface-2: #201e1b;
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.16);
+  --ink: #ece8e1;
+  --ink-2: #c9c4bb;
+  --muted: #a29d94;
+  --faint: #7d786f;
+  --accent: #d9b98a;
+  --on-accent: #1a1410;
+  --good: #7cc98f;
+  --warn: #e5b45a;
+  --bad: #f2806f;
+  --info: #8db4e6;
+  --good-tint: color-mix(in srgb, var(--good) 10%, var(--surface));
+  --warn-tint: color-mix(in srgb, var(--warn) 10%, var(--surface));
+  --bad-tint: color-mix(in srgb, var(--bad) 10%, var(--surface));
+  --info-tint: color-mix(in srgb, var(--info) 10%, var(--surface));
+  --accent-tint: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  --shadow-pop-value: 0 12px 40px rgb(0 0 0 / 0.45);
+  --scrim: rgb(0 0 0 / 0.55);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --surface-2: #eeebe4;
+  --line: rgb(0 0 0 / 0.09);
+  --line-strong: rgb(0 0 0 / 0.18);
+  --ink: #1b1916;
+  --ink-2: #45413b;
+  --muted: #5f5a52;
+  --faint: #8a857c;
+  --accent: #7a5c24;
+  --on-accent: #ffffff;
+  --good: #1a6c34;
+  --warn: #8a5a00;
+  --bad: #b3261e;
+  --info: #2559a8;
+  --shadow-pop-value: 0 12px 40px rgb(0 0 0 / 0.12);
+  --scrim: rgb(0 0 0 / 0.35);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --bg: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #eeebe4;
+    --line: rgb(0 0 0 / 0.09);
+    --line-strong: rgb(0 0 0 / 0.18);
+    --ink: #1b1916;
+    --ink-2: #45413b;
+    --muted: #5f5a52;
+    --faint: #8a857c;
+    --accent: #7a5c24;
+    --on-accent: #ffffff;
+    --good: #1a6c34;
+    --warn: #8a5a00;
+    --bad: #b3261e;
+    --info: #2559a8;
+    --shadow-pop-value: 0 12px 40px rgb(0 0 0 / 0.12);
+    --scrim: rgb(0 0 0 / 0.35);
+  }
+}
+
+:root {
+  --ff-sans: "Geist Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ff-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --ff-mono: "Geist Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --fs-display: 56px;
+  --lh-display: 60px;
+  --fs-h1: 40px;
+  --lh-h1: 44px;
+  --fs-h2: 26px;
+  --lh-h2: 32px;
+  --fs-h3: 15px;
+  --lh-h3: 22px;
+  --fs-body: 14px;
+  --lh-body: 22px;
+  --fs-small: 13px;
+  --lh-small: 20px;
+  --fs-label: 11px;
+  --lh-label: 16px;
+  --fs-mono: 12px;
+  --lh-mono: 18px;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-14: 56px;
+  --s-18: 72px;
+
+  --r-chip: 6px;
+  --r-btn: 10px;
+  --r-card: 14px;
+  --r-verdict: 20px;
+  --r-pill: 999px;
+
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-land: 600ms;
+  --dur-pulse: 1.6s;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  --rail-w: 72px;
+  --aside-w: 360px;
+  --content-max: 1240px;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --fs-display: 40px;
+    --lh-display: 44px;
+    --fs-h1: 30px;
+    --lh-h1: 34px;
+    --fs-h2: 23px;
+    --lh-h2: 28px;
+  }
+}

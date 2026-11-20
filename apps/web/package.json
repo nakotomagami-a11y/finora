@@ -1,0 +1,42 @@
+{
+  "name": "@finora/web",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/run-next.mjs dev",
+    "build": "next build",
+    "start": "node scripts/run-next.mjs start",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "catalog:",
+    "@fontsource-variable/geist-mono": "catalog:",
+    "@fontsource/instrument-serif": "catalog:",
+    "@finora/api-contract": "workspace:*",
+    "@finora/domain": "workspace:*",
+    "@finora/i18n": "workspace:*",
+    "@finora/server": "workspace:*",
+    "@finora/ui": "workspace:*",
+    "lucide-react": "catalog:",
+    "next": "catalog:",
+    "next-intl": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "server-only": "catalog:"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "catalog:",
+    "@finora/tooling": "workspace:*",
+    "@playwright/test": "catalog:",
+    "@tailwindcss/postcss": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "postcss": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

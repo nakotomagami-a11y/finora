@@ -1,0 +1,56 @@
+{
+  "common": {
+    "appName": "Finora",
+    "skipToContent": "Mine sisu juurde",
+    "loading": "Laadin"
+  },
+  "shell": {
+    "railLabel": "Tööriistad",
+    "bottomBarLabel": "Tööriistad",
+    "tools": {
+      "explorer": "Otsing",
+      "library": "Uurimised",
+      "crash": "Turulangused",
+      "sources": "Allikad",
+      "settings": "Seaded"
+    }
+  },
+  "footer": {
+    "label": "Saidi teave",
+    "sourceCode": "Lähtekood",
+    "terms": "Kasutustingimused",
+    "licence": "Litsents: AGPL-3.0-or-later",
+    "language": "Keel"
+  },
+  "explorer": {
+    "title": "Keda me uurime?",
+    "placeholder": "Ettevõtete otsing avaneb siin järgmises ehitusetapis."
+  },
+  "crash": {
+    "title": "Turulangused",
+    "placeholder": "Turuplaadid avanevad siin hilisemas ehitusetapis."
+  },
+  "terms": {
+    "title": "Kasutustingimused",
+    "intro": "Finora näitab, mida avalikud registrid avaldavad ja mida uurimisagendid avatud veebist leiavad, ning märgib iga väärtuse allika. See on uurimistööriist, mitte krediidiraport.",
+    "blockedHeading": "Ei sobi järgmiseks otstarbeks, kui jutt on füüsilisest isikust või füüsilisest isikust ettevõtjast",
+    "blockedCredit": "Krediidiotsused",
+    "blockedEmployment": "Töölevõtmise otsused",
+    "blockedInsurance": "Kindlustusotsused",
+    "blockedTenancy": "Üürimise otsused",
+    "blockedLicensing": "Litsentsimise otsused",
+    "blockedServicing": "Krediidi teenindamine või sissenõudmine",
+    "disclaimer": "Ei ole krediidiraport. Ei sobi otsusteks laenu, töölevõtmise, üürimise ega kindlustuse kohta.",
+    "draft": "Need tingimused on mustand, kuni jurist on need üle vaadanud."
+  },
+  "errors": {
+    "bad_request": "Päring ei kehti.",
+    "forbidden": "Päring lükati tagasi.",
+    "host_not_allowed": "Finora vastab ainult seal arvutis, kus ta töötab.",
+    "internal_error": "Meie poolel läks midagi valesti.",
+    "method_not_allowed": "Seda tüüpi päring ei ole siin lubatud.",
+    "not_found": "Sellel aadressil ei leitud midagi.",
+    "notFoundTitle": "Lehte ei leitud",
+    "notFoundAction": "Mine avalehele"
+  }
+}

@@ -49,7 +49,7 @@ export function finoraConfig() {
       },
     },
     {
-      files: ["scripts/**/*.mjs", "packages/tooling/**/*.mjs"],
+      files: ["**/scripts/**/*.mjs", "packages/tooling/**/*.mjs"],
       rules: { "no-console": "off" },
     },
     {

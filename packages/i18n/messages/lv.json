@@ -1,0 +1,56 @@
+{
+  "common": {
+    "appName": "Finora",
+    "skipToContent": "Pāriet uz saturu",
+    "loading": "Ielādē"
+  },
+  "shell": {
+    "railLabel": "Rīki",
+    "bottomBarLabel": "Rīki",
+    "tools": {
+      "explorer": "Meklēšana",
+      "library": "Izpēte",
+      "crash": "Tirgus kritumi",
+      "sources": "Avoti",
+      "settings": "Iestatījumi"
+    }
+  },
+  "footer": {
+    "label": "Vietnes informācija",
+    "sourceCode": "Pirmkods",
+    "terms": "Lietošanas noteikumi",
+    "licence": "Licence: AGPL-3.0-or-later",
+    "language": "Valoda"
+  },
+  "explorer": {
+    "title": "Ko mēs pārbaudām?",
+    "placeholder": "Uzņēmumu meklēšana šeit parādīsies nākamajā būves solī."
+  },
+  "crash": {
+    "title": "Tirgus kritumi",
+    "placeholder": "Tirgus flīzes šeit parādīsies vēlākā būves solī."
+  },
+  "terms": {
+    "title": "Lietošanas noteikumi",
+    "intro": "Finora rāda to, ko publicē valsts reģistri un ko pētniecības aģenti atrod atklātajā tīmeklī, norādot katras vērtības avotu. Tas ir pētniecības rīks, nevis kredītu ziņojums.",
+    "blockedHeading": "Nav paredzēts šiem mērķiem attiecībā uz fizisku personu vai individuālo komersantu",
+    "blockedCredit": "Lēmumi par kredītu",
+    "blockedEmployment": "Lēmumi par pieņemšanu darbā",
+    "blockedInsurance": "Lēmumi par apdrošināšanu",
+    "blockedTenancy": "Lēmumi par īri",
+    "blockedLicensing": "Lēmumi par licencēšanu",
+    "blockedServicing": "Kredīta apkalpošana vai piedziņa",
+    "disclaimer": "Nav kredītu ziņojums. Nav paredzēts lēmumiem par kredītu, nodarbinātību, īri vai apdrošināšanu.",
+    "draft": "Šie noteikumi ir melnraksts, līdz tos pārskata jurists."
+  },
+  "errors": {
+    "bad_request": "Pieprasījums nav derīgs.",
+    "forbidden": "Pieprasījums tika noraidīts.",
+    "host_not_allowed": "Finora atbild tikai tajā datorā, kurā darbojas.",
+    "internal_error": "Mūsu pusē radās kļūda.",
+    "method_not_allowed": "Šāda veida pieprasījums šeit nav atļauts.",
+    "not_found": "Šajā adresē nekas netika atrasts.",
+    "notFoundTitle": "Lapa nav atrasta",
+    "notFoundAction": "Doties uz sākumlapu"
+  }
+}

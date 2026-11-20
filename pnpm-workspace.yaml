@@ -10,7 +10,10 @@ resolutionMode: highest
 
 # No dependency may run an install script unless it is listed here with a reason.
 # The store uses Node's built-in node:sqlite, so nothing native is needed today.
-allowBuilds: {}
+allowBuilds:
+  # Pulled in by the message extractor of next-intl, which Finora does not use; both ship prebuilt binaries.
+  "@parcel/watcher": false
+  "@swc/core": false
 
 catalog:
   "@types/node": ^24.19.2
@@ -19,3 +22,20 @@ catalog:
   typescript: ~6.0.3
   typescript-eslint: ^8.73.0
   vitest: ^5.1.1
+  "@axe-core/playwright": ^4.14.0
+  "@playwright/test": 1.65.1
+  "@tailwindcss/postcss": ^4.3.5
+  "@types/react": ^19.3.0
+  "@types/react-dom": ^19.3.0
+  lucide-react: ^1.0.0
+  next: ~16.4.6
+  next-intl: ^4.15.3
+  postcss: ^8.5.33
+  react: ^19.3.1
+  react-dom: ^19.3.1
+  server-only: ^0.0.1
+  tailwindcss: ^4.3.5
+  zod: ^4.6.7
+  "@fontsource-variable/geist": ^5.0.0
+  "@fontsource-variable/geist-mono": ^5.0.0
+  "@fontsource/instrument-serif": ^5.0.0

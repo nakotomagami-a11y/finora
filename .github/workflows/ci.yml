@@ -55,3 +55,46 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --audit-level high
+
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: finora-sentinel-anthropic-api-key
+      SEC_USER_AGENT: finora-sentinel-sec-user-agent
+      SOCRATA_APP_TOKEN: finora-sentinel-socrata-app-token
+      COURTLISTENER_TOKEN: finora-sentinel-courtlistener-token
+      CERTSPOTTER_API_KEY: finora-sentinel-certspotter-api-key
+      SAM_GOV_API_KEY: finora-sentinel-sam-gov-api-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: No secret in the client bundle
+        run: node scripts/check-bundle-secrets.mjs
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @finora/web exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          retention-days: 7

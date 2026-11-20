@@ -1,0 +1,56 @@
+{
+  "common": {
+    "appName": "Finora",
+    "skipToContent": "Pereiti prie turinio",
+    "loading": "Kraunama"
+  },
+  "shell": {
+    "railLabel": "Įrankiai",
+    "bottomBarLabel": "Įrankiai",
+    "tools": {
+      "explorer": "Paieška",
+      "library": "Tyrimai",
+      "crash": "Rinkų kritimai",
+      "sources": "Šaltiniai",
+      "settings": "Nustatymai"
+    }
+  },
+  "footer": {
+    "label": "Svetainės informacija",
+    "sourceCode": "Šaltinio kodas",
+    "terms": "Naudojimo sąlygos",
+    "licence": "Licencija: AGPL-3.0-or-later",
+    "language": "Kalba"
+  },
+  "explorer": {
+    "title": "Ką ketiname tikrinti?",
+    "placeholder": "Įmonių paieška čia atsiras kitame kūrimo žingsnyje."
+  },
+  "crash": {
+    "title": "Rinkų kritimai",
+    "placeholder": "Rinkų plytelės čia atsiras vėlesniame kūrimo žingsnyje."
+  },
+  "terms": {
+    "title": "Naudojimo sąlygos",
+    "intro": "Finora rodo, ką skelbia viešieji registrai ir ką tyrimo agentai randa atviroje svetainių erdvėje, nurodydama kiekvienos reikšmės šaltinį. Tai tyrimo įrankis, o ne kredito ataskaita.",
+    "blockedHeading": "Netinka šiems tikslams, kai kalbama apie fizinį asmenį ar individualią veiklą",
+    "blockedCredit": "Sprendimai dėl kredito",
+    "blockedEmployment": "Sprendimai dėl įdarbinimo",
+    "blockedInsurance": "Sprendimai dėl draudimo",
+    "blockedTenancy": "Sprendimai dėl nuomos",
+    "blockedLicensing": "Sprendimai dėl licencijų",
+    "blockedServicing": "Kredito aptarnavimas ar išieškojimas",
+    "disclaimer": "Ne kredito ataskaita. Netinka sprendimams dėl kredito, įdarbinimo, nuomos ar draudimo.",
+    "draft": "Šios sąlygos yra projektas, kol jų neperžiūrėjo teisininkas."
+  },
+  "errors": {
+    "bad_request": "Užklausa neteisinga.",
+    "forbidden": "Užklausa atmesta.",
+    "host_not_allowed": "Finora atsako tik tame kompiuteryje, kuriame veikia.",
+    "internal_error": "Mūsų pusėje įvyko klaida.",
+    "method_not_allowed": "Šio tipo užklausa čia neleidžiama.",
+    "not_found": "Šiuo adresu nieko nerasta.",
+    "notFoundTitle": "Puslapis nerastas",
+    "notFoundAction": "Eiti į pradžios puslapį"
+  }
+}

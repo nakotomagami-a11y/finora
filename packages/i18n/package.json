@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@finora/tooling": "workspace:*",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

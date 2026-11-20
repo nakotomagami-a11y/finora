@@ -9,6 +9,8 @@
     "node": ">=24"
   },
   "scripts": {
+    "dev": "pnpm --filter @finora/web dev",
+    "start": "pnpm --filter @finora/web start",
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "node --test \"scripts/*.test.mjs\" \"scripts/guard/*.test.mjs\" && vitest run",
