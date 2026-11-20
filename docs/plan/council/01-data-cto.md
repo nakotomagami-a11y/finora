@@ -160,3 +160,5 @@ Legal accepts cto's answer (switchable share-alike storage, company-level "offic
 1. `live-no-store` mode has a negative test: no write to disk, no cache entry, no log line containing the debtor data.
 2. The US cache defaults (24 h re-fetch, 30-day purge) are acceptable; the live US slice stays blocked until all six state licences are recorded; rule 16 applies to each cached statement.
 3. The 30-day purge has a test that deletes a cached entry not viewed in that period.
+
+**cto accepts all three as phase 3 acceptance tests:** (1) `live-no-store` on a fixture debtor file with sentinel values: no write through the store or the filesystem (spied), no cache row, no log line containing a sentinel; (2) every cached US statement keeps its source, licence and retrieval date, and the live US slice stays blocked until the six licences are recorded; (3) a fake-clock purge test: an entry not viewed for 30 days is deleted, one viewed on day 29 survives, and the 24 h re-fetch is tested the same way.
