@@ -144,6 +144,8 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 - Guard test cleanup (`scripts/guard/guard.test.mjs`, the worktree test) should run in `finally`, so a failed assert can't leave a denylist behind (qa NIT). Fix in the foundation slice.
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
+- **Native review of the `lt`, `lv` and `et` texts** (legal, S02): the Baltic UI and terms texts are drafted by the frontend seat and listed in `packages/i18n/REVIEW.md`; no seat is a native speaker. They ship marked as drafts, and native review goes to the session 3 agenda (the human may know a reviewer, or accept drafts for v1). Legal reviews the terms texts as a second pass after native review.
+
 ### By the council
 Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (155 rows after splits and new S15 ids: SHOW 41, CAVEAT 56, LATER 53, HIDE 5 after the phase 3 calls on Sodra and Baltic courts; .lt WHOIS CAVEAT, .lv and .ee WHOIS and the web archive LATER); the policy table P1-P14; the proven-company gate for every party row; US live states NY, CO, CT, PA that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
 
