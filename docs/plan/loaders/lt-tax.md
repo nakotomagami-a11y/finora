@@ -42,7 +42,7 @@ The tax authority's other datasets (declarations, tax audits, control actions, l
 | S01.LT.01 | SHOW | - | NP (LEI, VAT: — when absent) |
 | S08.LT.01 | SHOW | - | CN |
 
-S18.LT.01 (score inputs: overdue tax arrears, taxes paid) reads these rows; it has no field of its own. The arrears check renders as "Checked the tax authority's arrears list as of [date]: none found" when the company is not on the list (CN).
+S18.LT.01 (score inputs: tax arrears past their payment term, taxes paid) reads these rows; it has no field of its own. The arrears check renders as "Checked the tax authority's arrears list as of [date]: none found" when the company is not on the list (CN).
 
 ## Field map
 
@@ -164,6 +164,6 @@ API CSV layout (UTF-8, LF line ends, `,`, header = the selected property names i
 ## Open questions
 
 1. **Names to add once to the shared config:** drop reason `natural_person_tax`; event data field `listedSince` on `finora.debtor_listed`; extension properties `finora:vatRegistered`, `finora:vatRegisteredSince`, `finora:vatDeregisteredOn`.
-2. **Deferred overdue arrears** (`atideta_pradelsta`): no concept in the shared list; not read. Add `tax_arrears_deferred_overdue` if a check needs it.
+2. **Deferred arrears past their payment term** (`atideta_pradelsta`): no concept in the shared list; not read. Add `tax_arrears_deferred_overdue` if a check needs it.
 3. **Closed: VAT of sole proprietorships.** The number is dropped (`natural_person_tax`; legal 7029923420 item 2); the profile shows "VAT registered: yes / no" only, from `finora:vatRegistered` (council 7029943555, legal 7029951778). The field map keeps `pvm_iregistruota` and `pvm_isregistruota` for them only to compute that flag; neither date is stored for a natural person.
 4. **Closed: the `sukurta` stability check** (cto 7029957075, above).

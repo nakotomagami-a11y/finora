@@ -61,6 +61,8 @@ S17.EE.01 and S18.EE.01 are derived in `ingest` (§4.4 step 7) from the statemen
 
 Status codes map to `status`: `R` registrisse kantud → `active`; `L` likvideerimisel → `liquidating`; `N` pankrotis → `insolvent`; `K` kustutatud → `struck_off` (2 rows on 19 Nov 2026). Any other value: record skipped with reason `unknown_status`, counted.
 
+**Sole traders (FIE, `natural_person = 1`): natural-person insolvency is HIDE** (Part H 9, §10.4; qa R2-4). For an FIE the status is coarsened before it is stored: `R`, `L` and `N` all map to `registered` ("on the register"), and `K` maps to `struck_off`. Every FIE gets the same coarse value whatever its true state, so no stored value, event or difference between sole traders reveals a bankruptcy or liquidation. The true code is read only to compute the coarse value and is counted as `natural_person_status` when it was `L` or `N`. A `finora.status_changed` event for an FIE compares coarse values only.
+
 Legal forms map to `legal_form` from `yldandmed.oiguslik_vorm` (general) or the text `ettevotja_oiguslik_vorm` (basic), through `domain/config/legal-forms.ts`. English labels are glosses written by data-baltics (the files are Estonian only; official English exists only in the contract API's classifier query):
 
 | Short code | Estonian | Normalised `legal_form` | English label | natural_person |
@@ -95,7 +97,7 @@ An unknown form: entity loaded with `legal_form = null`, `natural_person = 0`, c
 | `nimi` | string | statement `name`; `caption`; FTS | S01.EE.01 | no for companies; **yes for FIE** | trim. FIE (natural_person = 1): **dropped**, reason `natural_person_name`; caption = "Sole trader <code>" (EN) / "FIE <code>" (ET) |
 | `ettevotja_oiguslik_vorm` | string | `legal_form` | S01.EE.01 | no | via the table above |
 | `ettevotja_oigusliku_vormi_alaliik` | string | statement `legalFormSubtype` (extension) | S01.EE.01 | no | trim; empty → none (93% empty) |
-| `kmkr_nr` | string `EE` + 9 digits | statement `vatCode`; `links` VAT ↔ code | S01.EE.01 (resolution key) | no | regex `^EE\d{9}$`, else drop the value (`invalid_vat`) |
+| `kmkr_nr` | string `EE` + 9 digits | companies: statement `vatCode`; `links` VAT ↔ code. **FIE: only the statement `finora:vatRegistered` = `true` / `false`** (non-empty or empty); the number is dropped (`natural_person_vat`), no `links` row (council Part H, Baltic call 1; qa R2-3) | S01.EE.01 (resolution key) | no for companies; yes for FIE (dropped) | regex `^EE\d{9}$`, else drop the value (`invalid_vat`) |
 | `ettevotja_staatus` | `R`/`L`/`N`/`K` | `status` + statement `status` | S02.EE.01, S09.EE.01 | no | map above |
 | `ettevotja_esmakande_kpv` | `dd.mm.yyyy` | statement `incorporationDate` | S01.EE.01 | no | to ISO date |
 | `asukoht_ettevotja_aadressis` | string | statement `address` (street part) | S01.EE.01 | no for companies | FIE: dropped, reason `natural_person_address` |
@@ -159,6 +161,7 @@ Only the paths below are read. Everything else in the object (registry-card book
 ## Party gate
 - The register rows are the entities themselves, not parties: no gate. Sole traders are entities with `natural_person = 1` (legal form `FIE`; 24,545 on 19 Nov 2026): caption = form + code, no name, no address beyond the country, no website, excluded from `entities_fts` and `entities_trigram` names (found by code only), excluded from S17 address links.
 - **Pledgees** go through `ingest/src/party-gate.ts`: `pidaja_isikuliik = "J"` is the register's type field for a legal person, so the pledgee is kept; with a code that resolves to a non-FIE entity it is linked, otherwise it stays a name on the pledge event. `F` → dropped `natural_person_type`. No `pidaja_isikuliik`: dropped `no_code`.
+- **FIE records in the cards, rulings and pledges files are dropped whole** (`natural_person_record`; Part H 9, §10.4; qa R2-4): the registry-card entries and rulings of a sole trader include bankruptcy and liquidation entries, and a pledge on a sole trader is credit-type data about a person. The basic and general files decide `natural_person` first (they load before these three); a record whose code resolves to an FIE is never parsed further, never hashed, never written.
 - Counts by reason go to `syncs.report_json.dropped`.
 
 ## Identity and joins
@@ -199,10 +202,11 @@ Download per full pull: 0.30 GB zipped for these five files (basic 19 MB, genera
 - Two fixture days (`day1`, `day2`) for the refresh tests.
 
 ## Tests
-- `packages/sources/src/ee/ee-rik-basic/ee-rik-basic.test.ts`: parses the fixture CSV (BOM, `;`, quoting); maps every field per the table; FIE rows yield no name, no address beyond `ee`, caption "Sole trader <code>"; a bad check digit is skipped `invalid_code`; unknown status and form are counted; a repeated code is skipped `duplicate_key`; the 16-byte `row_hash` is stable across two parses of the same file.
+- `packages/sources/src/ee/ee-rik-basic/ee-rik-basic.test.ts`: parses the fixture CSV (BOM, `;`, quoting); maps every field per the table; FIE rows yield no name, no address beyond `ee`, caption "Sole trader <code>"; an FIE with a `kmkr_nr` yields only `finora:vatRegistered = true` and no number or `links` row; FIE rows with status `L` and `N` both store `registered` (and `K` stores `struck_off`); a bad check digit is skipped `invalid_code`; unknown status and form are counted; a repeated code is skipped `duplicate_key`; the 16-byte `row_hash` is stable across two parses of the same file.
 - `packages/sources/src/ee/ee-rik-general/ee-rik-general.test.ts`: the line-block streamer handles a 4-space-indented array and a final object without a trailing comma; only the listed paths are read; emails and phones never appear in any `ParsedRecord` (sentinel values searched in the serialised output); website normalised; current rows chosen by empty `lopp_kpv`.
 - `packages/sources/src/ee/ee-rik-cards/ee-rik-cards.test.ts`: entries before the 5-year window are dropped; event types and dates.
 - `packages/sources/src/ee/ee-rik-rulings/ee-rik-rulings.test.ts`: K1 entries skipped; unfiled-report warnings also emit `register.report_warning`.
+- **HIDE negative case (natural-person insolvency):** `ingest/src/hide.negative.test.ts` (EE case) loads a fixture FIE with status `N`, a bankruptcy entry on its registry card, a bankruptcy ruling and a pledge: no stored status, statement, event, fact or log line reveals the bankruptcy or the pledge, on UI, API, MCP, export and the agent path; the FIE shows "on the register" like every other FIE.
 - `packages/sources/src/ee/ee-rik-pledges/ee-rik-pledges.test.ts`: EEK kept as EEK; F pledgee dropped and its sentinel code absent from the output and the spied logger; J pledgee linked when its code resolves.
 - `packages/sources/src/licences.test.ts`: all five sources `cc-by-4.0` + `store`; deep link and fetch hosts in `officialHosts`; `items` equals the field-map item ids.
 - `packages/sources/src/field-maps.test.ts`: every target is a `show`/`caveat` item or a resolution key.

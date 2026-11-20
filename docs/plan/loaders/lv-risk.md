@@ -37,7 +37,7 @@ The tax authority's own activity-suspension list is in `lv-tax.md` (`lv-vid-susp
 - **Deep links:**
   - All four: the company page `https://info.ur.gov.lv/#/legal-entity/{entityCode}`.
   - The portal also has `/legal-entity/:regNumber/insolvency/:proceedingId`. It replaces the insolvency link once a manual check confirms that it takes the file's `proceeding_id` (Open questions).
-- `officialHosts`: `data.gov.lv`, `info.ur.gov.lv`.
+- `officialHosts`: `data.gov.lv`, `info.ur.gov.lv`, `manas.tiesas.lv` (the Court Administration portal, link target only for S09 case numbers; never fetched. The host timed out from our probe machine on 2026-11-20, so confirm the case-search URL pattern in a browser before the slice: Open questions).
 
 ## Items
 
@@ -48,7 +48,7 @@ The tax authority's own activity-suspension list is in `lv-tax.md` (`lv-vid-susp
 
 Checks fed (Part B): check 8 (insolvency, liquidation, pledges and securing measures) reads S09.LV.01. Its hard flags are an open insolvency (`INSOLVENCY` form, no end date) and an activity suspension; its soft flag is an open securing measure. Check 9 (sanctions and watchlists) reads S11.LV.01. Rule 8 applies: the UI says "The register records a link to a party on [list]", never "sanctioned".
 
-Not here: S10.LV.01 (courts) is agent-only. The court case numbers stored below are company-level facts the legal agent may use as search keys.
+Not here: S10.LV.01 (courts) is **LATER with MANUAL** (Part G): check 10 is not possible in LV in v1, and the coverage line reads "Court cases: check manually at [portal]", never "none found". The court case numbers stored below (insolvency `court_case_initial_number`, securing measures `case_number`) are company-level facts shown on their S09 events with a link to the court portal; they do not count as check 10. The portal host `manas.tiesas.lv` is in this spec's `officialHosts`.
 
 ## Field map
 
@@ -216,4 +216,5 @@ The sanctions-link *party* gets a second check: natural-person parties keep only
 
 1. **New names** (once): event types `register.sanctions_link`, `finora.securing_measure_lifted`, `finora.suspension_lifted`, `finora.sanctions_link_removed`. Without the "lifted" events, history cannot show that a measure went away (the register keeps no end date). Drop reasons: `natural_person_insolvency`, `natural_person_party`, `free_text`, `link_host`.
 2. **Insolvency deep link:** a one-time manual check that the portal's `/insolvency/:proceedingId` route takes the file's `proceeding_id`. Until then the link is the company page.
-3. **Purge-guard floor for small files:** with 58 sanctions-link records, 0.02 allows one removal per sync. Proposal: max(share, 5 records) in `ingest/src/purge-guard.ts`.
+3. **Closed: purge-guard floor.** The architect adopted `max(ceil(share × records), 5)` (§4.4 step 6, `7d7f1d0`), so the 58-record sanctions-links file may lose up to 5 per sync.
+4. **Court portal link:** the Court Administration portal (`manas.tiesas.lv`) timed out from our probe machine on 2026-11-20. Before the slice, open it in a browser and record the case-search URL pattern for a case number; until then the S09 events show the case number as text with no link.

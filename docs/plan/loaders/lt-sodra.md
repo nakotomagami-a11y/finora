@@ -74,7 +74,7 @@ What `read_live_source` returns for one company. Nothing is written to `finora.d
 
 The tool is called for one pinned company. It answers only when the code passes the check digit and resolves to an `lt-rc-jar-entities` entity in the store; otherwise it returns `code_not_in_register` and no row.
 - **Debts of natural-person forms are never returned** (Part H 8: debt lines tied to a natural person are HIDE; legal 7029923420 item 1). For an entity with `natural_person = 1`, the debts lookup returns `not_applicable` and the row is never placed in a document.
-- **Insured counts of natural-person forms** are returned only for the facts-only variant behind the purpose gate, as an aggregate per company (legal 7029923420 item 3).
+- **Sole traders never reach this tool:** natural persons and sole traders get no agents (R5, `agents.md` §2.1; architect 7030249290), so neither their debts nor their insured counts are ever read. If a later slice shows insured counts for a sole trader, legal's condition applies: suppress any count below 2 (7030224307 item 3).
 - Measured shares, for scale: of the insured file (108,013 rows, 2026-11-20) 3.4% are natural-person forms; of the debts file (37,592 rows, 2026-11-18) 3.0%. All codes in both files are 9-digit register codes.
 
 ## Identity and joins
@@ -100,7 +100,7 @@ Nothing on disk. Memory while cached: ≈ 108,000 insured rows and ≈ 37,000 de
 ## Tests
 
 - `agent-tools/src/social-insurance.test.ts` (architect's name, slice S10): the tool reads both fixture files live and returns the pinned company's values with `asOf` from line 1; a spied filesystem, store and logger see no sentinel amount and no fixture code (nothing written); a second call the same day makes no second download; a new publication day downloads again.
-- Party gate in the same file: a sole proprietorship's debt is never returned (`not_applicable`); its insured count is returned only with a purpose; a code not in the register returns `code_not_in_register`.
+- Party gate in the same file: a call for a sole proprietorship returns `not_applicable` for both files (no agents for natural persons); a code not in the register returns `code_not_in_register`.
 - Parsing: cp1257 decoding, the title-line as-of, the dashed line skipped, comma decimals, deep link from the insurer code (`packages/sources/src/lt/lt-sodra/lt-sodra.parse.test.ts`, pure parser shared by the tool).
 - HIDE negative test (sole-trader debt): covered on the agent path by the P8 canary (`agents/src/canary.test.ts`) and in `packages/ingest/src/lt-natural-tax.test.ts` (shared with `lt-tax`) for UI, API, MCP and export.
 - Report states: `domain/src/report/assemble.test.ts` (LT): S07.LT.01, S08.LT.02 and S18.LT.02 show the AGENT state "Social-insurance data: checked when you investigate" in the instant profile, never "none found".
