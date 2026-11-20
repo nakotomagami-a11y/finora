@@ -40,6 +40,7 @@ Every question a licensed lawyer must settle, with the safe interim value v1 shi
 | LAW-COURTS-LT | LITEKO keyword searches by company name and code | LATER, MANUAL link; if a build-time probe shows company names and legal gives a light: organisation parties only (P8), cited, not stored | none |
 | LAW-SANCTIONS-PERSONS | Storing listed natural persons (name, aliases) to screen a company's current officers | live screening only, in memory; store only the citation and match result | none |
 | LAW-LV-FIU-PERSON | Naming the listed individual behind an LV frozen company | not named; the loader drops the name | none |
+| LAW-SINGLE-COUNTS | Showing an insured-person count that identifies one natural person (a sole trader with 1 insured) | suppressed below 2: "not shown: fewer than 2" | none |
 | LAW-ACCOUNTS-DEADLINE | The statutory annual-report filing dates (LV, EE, LT) | **dormant**: v1 never shows a statutory deadline (check 5 is a labelled estimate); must be settled before a statutory date is ever shown as a deadline | none |
 | LAW-COURTS-LV | Latvian court portal search (terms unread) | MANUAL link plus the case numbers loaded with insolvency and securing measures | none |
 
