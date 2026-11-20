@@ -302,9 +302,11 @@ Applied on top of Parts B-E after legal's review and cto's notes. Gate 1 decided
 7. **LT `paid_only` target:** the register's own extract-ordering page, `https://www.registrucentras.lt/paslauga/jar-israsas` (data-baltics, HTTP 200).
 8. **Retained tax periods (cto):** `purgeScope: "periods-in-file"` keeps periods that roll out of the publisher's file; they count against `HISTORY_MAX_GB`. EE (share-alike store, ≈ 19 MB per quarter) collapses a rolled-out quarter into one annual report per company, and its store size is checked against the 0.25 GB cap in the EE slice. Weekly jobs (LV statements, EE general data, GLEIF) each get their own night, outside the 5-minute daily budget.
 
+**Baltic court rows (phase 3, 2026-11-20; chair clarification, legal agrees, no dissent):** `S10.LT.01`, `S10.LV.01` and `S10.EE.01` are LATER, with the MANUAL empty state "Check manually at the official court-decision portal" (official link only). Check 10 ("Court cases") counts as not possible in LT, LV and EE in v1; the coverage line reads "Court cases: check manually at [portal]", never "none found". In LV, the case-number links on S09 events don't count as running check 10. *Reasons:* agents honour `robots.txt` (EE disallows the decision paths); LT and LV have no readable terms and no legal light; a partial court check that reads as complete is the "clean = no data" failure. *What would change it:* LT, a build-time probe shows company names in published decisions and legal gives a light (`LAW-COURTS-LT`), then CAVEAT agent search by code and by name as "possible match, needs review"; LV, its terms are read and legal gives a light (`LAW-COURTS-LV`); EE, the portal lifts the disallow or publishes an API outside it. Baltic investigations reach at most 10 of 11 checks, still above the "Not enough data" line.
+
 ## Part G: the item table, one row per `item_id` (final, confirmed)
 
-Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and four new S15 ids, so 155 rows. No id is missing or unknown. Counts: SHOW 41, CAVEAT 59, LATER 50, HIDE 5. **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
+Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and four new S15 ids, so 155 rows. No id is missing or unknown. Counts: SHOW 41, CAVEAT 56, LATER 53, HIDE 5. **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
 
 **New ids:** `S15.LT.whois`, `S15.LV.whois`, `S15.EE.whois` and `S15.ALL.archive` (Part H, item 5 and the WHOIS ruling). **Split ids:** `S01.US.03a` (PA) and `S01.US.03b` (OR); `S08.EE.01a` (tax debtors) and `S08.EE.01b` (taxes paid); `M05.X.02a` (oracle) and `M05.X.02b` (user key); `M06.X.01a` (O5 oracle) and `M06.X.01b` (O3 supply + X4 candles).
 
@@ -376,9 +378,9 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S09.US.01 | CAVEAT | Checked UCC filings in Colorado and Connecticut only; other states not checked | CN |
 | S09.US.02 | LATER | - | — |
 | S09.US.03 | LATER | - | PAID ("Federal bankruptcy dockets: paid, not checked") |
-| S10.LT.01 | CAVEAT | Searched by the legal agent at query time; possible matches need review | AGENT |
-| S10.LV.01 | CAVEAT | Searched by the legal agent at query time; possible matches need review | AGENT |
-| S10.EE.01 | CAVEAT | Searched by the legal agent at query time; possible matches need review | AGENT |
+| S10.LT.01 | LATER | - | MANUAL ("Check manually at the official court-decision portal"), official link only |
+| S10.LV.01 | LATER | - | MANUAL ("Check manually at the official court-decision portal"), official link only; the court case numbers loaded with S09.LV.01 events link to the portal from those events |
+| S10.EE.01 | LATER | - | MANUAL ("Check manually at the official court-decision portal"), official link only |
 | S10.US.01 | CAVEAT | Possible match by name, needs review | AGENT |
 | S10.US.02 | CAVEAT | Possible match by name, needs review | AGENT |
 | S11.LT.01 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN |
