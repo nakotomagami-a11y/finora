@@ -98,7 +98,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | milestone A **closed** (store and loader contract, verified by qa at `faed2df`; `docs/plan/reviews/01-milestone-a.md`); milestone B in progress |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/README.md` (spec template and ownership) | coordinator | 3 | done |
-| `docs/plan/loaders/*.md` | data seats | 3 | landed: `markets.md`, `esma-firds.md` (data-markets, `d3fce4c`) |
+| `docs/plan/loaders/*.md` | data seats | 3 | landed: `markets.md`, `esma-firds.md` (data-markets, `d3fce4c`); `gleif.md`, `us-states.md`, `us-sec.md`, `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (data-us, `4e820f1`) |
 | `docs/plan/agents.md` | data-osint | 3 | landed `1ecbbc4`; court portals (§4.5a) to follow; §16 lists contract additions for the architect |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
@@ -170,7 +170,7 @@ For the key-testing round. Nothing here blocks phase 1. Values live only in the 
 |---|---|---|---|
 | `SEC_USER_AGENT` | none, a contact string with a real email (SEC refuses no-reply addresses). **Needed before the US loader slices in phase 5:** without it, US public companies have no profile and the "US companies" done criterion fails (cto) | All live SEC EDGAR calls (submissions, companyfacts, filing index, 8-K items, EX-21, DEF 14A, Form D, 13D/G); EDGAR returns 403 without it | data-us: S01, S03, S06, S13, S14 for US public companies; data-markets: SEC XBRL fundamentals |
 | `COURTLISTENER_TOKEN` | free | Docket search by party name, 125 searches a day (bulk dockets need no token) | data-us: S10 (US) |
-| `SAM_GOV_API_KEY` | free | Low value: the public extracts need no key | data-us: S11, S12 (US) |
+| `SAM_GOV_API_KEY` | free | **Needed for S11.US.01 (federal exclusions, SHOW):** SAM.gov's terms bar automated gathering except with permission, so exclusions come only through the keyed Extracts API (pending legal's light) | data-us: S11.US.01 |
 | `SOCRATA_APP_TOKEN` | free, optional | Avoids shared throttling on live state-registry queries | data-us: S01-S03 (US) |
 | `USPTO_ODP_KEY`, `FEC_API_KEY` | free | Only LATER items | data-us |
 | `FRED_API_KEY` | free | Not required (the CSV route works keyless); adds series metadata, licence notes and revision dates | data-markets: M01, M03, M07, M09 |
