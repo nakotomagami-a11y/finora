@@ -98,14 +98,14 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | milestone B pushed `0de4d5f` (27 slices, M1-M5); qa full review next; milestone A **closed** (store and loader contract, verified by qa at `faed2df`; `docs/plan/reviews/01-milestone-a.md`); milestone B in progress |
 | `DESIGN.md`, `docs/design/IA.md`, mockups (`docs/design/mockups/`) | designer | 3 | v1 and 8 mockup pages (~60 states) pushed `7dc2e76`; web-qa review next |
 | `docs/plan/loaders/README.md` (spec template and ownership) | coordinator | 3 | done |
-| `docs/plan/loaders/*.md` | data seats | 3 | landed: `markets.md`, `esma-firds.md` (data-markets, `d3fce4c`, fixed contract `384ddb4`); `gleif.md`, `us-states.md`, `us-sec.md`, `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (data-us, `4e820f1`, fixed contract `e5fd7bd`); 14 Baltic specs `lt-*`, `lv-*`, `ee-*` (data-baltics, `6dc2881`); open: `sanctions.md` |
+| `docs/plan/loaders/*.md` | data seats | 3 | landed: `markets.md`, `esma-firds.md` (data-markets, `d3fce4c`, fixed contract `384ddb4`); `gleif.md`, `us-states.md`, `us-sec.md`, `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (data-us, `4e820f1`, fixed contract `e5fd7bd`); 14 Baltic specs `lt-*`, `lv-*`, `ee-*` (data-baltics, `6dc2881`); `sanctions.md` (data-osint, `87301af`). **All specs landed** |
 | `docs/plan/ui-build-plan.md` | frontend | 3 | landed |
 | `docs/plan/agents.md` | data-osint | 3 | landed `1ecbbc4`; court portals (§4.5a) to follow; §16 lists contract additions for the architect |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | draft pushed |
 | `docs/plan/lawyer-register.md` (P13) | legal (committed by coordinator) | 3 | 16 rows from legal + 5 added by the coordinator for legal to confirm |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
 | `docs/plan/qa-plan-checklist.md` | qa (committed by coordinator) | 3 | done |
-| `docs/plan/reviews/02-plan-review.md` (qa's full plan review, milestone B) | qa (committed by coordinator) | 3 | 21 MUST-FIX; 17-18 fixed, rest open |
+| `docs/plan/reviews/02-plan-review.md` (qa's full plan review, milestone B) | qa (committed by coordinator) | 3 | 21 MUST-FIX; 15-21 fixed (qa to verify), 1-14 open |
 | `docs/plan/reviews/03-mockups.md` (web-qa's mockup review) | web-qa (committed by coordinator) | 3 | 6 blocking open (designer) |
 | `docs/plan/reviews/00-early-plan-review.md` (qa's review of the early drafts; architect's committed fixes) | qa + architect (committed by coordinator) | 1 | done; 12 MUST-FIX open for phase 3 |
 
