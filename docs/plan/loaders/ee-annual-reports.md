@@ -98,7 +98,7 @@ Not applicable: a report belongs to the company whose code it carries; no other 
 ## Identity and joins
 - `registrikood` → `ee-<code>`; the register (`ee-register.md`) must have loaded first. A report for a code the register does not hold today is not loaded and not kept for later (load rule 3; history starts at install).
 - Figures join reports on `report_id`. A figure row whose `report_id` is not in the window's reports is skipped `orphan_figure`.
-- "[year] not filed" (S06 empty state) is computed in `domain/report`, not here: for a company with `accountingObligation = true` and a `fiscalYearEnd` (both from `ee-rik-general`), year Y is "not filed" when no report for Y exists and the filing deadline has passed (6 months after the fiscal year end; the deadline is to be confirmed against the Commercial Code before the slice, see Open questions). The register's own warning rulings (`filing.overdue`, `ee-register.md`) are shown next to it as the source's statement.
+- "[year] not filed" (S06 empty state) is computed in `domain/report`, not here: for a company with `accountingObligation = true` and a `fiscalYearEnd` (both from `ee-rik-general`), year Y is "not filed" when no report for Y is in the register once **Finora's estimate of the usual filing window** has passed: for EE, 6 months + 30 days after the fiscal year end (`domain/config/filing-windows.ts`, council Part H). Check 5 reads "Annual report for [year] not in the register, [N] months after the year ended"; it states a fact about the register, never that a filing is late or overdue, and never names a statutory date (legal, council). The register's own warning rulings (`register.report_warning`, `ee-register.md`) are shown next to it as the source's statement.
 
 ## Refresh and change
 - Full re-publication monthly; `purgeScope: "window"` on `aruandeaasta`. Record = one report (`report_id`), `row_hash` as defined under Field map.
@@ -136,7 +136,7 @@ Download per refresh: about 0.15 GB zipped (the `1.` file 21 MB plus five figure
 - `ingest/src/as-of.test.ts`: the fixture syncs with `as_of_basis = in_file_name`; a figures group that reappears after closing fails `schema_changed`.
 - `ingest/src/purge-guard.test.ts` (window case): month 2 dropping the oldest year passes; a month 2 file missing half of one year's reports ends `purge_guard`.
 - `ingest/src/parser-version.test.ts`: same zips with a changed element → concept table are re-parsed from the raw cache.
-- `domain/src/report/not-filed.test.ts`: "[year] not filed" for an obliged company with no report after the deadline; no such line for a company without accounting obligation or before the deadline.
+- `domain/src/checks/filing-window.test.ts` (EE cases): "[year] not filed" for an obliged company with no report once the window has passed; no such line for a company without accounting obligation or inside the window; the text carries "Finora's estimate of the usual filing window" and none of the words late, overdue or deadline.
 - `store/src/provenance.test.ts`: every fact report resolves to a `SourceRef` with `cc-by-4.0` and the attribution text.
 
 ## Failure modes
@@ -149,7 +149,7 @@ Download per refresh: about 0.15 GB zipped (the `1.` file 21 MB plus five figure
 
 ## Open questions
 1. **`liabilities`** is in the shared concept list but is not one element here. Options: leave it empty for EE (this spec), or derive `current_liabilities + non_current_liabilities` with the "Derived by Finora" chip. Council or architect to choose.
-2. **Filing deadline for "[year] not filed".** This spec assumes 6 months after the fiscal year end (from the Commercial Code's annual-report rule); it was not read on the primary text during research. To be verified before the S06 slice.
+2. **Filing window:** closed by the council. 6 months + 30 days is Finora's estimate of the usual window, so nothing blocks the slice; a lawyer-confirmed statutory term can replace it later.
 3. **Non-profit lines** (`TotalRevenue`, `NetSurplusDeficitForPeriod`, ...) are not read: the concept list has no `total_income`. If S06 should show non-profits' income, a new concept is needed.
 4. **Extra drop reasons and sync reasons:** `url_discovery_failed` (a sync failure kind), `duplicate_period`, `unknown_table`, `invalid_value`, `orphan_figure`. Proposal: add them to the unions.
 5. **Classifier labels:** the size-category and audit-opinion labels are Estonian; English glosses by data-baltics. Proposal: ship them in `domain/config/` like the register labels (`ee-register.md` question 4).

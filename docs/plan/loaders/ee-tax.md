@@ -119,6 +119,8 @@ Measured on the 10 Oct 2026 taxes file and the 19 Nov 2026 debtor list; 16 B per
 | Debtor events (≈ 50-200 a day, 🟡) | ≈ 50,000 a year | < 0.01 GB a year |
 | **Total** | | **≈ 0.15 GB** of the 0.25 GB share-alike budget (P10) |
 
+**Retained quarters (cto 7029931479).** Quarters that roll out of the file are kept as our history (`periods_in_file`), count against `HISTORY_MAX_GB`, and at ≈ 19 MB a quarter would fill the 0.25 GB share-alike cap within about five quarters. So when a quarter leaves the file, the loader **collapses that company-year into one annual report** (kind `annual_tax`, concepts `taxes_paid` and `labour_taxes` summed, `employees` = the mean of the quarters present, `period_start`/`period_end` = the year) in `finora-sa.db`, and deletes the four quarterly reports. The collapsed report keeps the `record_id` of the last quarterly record it absorbed, so its provenance stays the publisher's. About 4x smaller; the EE slice checks the share-alike store's size against its cap. Test: `packages/sources/src/ee/ee-emta-taxes/collapse.test.ts` (a fixture year with four quarters, then a file without that year: one annual report with the summed facts, no quarterly rows left, provenance intact; a partial year collapses only the quarters present).
+
 `live-no-store` mode: 0 bytes on disk; the debtor map takes about 3 MB of memory.
 
 Download: taxes 156 MB for both files (only on publication days; otherwise one page read and two ETag checks); debtors 1.3 MB daily. Parse time measured with stdlib Python on the research machine: taxes 23 s + 31 s, debtors under 1 s (🟡 for the named profile).

@@ -98,6 +98,8 @@ Every row of these three sources is a party row (`ingest/src/party-gate.ts`, the
 
 Counts go into `syncs.report_json` by reason. Dropped rows are never written anywhere (no record, no event, no log line with a value).
 
+**One exception for the taxpayer register (council 7029943555, legal 7029951778):** for an entity with `natural_person = 1`, the loader writes only the statement `finora:vatRegistered` (`true` / `false`, from whether `pvm_isregistruota` is empty for the selected VAT row) and nothing else: no VAT number, no dates, no `links` row. Its row counts as loaded with the reason `natural_person_vat_flag_only`. Taxes-paid and arrears rows of sole traders stay dropped.
+
 ## Identity and joins
 
 - `lt-vmi-taxpayers`, `lt-vmi-arrears`: `ja_kodas` → `lt-<code>`. `lt-vmi-taxes-paid`: `mm_kodas._id` → UUID map → `lt-<code>`.
@@ -124,7 +126,7 @@ Counts go into `syncs.report_json` by reason. Dropped rows are never written any
 Council (Part H, Baltic-spec call 5): LT arrears age is evaluated from day one from the list entry's own creation date, a lower bound; P14 does not apply. cto's condition is that the date is stable for an entry whose debt continues. Evidence so far (`removal_shares.py` and the change feed, 2026-08-30 to 2026-11-19, 50 load days):
 - 246,135 patches; **none changed `sukurta`** (or the row `id`): while an entry stays on the list, its date does not move.
 - 76,379 deletes. Of the 58,787 whose company is known from an earlier insert in the window, 1,526 (2.6%) were re-inserted the same day and 2,471 (4.2%) on the next load day, with a new `sukurta`. A company that leaves and re-enters gets a new date, so its age restarts: that can only under-flag, which keeps the lower-bound reading true.
-- Still to do (cto's proof): compare the 2026-11-19 snapshot with a pull at least 7 days later (on or after 2026-11-26) and record the share of continuing entries whose `sukurta` changed. If any continuing entry's date resets without a delete, P14 applies to LT arrears age and the check reads "Not evaluated: tracked since [date]".
+- **Verified by cto (7029957075):** in the last 10,000 change-feed entries on 2026-11-20, 6,434 patches touched amounts and `atnaujinta` but none touched `sukurta`, and the 1,480 inserts were all dated within a day of the change. This replaces the 7-day snapshot comparison. The fixture test still covers both outcomes, so a future change in the publisher's behaviour is caught.
 Loader rule: `listedSince` = the entry's current `sukurta`; a re-inserted entry writes `finora.debtor_cleared` and a new `finora.debtor_listed` with the new date; a `sukurta` change on a continuing record takes the later date (never extends the age).
 - VAT changes produce no history event (not one of the §3.7 attributes).
 
@@ -144,12 +146,12 @@ API CSV layout (UTF-8, LF line ends, `,`, header = the selected property names i
 
 ## Tests
 
-- `packages/sources/src/lt/lt-vmi-taxpayers/lt-vmi-taxpayers.test.ts`: collapse to one record per company; VAT selection rule; `vatCode` format; `links` row; sole-proprietorship VAT dropped (`natural_person_tax`).
+- `packages/sources/src/lt/lt-vmi-taxpayers/lt-vmi-taxpayers.test.ts`: collapse to one record per company; VAT selection rule; `vatCode` format; `links` row; sole-proprietorship VAT number and dates dropped (`natural_person_tax`), only `finora:vatRegistered` (yes/no) kept.
 - `.../lt-vmi-taxes-paid/lt-vmi-taxes-paid.test.ts`: UUID map join; `ytd_tax` periods (Jan 1 to the end of `menuo`); 3-year window; unresolved UUID counted.
 - `.../lt-vmi-arrears/lt-vmi-arrears.test.ts`: three facts per report; `period_end` = list date; 10-digit code → `invalid_code`.
 - **HIDE negative test (sole-trader tax, Part H 8):** `packages/ingest/src/lt-natural-tax.test.ts` loads the fixture day 1 and day 2 and asserts that no record, report, fact, event or log line carries the sole proprietorship's code or amounts, and that UI, API, MCP and export for its entity show no S08 values (`web/e2e/hide-items.spec.ts` LT case).
 - Shared ingest tests: `party-gate.test.ts` (one case per LT reason), `history.test.ts` (`debtor_listed` with band and `listedSince`, `debtor_cleared` on removal, no event for a dropped natural person), `unchanged.test.ts`, `purge.test.ts`, `purge-guard.test.ts` (arrears: a day removing 4.7% purges, a file missing 30% ends `purge_guard` and clears nobody; taxes paid: a year absent from the file is kept), `as-of.test.ts` (`max_date_in_data` and `portal_metadata` cases), `parser-version.test.ts`, `stale.test.ts`.
-- `domain/src/verdict/lt-arrears-age.test.ts` (both outcomes of cto's condition): a fixture entry whose `sukurta` is unchanged across day 1 and day 8 reports an age from `sukurta` on the first day; an entry deleted and re-inserted with a new `sukurta` restarts its age; a `sukurta` that moves earlier on a continuing record is ignored (the later date stays).
+- `domain/src/verdict/lt-arrears-age.test.ts` (both outcomes, so a change in the publisher.s behaviour is caught): a fixture entry whose `sukurta` is unchanged across day 1 and day 8 reports an age from `sukurta` on the first day; an entry deleted and re-inserted with a new `sukurta` restarts its age; a `sukurta` that moves earlier on a continuing record is ignored (the later date stays).
 - Live check `lt-vmi-arrears.live.test.ts`: header unchanged; max `atnaujinta` ≤ 2 days old on weekdays.
 
 ## Failure modes
@@ -163,5 +165,5 @@ API CSV layout (UTF-8, LF line ends, `,`, header = the selected property names i
 
 1. **Names to add once to the shared config:** drop reason `natural_person_tax`; event data field `listedSince` on `finora.debtor_listed`; extension properties `finora:vatRegistered`, `finora:vatRegisteredSince`, `finora:vatDeregisteredOn`.
 2. **Deferred overdue arrears** (`atideta_pradelsta`): no concept in the shared list; not read. Add `tax_arrears_deferred_overdue` if a check needs it.
-3. **VAT of sole proprietorships:** dropped with their tax lines (`natural_person_tax`). Part H call 1 allows "VAT registered: yes / no" for LV sole traders; an LT sole proprietorship's VAT number does not embed a personal code, so legal may allow the same yes/no for LT. Until then nothing is shown.
-4. **The 7-day `sukurta` check** above (due on or after 2026-11-26).
+3. **Closed: VAT of sole proprietorships.** The number is dropped (`natural_person_tax`; legal 7029923420 item 2); the profile shows "VAT registered: yes / no" only, from `finora:vatRegistered` (council 7029943555, legal 7029951778). The field map keeps `pvm_iregistruota` and `pvm_isregistruota` for them only to compute that flag; neither date is stored for a natural person.
+4. **Closed: the `sukurta` stability check** (cto 7029957075, above).

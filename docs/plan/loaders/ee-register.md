@@ -139,7 +139,7 @@ Only the paths below are read. Everything else in the object (registry-card book
 | Source field | Type | Target | item_id | Personal? | Transform and validation |
 |---|---|---|---|---|---|
 | `maarused[]`: `maaruse_nr`, `maaruse_kpv`, `maaruse_liik`, `maaruse_liik_tekstina`, `maaruse_olek`, `joustumise_kpv` | | event `register.ruling.<maaruse_liik>`, date = `maaruse_kpv`, data = `{ "no": maaruse_nr, "label": maaruse_liik_tekstina, "state": maaruse_olek, "inForce": joustumise_kpv }` | S13.EE.01, S18.EE.01 | no | skip kind `K1` "Kanne" (plain entries: they are already in `ee-rik-cards`); window as for cards (483,426 non-entry rulings since 2021-01-01) |
-| the same, kinds "Hoiatusmäärus registrist kustutamiseks: majandusaasta aruanne esitamata" and "Trahvihoiatusmäärus: majandusaasta aruanne esitamata" | | additionally event `filing.overdue`, data = `{ "reason": "annual_report_not_filed" }` | S13.EE.01, S18.EE.01 | no | match on the `maaruse_liik` code: `X2` (deletion warning, unfiled annual report) and `HM` (fine warning, unfiled annual report), seen with those labels on 19 Nov 2026; the fixture asserts code and label together (77,126 deletion warnings since 2021) |
+| the same, kinds "Hoiatusmäärus registrist kustutamiseks: majandusaasta aruanne esitamata" and "Trahvihoiatusmäärus: majandusaasta aruanne esitamata" | | additionally event `register.report_warning`, data = `{ "reason": "annual_report_not_filed" }` | S13.EE.01, S18.EE.01 | no | match on the `maaruse_liik` code: `X2` (deletion warning, unfiled annual report) and `HM` (fine warning, unfiled annual report), seen with those labels on 19 Nov 2026; the fixture asserts code and label together (77,126 deletion warnings since 2021) |
 | `kande_kpv`, `lisatahtaeg`, `kandeliik*`, `joust_olek*` | | not read | - | - | |
 
 ### `ee-rik-pledges` (JSON, one record per pledge; record key = `pandi_id`)
@@ -185,7 +185,7 @@ Measured row counts from the 19 Nov 2026 pull; bytes at 123 B per statement, 32 
 | `ee-rik-basic` | 381,685 | ≈ 3.0 M (≈ 8 per company, 3 per FIE) | tombstones only | ≈ 0.39 GB incl. entities rows |
 | `ee-rik-general` | 381,685 | ≈ 1.6 M (activity, NACE, capital, FY end, accounting, status-since; website 21,358) | change events | ≈ 0.22 GB |
 | `ee-rik-cards` | 381,685 | 0 | ≈ 0.84 M | ≈ 0.05 GB |
-| `ee-rik-rulings` | 381,668 | 0 | ≈ 0.48 M + 0.08 M `filing.overdue` | ≈ 0.04 GB |
+| `ee-rik-rulings` | 381,668 | 0 | ≈ 0.48 M + 0.08 M `register.report_warning` | ≈ 0.04 GB |
 | `ee-rik-pledges` | 8,078 | 0 | 8,078 | < 0.01 GB |
 | FTS (names, codes) | | | | ≈ 0.06 GB |
 | **Total** | ≈ 1.5 M | ≈ 4.6 M | ≈ 1.4 M | **≈ 0.77 GB** of the EE 3 GB (P10) |
@@ -202,7 +202,7 @@ Download per full pull: 0.30 GB zipped for these five files (basic 19 MB, genera
 - `packages/sources/src/ee/ee-rik-basic/ee-rik-basic.test.ts`: parses the fixture CSV (BOM, `;`, quoting); maps every field per the table; FIE rows yield no name, no address beyond `ee`, caption "Sole trader <code>"; a bad check digit is skipped `invalid_code`; unknown status and form are counted; a repeated code is skipped `duplicate_key`; the 16-byte `row_hash` is stable across two parses of the same file.
 - `packages/sources/src/ee/ee-rik-general/ee-rik-general.test.ts`: the line-block streamer handles a 4-space-indented array and a final object without a trailing comma; only the listed paths are read; emails and phones never appear in any `ParsedRecord` (sentinel values searched in the serialised output); website normalised; current rows chosen by empty `lopp_kpv`.
 - `packages/sources/src/ee/ee-rik-cards/ee-rik-cards.test.ts`: entries before the 5-year window are dropped; event types and dates.
-- `packages/sources/src/ee/ee-rik-rulings/ee-rik-rulings.test.ts`: K1 entries skipped; unfiled-report warnings also emit `filing.overdue`.
+- `packages/sources/src/ee/ee-rik-rulings/ee-rik-rulings.test.ts`: K1 entries skipped; unfiled-report warnings also emit `register.report_warning`.
 - `packages/sources/src/ee/ee-rik-pledges/ee-rik-pledges.test.ts`: EEK kept as EEK; F pledgee dropped and its sentinel code absent from the output and the spied logger; J pledgee linked when its code resolves.
 - `packages/sources/src/licences.test.ts`: all five sources `cc-by-4.0` + `store`; deep link and fetch hosts in `officialHosts`; `items` equals the field-map item ids.
 - `packages/sources/src/field-maps.test.ts`: every target is a `show`/`caveat` item or a resolution key.

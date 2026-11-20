@@ -36,10 +36,10 @@ One `SourceMeta`, `lv-ur-annual-reports`, reads three files of the dataset `gada
 
 - Sole traders and other NP entities (2.2% of statements): S06 is CAVEAT behind the purpose gate, facts only, with the rule 6 disclaimer, and never in a verdict (Part H 8). The loader stores their figures like any other; the flag comes from the entity's `natural_person`.
 - Checks fed: check 5 ("accounts filed on time") reads S13.LV.01; check 6 ("financial position") reads S06.LV.01.
-- **Check 5 deadline, cited from the law.** The Annual Accounts and Consolidated Annual Accounts Law, Section 97(1), as amended on 8 March 2023 (*Latvijas Vēstnesis* 57A, 21.03.2023; applies from the 2022 financial year; text at `https://likumi.lv/ta/id/340392`, read 2026-11-20), requires the annual report to reach the State Revenue Service:
+- **Background for the check 5 window, from the law.** The Annual Accounts and Consolidated Annual Accounts Law, Section 97(1), as amended on 8 March 2023 (*Latvijas Vēstnesis* 57A, 21.03.2023; applies from the 2022 financial year; text at `https://likumi.lv/ta/id/340392`, read 2026-11-20), requires the annual report to reach the State Revenue Service:
   - micro and small companies: "ne vēlāk kā piecus mēnešus pēc pārskata gada beigām" (no later than 5 months after the financial year ends);
   - medium and large companies, and parent companies preparing a consolidated report: "ne vēlāk kā septiņus mēnešus" (7 months).
-- **What the verdict uses.** The files carry no size class, so `domain/config` uses the council's interim of 7 months plus 30 days of grace for every LV company (Part H, "Calls from the Baltic loader specs", 4). That can only under-flag small companies. The soft flag reads "Annual report for [year] not filed; due [date]", labelled Finora's estimate until the size class is known (Open question 1).
+- **What the check uses.** The files carry no size class, so `domain/config/filing-windows.ts` holds **Finora's estimate of the usual filing window**: 7 months + 30 days for every LV company (council Part H). That can only under-flag small companies. Check 5 reads "Annual report for [year] not in the register, [N] months after the year ended"; it states a fact about the register, never that a filing is late or overdue, and never names a statutory date (legal, council). Test: `domain/src/checks/filing-window.test.ts` (LV cases).
 - **Measured lag** from year end to `created_at` (FY 2020+): p50 150 days (≈ the 5-month statutory date), p95 431 days.
 - Employees from the statements (`employees_avg`) are part of the annual accounts (S06.LV.01). The quarterly headcount in S07.LV.01 comes from `lv-tax.md`.
 
@@ -185,6 +185,6 @@ This fits within LV ≤ 2.5 GB (LV total ≈ 1.6 GB, `lv-register.md`).
 
 ## Open questions
 
-1. **Size class for check 5.** The deadline is in the law (Items), but the files carry no size class. Proposal: 7 months for every company until a size rule from the statements (turnover, assets, employees, per the law's thresholds) is specified and cited. Using 7 months can only under-flag micro and small companies.
+1. **Size class for check 5 (optional refinement):** the law's terms differ by size class, which the files don't carry. The council's single 7-month window can only under-flag micro and small companies. A size rule from the statements (turnover, assets, employees, per the law's thresholds) could narrow it later; nothing blocks the slice.
 2. **Consolidated reports** (`UKGP`) are dropped, so one report per company-year stays. Group figures would need a new `fact_reports.kind`, `annual_accounts_consolidated`.
 3. **New names** (once): drop reasons `consolidated_report`, `struck_off_identity_only`.

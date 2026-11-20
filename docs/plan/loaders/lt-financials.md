@@ -6,7 +6,7 @@ Covers three `SourceMeta` entries:
 |---|---|---|
 | `lt-rc-jar-statements` | P&L key lines + balance-sheet key lines + the register UUID map (three API artifacts, one record per filed report: company, period end, template) | S06.LT.01, S13.LT.01 |
 | `lt-rc-jar-documents` | founding documents + the register UUID map | S13.LT.01 |
-| `lt-rc-jar-nonfilers` | companies that have not filed statements + late filers + the register UUID map | S13.LT.01 |
+| `lt-rc-jar-nonfilers` | companies whose statements are not in the register + the register's list of filings made after the legal term (`fa_veluojantys`) + the register UUID map | S13.LT.01 |
 
 The list of companies with a missing auditor's opinion (`fa_nepateike_auditoriu_isvadu`) is not read: last loaded 2025-05-15 and no item needs it.
 
@@ -18,7 +18,7 @@ The list of companies with a missing auditor's opinion (`fa_nepateike_auditoriu_
   - Balance sheet: the same on `.../balanso_ataskaitos/BalansoAtaskaita/...`
   - Founding documents: `.../dokumentai/Dokumentas/:format/csv?select(juridinis_asmuo,dokumento_tipas,dokumento_potipis,dok_data,dok_reg_data)`
   - Document classifiers (labels LT + EN): `.../dokumentu_tipai_potipiai/DokumentoTipas/:format/csv`, `.../DokumentoPotipis/:format/csv`
-  - Non-filers: `.../fa_dokumentu_nepateike/Nepateikes/:format/csv?select(juridinis_asmuo,nepateikta_iki)`; late filers: `.../fa_veluojantys/VeluojantisPateikti/:format/csv?select(juridinis_asmuo)`
+  - Non-filers: `.../fa_dokumentu_nepateike/Nepateikes/:format/csv?select(juridinis_asmuo,nepateikta_iki)`; filings after the legal term: `.../fa_veluojantys/VeluojantisPateikti/:format/csv?select(juridinis_asmuo)`
   - UUID map (shared by all three sources and by `lt-tax`): `.../iregistruoti/JuridinisAsmuo/:format/csv?select(_id,ja_kodas)` (552,531 rows)
   `<Y-5>` = the current calendar year minus 5 (2021 in 2026): the window that holds the latest 5 fiscal years.
 - Licence: `cc-by-4.0` ("Creative Commons Attribution 4.0", data.gov.lt pages 1666 and 1806, verified 2026-11-19; the same publisher and licence on the document and non-filer datasets). Attribution: "Source: Registrų centras, Register of Legal Entities: financial statements (open data), CC BY 4.0". Storage: `store`.
@@ -33,7 +33,7 @@ The list of companies with a missing auditor's opinion (`fa_nepateike_auditoriu_
 |---|---|---|---|---|
 | `lt-rc-jar-statements` | 1. `portal_metadata`: the newer `_created` of the P&L and balance-sheet change logs (wins; 2026-10-28); 2. `max_date_in_data`: latest `reg_date`; 3. `http_last_modified` | **0.02**: the change feeds show 0 deletes on the loads of 2026-10-26 (balance sheet, 120,001 inserts of 10,329,853 rows) and 2026-10-27/28 (P&L, 110,903 + 9,098 inserts of 6,643,810); `removal_shares.py` | `window` on `laikotarpis_iki` ≥ `<Y-5>-01-01`: reports whose period end leaves the window are expected deletions; a report missing inside the window counts against the guard | one record per filed report = (company UUID, `laikotarpis_iki`, `template_id`); P&L and balance-sheet lines share the template (209,812 of 209,827 periods with both); hash input below; the stream is sorted by the line's own `_id`, unrelated to the company, so the parser groups through an on-disk temp table keyed (UUID, period end, template) |
 | `lt-rc-jar-documents` | 1. `portal_metadata`: change-log `_created` (wins; 2026-10-23); 2. `http_last_modified`. `max_date_in_data` is not used: `dok_reg_data` holds dates up to 2046 | **0.02**: 0 deletes on the loads of 2026-03-16, 08-24 and 10-23 (16,180 to 82,866 inserts) | `full` | one record per document row; no order assumed |
-| `lt-rc-jar-nonfilers` | 1. `portal_metadata`: the newer change-log `_created` of the two lists (wins; 2026-10-23); 2. `http_last_modified` | **0.02**: 0 deletes on the loads of 2025-09-03, 2026-03-16 and 2026-10-23 for non-filers, and 2025-05-15, 2025-09-03, 2026-10-23 for late filers (the lists only grow) | `full` | one record per (company, year) or (company, late); no order assumed |
+| `lt-rc-jar-nonfilers` | 1. `portal_metadata`: the newer change-log `_created` of the two lists (wins; 2026-10-23); 2. `http_last_modified` | **0.02**: 0 deletes on the loads of 2025-09-03, 2026-03-16 and 2026-10-23 for non-filers, and 2025-05-15, 2025-09-03, 2026-10-23 for the after-term list (the lists only grow) | `full` | one record per (company, year) or (company, late); no order assumed |
 
 `parserVersion` (A1): the hash of the loader module (with the duplicate and conflict rules), its field map (with the concept map below) and the generated item list. The document classifiers and the UUID map are fetched artifacts, not part of the parser.
 
@@ -103,8 +103,8 @@ The dataset holds founding documents only (articles of association, deeds and re
 | Source field | Type | Target | item_id | Personal? | Transform and validation |
 |---|---|---|---|---|---|
 | non-filers `juridinis_asmuo._id` | UUID | company via the UUID map | S13.LT.01 | no | unresolved → skip |
-| non-filers `nepateikta_iki` | year | event `filing.overdue`, data `{ fiscalYear, kind: "not_filed" }`; S06 empty state "[year] not filed" | S13.LT.01 | no | 2015 ≤ year ≤ as-of year |
-| late filers `juridinis_asmuo._id` | UUID | event `filing.overdue`, data `{ fiscalYear: null, kind: "late" }` | S13.LT.01 | no | `veluojantis_iki` is 100% empty, so no year is read |
+| non-filers `nepateikta_iki` | year | event `register.nonfiler_listed`, data `{ fiscalYear, list: "not_filed" }`; S06 empty state "[year] not filed" | S13.LT.01 | no | 2015 ≤ year ≤ as-of year |
+| `fa_veluojantys` `juridinis_asmuo._id` | UUID | event `register.nonfiler_listed`, data `{ fiscalYear: null, list: "filed_after_term" }` | S13.LT.01 | no | `veluojantis_iki` is 100% empty, so no year is read |
 | `ja_reg_data`, `forma._id`, `statusas._id`, `veluojantis_iki` | | not read | - | - | - |
 
 Event date for both lists: the `upstream_as_of` of the sync that first saw the row (the lists carry no date); an unchanged row keeps it.
@@ -129,9 +129,11 @@ Not applicable: every row is the filing company itself, keyed by the register UU
 - `maxPurgeShare` and `purgeScope` per source: Contract values above.
 - A change of storage class or licence is a full reload into the new class plus a purge from the old one (§4.2, A7).
 
-### Check 5: accounts filed on time (Part H, Baltic-spec call 4)
+### Check 5: annual report in the register (Part H, council and legal on the Baltic specs)
 
-The non-filer list says that a year's statements are missing; the soft flag "Annual report for [year] not filed; due [date]" needs the due date. Lithuanian deadline: the ordinary general meeting approves the annual statements within **4 months** of the financial year's end (Law on Companies, the article on the ordinary general meeting), and the approved set goes to the Register of Legal Entities within **30 days** of approval (Civil Code art. 2.66(4), unless a law sets another term). Due date = year end + 4 months + 30 days (31 May + 30 days = 30 June for a calendar year), the same as the council's interim of 5 months + 30 days within a day; no extra grace is added on top. Citation status: from secondary sources read on 2026-11-20 (a law firm's 2023 note on the 4-month meeting rule; a Ministry of Finance explanation applying art. 2.66(4) to small partnerships); a 2025 draft amendment would extend the meeting deadline to 5 months, adoption not confirmed. Until the law texts are read on the official register (e-tar.lt), the due date is labelled "Finora's estimate" and "late" is not presented as a statutory fact (legal's condition). Config: `domain/config/filing-deadlines.ts`, LT `{ approvalMonths: 4, filingDays: 30, basis: "estimate" }`.
+The non-filer list says a year's statements are not in the register. Check 5 compares the register with **Finora's estimate of the usual filing window**: for LT, 5 months + 30 days after the financial year ends (`domain/config/filing-windows.ts`, LT `{ months: 5, graceDays: 30 }`; architecture §5, test `domain/src/checks/filing-window.test.ts`). The soft flag reads "Annual report for [year] not in the register, [N] months after the year ended", and the window is labelled "Finora's estimate of the usual filing window". It states a fact about the register, not a legal conclusion, so it needs no lawyer; the UI, the event names and this spec never call a company's filing late or overdue, and never name a statutory date (legal, council).
+
+Background for the estimate (secondary sources read on 2026-11-20): the ordinary general meeting approves the annual statements within 4 months of the year end (Law on Companies), and the approved set goes to the register within 30 days of approval (Civil Code art. 2.66(4)); a 2025 draft amendment would make the approval term 5 months. The council's 5 months + 30 days is therefore a generous window, which can only under-flag. A lawyer-confirmed statutory date can replace the estimate later.
 
 ## Size and time budget
 
@@ -156,12 +158,12 @@ Content: the fixture companies of `lt-register` (fixture codes per the fixture r
 
 - `packages/sources/src/lt/lt-rc-jar-statements/lt-rc-jar-statements.test.ts`: P&L and balance lines merge into one report; concept map; the four duplicate rules in order; window rule; struck-off skip; natural-person report flagged; `filing.annual_report` event per report; unmapped lines counted; every fact report carries `record_id` and the sync's licence.
 - `.../lt-rc-jar-documents/lt-rc-jar-documents.test.ts`: classifier codes in event data; future-date skip; documented `record_key` derivation is stable across a reordered file.
-- `.../lt-rc-jar-nonfilers/lt-rc-jar-nonfilers.test.ts`: one event per (company, year); late filers without a year; a row that disappears is purged (current-state list); the S06 empty state "[year] not filed" is assembled from the event (`domain/report/assemble.test.ts` case).
+- `.../lt-rc-jar-nonfilers/lt-rc-jar-nonfilers.test.ts`: one event per (company, year); `filed_after_term` rows without a year; a row that disappears is purged (current-state list); the S06 empty state "[year] not filed" is assembled from the event (`domain/report/assemble.test.ts` case).
 - `packages/sources/src/lt/lt-uuid-map.test.ts`: shared map parsing; unresolved rows counted.
 - Probe test: `lt-rc-jar-statements.fetch.test.ts` with a fake API: same `_cid` → `{ unchanged: true }` and no data request; new `_cid` → download.
 - Grouping: `lt-rc-jar-statements.test.ts` shuffles the fixture lines (the source order is by line `_id`) and asserts the same records and `row_hash` values; two templates for one period give two records, and `domain/report/assemble.test.ts` shows the later filing.
 - Shared ingest tests: `unchanged.test.ts`, `purge.test.ts`, `purge-guard.test.ts` (window: a January shift passes; half the reports missing inside the window ends `purge_guard`), `partial.test.ts` (a stream cut mid-file purges nothing), `stale.test.ts`, `parser-version.test.ts` (A1), `as-of.test.ts` (`portal_metadata` and `max_date_in_data` cases), and the change-token case in `lt-rc-jar-statements.fetch.test.ts`.
-- `domain/src/verdict/filing-deadline.test.ts`: LT due date for a calendar year and for a year ending 30 June; the flag text carries "Finora's estimate" while `basis` is `estimate`.
+- `domain/src/checks/filing-window.test.ts`: the LT window for a calendar year and for a year ending 30 June; the flag text carries "Finora's estimate of the usual filing window" and none of the words late, overdue or deadline.
 - Live check `lt-rc-jar-statements.live.test.ts` (nightly): endpoints return CSV with the fixture headers; the newest change log is ≤ 70 days old (two missed monthly loads); a WAF HTML body is detected as `schema_mismatch`.
 
 ## Failure modes
@@ -176,4 +178,4 @@ Content: the fixture companies of `lt-register` (fixture codes per the fixture r
 
 1. **Names to add once to the shared config:** event data fields `template`, `form` on `filing.annual_report`; drop and skip reasons `unmapped_line`, `conflicting_line`, `struck_off_identity_only`, `future_date`.
 2. **Concepts:** none new; `cash`, `current_liabilities` and `non_current_liabilities` are not in the LT key lines.
-3. **Check 5 law text:** read the Law on Companies (ordinary general meeting) and Civil Code art. 2.66(4) on e-tar.lt, then set `basis: "statute"`; also whether the 2025 amendment to 5 months was adopted.
+3. **Check 5 background:** the window is Finora's estimate by council decision, so nothing blocks the slice. Optional: read the Law on Companies and Civil Code art. 2.66(4) on e-tar.lt, and whether the 2025 amendment to 5 months was adopted; propose a new estimate to the council only if the law gives a longer term.
