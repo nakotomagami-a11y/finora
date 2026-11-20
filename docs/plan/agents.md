@@ -108,7 +108,7 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
   - News: GDELT first; if GDELT fails or returns nothing, at most 1 `web_search` for news. Each article becomes a finding only if fetched and confirmed to be about the pinned company by the registry code, the domain or the full legal name plus the city; otherwise it is listed as "Mentions the name; not confirmed to be this company" (S16.ALL.01 caveat) and is never a key finding.
 - **The offer domain** (the invoice job, council item 7) is checked against the register, never trusted: it is tied to the pinned company only by a strong anchor (§5.3: it is the register-listed domain, or its homepage states the company's code or VAT number). Results:
   - `offer_domain_tied`: a strong anchor holds (a fact).
-  - `offer_domain_not_tied`: no strong anchor, while the domain resolves. Shown as "[domain] is not linked to [company] in the register or on its own website" (points to check, §6.2).
+  - `offer_domain_not_tied`: no strong anchor, while the domain resolves. Shown as "[domain] is not linked to [company] in the register or on its own website" (points to check through `website_inconsistent`, §6.2).
   - `offer_domain_other_company`: the domain's homepage states another register code, or the domain is the register-listed website of a different company in the store (points to check, ranked first among key findings, §6.5).
   - `offer_domain_unresolvable`: the domain does not resolve (points to check).
   - `domain_newer_than_company` applies to the offer domain too (below).
@@ -360,9 +360,8 @@ The model's findings are explanation, not input.
 | `renamed_recently` | `renamed_recently` or `reregistered_recently` (P14: "Not evaluated" until snapshots cover 6 months) | `points_to_check` |
 | `status_not_active` | `status_not_active`: the register status is neither active nor one of the serious statuses (for example suspended, reorganising) | `points_to_check` (council item 9) |
 | `no_officers_on_record` | `no_officers_on_record`: the register lists no current board member or manager where the country publishes them | `points_to_check` (council item 9) |
-| `offer_domain_not_tied` | `offer_domain_not_tied`, `offer_domain_other_company` or `offer_domain_unresolvable` | `points_to_check` (council item 7) |
 | `court_case_by_identifier` | `court_case_defendant_recent` (US only in v1) | `points_to_check` (council O2: only as defendant, in a case open or filed in the last 3 years; any other case and any name-only match is a fact) |
-| `website_inconsistent` | `website_unresolvable` on a register-listed domain, `website_states_other_code`, or `website_live_while_struck_off` | `points_to_check` (council O2: approved) |
+| `website_inconsistent` | `website_unresolvable` on a register-listed domain, `website_states_other_code`, `website_live_while_struck_off`, or an offer-domain result `offer_domain_not_tied`, `offer_domain_other_company` or `offer_domain_unresolvable` (council item 7; one rule id, as DESIGN.md §S15 renders it) | `points_to_check` (council O2: approved) |
 | `domain_newer_than_company` | `domain_newer_than_company` (§2.5: registry creation date only, under 12 months or newer than the company; the offer domain or the register-listed domain) | `points_to_check` (council O2) |
 
 - Level precedence: any `serious_concerns` rule wins; then `not_enough_data` replaces only `no_concerns_found` (flags always show, council Part B); then `points_to_check`; else `no_concerns_found`. Tests in `rules.test.ts`: serious + not-enough-data → serious; points + not-enough-data → points; only not-enough-data → not_enough_data; none → no_concerns_found.
