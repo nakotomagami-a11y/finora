@@ -9,7 +9,7 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 ## Key findings
 
 1. **Sanctions are the strongest open-web source.** The official OFAC, EU, UN and UK lists are free, bulk and reusable (🟢 7 files, 85 MB, all downloaded in one pass). Name-only screening of random register names gave hits for 0.22% of company names and 0.06% of person names (🟢 5,000 each), all on generic names, so every hit needs a second identifier before it is shown. The aggregated open sanctions/PEP dataset is CC BY-NC: connector only, under the user's own licence (legal rule 12).
-2. **Domain WHOIS ties a website to the register in LV and EE.** The .lv and .ee WHOIS publish the registrant's company code for legal persons, a direct join key. 🟢 On the sample it matched the register code for 5 of 21 websites (44% of EE sites). None of .lt, .lv, .ee or .eu offers RDAP; all need port-43 WHOIS, whose terms restrict reuse. Show at query time, never bulk-store.
+2. **Domain WHOIS ties a website to the register in LV and EE.** The .lv and .ee WHOIS publish the registrant's company code for legal persons, a direct join key. 🟢 On the sample it matched the register code for 5 of 21 websites (44% of EE sites). None of .lt, .lv, .ee or .eu offers RDAP; all need port-43 WHOIS, whose terms restrict reuse. Show at query time, never bulk-store. **Legal's reading (session 1): .lt CAVEAT; .lv and .ee LATER, so the code match is not usable in v1.**
 3. **Most small Baltic companies have no findable website.** 🟢 LV: 2 of 8 samples, LT: 2 of 7, both by web search. EE's register has a website contact field, but 🟢 only 5.6% of active EE entities fill it. 🟢 3 of 9 register-listed EE websites no longer resolve (both micro companies and the one in liquidation). A dead official website is a useful "points to check" signal.
 4. **News is thin and rate limited.** GDELT is free, redistributable with attribution, and covers Lithuanian, Latvian and Estonian media, but it searches only the last 3 months and allows one request every 5 seconds per IP (stated in its own error message). 🟢 It answered only 13 of 32 queries (rate limits and connection timeouts, even at 12 s spacing with retries); 5 returned articles, and 3 of those were other things with the same name. News needs a fallback (the provider's web search, restricted to news domains) and a relevance check before anything is cited. Commercial news APIs either exclude Baltic languages or forbid production use on their free tiers.
 5. **Reviews and social platform APIs are closed to this use.** Every major review API either bans feeding its content to a generative AI model, bans "creating content" from it, or is approval-only. The microblogging, social-network and professional-network platforms explicitly ban background checks, eligibility decisions or "investigating". The council's LATER call stands; the evidence is in §1.3-1.4. What is open: 🟢 41% of samples link at least one social profile from their own website, which costs nothing to read.
@@ -34,7 +34,12 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 - Keys, limits, cost: free, no key. Per-IP limits without numbers (.lv, .ee). rdap.org redirector: 10 requests per 10 s.
 - Legal constraints: one lookup for one domain the user is investigating fits the stated purposes best; bulk lookups or building a domain-to-company table does not. The .lv purpose clause is the tightest: **legal to confirm** whether a due-diligence lookup fits "technical or administrative needs" or "to contact the domain name holder over legal problems". Its reuse clause covers only all or a significant part of the WHOIS, which a single lookup is not.
 - Tested with: `domain.mjs` `registration()`, via `reality_check.mjs`.
-- Verdict: **LATER until legal reads the terms** (council session 1, item 5). The full texts are quoted in §1.1a below. If legal clears them: CAVEAT, query time only, one domain per investigation, showing only domain age (creation date), registrar and the .lv/.ee register-code match. The registrant's name and contacts are never shown. Raw text stays only in the investigation's documents (TTL), never in shared datasets or exports.
+- Verdict, per legal's reading of the terms quoted in §1.1a (2026-11-20, not legal advice):
+  - **.lt: CAVEAT.** One live lookup per investigation; show the creation date (domain age) and the registrar only. Nothing stored beyond the investigation's own cited record. The holder is never contacted.
+  - **.lv and .ee: LATER.** No field from either WHOIS is shown, including the register-code match. .lv returns if the registry confirms in writing that a due-diligence lookup is within its purpose clause.
+  - **US (.com and other gTLD RDAP): CAVEAT,** as council session 1 kept it: creation date only.
+  - Registrant name and contacts: HIDE on every path.
+  - Re-read the live .lt terms against the server notice on the build date.
 
 #### 1.1a The WHOIS and web-archive terms, quoted in full for legal
 
@@ -79,6 +84,9 @@ Council session 1, item 5, asked for these texts. Retrieved 2026-11-20. "Banner"
 - **What Finora would do:** ask the capture index (CDX) for one domain's capture dates, show the first and last capture year, and link to a snapshot. No page content is copied or stored, and no personal data is collected.
 - Reading for legal: two questions. Does a user checking a company count as "research"? And could capture dates for a domain be "personal data about anyone"? For a sole trader's domain they could, so legal rule 5 applies there either way.
 
+
+**Legal's reading** (comment 7029245848, 2026-11-20, not legal advice; a lawyer settles the LAWYER items): .lt CAVEAT (one live lookup per investigation; creation date and registrar only; no storage beyond the investigation's cited record; no contact with the holder). .lv LATER, until the registry confirms in writing. .ee LATER, with no field shown, including the register-code match. Web archive LATER, with no due-diligence use; a plain link the user opens is a LAWYER item and never a finding. The live texts are re-read before the build.
+
 #### Certificate transparency: Cert Spotter API and crt.sh
 - Publisher and official URL: SSLMate Cert Spotter `https://api.certspotter.com/v1/issuances`; Sectigo crt.sh `https://crt.sh/?q=<domain>&output=json`.
 - Access: per-query JSON.
@@ -108,8 +116,8 @@ Council session 1, item 5, asked for these texts. Retrieved 2026-11-20. "Banner"
 - Fields: capture timestamps (first capture, last capture, years with a capture), status codes, and a link to each snapshot.
 - Rows and coverage: 🟢 at least one capture for 95% of sample websites (20 of 21).
 - Size and speed: 🟢 p50 877 ms, p95 2.3 s.
-- Licence: **unverified**. The Internet Archive terms page could not be fetched (its text did not render). No rate limit is published; the CDX server caps results at 150,000.
-- Verdict: **LATER until legal reads the terms** (council session 1, item 5; text quoted in §1.1a). If cleared: CAVEAT, storing only capture dates and snapshot links, and linking to archived pages, never copying them.
+- Licence: quoted in §1.1a (last server-rendered text; the live page renders only by script). No rate limit is published; the CDX server caps results at 150,000.
+- Verdict: **LATER** (legal, 2026-11-20): access is "for scholarship and research purposes only", and a due-diligence verdict is not that purpose. Not queried by any agent in v1. Whether the UI may offer a plain link that the user opens is a lawyer question, and such a link is never a finding.
 
 #### The company's own homepage
 - Access: one HTTPS GET of the homepage, as a browser would, when the user investigates the company.
@@ -345,8 +353,10 @@ Sample sizes are small (7-9 per country). The rates below say what the agent can
 | S15 | LV | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates |
 | S15 | LT | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code |
 | S15 | US | SAM.gov URL or web search → DNS, RDAP, CT, Wayback, homepage | B | website 100% of sample; RDAP date 100%; registrant 0% | per-query; licence verified Y |
-| S15.ALL.whois | LV, EE, LT | ccTLD WHOIS (port 43): creation date, registrar, register-code match | C | date: LT 2/2, EE 6/9, LV 0/2; code match: EE 4/9, LV 1/2 | per-query; licence verified Y (terms quoted in full, §1.1a); council S1 item 5: LATER until legal reads them; registrant name and contacts never shown |
-| S15.ALL.archive | all | Wayback CDX: first and last capture, snapshot link | C | 95% of sites known | per-query; licence verified N (live terms page renders only by script; 2014 text quoted, §1.1a); council S1 item 5: LATER until legal reads it |
+| S15.ALL.whois | LT | .lt WHOIS (port 43): creation date, registrar | C | date 2/2 sites | per-query; licence verified Y (§1.1a); legal: CAVEAT, one live lookup per investigation, no storage beyond the cited record |
+| S15.ALL.whois | LV | .lv WHOIS | X | date 0/2; code match 1/2 | per-query; licence verified Y (§1.1a); legal: LATER, purpose clause does not cover due diligence |
+| S15.ALL.whois | EE | .ee WHOIS | X | date 6/9; code match 4/9 | per-query; licence verified Y (§1.1a); legal: LATER, no field shown ("business ... or any other similar purposes", "in its entirety") |
+| S15.ALL.archive | all | Wayback CDX | X | 95% of sites known | per-query; licence verified Y (2014 text, §1.1a); legal: LATER, "scholarship and research purposes only" |
 | S16 | all | GDELT DOC 2.0 (news, last 3 months) | C | 16% raw hits; 41% of queries answered | API; licence verified Y; 1 request per 5 s per IP; titles + links only |
 | S16 | US | SEC / DOJ / FTC press releases | A | not measured on the sample | bulk; licence verified Y (public) |
 | S16 | all | social profiles linked from the company's own website | C | 41% | per-query; licence verified Y (own site); links only, no platform data |
@@ -365,7 +375,7 @@ The architecture (`docs/architecture.md` §7) fixes the runtime seams: a lead st
 | Registry and people | store reads (officers, owners, history) | none |
 | Money and tax | store reads (financials, taxes, arrears) | none |
 | Legal, insolvency and sanctions | store reads; `screen_sanctions` (local lists, second-identifier check); `check_regulator_lists` (bulk lists + query-time pages) | `fetch_page` on regulator warning pages (allowlist) |
-| Web, domain and news | `domain_report` (WHOIS/RDAP, DNS, CT, Wayback in one call, about 1-8 s), `homepage_facts`, `news_search` (GDELT, queued globally) | provider `web_search` (max 4 uses), `fetch_page` (allowlist + the subject's own domain) |
+| Web, domain and news | `domain_report` (DNS, CT, US RDAP creation date, .lt WHOIS creation date and registrar, in one call, about 1-8 s; no .lv/.ee WHOIS and no web archive in v1), `homepage_facts`, `news_search` (GDELT, queued globally) | provider `web_search` (max 4 uses), `fetch_page` (allowlist + the subject's own domain) |
 | Synthesis | none (reads findings) | none |
 
 Deterministic tools return compact JSON summaries, not raw responses: 🟢 the raw responses are 0.3-100 KB, the summaries under 1 KB. That keeps tokens low and keeps restricted raw text (WHOIS) out of the model's context.
@@ -376,8 +386,9 @@ Deterministic tools return compact JSON summaries, not raw responses: 🟢 the r
 |---|---|---|---|
 | Official sanctions and regulator lists | yes, bulk, daily, with source and licence | the matched entry, list name, date, link | "sanctioned" without a list entry (rule 8) |
 | GDELT article metadata | yes (title, URL, date, domain, language), with the GDELT citation | title, source, date, link; at most 125 characters quoted | article text |
-| WHOIS/RDAP results | derived facts in the investigation (registered on, registrant is an organisation, code matches); raw text as an investigation document with the natural-person TTL (rule 11) | the derived facts with "source: <registry> WHOIS, <date>" | bulk lookups; any shared table or export of WHOIS data |
-| DNS, CT, Wayback | derived facts and snapshot links in the investigation | yes | copies of archived pages |
+| WHOIS/RDAP results (.lt and US only in v1) | creation date and registrar in the investigation's cited record, with the retrieval date | the two facts with "source: <registry>, <date>" | .lv and .ee WHOIS; registrant name or contacts; bulk lookups; any shared table or export |
+| DNS, CT | derived facts in the investigation | yes | - |
+| Web archive | nothing in v1 | nothing (a user-opened link is a lawyer question) | captures, copies of archived pages |
 | The company's own web pages | content hash, URL, retrieval time and the quoted span (≤ 300 characters) that a citation points to | the quote and a link | full-page copies in exports |
 | Web search results | only the URLs the agent then fetched and cited | as links | result lists (provider terms); anything from commercial company-information portals |
 | Social profiles | the link found on the company's own site | the link | anything read from the platform |
@@ -390,10 +401,10 @@ Deterministic tools return compact JSON summaries, not raw responses: 🟢 the r
 The worst failure is the wrong company (council). So:
 
 1. **Every finding is pinned to a registry ID.** The lead resolves the subject to one register entry before specialists start; if it can't, it asks (§4.4).
-2. **Web findings need an anchor that ties the website to that ID.** Anchors, strongest first, with 🟢 sample rates: the register lists the website (EE: 100% of sampled companies that have one; LV and LT registers carry no website); the domain's WHOIS registrant code equals the register code (EE 44%, LV 50% of sites); the homepage states the register code or VAT number (14%); the LLM matched name and address only (the rest). A web finding with only the last anchor is labelled "linked by name only" and cannot raise the verdict above "Points to check".
+2. **Web findings need an anchor that ties the website to that ID.** Anchors, strongest first, with 🟢 sample rates: the register lists the website (EE: 100% of sampled companies that have one; LV and LT registers carry no website); the domain's WHOIS registrant code equals the register code (🟢 EE 44%, LV 50% of sites, but LATER per legal, so not available in v1); the homepage states the register code or VAT number (14%); the LLM matched name and address only (the rest). A web finding with only the last anchor is labelled "linked by name only" and cannot raise the verdict above "Points to check".
 3. **Sanctions and list hits need a second identifier** (§1.6). Name-only hits are "possible match, needs review", or a question to the human.
 4. **The citation verifier is code, not a model.** Each citation's quoted span must occur in the stored document (normalised whitespace), and each document's URL must be one the run actually fetched. A finding that fails is dropped and logged.
-5. **Conflicts become findings.** Synthesis receives findings from all agents and the rule table flags contradictions it can detect deterministically: the register says liquidated or deregistered while the website is live; the register lists a website that no longer resolves (🟢 3 of 9 EE samples); the domain is newer than a claimed founding year; the website states a different register code than the pin.
+5. **Conflicts become findings.** Synthesis receives findings from all agents and the rule table flags contradictions it can detect deterministically: the register says liquidated or deregistered while the website is live; the register lists a website that no longer resolves (🟢 3 of 9 EE samples); the domain is newer than a claimed founding year (creation date from US RDAP or .lt WHOIS; elsewhere the first certificate in CT logs as a lower bound); the website states a different register code than the pin.
 6. **Open-web risk claims need two independent sources** (two domains, or one official source). A single-source web risk claim is shown as "single source" and cannot set the verdict level.
 7. **The verdict level is rules, not the model** (council decision 3); the model writes the explanation from findings only.
 
@@ -470,7 +481,7 @@ The web agent is about half of the cost at every tier; its search count and fetc
 | Registry and people | 15-35 s | the local store (4-6 sections) | $0.06 |
 | Money and tax | 15-35 s | the local store (3-4 sections) | $0.06 |
 | Legal, insolvency and sanctions | 15-35 s | 4 official sanctions lists, 3-8 regulator lists, the local store | $0.07 |
-| Web, domain and news | 60-120 s | WHOIS/RDAP, DNS, CT, Wayback, the homepage, GDELT, up to 4 searches and 3 fetched pages: 8-15 sources | $0.20 |
+| Web, domain and news | 60-120 s | DNS, CT, RDAP or .lt WHOIS, the homepage, GDELT, up to 4 searches and 3 fetched pages: 8-15 sources | $0.20 |
 | Verdict step | 15-30 s | the findings only | $0.05 |
 
 - **Excerpts, per web source** (13): the store-or-show rule is §4.2. In short: sanctions and regulator lists, GDELT metadata, TED notices and US federal releases may be stored and excerpted. The company's own pages: a quote of up to 300 characters with a link. Press articles: headline, source, date and link, quoting at most 125 characters. WHOIS: derived facts only, at query time. Wayback: dates and a link. Reviews and social platforms: link only, or nothing.
