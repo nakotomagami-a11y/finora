@@ -161,7 +161,7 @@ Every CAVEAT also carries "Missing does not mean clean." where the item is a che
 | S08.EE.01 (taxes paid) | CAVEAT | Taxes paid for 39.1% of active companies; share-alike licence | NP |
 | S08.US.01 | LATER | - | NP ("The US publishes no tax payment or tax debt data") |
 | S09.LV.01, S09.EE.01 | SHOW | - | CN (EE: status and pledges; bankruptcy notices LATER) |
-| S09.LT.01 | CAVEAT | Bankruptcy reports published up to Oct 2025 | CN |
+| S09.LT.01 | CAVEAT | Bankruptcy reports published up to [month] (the month is taken from the data) | CN |
 | S09.US.01 | CAVEAT | Checked UCC filings in Colorado and Connecticut only; other states not checked | CN |
 | S09.US.02 | LATER | - | — |
 | S09.US.03 | LATER | - | PAID ("Federal bankruptcy dockets: paid, not checked") |
@@ -372,7 +372,7 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S08.EE.01a (tax debtors) | SHOW | - | CN |
 | S08.EE.01b (taxes paid) | CAVEAT | Taxes paid for 39.1% of active companies; share-alike licence | NP / "Not checked: licence question pending (live-no-store mode)" |
 | S08.US.01 | LATER | - | NP ("The US publishes no tax payment or tax debt data") |
-| S09.LT.01 | CAVEAT | Bankruptcy reports published up to Oct 2025 | CN |
+| S09.LT.01 | CAVEAT | Bankruptcy reports published up to [month] (the month is taken from the data) | CN |
 | S09.LV.01 | SHOW | - | CN |
 | S09.EE.01 | SHOW | - | CN (status and pledges; bankruptcy notices LATER; natural-person insolvency HIDE) |
 | S09.US.01 | CAVEAT | Checked UCC filings in Colorado and Connecticut only; other states not checked | CN |
