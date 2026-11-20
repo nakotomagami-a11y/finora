@@ -59,6 +59,8 @@ B1-B3 and S1-S4 are closed in `3c6cd90`: a `leases` table taken inside `BEGIN IM
 
 **Legal's conditions on Q2 (gate 1):** the tombstone log holds only an opaque id and a deletion date; resolved disputes stay resolved after a restore (tested); new LAWYER row `LAW-BACKUP-RETENTION` with the interim **person-level rows excluded from backups entirely**; a second `doctor.test.ts` case: a backup that held a person row never restores it.
 
+**Converged backup design (cto 7048828925, legal 7048828896 final, qa 7048824046):** `finora-cli backup` copies an **explicit allowlist of tables** into a fresh file with `INSERT … SELECT` (no `VACUUM INTO`): settings, fund slots, judgements, disputes (content hashes only), `purpose_log` (company eid + purpose), and the investigation index (id, subject eid, status, level, coverage, cost, dates). Excluded as person-level: findings text, citation snapshots, `documents`, question and answer text, follow-ups. Every schema table carries one class, `backed_up | person_excluded | derivable`, and `store/src/backup-classes.test.ts` fails on an unclassified table. `deletions.log` (opaque id + date) is appended and fsynced before a delete is acknowledged; `doctor --repair` refuses to restore if the log is missing or unreadable; a repair restores the allowlist, replays the log, runs retention and suppressions, then reopens reads, and repaired investigations read "Details not restorable after repair: re-run to see findings". 3 daily backups (legal's 3-day window). The architect's `65bf0b0` crossed with this and still backs up investigation content; it is superseded.
+
 ## Council decision
 
 Pending.
