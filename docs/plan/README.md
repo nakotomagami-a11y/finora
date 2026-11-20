@@ -91,7 +91,8 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/design/display-options.md` (display states, advice for session 1) | designer | 1 | done |
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | done 2026-11-20 |
 | `docs/plan/council/00-framing.md` (session 1 gates, matrix format, v1 frame) | council (committed by coordinator) | 1 | done |
-| `docs/plan/council/01-data.md` | council + cto (committed by coordinator) | 2 | |
+| `docs/plan/council/01-data-cto.md` (cto's feasibility, cost and scaling calls) | cto (committed by coordinator) | 2 | done 2026-11-20 |
+| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | waiting for the council's decision post |
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | early draft exists; frozen until phase 3 opens |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/*.md` | data seats | 3 | |
@@ -160,7 +161,7 @@ For the key-testing round. Nothing here blocks phase 1. Values live only in the 
 
 | Env var | Account | Unlocks | Areas waiting on it |
 |---|---|---|---|
-| `SEC_USER_AGENT` | none, a contact string with a real email (SEC refuses no-reply addresses) | All live SEC EDGAR calls (submissions, companyfacts, filing index, 8-K items, EX-21, DEF 14A, Form D, 13D/G); EDGAR returns 403 without it | data-us: S01, S03, S06, S13, S14 for US public companies; data-markets: SEC XBRL fundamentals |
+| `SEC_USER_AGENT` | none, a contact string with a real email (SEC refuses no-reply addresses). **Needed before the US loader slices in phase 5:** without it, US public companies have no profile and the "US companies" done criterion fails (cto) | All live SEC EDGAR calls (submissions, companyfacts, filing index, 8-K items, EX-21, DEF 14A, Form D, 13D/G); EDGAR returns 403 without it | data-us: S01, S03, S06, S13, S14 for US public companies; data-markets: SEC XBRL fundamentals |
 | `COURTLISTENER_TOKEN` | free | Docket search by party name, 125 searches a day (bulk dockets need no token) | data-us: S10 (US) |
 | `SAM_GOV_API_KEY` | free | Low value: the public extracts need no key | data-us: S11, S12 (US) |
 | `SOCRATA_APP_TOKEN` | free, optional | Avoids shared throttling on live state-registry queries | data-us: S01-S03 (US) |
