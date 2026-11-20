@@ -85,7 +85,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-FINRA | `agent-tools/src/check-live-list.test.ts` (link-out, no request) |
      | LAW-CO-DISCLAIMER | `web/e2e/co-disclaimer.spec.ts` |
      | LAW-SHARE-ALIKE | `ingest/src/share-alike.test.ts`, `ingest/src/live-no-store.test.ts` |
-     | LAW-SODRA-LICENCE | `agent-tools/src/social-insurance.test.ts` (read live, nothing written), `sources/src/licences.test.ts` |
+     | LAW-SODRA-LICENCE | `agent-tools/src/read-live-source.test.ts` (read live, nothing written), `sources/src/licences.test.ts` |
      | LAW-ACCOUNTS-DEADLINE | dormant: needed only before a statutory date is ever shown as a deadline; `domain/src/checks/filing-window.test.ts` proves v1 never shows one |
      | LAW-P7-SCOPE | `domain/src/policy/purposes.test.ts` |
      | LAW-DEFAMATION | `agents/src/orchestrator.subject.test.ts` |
@@ -218,7 +218,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S10 Specialists, open-web tools and the verdict
 - **Owner:** data-osint · **with:** architect · **Depends on:** S09, S06 · **security**
-- **Scope:** `agents.md` §2, §4.2-§4.6, §5, §6, §9, §10, §13: the four specialists and their pre-run tasks, the open-web tools (`domain_report`, `homepage_facts`, `fetch_page`, `news_search`, `check_live_list`, `search_courts` for the US only; Baltic court checks are MANUAL in v1), the money agent's live LT social-insurance tool (S07.LT.01, S08.LT.02, S18.LT.02; `docs/plan/loaders/lt-sodra.md` and `agents.md` §4; read at query time, never stored), anchors, signals, the rule table `computeVerdict` and the explanation with the banned-term branches, the P8 output filter and canary, the twelve fake-provider scenarios. The v1 investigation **is** the one profile template the council kept (counterparty, session 0): the plan always runs the four specialists; other templates are LATER (the `plan` event already carries the roles, so a template only changes the plan).
+- **Scope:** `agents.md` §2, §4.2-§4.6, §5, §6, §9, §10, §13: the four specialists and their pre-run tasks, the open-web tools (`domain_report`, `homepage_facts`, `fetch_page`, `news_search`, `check_live_list`, `search_courts` for the US only; Baltic court checks are MANUAL in v1), the money agent's `read_live_source` tool for the LT social-insurance files (S07.LT.01, S08.LT.02, S18.LT.02; `docs/plan/loaders/lt-sodra.md` and `agents.md` §4.4b; read at query time, never stored), anchors, signals, the rule table `computeVerdict` and the explanation with the banned-term branches, the P8 output filter and canary, the twelve fake-provider scenarios. The v1 investigation **is** the one profile template the council kept (counterparty, session 0): the plan always runs the four specialists; other templates are LATER (the `plan` event already carries the roles, so a template only changes the plan).
 - **Acceptance:** `agents.md` §14 "Agent tools and specialists" items 1-5, plus:
   1. One test per rule in the rule table; the determinism test (same inputs, three explanation texts, same level and fired rules).
   2. The three banned-term branches (pass, regenerate, fallback).
