@@ -99,7 +99,7 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
   - `check_live_list` for every live list that applies to the subject's country (§4.4): LT FNTT list and Bank of Lithuania and gambling domains (LT), Latvijas Banka and consumer-centre pages (LV), Ministry of Foreign Affairs list, Finantsinspektsioon alerts and consumer-protection list (EE), UN list (all), US enforcement feeds (US). FINRA BrokerCheck is a MANUAL link only (§4.4).
   - `search_courts` for US subjects only (§4.5). Baltic subjects get no court task; check 10 is recorded `not_possible` with the MANUAL portal link.
 - **Job:** confirm or rule out each possible match with a second identifier; ask `sanctions_match` when a name-only match cannot be settled (§7); describe insolvency, pledges and court results; never call anything "sanctioned" without an official-ID match (R8).
-- **Signals:** `insolvency_proceeding`, `open_pledge_or_measure`, `sanctions_listed` (official-ID match only), `sanctions_possible_match` (name match, unresolved), `sanctions_human_not_sure`, `regulator_warning_listed` (domain or code match on a warning list), `court_case_party_by_identifier` (a US docket ties the party to the company by a second identifier, `us-courts.md`), `court_case_name_only`.
+- **Signals:** `insolvency_proceeding`, `open_pledge_or_measure`, `sanctions_listed` (official-ID match only), `sanctions_possible_match` (name match, unresolved), `officer_sanctions_possible_match` (a current officer's name on the in-memory person index; behind the purpose gate), `sanctions_human_not_sure`, `regulator_warning_listed` (domain or code match on a warning list), `court_case_party_by_identifier` (a US docket ties the party to the company by a second identifier, `us-courts.md`), `court_case_name_only`.
 
 ### 2.5 `web`
 - **Pre-run tasks:** `get_company` (website from the register where it exists: EE `S15.EE.01`, the US SAM.gov URL), then, if a domain is known: `domain_report` and `homepage_facts`; always `news_search` (GDELT, queued globally).
@@ -177,7 +177,7 @@ One definition per tool in `packages/agent-tools/src/<tool>.ts`: Zod input and o
 | `get_company_section` | `{ entityId, section, purpose? }` | the `SectionResult` union | S03, S04, S17 need `purpose`; the agent passes the investigation's purpose; logged in `purpose_log` with `surface: "agent"` (P2) | `get-company-section.test.ts` |
 | `get_financials` | `{ entityId, years≤5 }` | facts by concept and period | | `get-financials.test.ts` |
 | `get_checks` | `{ entityId }` | the 11 checks: `{ checkId, state: ran | not_run | not_possible | not_evaluated, trackedSince?, outcome?, signals[], statementIds[] }` | the same `computeChecks` the instant profile uses; checks 10 and 11 are `not_run` here | `get-checks.test.ts` |
-| `screen_sanctions` | `{ entityId }` or `{ name, kind, country?, birthDate?, ids[]? }` | per list: entries with name, aliases, programme, listing date, identifiers, `status: possible_match | listed` | `listed` only on an official-ID match (R8); the name-only form is MCP-only, agents always screen the pinned entity | `resolve/src/sanctions.test.ts` |
+| `screen_sanctions` | `{ entityId }` or `{ name, kind, country?, birthDate?, ids[]? }` | per list: entries with name, aliases, programme, listing date, identifiers, `status: listed | possible_match | ruled_out`; officers (behind the purpose gate) against the in-memory person index, `possible_match` only | `listed` only on an official-ID match with its issuing country (R8, `sanctions.md` §7); the name-only form is MCP-only, searches stored organisation entries only and never returns an individual; agents always screen the pinned entity | `resolve/src/sanctions.test.ts` |
 | `list_sources` | `{}` | source registry with licence and attribution | | `list-sources.test.ts` |
 
 ### 4.2 Investigation tools (agent only)
@@ -348,7 +348,7 @@ The model's findings are explanation, not input.
 | `accounts_not_in_window` | `accounts_not_in_window` (wording rule in §2.3) | `points_to_check` |
 | `negative_equity` | `negative_equity` | `points_to_check` |
 | `open_pledge` | `open_pledge_or_measure` | `points_to_check` |
-| `sanctions_unsure` | `sanctions_human_not_sure`, or `sanctions_possible_match` left unanswered | `points_to_check` |
+| `sanctions_unsure` | `sanctions_human_not_sure`, or `sanctions_possible_match` / `officer_sanctions_possible_match` left unanswered or answered "Not sure" | `points_to_check` |
 | `regulator_warning` | `regulator_warning_listed` on a domain or code match | `points_to_check` (proposed) |
 | `renamed_recently` | renamed or re-registered in the last 6 months (P14: "Not evaluated" until snapshots cover 6 months) | `points_to_check` |
 | `court_case_by_identifier` | `court_case_party_by_identifier` (US only in v1) | `points_to_check` (proposed; a name-only court match never fires a rule) |
@@ -365,7 +365,7 @@ The model's findings are explanation, not input.
 | Signal | Severity |
 |---|---|
 | `insolvency_proceeding`, `liquidation`, `struck_off`, `sanctions_listed`, `tax_activity_suspended`, `arrears_serious` | `concern` |
-| `arrears_points`, `social_insurance_debt` (below the serious thresholds), `accounts_not_in_window`, `negative_equity`, `open_pledge_or_measure`, `sanctions_possible_match`, `sanctions_human_not_sure`, `regulator_warning_listed`, `renamed_recently`, `reregistered_recently`, `court_case_party_by_identifier`, `website_unresolvable`, `website_states_other_code`, `website_live_while_struck_off`, `domain_newer_than_company`, `status_not_active`, `no_officers_on_record` | `point_to_check` |
+| `arrears_points`, `social_insurance_debt` (below the serious thresholds), `accounts_not_in_window`, `negative_equity`, `open_pledge_or_measure`, `sanctions_possible_match`, `officer_sanctions_possible_match`, `sanctions_human_not_sure`, `regulator_warning_listed`, `renamed_recently`, `reregistered_recently`, `court_case_party_by_identifier`, `website_unresolvable`, `website_states_other_code`, `website_live_while_struck_off`, `domain_newer_than_company`, `status_not_active`, `no_officers_on_record` | `point_to_check` |
 | `court_case_name_only`, `debtor_list_exit`, `no_website_found` | `none_found` (shown as facts; they never fire a rule) |
 | any signal on a `name_only` web anchor | capped at `point_to_check` (§5.3) |
 
@@ -388,7 +388,7 @@ Kinds follow the settled contract: `entity_choice | sanctions_match | scope | ca
 | Kind | Asked by | When | Options | Default and timeout | Blocks |
 |---|---|---|---|---|---|
 | `entity_choice` | lead | several register candidates, or a fuzzy-only match | up to 5 `search_companies` candidates from this run (name, code, legal form, status, city; natural persons and sole traders never offered) + "None of these" | **no default, no countdown**; after `QUESTION_TIMEOUT` (30 min), or on "None of these", the investigation ends `done` with verdict level `not_enough_data`, reason "company not confirmed" | everything |
-| `sanctions_match` | legal | a list entry matches by name and no second identifier settles it either way | "Same company" / "Different company" / "Not sure", with the entry's identifiers side by side with the register's | default "Not sure" after 30 min (fires `sanctions_unsure`); marked "answered by default" | the legal run only |
+| `sanctions_match` | legal | a list entry matches by name and no second identifier settles it either way | "Same company" / "Different company" / "Not sure" for a company entry; "Same person" / "Different person" / "Not sure" for an officer hit; with the entry's identifiers side by side with the register's | default "Not sure" after 30 min (fires `sanctions_unsure`); marked "answered by default" | the legal run only |
 | `scope` | web | a candidate website has no anchor; or the user's free text names a domain that differs from the register's | "Yes, it's theirs" / "No" / "Not sure" | default "Not sure" → the site stays "linked by name only" | the web run only |
 | `cap_reached` | runtime | the investigation's held + settled spend reaches the cap the first time | "Stop and write the report" (default) / "Allow up to $0.50 more" (clipped to what is left of the daily cap) | default after 10 min; offered once per investigation; a second hit ends the investigation `budget_exceeded` with no question | all runs (each goes to `waiting` with `waitingOn: "cap"`; the header reads "paused at cap") |
 | `free_text` | lead | the free-text subject has no country and the name exists in several countries' registers | the candidate countries as quick replies, plus free text | no default; after 30 min the investigation ends `done` with `not_enough_data`, reason "country not given" | everything |

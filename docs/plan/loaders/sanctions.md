@@ -36,7 +36,7 @@ The register's own sanctions-links file (S11.LV.01) is in `lv-risk.md`. The US e
 - Publisher: European Commission, DG FISMA. Catalogue record: `https://data.europa.eu/api/hub/search/datasets/consolidated-list-of-persons-groups-and-entities-subject-to-eu-financial-sanctions`.
 - Artifact: `https://webgate.ec.europa.eu/fsd/fsf/public/files/csvFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw` (the token is a public constant published in the catalogue; it decodes to "token-2017"). No login.
 - `officialHosts`: `webgate.ec.europa.eu`, `data.europa.eu`.
-- Licence id `eu-reuse-2011-833`: Commission Decision 2011/833/EU, reuse "for commercial or non-commercial purposes", acknowledging the source and not distorting the meaning (verified 2026-11-19). Attribution: "Source: European Commission, Financial Sanctions Files (FSF), consolidated list. © European Union".
+- Licence id `eu-reuse-2011-833`: Commission Decision 2011/833/EU, reuse "for commercial or non-commercial purposes", acknowledging the source and not distorting the meaning (verified 2026-11-19 at `https://eur-lex.europa.eu/eli/dec/2011/833/oj/eng` and the dataset record above; `verifiedOn` = that date and URL). Attribution: "Source: European Commission, Financial Sanctions Files (FSF), consolidated list. © European Union".
 - `storage`: `store`. `cadence`: `daily`. `publishedAtUtc`: unknown; schedule at 06:00 UTC and again at 18:00 UTC (the list changes on the day a regulation is published).
 - `asOf`: `[in_file_field]`: column 1 `fileGenerationDate` (same on every row).
 - `deepLink`: null (no per-entry page); `sourceUrl` per entry = the entry's `Entity_Regulation_PublicationUrl` (an EUR-Lex link), which is an official host only if it is on `eur-lex.europa.eu` (add it to `officialHosts`).
@@ -100,18 +100,18 @@ None for the builder.
 
 ### Source
 - Publisher: US Department of the Treasury, Office of Foreign Assets Control. Portal: `https://ofac.treasury.gov/sanctions-list-service`.
-- Artifacts: `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN_ENHANCED.XML` (110.9 MB, 2026-11-20) and `.../CONS_ENHANCED.XML`. Each answers with a 302 to a signed, one-hour storage URL: follow it (the signed host is added to `officialHosts` as the redirect target only: `*.amazonaws-us-gov.com` is accepted only as a redirect from `sanctionslistservice.ofac.treas.gov`).
+- Artifacts: `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN_ENHANCED.XML` (110.9 MB, 2026-11-20) and `.../CONS_ENHANCED.XML`. Each answers with a 302 to a signed, one-hour storage URL: follow it. `officialHosts`: `ofac.treasury.gov`, `sanctionslistservice.ofac.treas.gov`, `sanctionssearch.ofac.treas.gov`, plus a redirect-only rule: the one redirect hop from `sanctionslistservice.ofac.treas.gov` may go to any host, is fetched with the same SSRF checks, and its host is recorded on the sync; no other request may go there.
 - Why the enhanced XML and not the CSV: it carries identity documents with a type and an issuing country, entity type, and dated features (birth date, nationality, establishment date) as structured elements. The CSV puts them in one free-text remarks column.
-- Licence id `us-public-domain` (17 U.S.C. §105, US government work; a current Treasury licence page was not found, verified 2026-11-19). Attribution: "Source: US Department of the Treasury, Office of Foreign Assets Control (OFAC)".
+- Licence id `us-public-domain` (17 U.S.C. §105, US government work; a current Treasury licence page was not found; verified 2026-11-19 at `https://ofac.treasury.gov/sanctions-list-service`, recorded as `verifiedOn` with that URL and the basis 17 U.S.C. §105). Attribution: "Source: US Department of the Treasury, Office of Foreign Assets Control (OFAC)".
 - `storage`: `store`. `cadence`: `daily` (OFAC publishes on change days; schedule 22:00 UTC). `asOf`: `[in_file_field]`: `/sanctionsData/publicationInfo/dataAsOf`.
 - `deepLink`: `https://sanctionssearch.ofac.treas.gov/Details.aspx?id={recordKey}`. `orderUrl`: null. `requires`: none. `limits`: 1 request per artifact per sync; size cap 300 MB.
-- `maxPurgeShare`: 0.02 (two pulls a day apart: 19,595 entries, 0 removed). `purgeScope`: `full`.
+- `maxPurgeShare`: 0.02 (SDN, measured: two pulls a day apart, 19,595 entries, 0 removed; the non-SDN list is **interim** at the same value and the 5-record floor). `purgeScope`: `full`.
 
 ### Record unit and parsing
 - Streamed with a SAX parser (a dependency such as `saxes`; the file does not fit a DOM comfortably). Namespace `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML`.
 - `referenceValues` are read first and kept as an id → value map (for `type refId` lookups).
 - **Record unit: one `<entity id>`** element. `recordKey`: the `id` attribute. Order: file order; no sort assumption.
-- `hashInput`: the mapped fields of the entity in document order.
+- `hashInput`: the mapped fields of the entity, de-duplicated and sorted lexicographically (as §1), so a reordering inside the XML is not a change.
 
 ### Field map
 | Element | Type | Target | item_id | Personal? | Transform and validation |
@@ -158,14 +158,14 @@ None for the builder.
 ### Source
 - Publisher: Foreign, Commonwealth and Development Office. Page: `https://www.gov.uk/government/publications/the-uk-sanctions-list` (last updated 2026-11-17 when read).
 - Artifact: `https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv` (50.5 MB). The older OFSI consolidated list closed on 2026-01-28; it is not used.
-- Licence id `ogl-uk-3.0` ("All content is available under the Open Government Licence v3.0, except where otherwise stated", verified 2026-11-19). Attribution: "Contains public sector information licensed under the Open Government Licence v3.0. Source: UK Sanctions List, FCDO".
+- Licence id `ogl-uk-3.0` ("All content is available under the Open Government Licence v3.0, except where otherwise stated", verified 2026-11-19 at `https://www.gov.uk/government/publications/the-uk-sanctions-list`). Attribution: "Contains public sector information licensed under the Open Government Licence v3.0. Source: UK Sanctions List, FCDO".
 - `storage`: `store`. `cadence`: `daily`. `asOf`: `[in_file_field]`: line 1 `Report Date: DD-Mon-YYYY`; fallback `[max_date_in_data]` over `Last Updated`.
 - `deepLink`: null. `officialHosts`: `sanctionslist.fcdo.gov.uk`, `www.gov.uk`, `assets.publishing.service.gov.uk`.
-- `maxPurgeShare`: 0.02. `purgeScope`: `full`.
+- `maxPurgeShare`: 0.02 **interim** (the floor; removals over two pulls not yet measured: the loader slice re-measures and records it in `benchmarks.md`). `purgeScope`: `full`.
 
 ### Record unit and parsing
 - Format: UTF-8 with BOM, `,` separator, `"` quoting. **Line 1 is the report date, line 2 the header.** The parser asserts both.
-- **Record unit: one designation** = all rows sharing `Unique ID` (one row per name variant). Grouped in memory; no sort assumption. `recordKey`: `Unique ID`.
+- **Record unit: one designation** = all rows sharing `Unique ID` (one row per name variant). Grouped in memory; no sort assumption. `recordKey`: `Unique ID`. `hashInput` and `parserVersion`: as §1.
 
 ### Field map
 | Column | Target | item_id | Personal? | Transform |
@@ -214,11 +214,11 @@ As §1. None.
 - `storage`: `store`. `cadence`: `weekly` (stated cadence irregular; resource last modified 2026-11-16 when read).
 - `asOf`: `[in_file_field, portal_metadata]`: sheet 2, cell A1 "Informācija tabulā pēdējo reizi atjaunota DD.MM.YYYY."; else the CKAN resource `last_modified`.
 - `deepLink`: the page URL above for every row. `officialHosts`: `data.gov.lv`, `sankcijas.fid.gov.lv`.
-- `maxPurgeShare`: 0.05 (a 185-row list: one delisting is 0.5%; the floor of 2% would refuse four delistings in a week). `purgeScope`: `full`.
+- `maxPurgeShare`: 0.05 **interim** (a 185-row list: one delisting is 0.5%; the guard's floor of 5 records, architecture §4.4, also applies; removals over two pulls not yet measured: re-measured in the loader slice). `purgeScope`: `full`.
 
 ### Record unit and parsing
 - XLSX, sheet 1; the header row is the first row with at least 3 non-empty cells (as the probe); columns are matched by their leading number ("1.", "2.", ... "10."), not by full header text, so a reworded header does not break the parser.
-- **Record unit: one row.** The list has no row id. `recordKey` = sha256 (truncated to 16 hex) of the normalised column 1 (subject) + column 2 (birth date or registration number) + column 6 (listed person). Documented derivation; it changes only if those fields change, which is a re-listing.
+- **Record unit: one row.** The list has no row id. `recordKey` = sha256 (truncated to 16 hex) of the normalised column 1 (subject) + column 2 (birth date or registration number) + column 6 (listed person). Documented derivation; it changes only if those fields change, which is a re-listing. `hashInput`: the mapped columns (2-5, 7-10) in column order. `parserVersion`: as §1.
 
 ### Field map
 | Column | Target | item_id | Personal? | Transform |
@@ -236,7 +236,7 @@ As §1. None.
 | 10 "Datums, kad FID pirmo reizi publicējis ..." | event `date` | S11.LV.02 | no | ISO |
 
 ### Party gate
-Through `ingest/src/party-gate.ts`. A row loads only if column 2 is an LV register code that resolves to a register entity with a non-natural-person legal form (the event attaches to that company, `lv-<code>`), or a foreign registration number with a country other than LV (stored as an `Organization` `sanc-lvfid-<recordKey>` for screening, like §1). Rows whose column 2 is a birth date are natural persons: dropped, counted `natural_person`. An LV code that does not resolve: dropped, counted `code_unresolved`. 🟢 Measured on the 185 rows: 97% carry a birth date or a registration number.
+Through `ingest/src/party-gate.ts`. A row loads only if column 2 is an LV register code that resolves to a register entity with a non-natural-person legal form (the event attaches to that company, `lv-<code>`), or a foreign party whose column 1 name carries a legal-form token (`domain/config/legal-forms.ts`, the same list as the court-party masking: Ltd, LLC, AO, OOO, GmbH, AS, SIA, ...), stored as an `Organization` `sanc-lvfid-<recordKey>` for screening, like §1. Every other row is dropped: column 2 is a birth date (`natural_person`); an LV code that does not resolve (`code_unresolved`); a foreign row without a legal-form token, even with an identifier, because a foreign number proves nothing under the party gate and could be a person's id (`unproven_party`). `registrationNumber` values of loaded foreign rows are scanned for personal-code patterns like person properties (P3). 🟢 Measured on the 185 rows: 97% carry a birth date or a registration number.
 
 ### Identity and joins
 Direct: the LV code is the company's eid. This is the only list that names Baltic companies by register code in a field (FNTT does too, but is agent-only). A row on this list is shown on the company's S11 as a fact from the register of frozen assets, not as a name match.
@@ -251,7 +251,7 @@ Full file. A row that disappears is a delisting: the event is deleted (purge), a
 Generated at test time by `fixtures/sources/lv-fid/write-xlsx.ts` (an XLSX is a binary, so it is not committed): both sheets, the real column numbering, rows for a fixture LV company (fixture check-digit rule), a foreign company, and a natural person with a birth date (must be dropped).
 
 ### Tests
-`sources/src/lv/fid/fid.test.ts` (header detection by column number; party gate: company, foreign, person dropped, unresolved code dropped; column 6 never stored), `ingest/src/party-gate.test.ts` (shared), the licence test.
+`sources/src/lv/fid/fid.test.ts` (header detection by column number; party gate: LV company loaded; foreign company with a form token loaded; foreign row with an id but no form token dropped `unproven_party`; person dropped; unresolved code dropped; column 6 never stored), `ingest/src/party-gate.test.ts` (shared), the licence test.
 
 ### Failure modes
 The CKAN resource URL moves → found again by `package_show`. Sheet 2 missing → as-of from portal metadata (`as_of_basis: portal_metadata`).
@@ -268,10 +268,10 @@ None: column 6 stays dropped (legal 7030162985, `LAW-LV-FIU-PERSON`).
 - Licence id `esma-reuse-notice`: "Reproduction of all information on this site (ESMA Library) is authorised except as otherwise stated", source to be acknowledged (`https://www.esma.europa.eu/legal-notice`, verified 2026-11-19). Attribution: "Source: ESMA, interim MiCA register of non-compliant entities".
 - `storage`: `store`. `cadence`: `weekly`. `asOf`: `[max_date_in_data]` over `ae_lastupdate`.
 - `deepLink`: null (cite the CSV). `officialHosts`: `www.esma.europa.eu`.
-- `maxPurgeShare`: 0.05 (small list). `purgeScope`: `full`.
+- `maxPurgeShare`: 0.05 **interim** (small list; the 5-record floor applies; re-measured in the loader slice). `purgeScope`: `full`.
 
 ### Record unit and field map
-- UTF-8 with BOM, `,` separator, `"` quoting. **Record unit: one row.** `recordKey`: `ae_lei` when present; else sha256-16 of `ae_competentAuthority` + `ae_commercial_name` + `ae_website`.
+- UTF-8 with BOM, `,` separator, `"` quoting. **Record unit: one row.** `recordKey`: `ae_lei` when present; else sha256-16 of `ae_competentAuthority` + `ae_commercial_name` + `ae_website`. `hashInput`: the mapped columns in column order. `parserVersion`: as §1.
 
 | Column | Target | item_id | Personal? | Transform |
 |---|---|---|---|---|
@@ -314,12 +314,16 @@ Built once per sync into an in-memory index (and rebuilt after each content sync
 1. **Normalise** a name: Unicode NFKD, strip diacritics, lower-case, non-alphanumerics to spaces, drop legal-form tokens (per-language list in `domain/config/legal-forms.ts`, the same list the court-party masking uses), sort tokens. (`osint.md` §1.6; probe `normalise()`.)
 2. **Candidates:** entries sharing the rarest token of the input; `weak` aliases alone never produce a candidate.
 3. **Name match:** exact normalised equality, or similarity ≥ 0.90 (Levenshtein ratio on the sorted-token strings). Kind must agree: companies against the stored `Organization` entries; officers against the in-memory person index only (§7a).
-4. **Official-ID confirmation** (R8 `listed`): for a company, any `Identification` of a registration or tax type whose normalised number equals the company's registry code, VAT number or LEI, with the issuing country equal to the company's country or absent; or an LV FID row on the company's code; or the ESMA LEI equal to the company's LEI. For a person there is no official-ID confirmation in v1 (no personal codes are stored), so officers can only be `possible_match`; the index's birth year and nationality may be shown in the match card at query time and are never stored with the result.
-5. **Second-identifier exclusion:** a name match is dropped as "ruled out" (and shown in the match card as such) when the entry carries an identifier of a registration type issued by the company's own country whose number differs from the company's code, or a country of registration that differs. Persons: a listed birth year differing from a known birth year is not available (no officer birth dates stored), so persons are never ruled out automatically.
+4. **Official-ID confirmation** (R8 `listed`): for a company, any `Identification` of a registration or tax type whose normalised number equals the company's registry code, VAT number or LEI, **and whose issuing country equals the company's country** (an identifier with no issuing country gives `possible_match`, never `listed`, since bare numbers collide across countries; an LEI needs no country); or an LV FID row on the company's code; or the ESMA LEI equal to the company's LEI. For a person there is no official-ID confirmation in v1 (no personal codes are stored), so officers can only be `possible_match`; the index's birth year and nationality may be shown in the match card at query time and are never stored with the result.
+5. **Second-identifier exclusion:** a name match is marked `ruled_out` (and shown in the match card as such) only when the entry carries an official identifier of a registration type, issued by the company's own country, whose number differs from the company's code. An address country never rules anything out. Persons are never ruled out automatically (no officer birth dates are stored).
 6. **Output:** per list, entries with `status: "listed" | "possible_match" | "ruled_out"`, the matched name, the identifiers side by side (designer's match card), the list's `checkedAt` and `asOf`.
 7. **Measured noise** (`osint.md` §1.6): name-only exact matches hit 0.22% of 5,000 random EE company names and 0.06% of 5,000 random LV officer names, all on generic names; fuzzy matching at 0.90 added none. Step 5 removes most company hits; the rest become `sanctions_match` questions in an investigation, and a `possible_match` line in the instant profile.
 
-Tests: `resolve/src/sanctions.test.ts` (one case per rule above, on the fixture lists), `resolve/src/sanctions.noise.test.ts` (a generated set of 2,000 fictional company names with no list overlap produces no `listed` and fewer than 1% `possible_match`).
+8. **Officers** (behind the purpose gate): a current officer's name is screened against the in-memory person index only (§7a). A hit is `possible_match` with the signal `officer_sanctions_possible_match` (severity `point_to_check`, rule `sanctions_unsure`; `agents.md` §6.2a). In an investigation the legal agent may ask `sanctions_match` with the person-kind options "Same person" / "Different person" / "Not sure".
+9. **Sole traders and natural-person subjects** get no agents and no verdict (R5). Their facts-only profile screens the subject's own name against the person index behind the purpose gate and shows at most "possible match, needs review", never a level.
+10. **MCP and API:** the name-only form of `screen_sanctions` (`agents.md` §4.1) searches the stored organisation entries only; it never reaches the person index and never returns an individual.
+
+Tests: `resolve/src/sanctions.test.ts`, one named case per rule: `listed-by-registration-and-country`, `bare-number-is-possible-match`, `lei-listed`, `lv-fid-code-listed`, `esma-lei-listed`, `name-exact-possible-match`, `name-fuzzy-090`, `weak-alias-alone-no-match`, `ruled-out-by-own-country-id`, `address-country-never-rules-out`, `officer-possible-match-only`, `sole-trader-no-level`, `mcp-name-only-no-persons`; `resolve/src/sanctions.noise.test.ts` (a generated set of 2,000 fictional company names with no list overlap produces no `listed` and fewer than 1% `possible_match`).
 
 ---
 
