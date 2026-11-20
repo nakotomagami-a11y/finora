@@ -170,10 +170,11 @@ UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`: a 
 | `sources/src/us/state-ny/state-ny.test.ts`, `state-co.test.ts`, `state-ct.test.ts`, `state-pa.test.ts` | parse the fixtures; every statement has an item id; field map equals `meta.items` |
 | `sources/src/us/socrata/select.test.ts` | every request's `$select` equals the field-map columns: residence, email, phone and agent columns are never requested (HIDE-field negative test) |
 | `ingest/src/live-cache.test.ts` (shared) | fake clock: re-fetch after 24 h; day 29 survives, day 30 purged; **CT withdrawal**: a principal absent while the company is returned is deleted and a `finora.role_ended` event without a name is written; **empty re-fetch**: the first miss keeps the rows but withholds them and shows "did not return", a second miss 24 h later deletes them, principals included; a 5xx never counts as a miss; the "did not return" text contains no person name and none of the status words struck off, dissolved, inactive |
-| `web/e2e/us-co-disclaimer.spec.ts` + `domain/src/report/attribution.test.ts` | **CO disclaimer**: every report, API response and MCP response containing a CO value carries the full disclaimer text; the source chip shows it |
+| `web/e2e/co-disclaimer.spec.ts` + `domain/src/report/attribution.test.ts` | **CO disclaimer**: every report, API response and MCP response containing a CO value carries the full disclaimer text; the source chip shows it |
 | `ingest/src/party-gate.test.ts` (US cases) | a UCC debtor with a different name is not attached; person debtor columns can't reach the store |
 | `sources/src/licences.test.ts` | OR and WA have no enabled `live-cached` source (P11) |
 | `sources/src/us/socrata/query.test.ts` | a user string with `'`, `%` and `_` is escaped; no SoQL injection |
+| `server/src/routes/v1/search/live/route.contract.test.ts`, `web/e2e/search-live.spec.ts` (slice S17) | `GET /search/live/:register` answers within 3 s or returns the "did not answer" state; the four state groups render independently |
 
 ## Failure modes
 

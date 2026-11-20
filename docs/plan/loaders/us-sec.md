@@ -1,6 +1,6 @@
 # us-sec: SEC EDGAR (filings, financials, insiders, offerings, large holders)
 
-One loader package `packages/sources/src/us/sec/` with five sources that share the SEC fetcher. Research: `docs/research/us.md` §1. **Nothing here is enabled without `SEC_USER_AGENT`** (Part G: the US public profile is `needs_key` until it is set). Every number marked *verify* comes from SEC documentation, because live EDGAR calls are deferred until the key-testing round (register C7); the key-testing round runs `research/probes/us/edgar_probe.py` and updates this spec.
+Five source modules, `packages/sources/src/us/sec-tickers/`, `sec-company/`, `sec-insiders/`, `sec-formd/`, `sec-holders/` (slice S16 naming), sharing one SEC fetcher `packages/sources/src/us/sec-fetch.ts`. Research: `docs/research/us.md` §1. **Nothing here is enabled without `SEC_USER_AGENT`** (Part G: the US public profile is `needs_key` until it is set). Every number marked *verify* comes from SEC documentation, because live EDGAR calls are deferred until the key-testing round (register C7); the key-testing round runs `research/probes/us/edgar_probe.py` and updates this spec.
 
 ## Source
 
@@ -170,10 +170,10 @@ All estimated until the key-testing round:
 
 | File | Proves |
 |---|---|
-| `sources/src/us/sec/tickers.test.ts`, `company.test.ts`, `insiders.test.ts`, `formd.test.ts`, `holders.test.ts` | parsing, field map = `meta.items`, every value has an item id |
-| `sources/src/us/sec/companyfacts.test.ts` | concept fallback order; 5-year window; duplicate `end` dates resolved by latest `filed`; IFRS company handled |
-| `sources/src/us/sec/items-502.test.ts` | an 8-K with item 5.02 produces `filing.8k.5.02`; no person name is extracted |
-| `ingest/src/sec-fetcher.test.ts` | no request leaves without `SEC_USER_AGENT`; 8 requests per second across concurrent loaders; the User-Agent never appears in logs |
+| `sources/src/us/sec-tickers/sec-tickers.test.ts`, `sec-company/sec-company.test.ts`, `sec-insiders/sec-insiders.test.ts`, `sec-formd/sec-formd.test.ts`, `sec-holders/sec-holders.test.ts` | parsing, field map = `meta.items`, every value has an item id |
+| `sources/src/us/sec-company/companyfacts.test.ts` | concept fallback order; 5-year window; duplicate `end` dates resolved by latest `filed`; IFRS company handled |
+| `sources/src/us/sec-company/items-502.test.ts` | an 8-K with item 5.02 produces `filing.8k.5.02`; no person name is extracted |
+| `sources/src/us/sec-user-agent.test.ts` (slice S16) | no request leaves without `SEC_USER_AGENT`; 8 requests per second across concurrent loaders; the User-Agent never appears in logs |
 | `ingest/src/insiders-window.test.ts` | a new quarter that drops the oldest quarter passes the guard; a file missing half of a quarter still inside the window ends `purge_guard` and deletes nothing; a role missing from the new window emits `finora.role_ended` without a name |
 | `sources/src/person-fields.test.ts` (US cases) | no SEC loader's hash input or stored fields contain `RPTOWNERCIK` or any CIK of a reporting person |
 | `ingest/src/party-gate.test.ts` (SEC cases) | 13D/G type IN → personal person; type CO → company; Forms 3/4/5 owners → personal |
