@@ -360,15 +360,15 @@ Text over the limit is cut at the limit with "Read at source". Quotes are the on
 
 ### 5.9 Crash monitor tiles
 
-One tile per id M01-M08 (M09 is LATER). A tile shows: title, the value and drawdown, a sparkline, the as-of time, the source and its attribution line. State by tile (the council's Part C):
+One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`MarketRow` in `docs/plan/loaders/markets.md` §1.4): M03 holds up to seven markets, M01 three. Each row shows its name, the value and drawdown, a sparkline, the as-of time, the source and its attribution line, and has its own state. The row's DTO state (`ok | peak_unknown | needs_key | needs_symbol | stale | error | loading`) maps to the display states below; `live`, `delayed` and `coarse` are `ok` rows told apart by the row's cadence and lag **[pending: architect adds `cadence` and `delayed` to `MarketRow`]**. State by row (the council's Part C):
 
 | State | When | What shows |
 |---|---|---|
 | `live` | data is current | value, drawdown, as-of time |
 | `delayed` | the source is delayed | the same, plus "15 min delayed" or the lag, in the chip |
 | `coarse` | official-only value, finer with a key (M01 quarterly, M05 monthly) | the coarse value, "Quarterly · as of Q2 2026" and "Add a key for daily" inside the tile; never claims to be live |
-| `needs-key` | key-only tile with no key | the tile's shape with no number, "Add your key to check" |
-| `choose-fund` | fund-proxy tile with no symbol set | "Choose a fund in settings", no number |
+| `needs-key` | row with a symbol (or a key-only source) and no key | the row's shape with no number, "Add your key to check" |
+| `choose-fund` | fund-proxy row with no symbol set (`needs_symbol`) | "Choose a fund in settings", no number |
 | `proxy` | fund proxy with a symbol | title "[Region], in USD" and the caveat "Via {symbol}, a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index." |
 | `peak-unknown` | history does not reach the peak start | "Peak not known yet: tracking since {date}". **No drawdown percentage, never 0%** |
 | `stale` | as-of older than twice its cadence | the value stays, the as-of chip turns `--warn`: "as of {time}, older than its usual refresh" |
@@ -380,8 +380,11 @@ Rules:
 - M08's live ticker is an estimate: shown beside the official figure and its date, labelled "estimate", never alone.
 - "Market cap lost" shows only where the source's terms allow it and are quoted; otherwise the tile shows drawdown only.
 - Every tile has a text alternative to its chart: a hidden table of peak date and value, latest value, drawdown.
-- Refresh: the page polls `GET /markets/crash` every 60 s while the tab is visible and stops when hidden. Each tile has a reserved height, so a refresh causes no layout shift (CLS measured as 0 in e2e). Values change in place; the counter animation is the one motion kept under reduced motion.
-- Tickers a user types are saved in local settings only (P12). Fixtures use fictional symbols.
+- **Total-crypto peak** is an all-time high, not "since [date]": the row says "All-time high, {date}" (the DTO carries the peak basis **[pending: architect, `peakBasis: since | all_time | seeded`]**). A seeded peak says "Peak seeded from {source}".
+- **Value-lost summary** (`WipedSummary`, above the grid): "Value lost from peak across {n} rows: {sum}", with a disclosure listing the rows it includes and a line that it mixes quarterly and live figures, with the oldest as-of date. Hidden when fewer than two rows carry a value-lost figure. The designer places it.
+- **Server refresh vs page poll.** The server refreshes crypto every 5 minutes while a Crash monitor client is connected (hourly otherwise), stocks hourly in US hours, official series every 6 hours. The page polls `GET /markets/crash` (a cache read) every 60 s while the tab is visible and stops when hidden; that poll is also what marks a client as connected. Each row's as-of time tells the truth about its age, so a 60 s poll never implies a 60 s refresh.
+- Refresh in the page: Each tile has a reserved height, so a refresh causes no layout shift (CLS measured as 0 in e2e). Values change in place; the counter animation is the one motion kept under reduced motion.
+- Tickers a user types are saved in local settings only (P12), in 13 named slots (`M01.us_total`, `M01.us_large`, `M01.us_tech`, `M02.europe`, `M03.japan`, `M03.korea`, `M03.taiwan`, `M03.hong_kong`, `M03.china`, `M03.india`, `M03.australia`, `M04.canada`, `M04.brazil`), each matching `^[A-Z0-9.\-]{1,10}$`. No ticker ships in the repo, defaults, fixtures, docs or tests; fixtures use fictional symbols.
 
 ---
 
@@ -834,17 +837,19 @@ Slices that depend only on fixtures start before the real API lands (the archite
   7. A stale tile keeps its value and turns its as-of chip `--warn`; an errored tile keeps its last good value with Retry.
   8. Each chart has a text alternative: peak date and value, latest value and drawdown.
   9. At 390 px tiles stack in one column with no horizontal scroll; at 1280 px they form a grid.
-  10. No price value appears in the page for a tile whose source needs a key and has none.
+  10. No price value appears in the page for a row whose source needs a key and has none.
+  11. A row with `peakKnown = false` never shows a percentage; the total-crypto row says "All-time high"; the value-lost summary lists the rows it sums and names the oldest as-of date.
+  12. A fund slot with no symbol says "Choose a fund in settings" and links to its settings field; with a symbol and no key it says "Add your key to check".
 - **Tests:** `web/src/components/crash/*.test.tsx`, `web/e2e/crash.spec.ts`, `web/e2e/crash.refresh.spec.ts`, `web/e2e/crash.states.spec.ts`, `web/e2e/crash.visual.spec.ts`, `web/e2e/crash.a11y.spec.ts`.
 - **Demo:** `pnpm finora --demo`, open `/en/crash`, watch a tile update, switch `?markets=nokey` in fixture mode.
 
 ### U10 Settings and connectors
 
-- **Scope:** the Settings page: key status (names and presence only), the `ConnectorSheet` with how to add a key (edit the local `.env`, restart, "Check again"), default cost cap display, fund symbols, theme and locale, the shortcuts switch, `DataStatus`.
+- **Scope:** the Settings page: key status (names and presence only; the optional market keys and the SEC contact setting included), the `ConnectorSheet` with how to add a key (edit the local `.env`, restart, "Check again"), default cost cap display, the 13 fund-symbol slots, theme and locale, the shortcuts switch, `DataStatus`.
 - **Acceptance:**
   1. A key's value never appears in the HTML, an API response or a client chunk; a planted canary key is absent from all three.
   2. Key rows show "set" or "not set" and a "Check again" button; the app never accepts a key through the browser in v1.
-  3. The fund-symbol field saves to local settings only; an invalid symbol shows an error line; the saved symbol turns a `choose-fund` tile into a proxy tile.
+  3. Each of the 13 fund-symbol slots saves to local settings only; a symbol that fails the pattern shows an error line; changing a slot's symbol shows "Refetching" until the first value arrives; a saved symbol turns a `choose-fund` row into a proxy row.
   4. The shortcuts switch disables the single-character shortcuts at once.
   5. `DataStatus` shows each source's last sync and rows, and the history size against its cap with a warning, never a silent deletion.
   6. Every control has a label; the page passes axe at both themes.
@@ -880,7 +885,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 3. SSE: `Last-Event-ID` header on the first request, with a `?lastEventId=` fallback.
 4. Library DTO: subject, country, entity id, verdict level, coverage, cost, status, started, finished; and whether delete or archive exists (R11).
 5. Network DTO: nodes (company id, name, code, status, country), edges (relation `shared_address | corporate_member`, `SourceRef`, `derived` flag, date), an address-hub node with `companyCount`, and `truncated`.
-6. Crash DTO: per tile, its state (§5.9), value, as-of, source and attribution, cadence, and the proxy symbol echo.
+6. Crash DTO: `MarketRow` as in `loaders/markets.md` §1.4, plus `cadence`, `delayed`, `peakBasis` (`since | all_time | seeded`), the source and attribution line per row, and `totalWiped` with its included rows and oldest as-of.
 7. The Part G table as `packages/domain/src/items/items.generated.ts` (D3), with the empty-state key per id.
 8. Estimate and daily-cap DTOs for the Investigate sheet: `{ low, typical, high, basis, capMicroUsd, dailyLeftMicroUsd, dailyResetsAt }`.
 9. Number the UI slices (§14) into `slices.md`; the `U` names are placeholders.
