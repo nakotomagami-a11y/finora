@@ -170,7 +170,6 @@
     { name: "Sample Roofing LLC", cc: "US", code: "2019FX00017", level: "insufficient", cov: "5 of 11", when: "Yesterday", cost: "$0.33", status: "done" },
     { name: "Example Instruments Inc.", cc: "US", code: "99FX000017", level: "points", cov: "10 of 11", when: "18 Nov", cost: "$0.47", status: "waiting" },
     { name: "Demo Logistics SIA", cc: "LV", code: "40000FX0042", level: "serious", cov: "9 of 11", when: "16 Nov", cost: "$1.50", status: "cap" },
-    { name: "IĮ Jonas Pavyzdys Carpentry", cc: "LT", code: "30FX00099", level: "facts", cov: "facts only", when: "12 Nov", cost: "$0.21", status: "done" },
     { name: "Fictional Fasteners OÜ", cc: "EE", code: "1FX000042", level: "none", cov: "10 of 11", when: "3 Nov", cost: "$0.36", status: "done" },
   ];
 

@@ -19,7 +19,9 @@
 
   const countryKey = param("country", "lv");
   const subj = FX.SUBJECTS[countryKey] || FX.LV;
-  const state = param("state", "full");
+  const rawState = param("state", "full");
+  // Agents never run on a natural person or sole trader (architecture §7, R5, P6): only profile states exist.
+  const state = subj.natural && !["full", "loading", "error"].includes(rawState) ? "full" : rawState;
   const q = param("q", "entity");
   const purposeSet = param("purpose", "set") === "set";
   const newInstall = param("install", "established") === "new";
@@ -51,8 +53,8 @@
          </div>`
       : "";
     const actions = phase === "profile"
-      ? `<a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate</a>
-         <a class="btn" href="network.html?country=${subj.key}">${icon("network", "icon icon-sm")} Network</a>
+      ? `${natural ? "" : `<a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate</a>`}
+         ${natural ? "" : `<a class="btn" href="network.html?country=${subj.key}">${icon("network", "icon icon-sm")} Network</a>`}
          <button class="btn btn-quiet" type="button">Export</button>
          <button class="link-btn" type="button">Report a problem</button>`
       : phase === "run"
@@ -71,7 +73,7 @@
       </div>
       ${runStats}
       <div class="co-actions">${actions}</div>
-      ${natural ? `<div class="disclaimer" role="note">${icon("info")}<span><strong>Not a credit report.</strong> Not for credit, employment, tenancy or insurance decisions. This is a sole trader, so Finora shows facts only and gives no verdict.</span></div>` : ""}
+      ${natural ? `<div class="disclaimer" role="note">${icon("info")}<span><strong>Not a credit report.</strong> Not for credit, employment, tenancy or insurance decisions. This is a sole trader, so Finora shows the official facts only: no verdict, no scored checks and no agent investigation.</span></div>` : ""}
       <div class="coverage" role="note" aria-label="What this country's official data covers">
         <span><strong>${esc(subj.country === "the United States" ? "The United States'" : subj.country + "'s")} official data:</strong> ${esc(subj.coverage.official)}.</span>
         <span><strong>Not in open data:</strong> ${esc(subj.coverage.notOpen)}.</span>
@@ -266,7 +268,7 @@
   }
 
   function courtsSection() {
-    if (state === "loading") return "";
+    if (state === "loading" || natural) return "";
     let body;
     if (phase === "profile") body = `<div class="rows">${R("Court cases", { state: "not_checked", reason: "agent_only", agent: "legal, insolvency and sanctions" })}</div>`;
     else if (state === "streaming" || state === "question") body = running("legal, insolvency and sanctions", "searching the court rulings portal");
@@ -288,7 +290,8 @@
     }[subj.key];
     const live = { lv: "UN list and the central bank's warnings", ee: "UN list, national list and the financial supervisor's alerts", lt: "UN list and the national list of controlled entities", "sole-trader": "UN list", "us-private": "UN list and federal enforcement feeds", "us-public": "UN list, FINRA and federal enforcement feeds" }[subj.key];
     let liveRow;
-    if (phase === "profile") liveRow = R("Live lists", { state: "not_checked", reason: "agent_only", agent: "legal, insolvency and sanctions" });
+    if (natural) liveRow = "";
+    else if (phase === "profile") liveRow = R("Live lists", { state: "not_checked", reason: "agent_only", agent: "legal, insolvency and sanctions" });
     else if (state === "streaming") liveRow = `<div class="row"><span class="row-label">Live lists</span><span class="row-value">${running("legal, insolvency and sanctions", "checking the UN list")}</span></div>`;
     else if (state === "question" && q === "sanctions") liveRow = `<div class="row"><span class="row-label">UK Sanctions List</span><span class="row-value"><span class="state-line" style="color:var(--warn)">${icon("q", "icon icon-sm")}<span>Possible match, needs review · <a href="#question">answer the question above</a></span></span></span></div>`;
     else liveRow = R("Live lists", { state: "checked_none", sourceName: live, asOf: "20 Nov 2026", caveat: "Checked live at query time; a match needs a second identifier and your review." });
@@ -359,8 +362,8 @@
       return `<div class="facts-only" role="region" aria-label="Facts only">
         <span class="label">Facts only</span>
         <p class="serif" style="font-size:30px;line-height:36px">No verdict is given on a private individual.</p>
-        <p class="small muted">This is a sole trader. Finora lists the official facts and the sources it checked, and never rates a person. Not a credit report. Not for credit, employment, tenancy or insurance decisions.</p>
-        <span class="coverage-line">facts from 6 sources · 20 Nov 2026</span>
+        <p class="small muted">Finora lists the official facts and their sources, never rates a person and runs no agents on one.</p>
+        <span class="coverage-line">official facts from 3 sources · 19 Nov 2026</span>
       </div>`;
     }
     const checks = verdictChecks();
@@ -435,7 +438,7 @@
   }
 
   function checksCard() {
-    if (natural) return `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px"><h2 class="serif" style="font-size:22px">Facts only</h2><p class="small muted">No checks are scored for a sole trader. Investigating collects more facts and cited sources, never a verdict.</p><a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate</a></section>`;
+    if (natural) return `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px"><h2 class="serif" style="font-size:22px">Facts only</h2><p class="small muted">No checks are scored and no agents run for a sole trader, because a sole trader is a private individual (legal rule 5). The page lists the official facts with their sources.</p></section>`;
     if (state === "loading") return `<section class="card" style="padding:16px"><span class="sk" style="width:50%;height:18px"></span><div style="height:12px"></div>${Array.from({ length: 6 }, () => '<span class="sk" style="margin:10px 0"></span>').join("")}</section>`;
     return `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px" aria-labelledby="ic-h">
       <h2 id="ic-h" class="serif" style="font-size:22px">Checks from official data</h2>
@@ -545,14 +548,14 @@
         <p class="small muted">Nothing is shown until the company is confirmed, so no finding can attach to the wrong company.</p>
         </div><aside class="aside" tabindex="0" aria-label="Agents">${lanes()}</aside></div></div>`;
     }
-    const top = phase === "report" ? verdictBlock() : "";
+    const top = phase === "report" || (natural && state === "full") ? verdictBlock() : "";
     const banner = state === "partial" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One agent did not finish.</strong> The legal agent stopped when the court portal timed out, so check 10 counts as not run. Other findings are complete. <button class="link-btn" type="button">Re-run the legal agent</button></span></div>` : "";
     const qcard = state === "question" ? questionCard() : reconnecting ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Connection lost at 09:43:12. Reconnecting (attempt 2)…</strong> The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost. <button class="link-btn" type="button">Retry now</button></span></div>` : "";
-    const index = phase !== "run" && state !== "loading" ? `<nav class="sec-index" aria-label="Sections">${[["status", "Status"], ["people", "People"], ["owners", "Owners"], ["financials", "Financials"], ["tax", "Taxes"], ["insolvency", "Insolvency"], ["courts", "Courts"], ["sanctions", "Sanctions"], ["web", "Web"]].map(([a, l]) => `<a href="#${a}">${l}</a>`).join("")}</nav>` : "";
     const sections = [statusSection(), peopleSection(), ownersSection(), financialsSection(), workforceSection(), taxSection(), insolvencySection(), courtsSection(), sanctionsSection(), filingsSection(), securitiesSection(), webSection(), networkSection()].join("");
+    const index = phase !== "run" && state !== "loading" ? `<nav class="sec-index" aria-label="Sections">${[["status", "Status"], ["people", "People"], ["owners", "Owners"], ["financials", "Financials"], ["tax", "Taxes"], ["insolvency", "Insolvency"], ["courts", "Courts"], ["sanctions", "Sanctions"], ["web", "Web"]].filter(([a]) => sections.includes(`id="${a}"`)).map(([a, l]) => `<a href="#${a}">${l}</a>`).join("")}</nav>` : "";
     const aside = phase === "run" ? lanes() : phase === "report" ? chatDock() + (state === "partial" ? lanes() : "") : checksCard();
     const footer = `<footer class="small muted" style="padding-top:12px;display:flex;flex-direction:column;gap:4px">
-      <span>Sources: ${subj.cc === "LV" ? "Register of Enterprises of the Republic of Latvia; State Revenue Service (CC0 1.0)" : subj.cc === "EE" ? "e-Business Register (CC BY 4.0); Tax and Customs Board (CC BY-SA 3.0, kept in its own store and left out of exports)" : subj.cc === "LT" ? "Source: Registrų centras, Register of Legal Entities (open data), CC BY 4.0; State Tax Inspectorate (VMI), CC BY 4.0; Sodra, public insurer data" : "SEC EDGAR and state registers (US government works)"}. © European Union (EU sanctions list). Contains public sector information licensed under the Open Government Licence v3.0 (UK list).</span>
+      <span>Sources: ${subj.cc === "LV" ? "Register of Enterprises of the Republic of Latvia; State Revenue Service (CC0 1.0)" : subj.cc === "EE" ? "e-Business Register (CC BY 4.0); Tax and Customs Board (CC BY-SA 3.0, kept in its own store and left out of exports)" : subj.cc === "LT" ? (natural ? "Registrų centras, Register of Legal Entities (open data), CC BY 4.0" : "Registrų centras, Register of Legal Entities (open data), CC BY 4.0; State Tax Inspectorate (VMI), CC BY 4.0; Sodra, public insurer data") : "SEC EDGAR and state registers (US government works)"}. © European Union (EU sanctions list). Contains public sector information licensed under the Open Government Licence v3.0 (UK list).</span>
       <span>${natural ? "Not a credit report. Not for credit, employment, tenancy or insurance decisions. " : ""}AI-written text is labelled. <a href="#">Report an error or object</a></span>
     </footer>`;
     return `<div class="page"><div class="cols">

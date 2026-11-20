@@ -49,7 +49,7 @@ In the real app these are fixture switches only; real state comes from the data.
 ## User flows
 
 ### 1. Instant lookup (most daily use)
-Search → result (code, legal form, city and year distinguish name collisions) → company profile with the coverage line, checks 1 to 9 and every section in its state. Cost: nothing. Agents: none.
+Search → result (code, legal form, city and year distinguish name collisions) → company profile with the coverage line, checks 1 to 9 and every section in its state. Cost: nothing. Agents: none. A sole trader opens the facts-only profile, which has no Investigate action.
 
 ### 2. Deep dive before paying or signing
 Company profile → **Investigate** → pre-run sheet (estimate, cap, purpose) → Start → the URL becomes `.../runs/[id]` → lanes stream, findings land → possibly a question card → the verdict appears on top, chat docks → Library keeps it.

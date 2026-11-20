@@ -174,7 +174,7 @@ Summary; routes and the tool manifest are in `docs/design/IA.md`.
 ### 8.1 Company page anatomy
 
 1. **Header:** overline (`Company · Latvia`, `Investigation running`, `Investigation report · [date time]`), H1 name, meta row (status pill with gloss, legal form with gloss, code, address), actions.
-   - Profile actions: **Investigate** (primary), Network, Export, Report a problem.
+   - Profile actions: **Investigate** (primary), Network, Export, Report a problem. A natural person or sole trader gets no Investigate action: agents never run on one (architecture §7, R5, P6).
    - Run actions: Stop and write the report, Skip to report.
    - Report actions: Network, Re-run, Export, Report a problem.
 2. **Facts-only disclaimer** (sole traders and natural persons, P6) directly under the actions.
@@ -241,7 +241,7 @@ A card pinned at the top of the primary column (`id="question"`), amber border o
 6. **Key findings:** three, numbered, each with "See the evidence".
 7. **The 11 checks** section below it (council Part B), each check with an icon: on record or none found (check), point to check (`!`), concern (`×`), not run (dashed circle and dash).
 
-**Facts-only variant** (`isNaturalPerson`): the verdict block is replaced by "Facts only · No verdict is given on a private individual." with the disclaimer and "facts from N sources · [date]". No level, no checks scored, never "Serious concerns".
+**Facts-only variant** (`isNaturalPerson`): shown on the profile itself, because no investigation can exist for a natural person or sole trader. The block reads "Facts only · No verdict is given on a private individual." with the disclaimer and "official facts from N sources · [date]". No level, no checks scored, no agents, never "Serious concerns". The aside explains why, with no Investigate button.
 
 ### 9.4 Cost
 
