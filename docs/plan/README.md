@@ -92,7 +92,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/research/reality-check.md` | coordinator, from the area docs | 1 | done 2026-11-20 |
 | `docs/plan/council/00-framing.md` (session 1 gates, matrix format, v1 frame) | council (committed by coordinator) | 1 | done |
 | `docs/plan/council/01-data-cto.md` (cto's feasibility, cost and scaling calls) | cto (committed by coordinator) | 2 | done 2026-11-20 |
-| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | waiting for the council's decision post |
+| `docs/plan/council/01-data.md` | council (committed by coordinator) | 2 | decision committed 2026-11-20; Part G expansion awaiting council and cto confirmation; legal's 4 "?" rows and data-baltics' EE recount open |
 | `docs/architecture.md`, `docs/plan/slices.md` | architect (+ frontend) | 3 | early draft exists; frozen until phase 3 opens |
 | `DESIGN.md`, mockups | designer | 3 | v0 draft exists; frozen until session 1 rules |
 | `docs/plan/loaders/*.md` | data seats | 3 | |
@@ -134,6 +134,8 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 ### By the council
+Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (SHOW 42, CAVEAT 57, LATER 47, HIDE 5 after splits); the policy table P1-P13 that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
+
 Requirement (after H2): the estimated cost is shown before an investigation starts, as a range (typical to worst case under the cap) next to the cap and today's remaining daily spend. Owners: data-osint (estimation method), designer (pre-run state).
 
 Session 0 (`docs/plan/council/00-framing.md`): the five session 1 gates; the display-matrix intake format; the v1 frame (primary job, two speeds, deterministic verdict level, five v1 agents, social and reviews agents LATER, one-hop network, local-only hosting, cost-cap defaults $1.50 / $0.25 / $10 per day); kill criteria; and the gates session 2 will check. Amendments: decision 2 withdrawn (one compact matrix format); "current" = no older than 2x the stated cadence; banned wording scope (own voice only, reject and regenerate, never rewrite); each country searchable as soon as its own load finishes.
@@ -180,5 +182,5 @@ Data seats add rows here through their `result` posts; the coordinator keeps the
 
 ## Council records
 - Session 0 (framing): `docs/plan/council/00-framing.md`, 2026-11-19
-- Session 1 (data): not yet convened
+- Session 1 (data): `docs/plan/council/01-data.md` (decision, 2026-11-20) and `docs/plan/council/01-data-cto.md` (technical calls); reconciliation round open
 - Session 2 (plan): not yet convened

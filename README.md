@@ -10,7 +10,7 @@ Checking a company by hand means hours across a dozen registries and websites. A
 
 | Tool | What it does |
 |---|---|
-| **Company explorer + agentic search** | One flow: search a company, see everything official data says about it (registry, people and roles, ownership, financials, employees, taxes and debts, legal records, sanctions), and let agents dig further on the open web. It ends in a sourced verdict |
+| **Company explorer + agentic search** | One flow: search a company, see what each country's official registers publish about it, with every gap named, and let agents dig further on the open web. It ends in a sourced verdict |
 | **Crash monitor** | How far markets (stocks, gold, crypto, oil) are from their peaks, plus the live US national debt |
 | **Profile templates** | Reusable checklists for common investigations: a contractor, a supplier, an employer, an investment |
 
