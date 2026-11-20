@@ -1,6 +1,6 @@
 # UI build plan
 
-> **Status: phase 3 draft 3.** Owner: `frontend`. Written from `DESIGN.md` v1, `docs/design/IA.md`, the mockups in `docs/design/mockups/` (opened in Chromium at 1280 and 390 px wide for this revision), `docs/design/display-options.md`, council session 1 (`docs/plan/council/01-data.md` Parts B-H), `docs/plan/reviews/00-early-plan-review.md`, `docs/plan/agents.md`, `docs/plan/loaders/markets.md`, `docs/architecture.md` and `docs/plan/slices.md`. The mockups win on looks, this plan wins on behaviour. Open conflicts between sources are listed in §16. Items that wait on someone else are marked **[pending: ...]**.
+> **Status: phase 3 draft 4 (qa review of 0de4d5f answered).** Owner: `frontend`. Written from `DESIGN.md` v1, `docs/design/IA.md`, the mockups in `docs/design/mockups/` (opened in Chromium at 1280 and 390 px wide for this revision), `docs/design/display-options.md`, council session 1 (`docs/plan/council/01-data.md` Parts B-H), `docs/plan/reviews/00-early-plan-review.md`, `docs/plan/agents.md`, `docs/plan/loaders/markets.md`, `docs/architecture.md` and `docs/plan/slices.md`. The mockups win on looks, this plan wins on behaviour. Open conflicts between sources are listed in §16. Items that wait on someone else are marked **[pending: ...]**.
 
 A builder reading this file, `DESIGN.md` and the mockups should never have to guess. If something is unclear, that is a bug in this file.
 
@@ -37,7 +37,7 @@ The architecture fixes the framework (`docs/architecture.md` §1, §5.3). This t
 | Combobox | Our own `Combobox` in `packages/ui`, following the WAI-ARIA 1.2 combobox pattern (`role="combobox"`, `aria-activedescendant`, listbox popup) | Radix has no combobox. A command-menu library would add a dependency for one component that we need in exactly two places (search box, command bar) |
 | Server data | TanStack Query for requests | Architecture §5.3: no global client store |
 | Live investigation | One `useReducer` per open investigation, fed by one SSE connection (§6). `zustand` only if the reducer proves too small | Architecture §5.3 and the architect's reply |
-| SSE transport | A small fetch-stream SSE client (`apps/web/src/lib/sse.ts`), not `EventSource` | `EventSource` cannot send a `Last-Event-ID` header on the first connection, and gives no control over backoff. **[pending: architect confirms the header; fallback is a `?lastEventId=` query parameter]** |
+| SSE transport | A small fetch-stream SSE client (`apps/web/src/lib/sse.ts`), not `EventSource` | `EventSource` cannot send a `Last-Event-ID` header on the first connection, and gives no control over backoff. (the architect confirmed the `Last-Event-ID` header, with `?lastEventId=` as the fallback) |
 | Motion | `motion` (one library), loaded with `LazyMotion` and the `domAnimation` feature set. CSS transitions for hover and focus | One animation library. `prefers-reduced-motion` turns off everything except changing counters (DESIGN.md) |
 | Icons | `lucide-react` (ISC licence), imported per icon | Tree-shakes; one visual family. Every icon next to text is `aria-hidden`; icon-only buttons need an `aria-label` (enforced by the `IconButton` type) |
 | Fonts | `@fontsource/instrument-serif`, `@fontsource-variable/geist`, `@fontsource-variable/geist-mono` (SIL OFL), bundled by Next | Self-hosted with no CDN, and no binary font files committed (the guard blocks unreviewed binaries). **[pending: S03 verifies the three package names and licences on npm before use]** |
@@ -83,7 +83,7 @@ apps/web/
     settings/     KeyStatusRow, ConnectorSheet, DataStatus
     sources/      SourcesTable
   src/state/investigation.ts         pure reducer, selectors
-  src/lib/       api.ts (typed client), sse.ts, format.ts, fixture-mode.ts (server-only), shortcuts.ts, purpose-session.ts
+  src/lib/       api.ts (typed client), sse.ts, format.ts, fixture-mode.ts (server-only), shortcuts.ts, purpose.ts
   src/fixtures/  loader for fixtures/ui (fixture mode only)
   e2e/           Playwright specs
 fixtures/ui/<screen>/<state>.json    synthetic DTOs for every state (§12)
@@ -177,7 +177,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `AiLabel` | "AI-written" tag. Required wherever `generatedBy: "ai"` is true. Wraps text, never a rule-based value | - | not interactive |
 | `PersonDisclaimer` | The fixed line "Not a credit report. Not for credit, employment, tenancy or insurance decisions." Text is a catalogue key | - | - |
 | `PurposeGate` | The prompt and the "Purpose: ..." line (§5.3) | `needs_purpose`, `chosen`, `expired` | §8 |
-| `ReportProblem` | "Report an error or object" link and the form dialog (type: error or objection, field, free text). Posts to `POST /disputes` | `closed`, `open`, `submitting`, `sent`, `error` | Dialog rules; `Ctrl/Cmd+Enter` submits |
+| `ReportProblem` | The "Report a problem" action on every section header, finding menu and the page header (the DESIGN.md label; the dialog title is "Report an error or object"). The form has a `kind` choice (Correction or Objection), the item it targets and a free-text note, and posts `POST /disputes { companyEid, itemId, kind: "correction" \| "objection", note }`. After a send the section refetches and the disputed line shows `disputed` | `closed`, `open`, `submitting`, `sent`, `error` | Dialog rules; `Ctrl/Cmd+Enter` submits |
 | `Quote` | The only place verbatim third-party text is rendered. Enforces the length limits per source kind (§5.7) | `short`, `cut` (with "Read at source") | link |
 | `EmptyState`, `ErrorState` | Page-level states: icon, one heading, one line of cause, one action | `error` takes a machine code and maps it to catalogue text | action is a button |
 
@@ -186,19 +186,19 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | Component | Purpose | States | Keyboard |
 |---|---|---|---|
 | `SearchBox` | The home search. Wraps `Combobox`. Free text is accepted and offers "Investigate this text" | §5.4 | `/` focuses it from anywhere |
-| `SearchResult` | One company: name (2-line clamp, full name in `title` and in the header), code, legal form, status pill, city, registration year | `default`, `highlighted`, `struck-off` ("Removed from the register in 2021") | `Enter` opens |
-| `CountryGroup` | A group heading with count; `ready`, `loading {percent}`, `live {registers}`, `error`, `empty` | all five | - |
-| `CompanyHeader` | Overline (`Company · Latvia`, `Investigation running`, `Investigation report · {date time}`), H1 (≤ 3 lines then truncated, full name in the tooltip and the identity row), meta row (status pill with gloss, legal form with gloss, registration number, address), optional LEI and VAT, and the actions. Profile: **Investigate** (primary), Network, Export, Report a problem. Run: Stop and write the report, Skip to report. Report: Network, Re-run, Export, Report a problem | `loading`, `profile`, `running`, `report`, `sole-trader` (facts-only variant: no Investigate, no Network, no agent rows) | - |
+| `SearchResult` | One company: name (2-line clamp, full name in `title` and in the header), code, legal form, status pill, city, registration year. Search never returns a sole trader or natural person (S04 acceptance 3), so the component has no variant that shows one | `default`, `highlighted`, `struck-off` ("Removed from the register in 2021") | `Enter` opens |
+| `CountryGroup` | A group heading with count. The DTO state is `ready`, `loading{percent}` or `error`, and the kind is `bulk` or `live`; `empty` is `ready` with no results and shows the registers checked; a `live` group shows "Searching {registers}" while its request is pending | `ready`, `ready-empty`, `loading`, `error` for each kind | - |
+| `CompanyHeader` | Overline (`Company · Latvia`, `Investigation running`, `Investigation report · {date time}`), H1 (≤ 3 lines then truncated, full name in the tooltip and the identity row; **for a natural person or sole trader the H1 is the legal form and registry code, for example "Individual enterprise · {code}", never the name**, and so is `<title>`; L3, P6), meta row (status pill with gloss, legal form with gloss, registration number, address), optional LEI and VAT, and the actions. Profile: **Investigate** (primary), Network, Export, Report a problem. Run: Stop and write the report, Skip to report. Report: Network, Re-run, Export, Report a problem | `loading`, `profile`, `running`, `report`, `sole-trader` (facts-only variant: no Investigate, no Network, no agent rows) | - |
 | `CoverageLine` | "[Country]'s official data: ... Not in open data: ..." in a well before any result. Text is a catalogue key per country, plus `us-private` and `us-public-no-sec`. The designer replaced the icon strip with this line | one per country variant | - |
 | `SectionIndex` | Pills that jump to each section on the profile and report | - | links in tab order |
 | `ChecksAside` | The aside on a profile: "Checks from official data", checks 1 to 9 with their results and "Runs when you investigate" for 10 and 11, then **Investigate** and the typical cost. The same `ChecksList` renders the full 11 in a report | `profile` (1-9), `report` (1-11), `check not_evaluated` | - |
 | `ExportMenu` | Export on the header: JSON and FtM of redistributable values only. Says how many share-alike values were left out ("3 values under a share-alike licence are left out of this export; see the Sources page") | `closed`, `open`, `exporting`, `error` | Menu keys |
 | `SectionCard` | A titled section with its rows and the agent findings that landed in it. Collapses to one sentence when every row is "not published" | `loading` (skeleton rows), `loaded`, `all-gaps`, `error` (retry) | The heading is focusable by `j/k` navigation only on the report page (§8) |
 | `FieldRow` | One value with its label, state and chips (§5.1) | all `SectionResult` states plus `loading` | - |
-| `CheckLine` | One risk check: "Checked the debtor list as of 18 Nov 2026: none found", or a finding | `none-found`, `point-to-check`, `concern`, `not-checked`, `not-evaluated` ("Not evaluated: tracked since {date}", `clock` icon, P14) | - |
+| `CheckLine` | One risk check: "Checked the debtor list as of 18 Nov 2026: none found", or a finding | `none-found`, `point-to-check`, `concern`, `not-checked`, `possible-match` (a stored-list name hit: "Possible match, needs review", with the entry's identifiers and the list date; "sanctioned" only for `status: listed`), `not-evaluated` ("Not evaluated: tracked since {date}", `clock` icon, P14) | - |
 | `KeyFigureTable` | Five fiscal years newest first, currency and period end in each column header ("FY to Jun 2025"), a sparkline per row, year-on-year change with sign and arrow, "All line items" disclosure | `full`, `partial` ("2024 not filed" cell), `lvl` currency (labelled "LVL (before the euro)", never converted), `thousands` ("Reported in thousands") | scroll region is focusable |
-| `RoleTable`, `HolderTable` | People and holders. 8 rows then "Show all [n]". Names are text, never links (L2) | `locked` (purpose gate), `restricted`, `paid_only`, `full` | - |
-| `EventList` | Newest first: date, type, status in the register's words, amount, source | `empty` becomes a `CheckLine` | - |
+| `RoleTable`, `HolderTable` | People and holders, rendered only from a `data` result. 8 rows then "Show all [n]". Names are text, never links (L2). Every non-`data` state is the section's `FieldRow` state (§5.1), so the tables have no `empty` of their own | `data` only (the gate, `restricted`, `paid_only`, `not_published` come from `FieldRow`) | - |
+| `EventList` | Newest first: date, type, status in the register's words, amount, source. Rendered only from a `data` result | `data` only | - |
 | `SourcesTable` | The Sources page: every source with licence, attribution, cadence, last sync, covered sections per country, its LATER rows and triggers | `loading`, `full`, `error` | Rows are anchors; every `SourceChip` links to its row |
 
 ### 4.4 Investigation
@@ -220,7 +220,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 |---|---|---|---|
 | `VerdictBlock` | Level, coverage line, the rules that fired, then the AI-written explanation as a separate child (§5.5) | `no_concerns_found`, `points_to_check`, `serious_concerns`, `not_enough_data`, `not-confirmed` (entity not confirmed) | - |
 | `FactsOnlyBlock` | "Facts only: no verdict is given on a private individual" | one | - |
-| `ChecksList` | The fixed list of 11 checks, each `none_found`, `point_to_check`, `concern` or `not_checked` with its reason | all four | - |
+| `ChecksList` | The fixed list of 11 checks (ids 1-11). Each check is `ran` (with a finding rating: `none_found`, `point_to_check` or `concern`), `not_run` (with its coverage reason: `run_failed`, `stopped`, `budget_exceeded`, `needs_key`), `not_possible` ("not possible in {country}", the not-published case) or `not_evaluated` (P14, `trackedSince`). Same four states as architecture §7.2 | all four, and each `ran` rating | - |
 | `KeyFinding`, `FindingItem` | One finding: severity (icon + word), statement, `ConfidenceBadge`, citation chips, `AiLabel`, overflow menu (Report an error or object). Renders nothing without a citation (R7) | per severity | `j/k`, `Enter` |
 | `EvidenceGroup` | Findings grouped by agent, with "Dig deeper" and "Re-run" | `empty`, `full` | - |
 | `CitationViewer` | Popover or sheet with the `Quote` and the source link | `open`, `closed`, `source-gone` ("The source no longer shows this text") | `Esc` |
@@ -249,7 +249,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 
 ### 5.1 `FieldRow` and the section states
 
-`FieldRow` takes `{ itemId: ItemId; label: string; result: SectionResult<T>; render: (value: T) => ReactNode; caveatKey?: CaveatKey }`. It is the only way a registry value reaches the DOM (together with `KeyFigureTable`, `RoleTable`, `HolderTable`, `EventList` and `CheckLine`, which take the same `itemId` and `result`). It writes `data-item-id` and `data-state` on its root, which the tests read.
+`FieldRow` takes `{ itemId: ItemId; label: string; result: SectionResult<T>; render: (value: T) => ReactNode; caveatKey?: CaveatKey }`. It is the only way a registry value reaches the DOM (together with `KeyFigureTable`, `RoleTable`, `HolderTable`, `EventList` and `CheckLine`, which take the same `itemId` and `result`). It writes `data-item-id` and `data-state` on its root, which the tests read. **"None found" comes only from `checked_none{source, asOf}`.** An empty `value` array is a contract error: the schema rejects it, and a component that receives one throws in development and renders the `not_checked.error` state in production, never "none found" (test: `field-row.empty-array.test.tsx`). The value is an array (`SourcedValue<T>[]`), so `render` takes the array.
 
 **Each state has its own icon and copy. No state falls back to a shared line.** The unit test `field-row.states.test.tsx` renders every state and asserts that all texts differ, none is empty, and none contains a banned word.
 
@@ -262,14 +262,14 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `checked_none` | `check` in `--ink-2`, never green | "Checked {source} as of {date}: none found" | - |
 | `not_published` | `minus` | "Not published in {country}" | - |
 | `not_checked.later` | `minus` | "Not checked in this version" | - |
-| `not_checked.error` | `triangle-alert` | "Not checked: {source} did not answer" | **Retry** |
+| `not_checked.error` | `triangle-alert` | "Not checked: {reason}", where the reason is the catalogue text for the error `code` (for example "the register did not answer") | **Retry** |
 | `not_checked.skipped` | `minus` | "Not checked: skipped in this run" | - |
-| `not_checked.paid_only` | `euro` | "Available as a paid register extract" | link "Order from {register}" **only** when the source has an `orderUrl` and its host is in that source's allowlist |
+| `not_checked.paid_only` | `euro` | "Available as a paid register extract" | link "Order from {host}" **only** when `orderUrl` is not null (the host of the official register page is the link text; the allowlist check is the server's) |
 | `not_checked.needs_key` | `key-round` | "Add your key to check" | opens `ConnectorSheet` |
 | `not_checked.needs_purpose` | none | the `PurposeGate` well itself, never "Not checked" | choose a purpose |
 | `not_checked.restricted` | `lock` | "Not shown in {country}: restricted by {basis}" | link to the policy section of the Sources page |
 | `not_checked.agent_only` | `bot` | "Not checked here: {agent} checks this when you investigate" | **Investigate** (opens the sheet) |
-| `not_checked.manual_lookup` | `external-link` | "Check manually at {site}" | external link, `rel="noopener noreferrer"`, host from the official allowlist |
+| `not_checked.manual_lookup` | `external-link` | "Check manually at {host of url}" | external link, `rel="noopener noreferrer"`, host from the official allowlist |
 | `disputed` | `flag` | "Under review after an objection, since {date}"; the value is not rendered, the chip stays | - |
 | check state `not_evaluated{since}` (P14) | `clock` | "Not evaluated: tracked since {date}". A **check-level** state, not a section state: it applies to the snapshot-dependent rules (rename in 6 months, the LT 180-day arrears age, "no longer on the debtor list since"). It never reads as clean | - |
 | client `loading` | skeleton | - | - |
@@ -280,7 +280,7 @@ Rules:
 - `restricted` depends on the rule (country, legal form, section), never on the record. The UI renders what the DTO says and never infers the lock from missing data.
 - Register words are shown as the register writes them, with an English gloss where one exists ("Likviduojamas · under liquidation"), and carry `lang` for the source's language.
 - Derived values (shared-address counts, parent links, estimates) use the `derived` chip kind: "Derived by Finora", with the input sources and a method link.
-- Snapshot-dependent checks (renamed in the last 6 months, the 180-day arrears age, "no longer on the debtor list since") render the check-level `not_evaluated{since}` state until the snapshots cover the window (P14). **[pending: architect adds `not_evaluated{since}` to the check DTO]**
+- Snapshot-dependent checks (renamed in the last 6 months, the 180-day arrears age, "no longer on the debtor list since") render the check-level `not_evaluated{since}` state until the snapshots cover the window (P14). It is `Check.state = "not_evaluated"` with `trackedSince` (architecture §7.2, P14), never a section state.
 - **Icons** follow the mockups (`assets/app.js`): `dash`, `check`, `warn`, `euro`, `key`, `agent`, `hand`, `lock`, `flag`, `clock`, `info`, `ext`. Lucide stand-ins are `minus`, `check`, `triangle-alert`, `euro`, `key-round`, `bot`, `hand`, `lock`, `flag`, `clock`, `info`, `external-link`. Where a stand-in differs visibly from the mockup glyph, U1 draws the mockup glyph as an inline SVG in `packages/ui`.
 
 ### 5.2 `SourceChip`
@@ -296,9 +296,9 @@ Person data (S03, S04, S14 insider names) sits behind a stated purpose (legal ru
 
 1. A person section with `needs_purpose` renders a well inside the section: legend "Why are you looking at the people in this company?", the four fixed purposes as radio buttons (from the API; draft list, legal confirms against P7), the note "Asked once and kept for 12 hours. Each company you open is logged with this purpose. Not available for credit, employment, tenancy or insurance decisions about a person.", and **Show people**. **There are no person values in the DOM at this point**: the API did not send them, and a test asserts it.
 2. The purposes list excludes the blocked uses (credit, employment, insurance, tenancy, licensing, credit servicing, P7) and the footer links to the terms that state them.
-3. Choosing one stores `{ purpose, chosenAt }` in the browser's `sessionStorage`. It is valid for `PURPOSE_SESSION_HOURS` (12) and ends with the tab session. Every later request for a person section sends the purpose (the server logs one row per company, P2).
+3. Choosing one calls `POST /api/v1/purpose { purposeId }`. The server sets an **HTTP-only session cookie** valid for `PURPOSE_SESSION_HOURS` (12) or until restart; the browser never stores the purpose and no script can read it. The server-rendered profile reads the cookie through the render seam and returns the person sections as data (with `purpose` echoed so the line "Purpose: {purpose} · Change" can render) or as `needs_purpose`. After choosing, the client refetches the section. Every open of a company's person data is logged by the server, one row per company (P2).
 4. After it, each person section shows "Purpose: {purpose} · Change" above its table. Changing it is allowed at any time and affects only later opens.
-5. Expiry: when 12 hours have passed, the next open returns the section to `needs_purpose` without losing page state.
+5. Expiry: when the cookie has expired, the next load or refetch returns `needs_purpose` and the gate shows again, without losing page state. A blocked purpose id is refused with `400 purpose_blocked` and the UI shows the error line.
 6. Focus: after **Show people**, focus moves to the first row of the unlocked table. After Change, focus returns to the radio group.
 7. People rows show name and role only. No codes, no ages, no hashes (P3). Names are text, never links.
 8. Natural-person and sole-trader subjects: the disclaimer sits at the top of the page (rule 6) and the page is the facts-only variant (§5.5).
@@ -312,7 +312,7 @@ Person data (S03, S04, S14 insider names) sits behind a stated purpose (legal ru
 - No match shows two things: what was checked, and **Investigate this text** (opens the Investigate sheet with the text as subject; without a key it opens the key sheet).
 - The command bar adds a second group: tools (Explorer, Crash monitor) and recent investigations. `Enter` on a company opens the company page; `Enter` on a tool navigates.
 - Search is keyboard-complete: `/` focuses the box; arrow keys move; `Enter` opens; `Esc` resets, then closes.
-- **[pending: architect, §16 ask 2]** the response shape for groups and live registers.
+- Response shape (accepted, architecture §5.1): `GET /search` returns groups, and each live US state register is its own `GET /search/live/:register` request with a 3 s timeout and an error state.
 
 ### 5.5 `VerdictBlock`
 
@@ -360,7 +360,7 @@ Text over the limit is cut at the limit with "Read at source". Quotes are the on
 
 - **Company-to-company only, one hop.** Nodes are companies. Edges are: registered-office address shared by companies, and corporate members (LV, EE). **No person nodes, no "also officer in N other companies" count** (council Part C, S17). An address shared with a sole trader or a private individual is not shown, nor any count tied to it.
 - An address node reads "This address hosts {n} companies" and collapses after 20 with the caveat: "A shared address can be an office building or a registered-agent address."
-- Corporate-member edges are labelled with the holding ("60%", from `share` on the edge **[pending: architect adds `share?: number`]**); shared-office edges are dashed and carry the "Derived by Finora" chip. Edge cards show the relation, the date, and a `SourceChip`. Counts and links we compute carry the "Derived by Finora" chip.
+- Corporate-member edges are labelled with the holding ("60%", from `share` on the edge); shared-office edges are dashed and carry the "Derived by Finora" chip. Edge cards show the relation, the date, and a `SourceChip`. Counts and links we compute carry the "Derived by Finora" chip.
 - Browsing the network **never starts an agent run**; a test asserts that no `POST /investigations` is sent.
 - Layout: `d3-force` runs in the main thread for up to 300 nodes, stops when settled, and redraws on pan and zoom only. Under `prefers-reduced-motion` the layout is computed synchronously and drawn once.
 - Views: `Tabs` Graph / List. The list is the default under 768 px and is always one click away. The canvas has a visible "View as list" button next to it and `role="img"` with a label that summarises ("12 companies linked to this company through 3 shared addresses and 2 corporate members").
@@ -371,7 +371,7 @@ Text over the limit is cut at the limit with "Read at source". Quotes are the on
 
 **Page anatomy** (`crash.html`): overline and serif H1 ("How far markets are from their peaks") with the "Updated 2 min ago" line and the cadence note; a `Banner` when running on official data only ("10 of 20 series work without a key ... Add a key"); the **Distance from peak** strip beside the **US national debt** card; tiles M01 to M07; "How it's calculated" and the attribution lines at the end. Fund symbols and key data stay on this machine, and the page says so.
 
-One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`MarketRow` in `docs/plan/loaders/markets.md` §1.4): M03 holds up to seven markets, M01 three. Each row shows its name, the value and drawdown, a sparkline, the as-of time, the source and its attribution line, and has its own state. The row's DTO state (`ok | peak_unknown | needs_key | needs_symbol | stale | error | loading`) maps to the display states below; `live`, `delayed` and `coarse` are `ok` rows told apart by the row's cadence and lag **[pending: architect adds `cadence` and `delayed` to `MarketRow`]**. State by row (the council's Part C):
+One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`MarketRow` in architecture §8, defined in `docs/plan/loaders/markets.md` §1.4): M03 holds up to seven markets, M01 three. Each row shows its name, the value and drawdown, a sparkline, the as-of time, the source and its attribution line, and has its own state. The row's DTO state (`ok | peak_unknown | needs_key | needs_symbol | stale | error | loading`) maps to the display states below; `live`, `delayed` and `coarse` are `ok` rows told apart by the row's cadence and lag. State by row (the council's Part C):
 
 | State | When | What shows |
 |---|---|---|
@@ -391,7 +391,7 @@ Rules:
 - M08's live ticker is an estimate: shown beside the official figure and its date, labelled "estimate", never alone.
 - "Market cap lost" shows only where the source's terms allow it and are quoted; otherwise the tile shows drawdown only.
 - Every tile has a text alternative to its chart: a hidden table of peak date and value, latest value, drawdown.
-- **Total-crypto peak** is an all-time high, not "since [date]": the row says "All-time high, {date}" (the DTO carries the peak basis **[pending: architect, `peakBasis: since | all_time | seeded`]**). A seeded peak says "Peak seeded from {source}".
+- **Total-crypto peak** is an all-time high, not "since [date]": the row says "All-time high, {date}" (the DTO carries the peak basis). A seeded peak says "Peak seeded from {source}".
 - **Value-lost summary** (`WipedSummary`, at the top of the drawdown card): "Value below peaks ≈ $X trillion", then one sentence naming every row in the sum with its as-of and "the oldest figure is from {as-of}", and a "Derived by Finora" badge. Only rows with `countInTotal: true` are summed (US corporate equities and the total crypto market; bitcoin and ether keep their own figures and are never added on top). A counted row with no value is named as left out (`excludedItemIds`), and the total never falls back to adding the parts. Hidden when fewer than two rows are counted.
 - **Server refresh vs page poll.** The server refreshes crypto every 5 minutes while a Crash monitor client is connected (hourly otherwise), stocks hourly in US hours, official series every 6 hours. The page polls `GET /markets/crash` (a cache read) every 60 s while the tab is visible and stops when hidden; that poll is also what marks a client as connected. Each row's as-of time tells the truth about its age, so a 60 s poll never implies a 60 s refresh.
 - Refresh in the page: Each tile has a reserved height, so a refresh causes no layout shift (CLS measured as 0 in e2e). Values change in place; the counter animation is the one motion kept under reduced motion.
@@ -445,7 +445,7 @@ type InvestigationState = {
 |---|---|
 | `investigation.status` | Header status text and progress; `done` shows the verdict; `budget_exceeded` shows the "report written from what was found" note |
 | `plan` | The four specialist lanes start (all together in v1, so no dependency text). The **lead** lane ("Lead: resolve and plan") exists from the start and ends with "Pinned to registration no. {code}"; the **verdict** lane stays `queued` until the specialists end |
-| `run.status` | Lane status icon and text; `waiting` links to the question; `failed` shows the machine code mapped to catalogue text and **Re-run {agent}** (agents.md §2.7 offers it) **[pending: architect, the route that re-runs one agent]** |
+| `run.status` | Lane status icon and text; `waiting` links to the question; `failed` shows the machine code mapped to catalogue text and **Re-run {agent}** (agents.md §2.7 offers it) (route: `POST /investigations/:id/runs/:runId/rerun`) |
 | `run.step` | The lane's `ActivityLine` (replaces the previous line) |
 | `run.task` | A `TaskRow` appears or changes; header task count |
 | `run.source` | The lane's "sources read" counter and the header source count tick up |
@@ -472,7 +472,7 @@ One polite `LiveRegion` per page. Throttle rule: at most **one announcement per 
 - the verdict arrives: "Report ready: {level label}, {ran} of {applicable} checks ran";
 - connection lost or restored.
 
-The question announcement does not move focus. A shortcut and a link take the user to the card (§8). The counters in the panel are not live regions (they would flood a screen reader); the header's text status is.
+The question announcement does not move focus. A shortcut and a link take the user to the card (§8). The counters in the panel are not live regions (they would flood a screen reader). The header's text status is a normal element, and its changes are announced only through the one `LiveRegion`; there is no second region.
 
 ---
 
@@ -529,6 +529,8 @@ Every interactive element is reachable and operable by keyboard. Focus is always
 | `j` / `k` | Next / previous finding or section | Report and company pages |
 | `Enter` | Expand the focused source chip, finding or lane | |
 | `Esc` | Close the topmost popover, sheet or dialog; return focus to its trigger | |
+
+**Precedence.** `Esc` acts on the topmost open layer only: an open popover first, then a sheet or dialog, then (in a field with text) it resets the field, and an empty field loses focus. `/` is global, and only when focus is not in an editable control and no dialog is open. Component rows in §4 describe what their own `Esc` does inside that order.
 
 **Single-character shortcuts** (`/ i q j k ?`) follow WCAG 2.1.4: they can be turned off in Settings ("Keyboard shortcuts", on by default), and they are ignored while a modifier key is held, while focus is in an editable control, and while a dialog is open. `Ctrl/Cmd+K` is a modifier shortcut and stays.
 
@@ -608,7 +610,7 @@ Other rules:
 ## 11. Language, copy and formatting
 
 - **Four locales:** `en`, `lt`, `lv`, `et` (the URL segment is `et`). All text is in `packages/i18n/messages/<locale>.json`, namespaced: `common`, `shell`, `search`, `field`, `company`, `investigate`, `agents`, `report`, `network`, `library`, `crash`, `settings`, `errors`. ICU plurals. The parity test (S02) fails on a missing key, an empty string or a different ICU argument.
-- **Banned wording** (council clarification 2) covers every string Finora writes: verdict and status labels, finding statements, catalogue strings, controls, LLM prose. The list is `packages/i18n/src/banned.ts`. `banned.test.ts` checks every catalogue string, case-insensitively and whole-word, with no exception list. Controls use "Reset", not "Clear". The only exemption is a verbatim quote inside `Quote`, with its citation. The LT, LV and ET lists are word **stems** (the languages inflect), drafted in DESIGN.md §4 and pending native review: until that review the locale test warns and the English test fails the build.
+- **Banned wording** (council clarification 2) covers every string Finora writes: verdict and status labels, finding statements, catalogue strings, controls, LLM prose. The list lives in one file, `packages/domain/src/config/banned-terms.ts` (architecture §10), per locale, with patterns for the words, letter grades (an A to F grade shown as a rating) and credit-score wording. `i18n/src/banned-terms.test.ts` checks every catalogue string against it, case-insensitively and whole-word, with no exception list, and has cases for the grade and score patterns. The runtime check on model output uses the same file. Controls use "Reset", not "Clear". The only exemption is a verbatim quote inside `Quote`, with its citation. The LT, LV and ET lists are word **stems** (the languages inflect), drafted in DESIGN.md §4 and pending native review: until that review the locale test warns and the English test fails the build.
 - **LLM text** with a banned term is rejected, regenerated once, then replaced by the sourced facts alone (council clarification 2). That is a runtime rule; the UI renders the facts-only fallback as a normal state.
 - **Numbers and dates** use `Intl` with the active locale. A company's money keeps its own currency (EUR, USD, "LVL (before the euro)"). Dates show the register's as-of date plus the retrieval date in the chip. Relative times only where an absolute time is also available (title attribute or chip).
 - **Register words** keep the register's language, plus an English gloss in the pill where one exists, never our paraphrase alone.
@@ -619,7 +621,7 @@ Other rules:
 
 ## 12. Fixtures, the state gallery and `?state=`
 
-**Fixtures are synthetic.** Names are obviously fictional: "Example Company A SIA", "Sample Trading UAB", "Placeholder Foods OÜ", "Example Holdings Inc", people "Example Person One". One company has a 200-character fictional name. Registry codes use the fixture ID rules in `docs/plan/reviews/00-early-plan-review.md` (#9). Fund symbols are fictional (`FXAA`). No real entity appears in any fixture, screenshot or doc.
+**Fixtures are synthetic.** Names are obviously fictional: "Example Company A SIA", "Sample Trading UAB", "Placeholder Foods OÜ", "Example Holdings Inc", people "Example Person One". One company has a 200-character fictional name. Registry codes use the fixture ID rules in `docs/plan/reviews/00-early-plan-review.md` (#9). Fund symbols are fictional (`FXAA`). No real entity appears in any fixture, screenshot or doc. URLs and email addresses in fixtures use reserved names only (`.example`, `.test`, `example.com`, `example.org`), and `fixtures/ui.test.ts` fails on any other host or on a string shaped like an email address. Fund symbols use a reserved fictional prefix that `fixtures/ids.test.ts` checks.
 
 **The state gallery.** `/[locale]/design` lists every component and screen state; `/design/<group>/<name>` renders one with `?theme=` and `?locale=`. It exists only when `FINORA_DEMO=1` (set by `pnpm finora --demo`, the dev server for tests and CI); a normal run returns 404 there. It is the target of the visual, axe, keyboard and e2e tests, and web-qa can reach any state by URL.
 
@@ -647,20 +649,20 @@ Each rule has one place in the UI and a named test. Rules R1-R18 are the legal m
 
 | Rule | UI enforcement | Test |
 |---|---|---|
-| Rendered-field registry (council) | Every registry value is rendered by `FieldRow` or the field tables with an `itemId` typed from Part G; DTO value types are importable only from `components/field/**` and `components/company/**` | `web/src/components/field/registry.test.tsx` (every `data-item-id` in every fixture is a SHOW or CAVEAT id for that country; every SHOW and CAVEAT id of the UI sections appears at least once in the gallery; no HIDE or LATER id ever appears) |
+| Rendered-field registry (council) | Every registry value is rendered by `FieldRow` or the field tables with an `itemId` typed from Part G; DTO value types are importable only from `components/field/**` and `components/company/**` | `web/src/field-registry.test.ts` (every `data-item-id` in every fixture is a SHOW or CAVEAT id for that country; every SHOW and CAVEAT id of the UI sections appears at least once in the gallery; no HIDE or LATER id ever appears) |
 | HIDE items (S04.LV.02, S04.LV.03, S04.EE.02, S16.ALL.04, OUT.US.01) | The UI has no component or prop that can render them. `restricted` shows a lock keyed on the rule | `web/e2e/hide.spec.ts`: DOM and text of every profile fixture have no HIDE id, no canary beneficial-owner name, no canary personal code or birth-date pattern (P3, P8) |
 | R2, P2 purpose gate | `PurposeGate` (§5.3) | `web/e2e/people-purpose.spec.ts`: no person values before a purpose; three companies send three requests carrying the purpose; after 12 h + 1 min the section is locked again (fake clock) |
 | R3, R16 source, licence, date | `SourceChip`, `SourcesTable`, `AttributionFooter` | `web/e2e/report-sources.spec.ts`, `web/e2e/sources-page.spec.ts` |
 | R5, P6 facts-only | `isNaturalPerson` from the DTO switches to `FactsOnlyBlock` | `web/e2e/facts-only.spec.ts`: no verdict block, the disclaimer at the top, S08 tax rows absent, S06 behind the purpose gate, no Investigate, no Network and no AGENT rows (no agents run on a natural person: `subject_is_natural_person`), and no library entry |
 | R6 disclaimer | `PersonDisclaimer` on every page whose DTO has `containsPersonalData` | `web/e2e/disclaimer.spec.ts` |
-| P7 blocked uses | The purpose list excludes them; the footer links to the terms | `web/e2e/people-purpose.spec.ts` asserts the option list |
-| R7 unsourced claims | `VerdictText` and `FindingItem` render nothing without a citation | `web/src/components/report/verdict-text.test.tsx` |
+| P7 blocked uses | The purpose list excludes them; the footer links to the terms | `web/e2e/people-purpose.spec.ts` asserts the option list; `web/e2e/terms-link.spec.ts` asserts the footer link |
+| R7 unsourced claims | `VerdictText` and `FindingItem` render nothing without a citation | `web/src/components/verdict-text.test.tsx` |
 | R8 sanctions wording | `SanctionsMatchCard`; "sanctioned" only for `status: listed` | `web/src/components/investigate/sanctions-match.test.tsx` |
 | R9 AI label | `AiLabel` required by the type for `generatedBy: "ai"` | `web/e2e/ai-label.spec.ts` |
 | R10 correction channel | `ReportProblem` on every section and finding menu | `web/e2e/dispute.spec.ts` |
-| R18 source-code link | `Footer` | `web/e2e/shell.spec.ts` |
+| R18 source-code link | `Footer` | `web/e2e/source-link.spec.ts` |
 | L3 indexing | `noindex` header and meta; `<title>` is the company name, or the registry code and legal form for natural persons and sole traders; never a person's name | `web/e2e/seo-headers.spec.ts` |
-| Banned wording | §11 | `packages/i18n/src/banned.test.ts`, plus a pass over rendered fixture pages in `web/e2e/banned-words.spec.ts` |
+| Banned wording | §11 | `i18n/src/banned-terms.test.ts`, plus a pass over rendered fixture pages in `web/e2e/banned-words.spec.ts` |
 | P12 fund tickers local | `FundSymbolField` writes to local settings only; fixtures use fictional symbols | the guard, plus `web/e2e/settings.spec.ts` |
 | P14 snapshot windows | "Not evaluated: tracked since {date}" | `web/src/components/field/snapshot-window.test.tsx` (a 10-day-old fixture cannot show "no rename in 6 months") |
 | Secrets | The UI shows key presence only | `web/e2e/settings.spec.ts` plants a canary key and asserts it is absent from HTML, API JSON and client chunks |
@@ -692,7 +694,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 ### U1 Design system and state gallery
 
-- **Scope:** `tokens.css`, `theme.css`, fonts, the `packages/ui` primitives of §4.1, theme and locale switching in the shell, `/design` with a page for every primitive, `scripts/check-tokens.mjs`, the axe and keyboard harness, `banned.ts` and its test, the first visual baselines.
+- **Scope:** `tokens.css`, `theme.css`, fonts, the `packages/ui` primitives of §4.1, theme and locale switching in the shell, `/design` with a page for every primitive, `scripts/check-tokens.mjs`, the axe and keyboard harness, the check that the rendered catalogue passes `banned-terms.ts` (the file itself is the architect's), the first visual baselines.
 - **Acceptance:**
   1. `tokens.css` defines every token of the `DESIGN.md` colour table in both themes; the sync test fails on a missing or changed token.
   2. Contrast: every listed text pair is ≥ 4.5:1 and every non-text pair ≥ 3:1, in both themes.
@@ -701,15 +703,15 @@ Slices that depend only on fixtures start before the real API lands (the archite
   5. Every primitive renders in every state of §4.1 in the gallery, in `en` and `lv`.
   6. Every interactive primitive is reachable and operable by keyboard with the focus outline visible, and keeps it in forced-colours mode.
   7. With `prefers-reduced-motion: reduce`, no element on the gallery has a non-zero transition or animation duration, except counters.
-  8. axe finds no serious or critical violation on any gallery page, in both themes, at 390 and 1280.
+  8. axe finds no serious or critical violation on any gallery page, in both themes, at 390, 768, 1024 and 1280.
   9. `check-tokens` fails on a planted hex colour in a component file.
   10. A button with `variant=primary` and an `IconButton` without a `label` fail typecheck in a type test.
-- **Tests:** `ui/src/tokens.sync.test.ts`, `ui/src/tokens.contrast.test.ts`, `ui/src/primitives/**/*.test.tsx` (one per primitive), `ui/src/types.test-d.ts`, `scripts/check-tokens.test.mjs`, `web/e2e/gallery.a11y.spec.ts`, `web/e2e/gallery.keyboard.spec.ts`, `web/e2e/gallery.motion.spec.ts`, `web/e2e/theme.spec.ts`, `web/e2e/fonts.spec.ts`, `web/e2e/gallery.visual.spec.ts` (baselines per §15).
+- **Tests:** `ui/src/tokens.sync.test.ts`, `ui/src/tokens.contrast.test.ts`, `ui/src/primitives/**/*.test.tsx` (one per primitive), `ui/src/types.test-d.ts`, `scripts/check-tokens.test.mjs`, `web/e2e/design.a11y.spec.ts`, `web/e2e/design.keyboard.spec.ts`, `web/e2e/design.motion.spec.ts`, `web/e2e/theme.spec.ts`, `web/e2e/fonts.spec.ts`, `web/e2e/design.visual.spec.ts` (baselines per §15).
 - **Demo:** `FINORA_DEMO=1 pnpm dev`, open `/en/design`, tab through the Button page, switch the theme, switch to `/lv`.
 
 ### U2 Client plumbing, fixtures and the stream
 
-- **Scope:** `lib/api.ts` (typed client from `api-contract`), the TanStack Query provider, `lib/fixture-mode.ts` (server-only), `fixtures/ui/**` for every state in §12, `lib/sse.ts`, `state/investigation.ts`, `useInvestigation`, `lib/format.ts` (money, dates, relative time), `lib/purpose-session.ts`, `lib/shortcuts.ts`.
+- **Scope:** `lib/api.ts` (typed client from `api-contract`), the TanStack Query provider, `lib/server-data.ts` (the render-seam wrapper; first line `import "server-only"`), `lib/fixture-mode.ts` (server-only), `fixtures/ui/**` for every state in §12 (shared with S04b), `lib/sse.ts`, `state/investigation.ts`, `useInvestigation`, `lib/format.ts` (money, dates, relative time), `lib/purpose.ts` (calls `POST /purpose`, no client storage), `lib/shortcuts.ts`.
 - **Acceptance:**
   1. The reducer is pure. Applying an event twice, or any event with `id ≤ lastEventId`, leaves the state unchanged (property test over shuffled duplicates).
   2. Replaying `fixtures/agents/<scenario>.json` reaches the same final state as the snapshot of that run (live equals reload), for every scenario.
@@ -718,9 +720,9 @@ Slices that depend only on fixtures start before the real API lands (the archite
   5. Money arithmetic is integer; formatting follows the locale (`en`, `lt`, `lv`, `et`); a test greps the reducer for float operations on money.
   6. Every `fixtures/ui` file validates against the `api-contract` schema, and every state in §12 has a file.
   7. In a production build `?state=` is ignored and `/design` returns 404.
-  8. The purpose session expires after 12 h (fake clock) and survives a reload within it.
+  8. The purpose session is the server cookie: it survives a reload, expires after 12 h (fake clock on the server), and is never readable from script (`document.cookie` test).
   9. Single-character shortcuts are ignored in editable fields, with modifiers, and when disabled in settings.
-- **Tests:** `web/src/state/investigation.test.ts`, `web/src/state/investigation.replay.test.ts`, `web/src/lib/sse.test.ts`, `web/src/lib/format.test.ts`, `web/src/lib/purpose-session.test.ts`, `web/src/lib/shortcuts.test.ts`, `web/src/fixtures/fixtures.test.ts`, `web/e2e/fixture-mode.spec.ts`.
+- **Tests:** `web/src/lib/investigation-reducer.test.ts`, `web/src/lib/investigation-reducer.replay.test.ts`, `web/src/lib/sse.test.ts`, `web/src/lib/format.test.ts`, `web/src/lib/purpose.test.ts`, `web/src/lib/shortcuts.test.ts`, `fixtures/ui.test.ts`, `web/e2e/fixture-mode.spec.ts`.
 - **Demo:** `FINORA_DEMO=1 pnpm dev`, open `/en/explorer/lv/00000000000?state=streaming` (a fixture code), watch the replay.
 
 ### U3 Shell, search and the command bar
@@ -763,7 +765,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   15. The profile page makes no request to a person endpoint (none exists) and renders no personal-code or birth-date pattern in any fixture (P3 canary).
   16. A check that depends on snapshots shows "Not evaluated: tracked since {date}" with the `clock` icon in `ChecksAside` and in the section.
   17. Export downloads redistributable values only and says how many share-alike values were left out.
-- **Tests:** `web/src/components/field/field-row.states.test.tsx`, `web/src/components/field/registry.test.tsx`, `web/src/components/field/snapshot-window.test.tsx`, `web/src/components/company/*.test.tsx`, `web/e2e/profile.spec.ts`, `web/e2e/people-purpose.spec.ts`, `web/e2e/facts-only.spec.ts`, `web/e2e/hide.spec.ts`, `web/e2e/disclaimer.spec.ts`, `web/e2e/dispute.spec.ts`, `web/e2e/report-sources.spec.ts`, `web/e2e/sources-page.spec.ts`, `web/e2e/seo-headers.spec.ts`, `web/e2e/profile.streaming.spec.ts`, `web/e2e/profile.visual.spec.ts`, `web/e2e/profile.a11y.spec.ts`, `web/e2e/perf.spec.ts`.
+- **Tests:** `web/src/components/field/field-row.states.test.tsx`, `web/src/field-registry.test.ts`, `web/src/components/field/snapshot-window.test.tsx`, `web/src/components/company/*.test.tsx`, `web/e2e/profile.spec.ts`, `web/e2e/field-states.spec.ts`, `web/e2e/canary.spec.ts`, `web/e2e/co-disclaimer.spec.ts`, `web/e2e/source-link.spec.ts`, `web/e2e/security-headers.spec.ts`, `web/e2e/people-purpose.spec.ts`, `web/e2e/facts-only.spec.ts`, `web/e2e/hide.spec.ts`, `web/e2e/disclaimer.spec.ts`, `web/e2e/dispute.spec.ts`, `web/e2e/report-sources.spec.ts`, `web/e2e/sources-page.spec.ts`, `web/e2e/seo-headers.spec.ts` (profile and `runs/[id]`: noindex, title, disclaimer), `web/e2e/profile.streaming.spec.ts`, `web/e2e/profile.visual.spec.ts`, `web/e2e/profile.a11y.spec.ts`, `web/e2e/perf.spec.ts`.
 - **Demo:** search an example Latvian company, open it, read the coverage line, open a source chip, choose a purpose and see the people, open the same page for an LT fixture and see the paid-extract line.
 
 ### U5 Investigate and live agents
@@ -783,7 +785,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   11. A reload mid-run restores an identical state: the DOM text after reload equals the DOM text before it, apart from elapsed timers.
   12. Losing the connection shows the banner after 3 s, keeps the content and recovers without a duplicate finding.
   13. At most one announcement per lane status change, none per step; the question and the verdict announce once each.
-  14. Below 1024 px the panel sits under the content, and a sticky summary bar ("4 agents · 2 running · $0.31", a link to the panel) keeps the run visible while the user scrolls the sections (confirmed by the designer: it reads "4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel).
+  14. At 1024 and below the panel sits under the content (tested at 1024, 1023, 768 and 390), and a sticky summary bar ("4 agents · 2 running · $0.31", a link to the panel) keeps the run visible while the user scrolls the sections (confirmed by the designer: it reads "4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel).
   15. A lane step with an unknown key renders "Working"; no model text reaches a lane (type and unit test).
   16. Reduced motion: no pulse, no wash; counters still change.
   17. The lead lane reads "Lead: resolve and plan" and ends with "Pinned to registration no. {code}"; the verdict lane is queued until the specialists end; "4 agents" in the header counts the four specialists; free text that matches no registry record ends with "Not found in the loaded registers", no lanes start, and the page says no web search ran on an unpinned name.
@@ -804,12 +806,12 @@ Slices that depend only on fixtures start before the real API lands (the archite
   7. The facts-only fixture has no verdict block.
   8. `ChecksList` always shows the same 11 checks; its counts equal the coverage line.
   9. `j` and `k` move between findings, `Enter` expands a chip; order in the DOM equals the visual order.
-  10. The follow-up dock shows its cost, cap and state; an answer carries `AiLabel` and citations, and says "Not found in the evidence" when it has none; below 1024 px it is a sheet.
+  10. The follow-up dock shows its cost, cap and state; an answer carries `AiLabel` and citations, and says "Not found in the evidence" when it has none; at 1023 px and below it is a sheet (tested at 1024 and 1023).
   11. `AttributionFooter` lists each cited source's line once.
   12. Re-run starts a new run under a new URL; the old one remains in the library.
   13. Opening the run URL later (new session) shows the stored report.
   14. The banned-words pass finds nothing in the rendered report fixtures.
-- **Tests:** `web/src/components/report/*.test.tsx`, `web/src/components/report/verdict-text.test.tsx`, `web/src/components/field/quote.test.tsx`, `web/e2e/report.spec.ts`, `web/e2e/report.not-enough-data.spec.ts`, `web/e2e/report.keyboard.spec.ts`, `web/e2e/follow-up.spec.ts`, `web/e2e/ai-label.spec.ts`, `web/e2e/banned-words.spec.ts`, `web/e2e/report.visual.spec.ts`, `web/e2e/report.a11y.spec.ts`.
+- **Tests:** `web/src/components/report/*.test.tsx`, `web/src/components/verdict-text.test.tsx`, `web/src/components/field/quote.test.tsx`, `web/e2e/report.spec.ts`, `web/e2e/report.not-enough-data.spec.ts`, `web/e2e/report.keyboard.spec.ts`, `web/e2e/follow-up.spec.ts`, `web/e2e/ai-label.spec.ts`, `web/e2e/banned-words.spec.ts`, `web/e2e/report.visual.spec.ts`, `web/e2e/report.a11y.spec.ts`.
 - **Demo:** finish the run from U5, read the verdict, open a citation, ask a follow-up, re-run.
 
 ### U7 Library
@@ -821,8 +823,8 @@ Slices that depend only on fixtures start before the real API lands (the archite
   3. States: empty, list, filtered, no-match, error with Retry.
   4. Arrow keys move between items and `Enter` opens; the list is one tab stop plus arrows.
   5. A run in progress shows its live status and opens the live view.
-  6. **[pending: architect]** delete or archive an investigation, depending on whether the API offers it; the retention rules for stored documents (R11) apply.
-- **Tests:** `web/src/components/library/*.test.tsx`, `web/e2e/library.spec.ts`, `web/e2e/library.keyboard.spec.ts`, `web/e2e/library.visual.spec.ts`, `web/e2e/library.a11y.spec.ts`.
+  6. Delete: each item has a Delete action with a confirm dialog; it calls `DELETE /investigations/:id`, removes the item and shows "Deleted" in a toast; the investigation's stored documents go with it (R11). A failed delete keeps the item and shows the error.
+- **Tests:** `web/src/components/library/*.test.tsx`, `web/e2e/library.spec.ts` (includes delete), `web/e2e/library.keyboard.spec.ts`, `web/e2e/library.visual.spec.ts`, `web/e2e/library.a11y.spec.ts`.
 - **Demo:** run two investigations, open the library, filter by level, reopen the first.
 
 ### U8 Network explorer
@@ -855,7 +857,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   8. The distance-from-peak strip and each sparkline have a text alternative: peak date and value, latest value, drawdown. The debt ticker's digits are `aria-hidden` and a static line gives the estimate and the official figure with its date.
   9. At 390 px tiles stack in one column with no horizontal scroll; at 1280 px they form a grid.
   10. No price value appears in the page for a row whose source needs a key and has none.
-  11. A row with `peakKnown = false` never shows a percentage; the total-crypto row says "All-time high"; the value-lost summary lists the rows it sums, names the oldest as-of date and names any counted row it had to leave out.
+  11. A `peak_unknown` row (it carries `trackingSince`) never shows a percentage; the total-crypto row says "All-time high"; the value-lost summary lists the rows it sums, names the oldest as-of date and names any counted row it had to leave out.
   12. A fund slot with no symbol says "Choose a fund in settings" and links to its settings field; with a symbol and no key it says "Add your key to check".
 - **Tests:** `web/src/components/crash/*.test.tsx`, `web/e2e/crash.spec.ts`, `web/e2e/crash.refresh.spec.ts`, `web/e2e/crash.states.spec.ts`, `web/e2e/crash.visual.spec.ts`, `web/e2e/crash.a11y.spec.ts`.
 - **Demo:** `pnpm finora --demo`, open `/en/crash`, watch a tile update, switch `?markets=nokey` in fixture mode.
