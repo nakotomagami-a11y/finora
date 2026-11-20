@@ -169,7 +169,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S04b API contracts and the demo responses
 - **Owner:** architect · **Depends on:** S04a
-- **Scope:** every schema in `packages/api-contract` listed in architecture §5.1 (`report`, `search`, `network`, `investigations` with `offerDomain`, `events`, `markets`, `settings`, `purpose`, `disputes`, `sources`, `health`, `about`, `export`), the `SectionResult` union (§5.4), the event union (§7.6), the `Verdict` with `coverage.total: 11`, `MarketRow` (§8), `API_ROUTES`, OpenAPI generation; a fixture-backed `FINORA_DEMO` mode that serves those DTOs from the real routes before the real services exist.
+- **Scope:** every schema in `packages/api-contract` listed in architecture §5.1 (`report`, `search`, `network`, `investigations` with `offerDomain`, `events`, `markets`, `settings`, `purpose`, `disputes`, `sources`, `health`, `about`, `export`), the `SectionResult` union (§5.4), the event union (§7.6), the `Verdict` with `coverage.total: 11` and `keyFindingIds`, `MarketRow` (§8), `API_ROUTES`, OpenAPI generation; a fixture-backed `FINORA_DEMO` mode that serves those DTOs from the real routes before the real services exist.
 - **Acceptance:**
   1. Every schema has a valid and an invalid fixture; an empty `data` value array is rejected; `generatedBy: "ai"` is required on findings and explanations (R9); `coverage.total` can only be 11.
   2. `docs/api/openapi.json` is generated and current.
@@ -242,11 +242,11 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Acceptance (all with the `fake` provider):**
   1. Four specialists start within 2 s of the pin and run concurrently.
   2. Six runs at the cap together produce one `cap_reached` question and at most +$0.50; a second hit ends `budget_exceeded`; two investigations cannot jointly pass the daily cap.
-  3. A call that settles above its hold logs `hold_underestimate`; no new call starts; the verdict still runs (council item 6).
+  3. A call that settles above its hold logs `hold_underestimate`; no new call starts; the verdict still runs (council item 6). Holds are per call (`max_uses` ≤ 2): under the default cap the four specialists start within the stagger and none waits on the ledger.
   4. Every rule in architecture §7.8 ends its run with its machine code; Stop aborts within 5 s.
   5. A natural-person subject is refused (R5); unknown price refuses to start.
   6. **Merges marked "pending the measured run"** when green on `fake`; **M2 cannot pass** until data-osint's measured run (`agents.md` §12) has replaced the modelled costs and the estimate is calibrated (architecture §7.7: ≥ 90% at or under `high`, median within ±30% of `typical`).
-- **Tests:** `agents/src/orchestrator.parallel.test.ts`, `agents/src/orchestrator.subject.test.ts`, `agents/src/orchestrator.timeout.test.ts`, `agents/src/orchestrator.stop.test.ts`, `agents/src/budget.test.ts`, `agents/src/estimate.test.ts`, `agents/src/runner.limits.test.ts`, `agents/src/runner.retry.test.ts`, `agents/src/runner.errors.test.ts`, `agents/src/runner.timeout.test.ts`, `agents/src/tools.errors.test.ts`, `agent-tools/src/*.test.ts` (store tools).
+- **Tests:** `agents/src/orchestrator.parallel.test.ts`, `agents/src/orchestrator.subject.test.ts`, `agents/src/orchestrator.timeout.test.ts`, `agents/src/orchestrator.stop.test.ts`, `agents/src/budget.test.ts`, `agents/src/budget.parallel.test.ts`, `agents/src/estimate.test.ts`, `agents/src/runner.limits.test.ts`, `agents/src/runner.retry.test.ts`, `agents/src/runner.errors.test.ts`, `agents/src/runner.timeout.test.ts`, `agents/src/tools.errors.test.ts`, `agent-tools/src/*.test.ts` (store tools).
 - **Demo:** `FINORA_DEMO=1 pnpm dev`; `curl -X POST .../api/v1/investigations` on a fixture company; the run log shows four specialists in parallel and the cost ledger's holds and settles.
 
 ### S09b Questions, findings, events and recovery
@@ -409,7 +409,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S24s Settings API
 - **Owner:** architect · **Depends on:** S04b, S22
-- **Scope:** `GET /settings/status` (key presence, the SEC contact setting, data status per source with sync reports and purge-guard warnings, history size against P9, the LAWYER switches in force, month-to-date spend) and `PUT /settings/fund-slots`.
+- **Scope:** `GET`/`PUT /settings/startup` (the opt-in start at login, council item 15), `GET /settings/status` (key presence, the SEC contact setting, data status per source with sync reports and purge-guard warnings, history size against P9, the LAWYER switches in force, month-to-date spend) and `PUT /settings/fund-slots`.
 - **Acceptance:** no key value in any response; fund slots validated against `^[A-Z0-9.\-]{1,10}$`.
 - **Tests:** `server/src/routes/v1/settings/**/route.contract.test.ts`.
 - **Demo:** `curl .../settings/status` shows key presence without values.
