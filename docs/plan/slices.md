@@ -1,314 +1,471 @@
 # Slice plan
 
-> **Status: draft (phase 3 input).** Read with `docs/architecture.md`. Data-dependent slices (loaders, report sections) get their exact field lists from `docs/plan/loaders/*.md` and `docs/plan/council/01-data.md`; UI slices get their screens and states from `DESIGN.md` and the frontend component inventory. Items waiting on those are marked **[pending]**. Rule numbers `R1`-`R17` are the legal memo's product rules and `L1`-`L6` the extra rules in architecture §10.
+> **Status: phase 3, milestone B.** Read with `docs/architecture.md` (the contract), `docs/plan/agents.md` (agent behaviour), `docs/plan/ui-build-plan.md` (UI components and states), the loader specs in `docs/plan/loaders/`, and `docs/plan/council/01-data.md` (the calls). Rule numbers: `R1`-`R18` legal, `P1`-`P14` council policy, `L1`-`L6` other, `PS2`-`PS7` the person-row conditions (architecture §3.3, §10).
 
 ## How slices work
 
 - A slice is one vertical, demoable piece. It lands as **one commit** on the hub branch (more only if the guard or a review forces a split), with its tests.
-- **Done means:** every acceptance criterion holds; `pnpm lint`, `pnpm typecheck`, `pnpm test` (and `pnpm e2e` once it exists) are green locally and in CI; qa has reviewed the commit with no open MUST-FIX; UI slices also have a web-qa pass with no open MUST-FIX; the demo step works for someone who only reads this file.
-- **Tests are named.** Each slice lists its test files. A criterion with no test file next to it is not done.
-- **Order** is the numbering, except where "Depends on" allows parallel work. Data seats build loaders (S06-S10) in parallel once S05 lands; frontend builds S03 in parallel with S04.
+- **Done means:** every acceptance criterion holds; `pnpm lint`, `pnpm typecheck`, `pnpm test` and (from S02) `pnpm e2e` are green locally and in CI; qa has reviewed the commit range with no open MUST-FIX; UI slices also have a web-qa pass with no open MUST-FIX; the security-engineer review has no open finding on the slices marked **security**; the demo step works for someone who only reads this file.
+- **Tests are named.** Each slice lists its test files (package-relative: `store/src/x.test.ts` is `packages/store/src/x.test.ts`; `web/e2e/x.spec.ts` is `apps/web/e2e/x.spec.ts`; `server/` and `mcp/` are under `apps/`). A criterion with no test next to it is not done.
+- **Loader slices** implement their specs in `docs/plan/loaders/` exactly; the spec's Tests and Size-and-time sections are part of the slice's acceptance. Each reports records per source, bytes per record, statements, facts and events, and its P10 budget share in `docs/plan/benchmarks.md`.
+- **Every SHOW and CAVEAT item** in Part G is mapped to a data slice, a UI slice and an acceptance test in the appendix. Every HIDE item has negative tests on every surface (architecture §10.4), built in S04 and extended by each loader slice's fixtures.
+- **Order:** the council's walking skeleton. Latvia goes end to end (search → official profile → agents → sourced verdict) from one command (M2) before a second country's loaders are built (M3). Specs for every country exist already; building them waits.
 - **Owner** builds; **with** reviews the parts in their domain before qa.
-- Fixtures are synthetic only (`fixtures/`, recipe in architecture §13). Never downloaded data.
-- Paths below are relative to the package: `store/src/x.test.ts` means `packages/store/src/x.test.ts`; `web/e2e/x.spec.ts` means `apps/web/e2e/x.spec.ts`.
+- Fixtures are synthetic only (architecture §13). Test doubles are named `...Mock`, "fake" or "stub" (the guard blocks one other common word).
 
 ## Milestones
 
-| Milestone | Slices | Council session 3 asks |
-|---|---|---|
-| **M1 Foundation** | S01-S05 | Can a contributor clone, run, test and add a loader without asking anyone? |
-| **M2 Explorer with real data** | S06-S14 | Would we look a company up here instead of on the registry sites? What is missing per country? |
-| **M3 Agentic search** | S15-S18 | Does an investigation earn its cost and time? Are the verdicts sourced, fair and useful? |
-| **M4 Crash monitor and one command** | S19-S21 | Is this the app the maintainer opens every day? |
-| **M5 Done** | S22 | Phase 6 exit criteria, signed off |
-
----
-
-## M1 Foundation
-
-### S01 Workspace and toolchain
-- **Owner:** architect · **Depends on:** nothing (licence decided: AGPL-3.0, `LICENSE` is committed)
-- **Scope:** pnpm workspace (`apps/*`, `packages/*`); `packageManager` pinned; Node ≥ 24 in `engines`; `packages/tooling` (tsconfig base with `strict`, ESLint flat config with the import rules of architecture §2, Vitest preset); root scripts `lint`, `typecheck`, `test`, `build`, `e2e`; `scripts/check-deps.mjs` holding the dependency table; `pnpm-workspace.yaml` with `minimumReleaseAge` and `allowBuilds`; `.env.example`; `"license": "AGPL-3.0-or-later"` in every `package.json`; `.data/` gitignored; `ci.yml` (architecture §14 steps 1-3 and 7; later slices add their steps).
-- **Acceptance:**
-  1. A fresh clone runs `pnpm install && pnpm lint && pnpm typecheck && pnpm test` green on Windows and on Linux CI.
-  2. `check-deps` fails when a package declares a dependency its table row forbids.
-  3. ESLint fails on `any`, on `process.env` outside `env.ts`, on a Node built-in imported in `packages/domain`, and on a forbidden cross-package import.
-  4. `ci` runs on the hub PR beside `guard`; both green.
-- **Tests:** `scripts/check-deps.test.mjs` (good and bad manifests); `packages/tooling/eslint/rules.test.ts` (lint fixtures that must fail and pass); `packages/tooling/src/smoke.test.ts`.
-- **Demo:** clone into a new folder, run the four commands, see them pass; open the hub PR checks and see `ci` and `guard` green.
-
-### S02 Next.js shell, server mount, locales
-- **Owner:** architect · **with:** frontend · **Depends on:** S01
-- **Scope:** `apps/web` (App Router, `[locale]` segment, `next-intl` with `en`, `lt`, `lv`, `et`); `packages/i18n` (catalogues, parity test, `Intl` helpers); `apps/server` (`handle`, `boot`, route-table generator, `env.ts`, host and origin guard, security headers and CSP, error-code helpers, `GET /api/v1/health`); the `api/[...path]` mount; `instrumentation.ts` calling `boot()`; tool manifests with two placeholder tools (explorer, crash) driving the top navigation; `pnpm dev` and `pnpm start` bound to `127.0.0.1`; Playwright with a smoke test; `scripts/check-bundle-secrets.mjs`; CI steps 4 and 5.
-- **Acceptance:**
-  1. `/en`, `/lt`, `/lv`, `/et` render; `/` redirects by `Accept-Language`; the locale switcher keeps the path.
-  2. `GET /api/v1/health` returns `{ status: "ok", version, store: null }` and validates against its contract schema.
-  3. `Host: evil.example` gets `403 host_not_allowed`; a `POST` with a foreign `Origin` gets `403 forbidden`, on pages and API.
-  4. A route file added without regenerating the table fails a test.
-  5. The parity test fails when a locale misses a key or an ICU argument.
-  6. An invalid env value fails boot naming the variable.
-  7. A build with sentinel keys has no sentinel in any client chunk; a planted `NEXT_PUBLIC_` leak in a test fixture is caught.
-  8. Responses carry CSP, `X-Content-Type-Options`, `Referrer-Policy` and `frame-ancestors 'none'`.
-- **Tests:** `server/src/router.test.ts`, `server/src/route-table.test.ts`, `server/src/guard.test.ts`, `server/src/env.test.ts`, `server/src/routes/v1/health/route.contract.test.ts`, `i18n/src/parity.test.ts`, `scripts/check-bundle-secrets.test.mjs`, `web/e2e/smoke.spec.ts`, `web/e2e/security-headers.spec.ts`.
-- **Demo:** `pnpm dev`, open `/lv`, switch to `/et`, click Crash monitor in the nav (placeholder), then `curl -H "Host: evil.example" http://127.0.0.1:3000/api/v1/health` → 403.
-
-### S03 Design system
-- **Owner:** frontend · **with:** designer · **Depends on:** S02, `DESIGN.md`
-- **Scope:** `packages/ui` tokens (CSS variables, dark and light), Tailwind v4 `@theme`, self-hosted fonts, the primitives in the component inventory **[pending: inventory]** including `SourceChip`, `AiLabel` and `PersonDisclaimer`; the `/design` kitchen sink; visual baselines at 390×844, 768×1024, 1280×800 and 1920×1080 in both themes; axe checks; CI step 6.
-- **Acceptance:**
-  1. Every primitive renders on `/design` in every state DESIGN.md lists (default, hover, focus-visible, active, disabled, loading, error, empty where applicable).
-  2. Every interactive primitive is keyboard-reachable and operable, with a visible focus ring.
-  3. axe: no serious or critical violations on `/design`.
-  4. Text tokens meet WCAG AA contrast in both themes.
-  5. Visual baselines committed; CI fails on an unreviewed diff.
-- **Tests:** `ui/src/tokens.contrast.test.ts`, `web/e2e/design.visual.spec.ts`, `web/e2e/design.a11y.spec.ts`, `web/e2e/design.keyboard.spec.ts`.
-- **Demo:** open `/en/design`, tab through it, toggle the theme.
-
-### S04 Domain model, store and fixtures
-- **Owner:** architect · **Depends on:** S01
-- **Scope:** `packages/domain` (schema subset as data, value sets, `Statement`, `Fact`, `SourcedValue`, entity IDs, error codes, purposes, `display-policy.ts` skeleton, `isNaturalPerson`, the section registry S01-S18); `packages/store` (`node:sqlite`, pragmas, migrations, repositories for sources, statements, facts, entities, word and trigram FTS, links, judgements, suppressions, disputes, purpose log, jobs; `readPurposeSection`; retention job); `fixtures/` generator and `fixtures/README.md` (architecture §13); `apps/cli` (root script `pnpm finora-cli`) with `data sync --profile fixtures`, `search` and `show`.
-- **Acceptance:**
-  1. Migrations run from an empty file, are idempotent, and every migration path is tested.
-  2. A statement with an unknown `sourceId` is refused (R3); a value shaped like a full personal code is refused (L4).
-  3. Search finds a fixture name with diacritics by its plain-ASCII form, by a substring and with a one-letter typo, ranked by a deterministic score; a person's name returns no person result (L2).
-  4. A complete-load purge removes only that source's stale statements; a partial load purges nothing (L6).
-  5. A suppression or an open dispute hides the affected values from every repository read (L5, R10).
-  6. `readPurposeSection` without a purpose fails; with one it writes a `purpose_log` row before returning (R2).
-  7. The retention job deletes `personal` statements older than the TTL and nothing else (R11).
-  8. `isNaturalPerson` is true for sole-trader legal forms in all four countries (R5).
-  9. `pnpm fixtures:gen` is deterministic (same seed → byte-identical output); loading the fixtures (≈ 2,000 entities) takes under 5 s.
-- **Tests:** `store/src/migrations.test.ts`, `store/src/statements.test.ts`, `store/src/personal-codes.test.ts`, `store/src/search.test.ts`, `store/src/purge.test.ts`, `store/src/suppressions.test.ts`, `store/src/disputes.test.ts`, `store/src/purpose.test.ts`, `store/src/retention.test.ts`, `domain/src/policy/persons.test.ts`, `domain/src/schema/ftm-subset.test.ts`, `fixtures/gen.test.ts`.
-- **Demo:** `pnpm finora-cli data sync --profile fixtures`, then `pnpm finora-cli search "example compa"` prints ranked companies from all four countries.
-
-### S05 Loader framework and the first real loader
-- **Owner:** architect (framework) + data-baltics (loader) · **Depends on:** S04, the first source's spec in `docs/plan/loaders/`
-- **Scope:** `packages/sources` (loader contract, licence registry and invariants, polite fetcher with host allowlists, rate limits, conditional requests, private-address refusal, raw cache, policy filter, sync pipeline steps 1-8, sync reports); CLI `data sync <source>`, `data status`, `doctor`; the first loader: the Latvian Enterprise Register company file **[pending: data-baltics confirms the best first source]**.
-- **Acceptance:**
-  1. A source with `storage: "store"` and a share-alike, non-commercial or non-redistributable licence fails the licence test (R12, R13).
-  2. A loader emitting a property with no display-policy row fails `policy-coverage`; a `hide` property is dropped and counted (L1).
-  3. A rerun against an unchanged upstream downloads and writes nothing.
-  4. The fetcher refuses hosts outside the allowlist and private addresses, and keeps each source's rate limit (R14).
-  5. `data sync lv-ur-register` loads the real file into `.data/finora.db`; `data status` shows rows, skips by reason, upstream date and duration.
-  6. Interrupting a sync and running it again completes correctly.
-- **Tests:** `sources/src/licences.test.ts`, `sources/src/policy-coverage.test.ts`, `sources/src/fetcher.test.ts`, `sources/src/pipeline.test.ts`, `sources/src/lv/lv-ur-register.test.ts` (contract, on its synthetic fixture), `sources/src/lv/lv-ur-register.live.test.ts` (nightly only).
-- **Demo:** `pnpm finora-cli data sync lv-ur-register`, then `pnpm finora-cli search` a Latvian company and see its registry code, status and address, each with source and licence.
-
-**M1 demo (council session 3a):** clone → `pnpm install` → `pnpm test` green → `pnpm dev` shows the localised shell and `/design` → `data sync lv-ur-register` loads real Latvian companies → `search` finds one.
-
----
-
-## M2 Explorer with real data
-
-### S06-S10 Loaders
-One slice per source group. Each slice meets S05's criteria 2-6 for its sources, adds a contract test (`sources/src/<cc>/<source-id>.test.ts`) and a nightly live check (`<source-id>.live.test.ts`) per source, adds its layout writer to the fixture generator, and fills its display-matrix sections in the report DTO. **[pending: exact sources and fields from `docs/plan/loaders/*.md`]**
-
-| Slice | Owner | Sources (expected) | Sections | Rule tests it must add |
-|---|---|---|---|---|
-| S06 Latvia | data-baltics | Enterprise Register (companies, officers, members, insolvency, securing measures), annual-report financials, tax authority data | S01-S04, S06-S09 | `sources/src/lv/policy.test.ts` (R1: natural-person shareholders not stored) |
-| S07 Estonia | data-baltics | e-Business Register open data (companies, persons, key figures, pledges), tax authority data and debtor list | S01-S04, S06-S09 | `sources/src/ee/policy.test.ts` (beneficial owners per council decision) |
-| S08 Lithuania | data-baltics | JAR, tax authority datasets, social-insurance files | S01-S02, S06-S08 | `sources/src/lt/policy.test.ts` |
-| S09 United States | data-us | SEC submissions, company facts (XBRL), insider and Form D data sets; selected state registries; federal court data | S01-S03, S06, S10, S13-S14 | `sources/src/us/sec-user-agent.test.ts` (R14) |
-| S10 Cross-border | data-us (GLEIF), data-osint (sanctions) | GLEIF records and relationships; official EU and US sanctions lists (others per council) | S01, S05, S11 | `sources/src/licences.test.ts` row for each list (R12) |
-
-- **Demo per slice:** `pnpm finora-cli data sync <group>`, then `pnpm finora-cli show <id>` for a real company of that country, listing the sections it fills with their sources.
-
-### S11 Entity resolution and sanctions screening
-- **Owner:** architect · **with:** data-us, data-baltics, data-osint · **Depends on:** S04, S10
-- **Scope:** `packages/resolve`: official-ID links (GLEIF ↔ registry codes, CIK ↔ LEI, VAT ↔ registry code); within-register person keys; name normalisation per country (legal forms, diacritics, transliteration); candidate scoring; judgements used by agents and humans; sanctions screening on top of scoring; CLI `resolve`.
-- **Acceptance:**
-  1. A company with an LEI in GLEIF and a code in its national register shows as one report with both sources' statements.
-  2. Two people with the same name in one register stay two unless their register key matches.
-  3. Candidate scoring ranks the right fixture company first for ≥ 95% of a 200-query synthetic benchmark (typos, legal-form variants, missing diacritics, transliteration).
-  4. A human judgement survives a reload of every source.
-  5. A sanctions candidate without an official-ID match to a primary list entry is `possible_match` ("possible match, needs review"); only an ID match is `listed` (R8).
-- **Tests:** `resolve/src/links.test.ts`, `resolve/src/persons.test.ts`, `resolve/src/normalise.test.ts`, `resolve/src/benchmark.test.ts`, `resolve/src/judgements.test.ts`, `resolve/src/sanctions.test.ts`.
-- **Demo:** `pnpm finora-cli resolve "example companu sia"` shows ranked candidates with scores and reasons.
-
-### S12 API v1 (read), report assembly, disputes
-- **Owner:** architect · **Depends on:** S04, S11 (S06-S10 for real data)
-- **Scope:** report assembly in `domain` (sections S01-S18 per display policy, `SourcedValue` everywhere, caveat keys, the states "not available in this country", "no data", "hidden by policy", "needs a purpose", `containsPersonalData`); routes `health`, `search`, `companies/:id`, `companies/:id/sections/:section`, `companies/:id/export`, `sources`, `disputes`; `api-contract` schemas; OpenAPI generation; render-seam read functions.
-- **Acceptance:**
-  1. Every route's response validates against its contract schema on the fixtures store.
-  2. Every value carries ≥ 1 `SourceRef` with source name, licence, retrieval date and access tier (R3).
-  3. `later` and `hide` items are absent; `caveat` items carry their caveat key.
-  4. S03, S04 and S17 without `purpose` → `428 purpose_required`; with it → data, and a `purpose_log` row (R2).
-  5. Sole-trader companies get no S18 (R5); every report DTO with personal data has `containsPersonalData: true` (R6 input).
-  6. Export holds no `redistribution: false` value, no `personal` value and no suppressed entity (R4, L5).
-  7. `POST /disputes` stores the dispute and the disputed values disappear from the next read (R10).
-  8. No route path contains a person segment (L2).
-  9. `docs/api/openapi.json` is current.
-  10. p95 of `GET /companies/:id` under 150 ms on the `core` profile on a laptop.
-- **Tests:** `domain/src/report/assemble.test.ts`, `domain/src/export/export.test.ts`, `server/src/routes/v1/**/route.contract.test.ts` (one per route), `server/src/routes/v1/companies/[id]/sections/[section]/route.contract.test.ts` (R2 cases), `server/src/routes/v1/disputes/route.contract.test.ts`, `server/src/route-table.test.ts` (L2 assertion), `api-contract/src/openapi.test.ts`, `server/src/perf/report.perf.test.ts`.
-- **Demo:** `curl "http://127.0.0.1:3000/api/v1/search?q=example"`, then `curl .../companies/<id>`, then `curl .../companies/<id>/sections/S03` (428) and again with `?purpose=business_partner_check`.
-
-### S13 MCP server
-- **Owner:** architect · **Depends on:** S12
-- **Scope:** `packages/agent-tools` (the read tools of architecture §5.2, Zod input and output, `sources` in every result, `purpose` input on person sections); `apps/mcp` (stdio `finora mcp`, Streamable HTTP at `/mcp` behind the same guards); `docs/mcp.md`.
-- **Acceptance:**
-  1. An MCP client lists exactly the six tools (snapshot); none returns persons outside a company (L2, R4).
-  2. Each tool returns schema-valid output with `sources` on the fixtures store (R3).
-  3. Person sections without `purpose` return a tool error `purpose_required`; with it, a `purpose_log` row with surface `mcp` (R2).
-  4. Invalid input returns a tool error with a machine code, never a crash.
-  5. The HTTP transport refuses a foreign `Host` or `Origin`.
-  6. A desktop MCP client configured per `docs/mcp.md` can search and read a company.
-- **Tests:** `mcp/src/tools.contract.test.ts`, `mcp/src/purpose.test.ts`, `mcp/src/errors.test.ts`, `mcp/src/http-guard.test.ts`.
-- **Demo:** add `finora mcp` to an MCP-capable desktop client, ask it to look up a company, see cited answers.
-
-### S14 Explorer UI
-- **Owner:** frontend · **with:** designer, architect · **Depends on:** S03, S12
-- **Scope:** search page (search-as-you-type, country filter, keyboard navigation; empty, loading, error and no-results states); company report (server component, sections S01-S18 per policy with source chips and attribution, per-section states, purpose prompt for person sections showing the chosen purpose, "Report a problem" on every section, `PersonDisclaimer` when personal data shows, financial charts, officers and owners in company context only, links to the original record); sources page; `noindex` and title rules. **[pending: screens and states from DESIGN.md]**
-- **Acceptance:**
-  1. Every DESIGN.md screen and state for search, report and sources matches its mockup at the four viewports.
-  2. A report's first contentful paint is under 1 s on the `core` profile, locally.
-  3. Every value shows its source, licence and attribution on hover or focus; the Sources page lists every source's licence and attribution (R16).
-  4. Person sections ask for a purpose before showing data, and show the purpose afterwards (R2).
-  5. Every page showing a natural person shows the disclaimer (R6).
-  6. Every section has "Report a problem" (R10).
-  7. Report and investigation pages send `X-Robots-Tag: noindex`; the `<title>` holds only the company name (L3).
-  8. All text localised in four locales; numbers and dates follow the locale; axe clean; full keyboard path from search to a section.
-- **Tests:** `web/e2e/search.spec.ts`, `web/e2e/report-sources.spec.ts`, `web/e2e/sources-page.spec.ts`, `web/e2e/people-purpose.spec.ts`, `web/e2e/disclaimer.spec.ts`, `web/e2e/dispute.spec.ts`, `web/e2e/seo-headers.spec.ts`, `web/e2e/explorer.visual.spec.ts`, `web/e2e/explorer.a11y.spec.ts`.
-- **Demo:** `pnpm dev`, search a real Latvian, Estonian, Lithuanian and US company, open each report, hover a value, open the people section with a purpose, follow a source link.
-
-**M2 demo (council session 3b):** `pnpm finora` on the `core` profile; look up one real company per country; compare the report with the display matrix; ask the same questions from an MCP client.
-
----
-
-## M3 Agentic search
-
-### S15 Agent runtime core
-- **Owner:** architect (runtime integration) + data-osint (agent behaviour) · **Depends on:** S12, S13, `docs/plan/agents.md`
-- **Scope:** `packages/agents`: investigation tables, orchestrator (plan → parallel specialists with dependencies → synthesis), `LlmProvider` (`fake`, `anthropic`), tool loop with parallel tool calls, `ask_human` park and resume, `record_finding` with citation verification, documents store, cost ledger (hold and settle), caps and reserves, timeouts, retries and stop (architecture §7.6a), restart recovery, event log; server routes for investigations, questions, stop, follow-ups and SSE; job runner in `boot()`.
-- **Acceptance (all with the `fake` provider):**
-  1. Six specialists run concurrently; per-run event order holds; SSE replays from any `Last-Event-ID` with no gap or duplicate.
-  2. `ask_human` parks a run; dependants wait; independent runs finish; an answer resumes it as the tool result; an unanswered question resolves to its default after the timeout and is marked so.
-  3. A finding without a citation, or with a quote absent from its document, is rejected (R7).
-  4. With a cap that the third call would cross, no call crosses it even with six parallel runs; the investigation ends `budget_exceeded` with its findings and a synthesis inside the reserve.
-  5. Retryable errors retry up to 3 times with backoff; non-retryable errors fail only their run with a machine code; tool errors go back to the model; per-call, per-run and per-investigation timeouts fire as specified.
-  6. Stop aborts every in-flight call within 5 s and keeps partial results.
-  7. Killing the server mid-investigation and restarting resumes every unfinished run from its last persisted turn.
-  8. An unknown model price refuses to start (`price_unknown`).
-  9. A natural-person or sole-trader subject is refused with `subject_is_natural_person` (R5).
-  10. Every finding, verdict and follow-up DTO carries `generatedBy: "ai"` (R9).
-  11. `POST /investigations/estimate` returns low, typical and high USD with its basis (`defaults` until 10 investigations have settled, then `history`) (H2).
-- **Tests:** `agents/src/orchestrator.parallel.test.ts`, `agents/src/questions.test.ts`, `agents/src/citations.test.ts`, `agents/src/budget.test.ts`, `agents/src/runner.retry.test.ts`, `agents/src/runner.errors.test.ts`, `agents/src/runner.timeout.test.ts`, `agents/src/tools.errors.test.ts`, `agents/src/orchestrator.timeout.test.ts`, `agents/src/orchestrator.stop.test.ts`, `agents/src/recovery.test.ts` (kills a child process), `agents/src/orchestrator.subject.test.ts`, `agents/src/estimate.test.ts`, `server/src/routes/v1/investigations/**/route.contract.test.ts`, `server/src/sse.resume.test.ts`, `api-contract/src/investigations.test.ts`; a security-engineer review of tool and fetch paths.
-- **Demo:** `FINORA_DEMO=1 pnpm dev`; `curl -X POST .../api/v1/investigations` on a fixture company; `curl -N .../events` streams parallel runs; answer the question with `curl`; see the `verdict` event.
-
-### S16 Agent tools and specialists
-- **Owner:** data-osint · **with:** architect · **Depends on:** S15
-- **Scope:** the specialists, prompts and tools of `docs/plan/agents.md` (registry and ownership, financials, legal and insolvency, sanctions and watchlists, web presence, news and reputation, people in company context, red flags); web search and fetch per that spec; synthesis; follow-ups. **[pending: agents.md]**
-- **Acceptance:** **[pending: agents.md]**, at minimum:
-  1. Five fixture scenarios (clean, tax debt, insolvency, sanctions candidate, ambiguous name) produce the expected rating per agent and overall from their recorded transcripts.
-  2. With a real key, one real company per country finishes inside the default cap and time budget, every verdict sentence is cited, and the cost is recorded.
-  3. No tool has a side effect outside the store; fetches refuse private addresses.
-- **Tests:** `agents/src/scenarios.test.ts` (replays `fixtures/agents/*.json`), `agent-tools/src/**/*.test.ts`, `agent-tools/src/web-fetch.ssrf.test.ts`; a manual recorded real run per country (costs logged; transcripts in `research/.cache/`, never committed).
-- **Demo:** start a real investigation from a company report and watch it end in a cited verdict.
-
-### S17 Investigation UI
-- **Owner:** frontend · **with:** designer, data-osint · **Depends on:** S14, S15
-- **Scope:** "Investigate" from a report and from free text (with a stated purpose, the cost estimate and the cap shown before Start); the live view (agent cards with status, current step, sources read, progress; overall progress and spend; skip to report); questions (highlighted card, options, dependants shown waiting); the report (verdict, per-agent ratings, key findings, advice, evidence by agent with citation chips that open the quoted span, dig deeper, re-run, `AiLabel` on all AI text); follow-up panel; library; stop; budget-exceeded, error and reconnect states. **[pending: screens from DESIGN.md]**
-- **Acceptance:**
-  1. Every DESIGN.md screen and state for investigations matches its mockup at four viewports (empty, loading, streaming, partial, error, question, report).
-  2. Events show within 500 ms of emission; a reload mid-run restores the same state.
-  3. Answering a question in the UI resumes the waiting agents.
-  4. Every verdict sentence has citation chips; a chip opens the source with the quoted span highlighted; a sentence without a citation is not rendered (R7).
-  5. All AI-written text carries the AI label (R9).
-  6. Status changes reach screen readers through one `aria-live` announcement per run status change.
-- **Tests:** `web/e2e/investigation.flow.spec.ts` (full flow on `FINORA_DEMO=1`), `web/e2e/investigation.reload.spec.ts`, `web/e2e/investigation.question.spec.ts`, `web/e2e/investigation.stop.spec.ts`, `web/e2e/investigation.budget.spec.ts`, `web/e2e/ai-label.spec.ts`, `web/src/components/verdict-text.test.tsx`, `web/e2e/investigation.visual.spec.ts`, `web/e2e/investigation.a11y.spec.ts`.
-- **Demo:** from a real company report press Investigate, answer the question, read the cited verdict, ask a follow-up.
-
-### S18 Profile templates (if the council keeps them in v1)
-- **Owner:** frontend · **with:** data-osint · **Depends on:** S17
-- **Scope:** reusable investigation briefs (contractor, supplier, employer, investment) that preset specialists and emphasis. **[pending: council decision; acceptance, tests and demo follow it]**
-
-**M3 demo (council session 3c):** investigate one real company per country end to end, live, answer one question, read the cited verdicts, show the spend per investigation.
-
----
-
-## M4 Crash monitor and one command
-
-### S19 Market connectors and maths
-- **Owner:** data-markets · **with:** architect · **Depends on:** S04, `docs/research/markets.md`
-- **Scope:** `packages/markets` connectors per markets.md, tile configuration M01-M09, peak and drawdown maths, refresh jobs, connector cache, `GET /api/v1/markets/crash`. **[pending: connectors]**
-- **Acceptance:**
-  1. The maths matches hand-computed results on synthetic series (peak, drawdown, value lost, carry-forward, currency conversion).
-  2. Licensed series live only in `connector-cache.db`, never in exports (R17).
-  3. A tile whose connector has no key returns `needs_key`, not an error.
-  4. The endpoint answers in under 100 ms from cache.
-- **Tests:** `markets/src/calc.test.ts`, `markets/src/connectors.test.ts`, `markets/src/<connector>.live.test.ts` (nightly), `server/src/routes/v1/markets/crash/route.contract.test.ts`.
-- **Demo:** `curl http://127.0.0.1:3000/api/v1/markets/crash` with and without keys.
-
-### S20 Crash monitor UI
-- **Owner:** frontend · **with:** designer, data-markets · **Depends on:** S03, S19
-- **Scope:** tile grid, live refresh, market-open state, needs-key state with setup steps, sources and attribution. **[pending: screens]**
-- **Acceptance:** screens and states match the mockups at four viewports; refresh every 60 s without layout shift; localised; axe clean.
-- **Tests:** `web/e2e/crash.spec.ts`, `web/e2e/crash.visual.spec.ts`, `web/e2e/crash.a11y.spec.ts`.
-- **Demo:** open `/en/crash`, watch a tile update.
-
-### S21 The one command and refresh scheduling
-- **Owner:** architect · **Depends on:** S06-S10, S19
-- **Scope:** `pnpm finora` and `pnpm finora --demo` (architecture §16); scheduled source refreshes per cadence, market refresh and the retention job in `boot()`; the Settings page (key status, data status, default cost cap); README quick start; `docs/running.md`.
-- **Acceptance:**
-  1. On a fresh clone on Windows and Linux, `pnpm finora` ends with the app on `127.0.0.1:3000` and real data for LV, EE, LT and US companies, with no manual step besides optional keys.
-  2. `pnpm finora --demo` works offline in under 60 s.
-  3. A second run is incremental: unchanged sources download nothing.
-  4. Refresh and retention jobs run while the app is open and show their reports on the Settings page.
-- **Tests:** `scripts/finora.test.mjs`; CI job `demo-boot` runs `pnpm finora --demo` and checks `/api/v1/health`; `server/src/jobs.test.ts`; `web/e2e/settings.spec.ts`.
-- **Demo:** delete the clone, clone again, run `pnpm finora`, use the app.
-
-**M4 demo (council session 3d):** a day of use: morning Crash monitor, two company look-ups, one investigation, all from `pnpm finora`.
-
----
-
-## M5 Done
-
-### S22 Hardening and sign-off
-- **Owner:** architect · **with:** every seat · **Depends on:** all
-- **Scope:** security-engineer full review and fixes; a qa-codebase sweep; performance on the `full` profile; e2e and visual coverage of every DESIGN.md state; docs pass (README, running, MCP, contributing); the risk register in `docs/plan/prototype.md` closed or accepted.
-- **Acceptance:** phase 6 exit criteria in `docs/plan/README.md`; no open MUST-FIX from any review; CI green on the hub PR.
-- **Tests:** everything above, green in CI.
-- **Demo:** the demo script in `docs/plan/prototype.md`, run by the council.
-
----
-
-## Legal rule coverage
-
-Every rule has a slice that builds its enforcement point and a named test (architecture §10).
-
-| Rule | Slice | Test file |
-|---|---|---|
-| R1 | S06 | `sources/src/lv/policy.test.ts` |
-| R2 | S04, S12, S13, S14 | `store/src/purpose.test.ts`, sections route contract test, `mcp/src/purpose.test.ts`, `web/e2e/people-purpose.spec.ts` |
-| R3 | S04, S12, S13 | `store/src/statements.test.ts`, `domain/src/report/assemble.test.ts`, route and MCP contract tests |
-| R4 | S12, S13 | `domain/src/export/export.test.ts`, `mcp/src/tools.contract.test.ts` |
-| R5 | S04, S12, S15 | `domain/src/policy/persons.test.ts`, `agents/src/orchestrator.subject.test.ts` |
-| R6 | S03, S14 | `web/e2e/disclaimer.spec.ts` |
-| R7 | S15, S17 | `agents/src/citations.test.ts`, `web/src/components/verdict-text.test.tsx` |
-| R8 | S11 | `resolve/src/sanctions.test.ts` |
-| R9 | S15, S17 | `api-contract/src/investigations.test.ts`, `web/e2e/ai-label.spec.ts` |
-| R10 | S04, S12, S14 | `store/src/disputes.test.ts`, disputes route contract test, `web/e2e/dispute.spec.ts` |
-| R11 | S04, S21 | `store/src/retention.test.ts`, `server/src/jobs.test.ts` |
-| R12, R13 | S05, S10 | `sources/src/licences.test.ts` |
-| R14 | S05, S09 | `sources/src/fetcher.test.ts`, `server/src/env.test.ts`, `sources/src/us/sec-user-agent.test.ts` |
-| R15 | none in v1 (no maps) | lands with any map slice |
-| R16 | S14 | `web/e2e/report-sources.spec.ts`, `web/e2e/sources-page.spec.ts` |
-| R17 | S19 | `markets/src/connectors.test.ts` |
-| L1 | S05 | `sources/src/pipeline.test.ts` |
-| L2 | S04, S12, S13 | `store/src/search.test.ts`, `server/src/route-table.test.ts`, `mcp/src/tools.contract.test.ts` |
-| L3 | S14 | `web/e2e/seo-headers.spec.ts` |
-| L4 | S04 | `store/src/personal-codes.test.ts` |
-| L5 | S04, S12 | `store/src/suppressions.test.ts`, `domain/src/export/export.test.ts` |
-| L6 | S04, S05 | `store/src/purge.test.ts`, `sources/src/pipeline.test.ts` |
+| Milestone | Slices | Council session 3 asks | Gate |
+|---|---|---|---|
+| **M1 Foundation** | S01-S04b | Can a contributor clone, run, test and add a loader without asking anyone? | CI green; the fixture world loads; the UI builds against contracts |
+| **M2 Walking skeleton: Latvia end to end** | S05-S12 | Would we check a Latvian counterparty here instead of on the registry site? Does an investigation earn its cost? | `scripts/milestone-gate.mjs` on the LV regression set: 0 wrong-company findings, 100% cited claims, fill rate within 10 points |
+| **M3 Every country** | S13-S21 | What is missing per country? Is the US promise honest? | milestone gate on all four countries; the CEO's US-private test (council Part A) |
+| **M4 Crash monitor and the daily app** | S22-S25 | Is this the app the maintainer opens every day? | milestone gate; a day-of-use demo |
+| **M5 Done** | S26 | Phase 6 exit criteria, signed off | everything above |
 
 ## Who builds what
 
 | Seat | Slices |
 |---|---|
-| architect | S01, S02, S04, S05 (framework), S11, S12, S13, S15 (runtime), S21, S22 |
-| frontend | S03, S14, S17, S18, S20 |
-| data-baltics | S05 (first loader), S06, S07, S08 |
-| data-us | S09, S10 (GLEIF) |
-| data-osint | S10 (sanctions), S15 (agent behaviour), S16 |
-| data-markets | S19 |
-| designer | reviews S03, S14, S17, S20 against DESIGN.md |
+| architect | S01, S02, S04, S04b (contracts), S07, S09 (runtime), S12, S15 (resolution), S19, S25, S26 |
+| frontend | S03 (U1), S04b (U2, consumer), S08 (U3, U4), S11 (U5, U6), S20 (U8), S21 (U7), S23 (U9), S24 (U10) |
+| data-baltics | S05, S13, S14 |
+| data-us | S15 (GLEIF), S16, S17, S18 |
+| data-osint | S06, S09 (agent behaviour), S10 |
+| data-markets | S15 (ESMA FIRDS), S22 |
+| designer | reviews S03, S08, S11, S20, S21, S23, S24 against DESIGN.md and the mockups |
 | qa | every slice |
-| web-qa | S02, S03, S14, S17, S18, S20, S21 |
+| web-qa | S02, S03, S08, S11, S17, S20, S21, S23, S24, S25 |
+| security-engineer | S02, S07, S09, S10, S17, S19 |
+
+The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the mapping.
+
+---
+
+## M1 Foundation
+
+### S01 Workspace, toolchain and CI
+- **Owner:** architect · **Depends on:** nothing (licence decided: AGPL-3.0, `LICENSE` committed)
+- **Scope:**
+  - pnpm workspace (`apps/*`, `packages/*`); `packageManager` pinned; Node ≥ 24 in `engines`; `"license": "AGPL-3.0-or-later"` in every `package.json`.
+  - `packages/tooling`: tsconfig base (`strict`), ESLint flat config with the import rules of architecture §2, the denylist lint rule (architecture §13), Vitest preset.
+  - Root scripts `lint`, `typecheck`, `test`, `build`, `e2e`, `finora`, `finora-cli`, `fixtures:gen`.
+  - `scripts/check-deps.mjs` (the dependency table), `scripts/check-tokens.mjs` (stub until S03), `scripts/check-lawyer-register.mjs` with `docs/plan/lawyer-register.md` (rows from architecture §10.2; legal owns them), `scripts/gen-items.mjs` (Part G → `items.generated.ts`).
+  - `pnpm-workspace.yaml` with `minimumReleaseAge` and `allowBuilds`; `.env.example`; `.data/` gitignored.
+  - `ci.yml` jobs `check`, `test`, `audit` (architecture §14); later slices add theirs.
+- **Acceptance:**
+  1. A fresh clone runs `pnpm install && pnpm lint && pnpm typecheck && pnpm test` green on Windows and on Linux CI.
+  2. `check-deps` fails when a package declares a dependency its table row forbids.
+  3. ESLint fails on `any`, on `process.env` outside `env.ts`, on a Node built-in in `packages/domain`, on a forbidden cross-package import, and on a denylisted identifier fed through `FINORA_GUARD_DENYLIST`.
+  4. `check-lawyer-register` fails on a `[pending: lawyer]` marker with no register row.
+  5. `gen-items` produces 155 items with their calls; the generated file is checked current in CI.
+  6. `ci` runs on the hub PR beside `guard`; both green.
+- **Tests:** `scripts/check-deps.test.mjs`, `scripts/check-lawyer-register.test.mjs`, `scripts/gen-items.test.mjs`, `tooling/eslint/rules.test.ts`, `tooling/eslint/rules/denylist.test.ts`, `domain/src/items/items.generated.test.ts`.
+- **Demo:** clone into a new folder, run the four commands, see them pass; open the hub PR checks and see `ci` and `guard` green.
+
+### S02 Next.js shell, server mount, locales, security headers
+- **Owner:** architect · **with:** frontend · **Depends on:** S01 · **security**
+- **Scope:** `apps/web` (App Router, `[locale]`, `next-intl` with `en`, `lt`, `lv`, `et`); `packages/i18n` (catalogues, parity and banned-terms tests, `Intl` helpers); `apps/server` (`handle`, `boot`, route-table generator, `env.ts`, host and origin guard, CSP and security headers, error-code helpers, `GET /api/v1/health`, `GET /api/v1/about`); the `api/[...path]` mount; `instrumentation.ts` calling `boot()`; tool manifests (explorer, crash placeholders) driving the tool rail; the footer with the source-code link (R18) and the terms link (P7); `pnpm dev`/`pnpm start` bound to `127.0.0.1`; `import "server-only"` in `env.ts` and every seam file; `scripts/check-bundle-secrets.mjs`; Playwright with axe; CI jobs `build` and `e2e`.
+- **Acceptance:**
+  1. `/en`, `/lt`, `/lv`, `/et` render; `/` redirects by `Accept-Language`; the locale switcher keeps the path.
+  2. `GET /api/v1/health` and `GET /api/v1/about` validate against their schemas; `about` carries the source-code URL, which the footer shows (R18).
+  3. `Host: evil.example` gets `403 host_not_allowed`; a `POST` with a foreign `Origin` gets `403 forbidden`, on pages and API.
+  4. A route file added without regenerating the table fails a test.
+  5. The parity test fails on a missing key or ICU argument; the banned-terms test fails on a banned word in any catalogue string.
+  6. An invalid env value fails boot naming the variable.
+  7. A build with sentinel key values has no sentinel in any client chunk.
+  8. Responses carry CSP, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`.
+- **Tests:** `server/src/router.test.ts`, `server/src/route-table.test.ts`, `server/src/guard.test.ts`, `server/src/env.test.ts`, `server/src/routes/v1/health/route.contract.test.ts`, `server/src/routes/v1/about/route.contract.test.ts`, `i18n/src/parity.test.ts`, `i18n/src/banned-terms.test.ts`, `scripts/check-bundle-secrets.test.mjs`, `web/e2e/smoke.spec.ts`, `web/e2e/security-headers.spec.ts`, `web/e2e/source-link.spec.ts`, `web/e2e/terms-link.spec.ts`.
+- **Demo:** `pnpm dev`, open `/lv`, switch to `/et`, click Crash monitor in the rail (placeholder), follow the footer's source link; `curl -H "Host: evil.example" http://127.0.0.1:3000/api/v1/health` → 403.
+
+### S03 Design system and state gallery (U1)
+- **Owner:** frontend · **with:** designer · **Depends on:** S02, `DESIGN.md`
+- **Scope:** `ui-build-plan.md` U1: tokens (CSS variables, dark first, light variant), Tailwind v4 `@theme`, `scripts/check-tokens.mjs` for real, self-hosted fonts (packages and licences verified), the `packages/ui` primitives, the `/design` state gallery with `?state=`, visual baselines at the four viewports, axe checks, CI job `visual`.
+- **Acceptance and tests:** as U1 in `ui-build-plan.md` §14, at minimum: every primitive in every DESIGN.md state on `/design`; keyboard reachability and visible focus; axe with no serious or critical violation; WCAG AA contrast of text tokens in both themes; baselines committed and reviewed with `guard review`. Test files: `ui/src/tokens.contrast.test.ts`, `web/e2e/design.visual.spec.ts`, `web/e2e/design.a11y.spec.ts`, `web/e2e/design.keyboard.spec.ts`, `scripts/check-tokens.test.mjs`.
+- **Demo:** open `/en/design`, tab through it, toggle the theme, switch states by URL.
+
+### S04 Domain, store, ingest core and the fixture world
+- **Owner:** architect · **Depends on:** S01
+- **Scope:**
+  - `packages/domain`: schema subset, value sets, entity ids, error codes, purposes (no blocked use, P7), legal forms per country with `natural_person`, items and `items/policy.ts` (restriction rules), concepts, `SourcedValue` and `SourceRef`, the person-data canary patterns (P3, PS5).
+  - `packages/store`: `node:sqlite`, pragmas, migrations, every table of architecture §3.8 except the agent and market tables, intern tables, repositories, word and trigram FTS (companies only), `readPurposeSection` with the append-only `purpose_log` (P2), disputes with content-hash targets (R10), suppressions (L5), the retention job (P4, P5), the share-alike store attach (P1).
+  - `packages/sources`: the loader contract, licence registry and invariants (§4.2), polite fetcher, `AsOfRule` strategies.
+  - `packages/ingest`: the pipeline of architecture §4.4 with every gate (field map, personal code, proven company, natural person), staging, row-hash writes, purge by set difference with the purge guard and change-feed deletes, history events (§3.7), `parserVersion`, raw cache, storage classes incl. `live-no-store`, class changes, sync reports.
+  - `fixtures/`: `pnpm fixtures:gen` (seeded, deterministic, ≈ 2,000 entities in four countries, fixture-only ids per §3.4) and `fixtures/README.md`; a fake loader per storage class for the pipeline tests; raw-layout fixtures holding every HIDE item.
+  - `apps/cli`: `data sync --profile fixtures`, `data status`, `search`, `show`, `doctor`.
+- **Acceptance:**
+  1. Migrations run from an empty file, are idempotent, and every migration path is tested.
+  2. A statement whose record has no sync, or whose sync has no licence, is refused (R3); a licence change keeps old rows on the old licence.
+  3. Search finds a diacritic name by its ASCII form, by a substring and with a one-letter typo, ranked deterministically; a person's name and a sole trader's name return nothing (L2, L3).
+  4. Every pipeline test of architecture §4.4 passes: purge (1,000 records, 1 changed, 1 removed), unchanged, partial, stale, parser version, purge guard (incl. the boundary and a 50% feed page), class change, party gate (one case per type value), history (rename event; role ended without a name), role-ended (a spelling fix on the same row id is not a role end).
+  5. P1: no main-store row or event references a share-alike sync, in both modes; `live-no-store` writes nothing (spied filesystem and logger, sentinel values); a rebuild of `finora.db` keeps the share-alike join.
+  6. P2: 3 companies opened in one session → 3 log rows; after 12 h + 1 min → `needs_purpose`; a purpose change gives a new row and leaves the first unchanged.
+  7. R10: a dispute on officer A survives the replacement of A's role set; B shows.
+  8. P5: fake clock, a live-cached entity viewed on day 29 survives, day 30 is deleted; a source unchanged for 40 days keeps its current officers.
+  9. P3 and PS5: the fixture codes and person eids are absent from every table and every log line of a full fixture sync.
+  10. HIDE: every HIDE item in the raw-layout fixtures is dropped at load and counted (§10.4 loader suite).
+  11. `pnpm fixtures:gen` is byte-identical for the same seed; `fixtures/ids.test.ts` checks every fixture id against its rule; the fixture world loads in under 5 s on the named profile (recorded in `benchmarks.md`, relative budget in CI).
+- **Tests:** `store/src/migrations.test.ts`, `store/src/provenance.test.ts`, `store/src/licence-history.test.ts`, `store/src/search.test.ts`, `store/src/purpose.test.ts`, `store/src/disputes.test.ts`, `store/src/suppressions.test.ts`, `store/src/person-scope.test.ts`, `store/src/person-targets.test.ts`, `store/src/retention.test.ts`, `store/src/canary.test.ts`, `store/src/share-alike-rebuild.test.ts`, `sources/src/licences.test.ts`, `sources/src/fetcher.test.ts`, `sources/src/field-maps.test.ts`, `sources/src/person-fields.test.ts`, `ingest/src/purge.test.ts`, `ingest/src/unchanged.test.ts`, `ingest/src/partial.test.ts`, `ingest/src/stale.test.ts`, `ingest/src/as-of.test.ts`, `ingest/src/parser-version.test.ts`, `ingest/src/purge-guard.test.ts`, `ingest/src/class-change.test.ts`, `ingest/src/party-gate.test.ts`, `ingest/src/natural-person.test.ts`, `ingest/src/history.test.ts`, `ingest/src/role-ended.test.ts`, `ingest/src/share-alike.test.ts`, `ingest/src/live-no-store.test.ts`, `ingest/src/live-cache.test.ts`, `ingest/src/install-key.test.ts`, `ingest/src/hide.negative.test.ts`, `ingest/src/regression-budget.test.ts`, `domain/src/policy/persons.test.ts`, `domain/src/policy/purposes.test.ts`, `domain/src/schema/ftm-subset.test.ts`, `fixtures/gen.test.ts`, `fixtures/ids.test.ts`.
+- **Demo:** `pnpm finora-cli data sync --profile fixtures`, then `pnpm finora-cli search "example compa"` prints ranked companies from all four countries, and `pnpm finora-cli data status` shows each fixture source's sync report with drops by reason.
+
+### S04b API contracts, UI fixtures and client plumbing (U2)
+- **Owner:** architect (contracts) + frontend (U2 consumer) · **Depends on:** S04 (contracts), S03 (U2)
+- **Scope:** every schema in `packages/api-contract` listed in architecture §5.1 (`report`, `search`, `network`, `investigations`, `events`, `markets`, `settings`, `purpose`, `disputes`, `sources`, `health`, `about`, `export`), the `SectionResult` union (§5.4), the event union (§7.6), `MarketRow` (§8), `API_ROUTES`, OpenAPI generation; `fixtures/ui/<screen>/<state>.json` validated against them; a fixture-backed `FINORA_DEMO` mode that serves those DTOs from the real routes before the real services exist; the UI's client plumbing per U2 (fetch layer, TanStack Query setup, the fetch-stream SSE client with `Last-Event-ID` and the `?lastEventId=` fallback, the idempotent investigation reducer).
+- **Acceptance:**
+  1. Every schema has a valid and an invalid fixture; an empty `data` value array is rejected; `generatedBy: "ai"` is required on findings and explanations (R9).
+  2. Every `fixtures/ui` file validates; the `/design` gallery renders from them.
+  3. `docs/api/openapi.json` is generated and current.
+  4. The SSE client resumes from the last id after a dropped connection with no gap or duplicate (against a fixture event script).
+- **Tests:** `api-contract/src/*.test.ts` (one per schema file), `api-contract/src/openapi.test.ts`, `fixtures/ui.test.ts`, `web/src/lib/sse.test.ts`, `web/src/lib/investigation-reducer.test.ts`.
+- **Demo:** `FINORA_DEMO=1 pnpm dev`, `curl http://127.0.0.1:3000/api/v1/companies/<fixture eid>` returns a schema-valid fixture profile; open `/en/design?state=report`.
+
+**M1 demo (council session 3a):** clone → `pnpm install` → `pnpm test` green → `pnpm dev` shows the localised shell and `/design` → `finora-cli data sync --profile fixtures` loads the fixture world → `finora-cli search` finds a company in each country.
+
+---
+
+## M2 Walking skeleton: Latvia end to end
+
+### S05 Latvia loaders
+- **Owner:** data-baltics · **with:** architect · **Depends on:** S04
+- **Scope:** every `docs/plan/loaders/lv-*.md` spec (register, officers, members, insolvency, securing measures, suspensions, financial statements, VID tax files and rating), each with its field map, party gate, role-set records for officers (PS6, no person code read except to drop it), tombstone or delete rules, history events, layout fixture writer and live check; `LV_PERSON_ROWS` both modes.
+- **Acceptance:** each spec's Tests section; plus:
+  1. Every LV SHOW and CAVEAT item in the appendix renders from the fixture world with its sources and caveat (`domain/src/report/items.test.ts`).
+  2. HIDE: S04.LV.02 and S04.LV.03 and natural-person members are never read; LV `JOINT_OWNERS` and other unproven members are counted, not loaded.
+  3. P10 on `dev-desktop-1`: LV ≤ 2.5 GB, the register searchable in ≈ 2 min, a daily refresh ≤ 5 min, an unchanged reload writes 0 statements; records and bytes per record recorded in `benchmarks.md`.
+  4. `LV_PERSON_ROWS=role_counts` removes every LV name from every surface (PS7).
+- **Tests:** the spec files' named tests under `sources/src/lv/`, plus `sources/src/lv/*.live.test.ts` (nightly) and `domain/src/report/lv-people.test.ts`.
+- **Demo:** `pnpm finora-cli data sync --country lv`, then `pnpm finora-cli show lv-<a real code>` lists the sections it fills with their sources and licences.
+
+### S06 Stored sanctions lists and screening
+- **Owner:** data-osint · **with:** architect · **Depends on:** S04, `docs/plan/loaders/sanctions.md`
+- **Scope:** the stored official lists (EU, OFAC, UK, LV FIU) per `sanctions.md`; `screen_sanctions` in `packages/resolve` with the second-identifier rule (R8); the live-only lists as `agent-only` sources (fetched by S10's `check_live_list`, never stored).
+- **Acceptance:** the spec's Tests; plus a name-only match is `possible_match`, an official-ID match is `listed`, a different id is no match; the UN list and the national lists without a licence are never stored (licence invariants); S11.ALL.01-03 and S11.LV.01-02 render with their dates (`items.test.ts`).
+- **Tests:** `resolve/src/sanctions.test.ts`, `sources/src/intl/sanctions-*.test.ts` (per spec), `sources/src/licences.test.ts` rows for each list.
+- **Demo:** `pnpm finora-cli data sync --source sanctions-eu`, then `pnpm finora-cli resolve --sanctions "<fixture name>"` shows a possible match with the entry's identifiers.
+
+### S07 Report assembly, checks and the read API
+- **Owner:** architect · **Depends on:** S04b, S05, S06 · **security**
+- **Scope:** `assembleReport` (every section as a `SectionResult`, the coverage line, restricted sections by rule, facts-only branch for natural persons, `containsPersonalData`, `derived` values, the stale rule, P14 `not_evaluated`); `computeChecks` (the 11 checks; 10-11 `not_run` outside an investigation); routes `search` (bulk groups), `companies/:eid`, `sections/:section`, `export`, `sources`, `purpose`, `disputes`; the render seam; the API HIDE and canary suites; the field-registry API test.
+- **Acceptance:**
+  1. Every route's response validates on the fixture world (contract test per route).
+  2. Every value carries ≥ 1 `SourceRef` with source, licence, retrieval date, as-of, checked-at and access tier (R3).
+  3. Each `SectionResult` state and reason has a fixture case; an LV LOCK section is identical for a covered entity with and without hidden records (`restricted.test.ts`).
+  4. Person sections without a purpose return `needs_purpose`; with one they return data and write a `purpose_log` row (P2); a blocked purpose id is `400 purpose_blocked` (P7).
+  5. A sole trader gets the facts-only profile: no checks verdict, the disclaimer flag, country-only address, no tax or arrears lines (P6).
+  6. Export holds no share-alike, connector-cache, personal or suppressed value (R4, P1, L5).
+  7. A dispute suppresses the value at the next read and survives a reload (R10).
+  8. No route has a person path (L2); HIDE and canary suites pass on the API.
+  9. `GET /companies/:eid` p95 within the relative budget on the fixture world; absolute number recorded for the LV `core` load in `benchmarks.md`.
+- **Tests:** `domain/src/report/assemble.test.ts`, `domain/src/report/section-result.test.ts`, `domain/src/report/restricted.test.ts`, `domain/src/report/facts-only.test.ts`, `domain/src/report/items.test.ts`, `domain/src/checks/checks.test.ts`, `domain/src/verdict/history-window.test.ts`, `domain/src/export/export.test.ts`, `domain/src/export/canary.test.ts`, `domain/src/export/hide.negative.test.ts`, `server/src/routes/v1/**/route.contract.test.ts`, `server/src/field-registry.test.ts`, `server/src/hide.negative.test.ts`, `server/src/canary.contract.test.ts`, `server/src/perf/report.perf.test.ts`.
+- **Demo:** `curl "http://127.0.0.1:3000/api/v1/search?q=<LV name>"`, then `curl .../companies/lv-<code>`; `curl .../sections/S03` shows `needs_purpose`, then again after `POST /purpose`.
+
+### S08 Explorer UI: shell, search, profile, sources (U3, U4)
+- **Owner:** frontend · **with:** designer, architect · **Depends on:** S03, S04b, S07 · **web-qa**
+- **Scope:** `ui-build-plan.md` U3 and U4: the shell and command bar, search with groups (bulk now, live US groups in S17), the company profile (server component, every section through `FieldRow` with `itemId`, every state and reason with its own icon and copy, source chips with licence and attribution, "Derived by Finora", the coverage line, the purpose gate with the purpose shown above person sections, the disclaimer, "Report a problem", the facts-only variant, the CO disclaimer slot), the sources page, `noindex` and title rules.
+- **Acceptance:** U3 and U4 in `ui-build-plan.md` §14, plus:
+  1. Every DESIGN.md state of these screens matches its mockup at the four viewports.
+  2. The field-registry UI test passes: no untagged value, no unknown id, every LV SHOW/CAVEAT id with fixture data renders.
+  3. The HIDE UI suite and the UI canary pass.
+  4. R6, R9 (no AI text yet), R10, R16, L3 e2e tests pass.
+- **Tests:** `web/e2e/search.spec.ts`, `web/e2e/report-sources.spec.ts`, `web/e2e/sources-page.spec.ts`, `web/e2e/field-states.spec.ts`, `web/e2e/people-purpose.spec.ts`, `web/e2e/disclaimer.spec.ts`, `web/e2e/facts-only.spec.ts`, `web/e2e/dispute.spec.ts`, `web/e2e/seo-headers.spec.ts`, `web/e2e/hide.spec.ts`, `web/e2e/canary.spec.ts`, `web/src/field-registry.test.ts`, `web/e2e/explorer.visual.spec.ts`, `web/e2e/explorer.a11y.spec.ts`.
+- **Demo:** `pnpm dev`, search a real Latvian company, open its profile, state a purpose to open People, hover a value to see its source and licence, follow the link to the register.
+
+### S09 Agent runtime core
+- **Owner:** architect (runtime) + data-osint (behaviour) · **Depends on:** S07 · **security**
+- **Scope:** architecture §7 and `agents.md` §3, §7, §8, §11, §14 (runtime part): investigation tables, orchestrator (lead → four parallel specialists → verdict), `LlmProvider` (`fake`, `anthropic`), tool loop with parallel tool calls, tasks before the first turn, `ask_human` park and resume with every question kind and its timeout rule, `record_finding` with the rejection codes and citation verifier, documents, the ledger (hold, settle per attempt, the four caps, the reserve, the cap flow, the estimate), limits and ceilings, retries, timeouts, stop, restart recovery, the event log and SSE with resume, rerun of one specialist, follow-ups; the shared store tools of `agents.md` §4.1 incl. `get_checks`; `prices.ts`.
+- **Acceptance (all with the `fake` provider):** `agents.md` §14 "Agent runtime core" items 1-5, plus:
+  1. Six runs at the cap together produce one `cap_reached` question and at most +$0.50; a second hit ends `budget_exceeded`; two investigations cannot jointly pass the daily cap.
+  2. Every rule in architecture §7.8 ends its run with its machine code.
+  3. `entity_choice` has no default; its timeout ends `not_enough_data`, "company not confirmed".
+  4. A natural-person subject is refused (R5).
+  5. A finding citing another company's statement is rejected; a 39-character quote is rejected.
+  6. Unknown price refuses to start.
+  7. **Not accepted until** data-osint's measured run (`agents.md` §12) has replaced the modelled costs and calibrated the estimate (cto).
+- **Tests:** `agents/src/orchestrator.parallel.test.ts`, `agents/src/orchestrator.subject.test.ts`, `agents/src/orchestrator.timeout.test.ts`, `agents/src/orchestrator.stop.test.ts`, `agents/src/questions.test.ts`, `agents/src/findings.test.ts`, `agents/src/citations.test.ts`, `agents/src/budget.test.ts`, `agents/src/estimate.test.ts`, `agents/src/runner.limits.test.ts`, `agents/src/runner.retry.test.ts`, `agents/src/runner.errors.test.ts`, `agents/src/runner.timeout.test.ts`, `agents/src/tools.errors.test.ts`, `agents/src/recovery.test.ts`, `agents/src/events.test.ts`, `server/src/sse.resume.test.ts`, `server/src/routes/v1/investigations/**/route.contract.test.ts`, `agent-tools/src/*.test.ts` (store tools).
+- **Demo:** `FINORA_DEMO=1 pnpm dev`; `curl -X POST .../api/v1/investigations` on a fixture company; `curl -N .../events` streams four lanes in parallel; answer the question with `curl`; the `verdict` event arrives.
+
+### S10 Specialists, open-web tools and the verdict
+- **Owner:** data-osint · **with:** architect · **Depends on:** S09, S06 · **security**
+- **Scope:** `agents.md` §2, §4.2-§4.6, §5, §6, §9, §10, §13: the four specialists and their pre-run tasks, the open-web tools (`domain_report`, `homepage_facts`, `fetch_page`, `news_search`, `check_live_list`, `search_courts` for LV first), anchors, signals, the rule table `computeVerdict` and the explanation with the banned-term branches, the P8 output filter and canary, the twelve fake-provider scenarios. The v1 investigation **is** the one profile template the council kept (counterparty, session 0): the plan always runs the four specialists; other templates are LATER (the `plan` event already carries the roles, so a template only changes the plan).
+- **Acceptance:** `agents.md` §14 "Agent tools and specialists" items 1-5, plus:
+  1. One test per rule in the rule table; the determinism test (same inputs, three explanation texts, same level and fired rules).
+  2. The three banned-term branches (pass, regenerate, fallback).
+  3. P8 canary on the agent path.
+  4. Every agent-filled SHOW/CAVEAT item in the appendix has its `items.agent.test.ts` case rendering its caveat and AGENT empty state.
+  5. With a real key, one real Latvian company finishes inside the default cap and time budget, every verdict sentence is cited, and its cost is recorded (transcript in `research/.cache/`, not committed).
+- **Tests:** `domain/src/verdict/rules.test.ts`, `domain/src/verdict/rules.determinism.test.ts`, `agents/src/verdict.banned.test.ts`, `agents/src/p8.canary.test.ts`, `agents/src/scenarios.test.ts`, `agents/src/items.agent.test.ts`, `agent-tools/src/output-filter.test.ts`, `agent-tools/src/web-fetch.ssrf.test.ts`, `agent-tools/src/check-live-list.test.ts`, `agent-tools/src/search-courts.test.ts`, `resolve/src/court-party.test.ts`.
+- **Demo:** `pnpm finora --demo`, open the fixture company `agents.md` §14 names, press Investigate, watch four lanes, answer the sanctions question, read the cited verdict.
+
+### S11 Investigation UI: live agents, verdict and report (U5, U6)
+- **Owner:** frontend · **with:** designer, data-osint · **Depends on:** S08, S09 (S10 for real agents) · **web-qa**
+- **Scope:** `ui-build-plan.md` U5 and U6: the Investigate sheet (purpose, estimate with `typicalSeconds`, cap, daily left, "add your key" without a key, "No agents run on a private individual" for natural persons), the lead row, four `AgentLane`s with tasks and per-lane cost, question cards per kind (no countdown on `entity_choice`), cap reached and daily cap sheets, stop, reconnecting, the `VerdictBlock` (rule-based level and coverage separate from the AI-written explanation), findings in their sections with citation chips opening the quoted span, rerun one agent, follow-ups.
+- **Acceptance:** U5 and U6 in `ui-build-plan.md` §14, plus:
+  1. Every DESIGN.md investigation state matches its mockup at four viewports (empty, loading, streaming, partial, error, each question kind, cap reached, report).
+  2. Events show within 500 ms; a reload mid-run restores the same state from snapshot + stream.
+  3. Every verdict sentence has a citation chip; a sentence without one is not rendered (R7); all AI text carries `AiLabel` and the level never sits inside it (R9).
+- **Tests:** `web/e2e/investigation.flow.spec.ts`, `web/e2e/investigation.reload.spec.ts`, `web/e2e/investigation.question.spec.ts`, `web/e2e/investigation.cap.spec.ts`, `web/e2e/investigation.stop.spec.ts`, `web/e2e/ai-label.spec.ts`, `web/src/components/verdict-block.test.tsx`, `web/e2e/investigation.visual.spec.ts`, `web/e2e/investigation.a11y.spec.ts`.
+- **Demo:** from a real Latvian company's profile press Investigate, answer the question, read the cited verdict, ask a follow-up.
+
+### S12 The one command for Latvia and the milestone gate
+- **Owner:** architect · **Depends on:** S05-S11
+- **Scope:** `pnpm finora` and `pnpm finora --demo` (architecture §16) with the LV sources as the `core` profile for now; the background first load with per-country progress in search groups; scheduled refresh jobs per cadence and the retention job in `boot()`; `scripts/milestone-gate.mjs`; `README.md` quick start; `docs/running.md`; CI job `demo-boot`.
+- **Acceptance:**
+  1. On a fresh clone (Windows and Linux), `pnpm finora` ends with the app on `127.0.0.1:3000` and real Latvian companies searchable within minutes, with no manual step besides optional keys.
+  2. `pnpm finora --demo` works offline in under 60 s.
+  3. A second run is incremental: unchanged sources download nothing and write nothing.
+  4. `milestone-gate.mjs` prints aggregates only (a test asserts no entity name, code or id in its output) and its LV run meets the M2 gate.
+- **Tests:** `scripts/finora.test.mjs`, `scripts/milestone-gate.test.mjs`, `server/src/jobs.test.ts`, CI `demo-boot`.
+- **Demo:** delete the clone, clone again, run `pnpm finora`, look up a Latvian counterparty, investigate it, then run `node scripts/milestone-gate.mjs --country lv`.
+
+**M2 demo (council session 3b):** the Latvian walking skeleton end to end from one command, live, with one question answered and a cited verdict; the milestone-gate output pasted into `docs/plan/council/03-m2.md`. **No second country's loaders start before this demo passes.**
+
+---
+
+## M3 Every country
+
+### S13 Estonia loaders, with the share-alike store
+- **Owner:** data-baltics · **with:** architect · **Depends on:** M2
+- **Scope:** every `docs/plan/loaders/ee-*.md` spec, incl. the streamed general-data file, annual-report zips from the download page, the person files as role-set records, tombstones, the share-alike sources in both `SHARE_ALIKE_MODE`s with their derived events in `finora-sa.db`, and the debtor loader rule (keep only register codes with a non-sole-trader form).
+- **Acceptance:** each spec's Tests; every EE SHOW/CAVEAT item renders (`items.test.ts`); HIDE S04.EE.02 and natural-person members never read; legal's debtor condition (a fixture with a bare personal name and a foreign sole proprietorship is dropped); P10: EE ≤ 3 GB + ≤ 0.25 GB share-alike, searchable in ≈ 6 min.
+- **Tests:** the spec files' named tests under `sources/src/ee/`, `ingest/src/share-alike.test.ts` and `ingest/src/live-no-store.test.ts` on the EE fixtures, `sources/src/ee/*.live.test.ts`.
+- **Demo:** `pnpm finora-cli data sync --country ee`, open an Estonian company in the UI, see the tax-debtor line with its CC BY-SA attribution; set `SHARE_ALIKE_MODE=live-no-store` and see the same line with no row in any file.
+
+### S14 Lithuania loaders
+- **Owner:** data-baltics · **with:** architect · **Depends on:** M2
+- **Scope:** every `docs/plan/loaders/lt-*.md` spec: the daily register files with the classifier and address joins, the tax-authority datasets and the arrears change feed (purge guard on deletes), social-insurance files grouped per company-period, statements grouped per report, `paid_only` people with the register's own ordering page.
+- **Acceptance:** each spec's Tests; every LT SHOW/CAVEAT item renders; S03.LT names render `paid_only` with the official order link only; P10: LT ≤ 2 GB, searchable in ≈ 2 min.
+- **Tests:** the spec files' named tests under `sources/src/lt/`, `sources/src/lt/*.live.test.ts`.
+- **Demo:** `pnpm finora-cli data sync --country lt`, open a Lithuanian company, see arrears, insured counts and the paid-extract line for names.
+
+### S15 GLEIF, ESMA FIRDS and entity resolution
+- **Owner:** architect (resolution) + data-us (GLEIF) + data-markets (FIRDS) · **Depends on:** S13, S14
+- **Scope:** `docs/plan/loaders/gleif.md` and `esma-firds.md`; `packages/resolve` official-ID links, name normalisation per country, candidate scoring and the benchmark, judgements; search results with distinguishing facts for name collisions.
+- **Acceptance:** the specs' Tests; a company with an LEI and a national code is one profile with both sources; the 200-query benchmark ranks the right company first in ≥ 95%; a human judgement survives every reload; S01.ALL.01-02 and S14.LTLVEE.01 render.
+- **Tests:** `resolve/src/links.test.ts`, `resolve/src/normalise.test.ts`, `resolve/src/benchmark.test.ts`, `resolve/src/judgements.test.ts`, `sources/src/intl/gleif.test.ts`, `sources/src/intl/esma-firds.test.ts`.
+- **Demo:** `pnpm finora-cli resolve "example companu sia"` shows ranked candidates with scores and reasons; a Baltic company's profile shows its LEI.
+
+### S16 US public companies (SEC)
+- **Owner:** data-us · **with:** architect · **Depends on:** S15, `SEC_USER_AGENT` from the human (O5)
+- **Scope:** `docs/plan/loaders/us-sec.md`: submissions, company facts, Forms 3/4/5 quarterly sets, 8-K item 5.02 events, insiders in company context only, `needs_key` without the contact setting.
+- **Acceptance:** the spec's Tests; every SEC SHOW/CAVEAT item renders; without `SEC_USER_AGENT` the US public profile is `needs_key` and no SEC request is made; ≤ 10 requests/s (R14).
+- **Tests:** the spec's named tests under `sources/src/us/sec-*`, `sources/src/us/sec-user-agent.test.ts`.
+- **Demo:** set `SEC_USER_AGENT`, open a US public company, see filings, financials and insider trades behind the purpose gate.
+
+### S17 US state registries, live, with fan-out search
+- **Owner:** data-us · **with:** architect, frontend · **Depends on:** S15 · **security** · **web-qa**
+- **Scope:** `docs/plan/loaders/us-states.md`: one Socrata client, NY, CO, CT, PA (OR and WA blocked by P11), `live-cached` entities on view, `GET /search/live/:register` with a 3 s timeout, the live groups in the search UI, the CO disclaimer, CT withdrawal handling.
+- **Acceptance:** the spec's Tests; a slow or failing portal renders "Not checked: [state] registry did not answer" without blocking other groups; P5 fake-clock tests; the CO disclaimer appears wherever CO data does; a withdrawn CT record is gone after the next fetch; OR and WA cannot be enabled.
+- **Tests:** the spec's named tests under `sources/src/us/state-*`, `ingest/src/live-cache.test.ts`, `server/src/routes/v1/search/live/route.contract.test.ts`, `web/e2e/search-live.spec.ts`, `web/e2e/co-disclaimer.spec.ts`.
+- **Demo:** search a common US company name and watch the four state groups arrive one by one; open one; it is cached and shows its retrieval date.
+
+### S18 US federal sources
+- **Owner:** data-us · **with:** data-osint · **Depends on:** S16
+- **Scope:** `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (FJC stored where the spec says; CourtListener through the legal agent with `COURTLISTENER_TOKEN`).
+- **Acceptance:** each spec's Tests; each item renders (stored) or has its agent case (live); bank-only and carrier-only rows appear only for those entities.
+- **Tests:** the specs' named tests under `sources/src/us/`, `agents/src/items.agent.test.ts` cases for S10.US and S11.US.03-04.
+- **Demo:** open a fixture bank and a fixture carrier and see their federal rows; investigate a US company and see the court search lane.
+
+### S19 MCP server
+- **Owner:** architect · **Depends on:** S07, S09 · **security**
+- **Scope:** architecture §5.2: the read tools from `packages/agent-tools`, stdio (`finora-cli mcp`, the `finora` binary) and Streamable HTTP at `/mcp`, purpose on every person-section call, `serverInfo` with the source link, `docs/mcp.md`.
+- **Acceptance:** the tool list is exactly the seven tools (snapshot); no person tool (L2); schema-valid output with sources on the fixture world; `purpose_required` without a purpose and a log row with surface `mcp` with one (P2); a blocked purpose refused (P7); HIDE and canary suites pass; the HTTP transport refuses a foreign Host or Origin; a desktop MCP client configured per `docs/mcp.md` can search and read a company.
+- **Tests:** `mcp/src/tools.contract.test.ts`, `mcp/src/purpose.test.ts`, `mcp/src/errors.test.ts`, `mcp/src/http-guard.test.ts`, `mcp/src/hide.negative.test.ts`, `mcp/src/canary.test.ts`, `mcp/src/server-info.test.ts`.
+- **Demo:** add `finora` to an MCP-capable desktop client, ask it to look up a Latvian company, see cited answers.
+
+### S20 Network explorer (U8)
+- **Owner:** frontend (UI) + architect (network service) · **Depends on:** S08, S13, S14 · **web-qa**
+- **Scope:** architecture §5.5 and `ui-build-plan.md` U8: `GET /companies/:eid/network`, registered offices only, no address shared with a natural person, hubs collapsed after 20, the canvas graph with the list twin (default under 768 px), no agent runs on browse.
+- **Acceptance:** U8 in `ui-build-plan.md`; a fixture sole trader at a company address creates no edge; every edge carries a `SourceRef`; S17 items render with their caveat.
+- **Tests:** `domain/src/network/build.test.ts`, `server/src/routes/v1/companies/[eid]/network/route.contract.test.ts`, `web/e2e/network.spec.ts`, `web/e2e/network.visual.spec.ts`, `web/e2e/network.a11y.spec.ts`.
+- **Demo:** open a company's network, follow a shared-address hub to another company.
+
+### S21 Library (U7)
+- **Owner:** frontend · **Depends on:** S11 · **web-qa**
+- **Scope:** `ui-build-plan.md` U7: the list with level, coverage, cost and status; reopening a report; delete (R11).
+- **Acceptance:** U7 in `ui-build-plan.md`; delete removes the investigation and its documents (`DELETE /investigations/:id`); documents of old investigations expire under the TTL.
+- **Tests:** `web/e2e/library.spec.ts`, `server/src/routes/v1/investigations/[id]/route.contract.test.ts` (delete), `store/src/retention.test.ts` (documents).
+- **Demo:** run two investigations, open the library, reopen one, delete the other.
+
+**M3 demo (council session 3c):** one real company per country, including a US public and a US private one, end to end; the milestone gate on all four countries; the CEO's US-private test (council Part A).
+
+---
+
+## M4 Crash monitor and the daily app
+
+### S22 Markets data layer
+- **Owner:** data-markets · **with:** architect · **Depends on:** S04
+- **Scope:** `docs/plan/loaders/markets.md`: the series tables, every source in Part 2, the maths, the schedule and request budget, the 13 fund slots, the Taiwan peak rule, `GET /markets/crash` from the server cache.
+- **Acceptance:** the spec's Tests; every M SHOW/CAVEAT item has its `markets/src/items.test.ts` case; licensed series only in `connector-cache.db` and never exported (R17); a simulated day never exceeds any source's free limit; the endpoint answers from cache within its relative budget.
+- **Tests:** the spec's named tests, `markets/src/calc.test.ts`, `markets/src/connectors.test.ts`, `markets/src/schedule.test.ts`, `markets/src/settings.test.ts`, `markets/src/items.test.ts`, `server/src/routes/v1/markets/crash/route.contract.test.ts`.
+- **Demo:** `curl http://127.0.0.1:3000/api/v1/markets/crash` with no keys (official rows filled, price rows `needs_key` or `needs_symbol`), then with a key and a fund slot set.
+
+### S23 Crash monitor UI (U9)
+- **Owner:** frontend · **with:** designer, data-markets · **Depends on:** S03, S04b, S22 · **web-qa**
+- **Scope:** `ui-build-plan.md` U9: tiles with several rows each, every row state (`ok`, `stale`, `needs_key`, `needs_symbol`, `peak_unknown`, `error`), cadence and delay labels, `peakBasis` labels, `totalWiped` above the grid, the 60 s poll without layout shift.
+- **Acceptance:** U9; every state matches its mockup at four viewports; localised; axe clean.
+- **Tests:** `web/e2e/crash.spec.ts`, `web/e2e/crash.visual.spec.ts`, `web/e2e/crash.a11y.spec.ts`.
+- **Demo:** open `/en/crash`, watch a crypto row update; clear a fund slot and see "Choose a fund in settings".
+
+### S24 Settings and connectors (U10)
+- **Owner:** frontend (UI) + architect (settings API) · **Depends on:** S04b, S22 · **web-qa**
+- **Scope:** `ui-build-plan.md` U10: key presence and what each unlocks, the SEC contact setting, fund slots, data status per source with sync reports and purge-guard warnings, the history-size warning (P9), the LAWYER switches in force (read-only), the default cost cap.
+- **Acceptance:** U10; key values never reach the client (bundle check); fund slots validated; a purge-guard sync shows its warning.
+- **Tests:** `web/e2e/settings.spec.ts`, `server/src/routes/v1/settings/**/route.contract.test.ts`.
+- **Demo:** open Settings, add a fund symbol, see the Crash tile fill on the next refresh.
+
+### S25 The one command, all countries, and scheduling
+- **Owner:** architect · **Depends on:** S13-S22 · **web-qa**
+- **Scope:** `pnpm finora` with the full `core` profile (architecture §4.6), every country's background first load and daily refresh, the market jobs, the health page, `docs/running.md` final.
+- **Acceptance:**
+  1. On a fresh clone (Windows and Linux), `pnpm finora` ends with the app running and real data for LV, EE, LT and US companies, with no manual step besides optional keys (phase 6 criterion 1).
+  2. First core load ≤ 30 min, daily refresh ≤ 5 min, whole data dir ≤ 12 GB on `dev-desktop-1` (P10), recorded in `benchmarks.md`.
+  3. Refresh and retention jobs run while the app is open and report on Settings.
+- **Tests:** `scripts/finora.test.mjs`, `server/src/jobs.test.ts`, CI `demo-boot`.
+- **Demo:** a day of use: the morning Crash monitor, two company look-ups in different countries, one investigation, all from `pnpm finora`.
+
+**M4 demo (council session 3d):** the day-of-use demo; the milestone gate on all four countries.
+
+---
+
+## M5 Done
+
+### S26 Hardening and sign-off
+- **Owner:** architect · **with:** every seat · **Depends on:** all
+- **Scope:** security-engineer full review and fixes; a qa-codebase sweep; performance on the `full` profile; e2e and visual coverage of every DESIGN.md state; docs pass (README, running, MCP, contributing); the risk register in `docs/plan/prototype.md` closed or accepted; the LAWYER register reviewed with legal.
+- **Acceptance:** phase 6 exit criteria in `docs/plan/README.md`; no open MUST-FIX from any review; CI green on the hub PR.
+- **Tests:** everything above, green in CI; the milestone gate output.
+- **Demo:** the demo script in `docs/plan/prototype.md`, run by the council.
+
+---
+
+## Rule coverage
+
+Every rule's enforcement point is in architecture §10; this table says which slice builds it.
+
+| Rules | Slice |
+|---|---|
+| R3, R4, R10, L1, L2, L4/P3, L5, L6, P1, P2, P4, P5, P13 | S04 (store and ingest), S07 (API), S19 (MCP), S08 (UI) |
+| R1 | S05 |
+| R5, P6, P7 | S04, S07, S09, S08 |
+| R6, R16, L3 | S08 |
+| R7, R9 | S04b (schemas), S09, S10, S11 |
+| R8 | S06, S10 |
+| R11 | S04, S21 |
+| R12, R13, R14, P11 | S04 (invariants, fetcher), each loader slice |
+| R15 | none in v1 |
+| R17, P12 | S22, S24 |
+| R18 | S02, S19 |
+| P8 | S10 |
+| P9 | S04, S24 |
+| P10 | every loader slice, S25 |
+| P14 | S07 |
+| PS2-PS7 | S04, S05, S13 |
+
+---
+
+## Appendix: every SHOW and CAVEAT item
+
+Generated from Part G of `docs/plan/council/01-data.md` (155 rows: 41 SHOW, 59 CAVEAT, 5 HIDE, the rest LATER). **Data slice** loads it; **UI slice** renders it; the **acceptance test** is the parameterised case for that id, which asserts the value renders with its sources, its caveat when CAVEAT, and its empty state when there is no data. `domain/src/report/items.test.ts` and `agents/src/items.agent.test.ts` iterate `items.generated.ts`, so an id added to Part G without a case fails CI. The UI side is covered for every id by the field-registry test (architecture §10.5). HIDE ids are in architecture §10.4.
+
+| item_id | Call | Data slice | UI slice | Acceptance test |
+|---|---|---|---|---|
+| S01.LT.01 | SHOW | S14 | S14 | `domain/src/report/items.test.ts › S01.LT.01` |
+| S01.LV.01 | SHOW | S05 | S08 | `domain/src/report/items.test.ts › S01.LV.01` |
+| S01.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S01.EE.01` |
+| S01.US.01 | SHOW | S16 | S08 | `domain/src/report/items.test.ts › S01.US.01` |
+| S01.US.02 | SHOW | S17 | S17 | `domain/src/report/items.test.ts › S01.US.02` |
+| S01.US.03a | CAVEAT | S17 | S17 | `domain/src/report/items.test.ts › S01.US.03a` |
+| S01.US.07 | CAVEAT | S18 | S08 | `domain/src/report/items.test.ts › S01.US.07` |
+| S01.ALL.01 | SHOW | S15 | S08 | `domain/src/report/items.test.ts › S01.ALL.01` |
+| S01.ALL.02 | SHOW | S15 | S08 | `domain/src/report/items.test.ts › S01.ALL.02` |
+| S02.LT.01 | SHOW | S14 | S14 | `domain/src/report/items.test.ts › S02.LT.01` |
+| S02.LV.01 | SHOW | S05 | S08 | `domain/src/report/items.test.ts › S02.LV.01` |
+| S02.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S02.EE.01` |
+| S02.US.01 | SHOW | S17 | S17 | `domain/src/report/items.test.ts › S02.US.01` |
+| S02.US.02 | CAVEAT | S17 | S17 | `domain/src/report/items.test.ts › S02.US.02` |
+| S02.US.03 | SHOW | S18 | S08 | `domain/src/report/items.test.ts › S02.US.03` |
+| S03.LT.01 | CAVEAT | S14 | S14 | `domain/src/report/items.test.ts › S03.LT.01` |
+| S03.LV.01 | CAVEAT | S05 | S08 | `domain/src/report/items.test.ts › S03.LV.01` |
+| S03.EE.01 | CAVEAT | S13 | S13 | `domain/src/report/items.test.ts › S03.EE.01` |
+| S03.US.01 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S03.US.01` |
+| S03.US.02 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S03.US.02` |
+| S03.US.03 | CAVEAT | S17 | S17 | `domain/src/report/items.test.ts › S03.US.03` |
+| S04.LV.01 | CAVEAT | S05 | S08 | `domain/src/report/items.test.ts › S04.LV.01` |
+| S04.EE.01 | CAVEAT | S13 | S13 | `domain/src/report/items.test.ts › S04.EE.01` |
+| S04.US.01 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S04.US.01` |
+| S04.US.02 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S04.US.02` |
+| S06.LT.01 | SHOW | S14 | S14 | `domain/src/report/items.test.ts › S06.LT.01` |
+| S06.LV.01 | SHOW | S05 | S08 | `domain/src/report/items.test.ts › S06.LV.01` |
+| S06.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S06.EE.01` |
+| S06.US.01 | SHOW | S16 | S08 | `domain/src/report/items.test.ts › S06.US.01` |
+| S06.US.02 | SHOW | S18 | S08 | `domain/src/report/items.test.ts › S06.US.02` |
+| S07.LT.01 | CAVEAT | S14 | S14 | `domain/src/report/items.test.ts › S07.LT.01` |
+| S07.LV.01 | CAVEAT | S05 | S08 | `domain/src/report/items.test.ts › S07.LV.01` |
+| S07.EE.01 | CAVEAT | S13 | S13 | `domain/src/report/items.test.ts › S07.EE.01` |
+| S07.US.02 | SHOW | S18 | S08 | `domain/src/report/items.test.ts › S07.US.02` |
+| S07.US.03 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S07.US.03` |
+| S08.LT.01 | SHOW | S14 | S14 | `domain/src/report/items.test.ts › S08.LT.01` |
+| S08.LT.02 | CAVEAT | S14 | S14 | `domain/src/report/items.test.ts › S08.LT.02` |
+| S08.LV.01 | CAVEAT | S05 | S08 | `domain/src/report/items.test.ts › S08.LV.01` |
+| S08.EE.01a | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S08.EE.01a` |
+| S08.EE.01b | CAVEAT | S13 | S13 | `domain/src/report/items.test.ts › S08.EE.01b` |
+| S09.LT.01 | CAVEAT | S14 | S14 | `domain/src/report/items.test.ts › S09.LT.01` |
+| S09.LV.01 | SHOW | S05 | S08 | `domain/src/report/items.test.ts › S09.LV.01` |
+| S09.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S09.EE.01` |
+| S09.US.01 | CAVEAT | S17 | S17 | `domain/src/report/items.test.ts › S09.US.01` |
+| S10.LT.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S10.LT.01` |
+| S10.LV.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S10.LV.01` |
+| S10.EE.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S10.EE.01` |
+| S10.US.01 | CAVEAT | S18 | S11 | `agents/src/items.agent.test.ts › S10.US.01` |
+| S10.US.02 | CAVEAT | S18 | S11 | `agents/src/items.agent.test.ts › S10.US.02` |
+| S11.LT.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S11.LT.01` |
+| S11.LT.02 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S11.LT.02` |
+| S11.LV.01 | SHOW | S06 | S08 | `domain/src/report/items.test.ts › S11.LV.01` |
+| S11.LV.02 | SHOW | S06 | S08 | `domain/src/report/items.test.ts › S11.LV.02` |
+| S11.LV.03 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S11.LV.03` |
+| S11.EE.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S11.EE.01` |
+| S11.EE.02 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S11.EE.02` |
+| S11.US.01 | SHOW | S18 | S08 | `domain/src/report/items.test.ts › S11.US.01` |
+| S11.US.02 | SHOW | S18 | S08 | `domain/src/report/items.test.ts › S11.US.02` |
+| S11.US.03 | CAVEAT | S18 | S11 | `agents/src/items.agent.test.ts › S11.US.03` |
+| S11.US.04 | CAVEAT | S18 | S11 | `agents/src/items.agent.test.ts › S11.US.04` |
+| S11.ALL.01 | SHOW | S06 | S08 | `domain/src/report/items.test.ts › S11.ALL.01` |
+| S11.ALL.02 | SHOW | S06 | S08 | `domain/src/report/items.test.ts › S11.ALL.02` |
+| S11.ALL.03 | SHOW | S06 | S08 | `domain/src/report/items.test.ts › S11.ALL.03` |
+| S11.ALL.05 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S11.ALL.05` |
+| S13.LT.01 | SHOW | S14 | S14 | `domain/src/report/items.test.ts › S13.LT.01` |
+| S13.LV.01 | SHOW | S05 | S08 | `domain/src/report/items.test.ts › S13.LV.01` |
+| S13.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S13.EE.01` |
+| S13.US.01 | SHOW | S16 | S08 | `domain/src/report/items.test.ts › S13.US.01` |
+| S13.US.02 | CAVEAT | S17 | S17 | `domain/src/report/items.test.ts › S13.US.02` |
+| S13.US.03 | CAVEAT | S17 | S17 | `domain/src/report/items.test.ts › S13.US.03` |
+| S14.US.01 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S14.US.01` |
+| S14.US.02 | SHOW | S16 | S08 | `domain/src/report/items.test.ts › S14.US.02` |
+| S14.LTLVEE.01 | SHOW | S15 | S08 | `domain/src/report/items.test.ts › S14.LTLVEE.01` |
+| S15.LT.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S15.LT.01` |
+| S15.LV.02 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S15.LV.02` |
+| S15.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S15.EE.01` |
+| S15.EE.02 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S15.EE.02` |
+| S15.US.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S15.US.01` |
+| S15.LT.whois | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S15.LT.whois` |
+| S16.ALL.01 | CAVEAT | S10 | S11 | `agents/src/items.agent.test.ts › S16.ALL.01` |
+| S17.LT.01 | CAVEAT | S14 | S20 | `domain/src/report/items.test.ts › S17.LT.01` |
+| S17.LV.01 | CAVEAT | S05 | S20 | `domain/src/report/items.test.ts › S17.LV.01` |
+| S17.EE.01 | CAVEAT | S13 | S20 | `domain/src/report/items.test.ts › S17.EE.01` |
+| S18.LT.01 | SHOW | S14 | S14 | `domain/src/report/items.test.ts › S18.LT.01` |
+| S18.LT.02 | CAVEAT | S14 | S14 | `domain/src/report/items.test.ts › S18.LT.02` |
+| S18.LV.01 | SHOW | S05 | S08 | `domain/src/report/items.test.ts › S18.LV.01` |
+| S18.EE.01 | SHOW | S13 | S13 | `domain/src/report/items.test.ts › S18.EE.01` |
+| S18.US.01 | CAVEAT | S16 | S08 | `domain/src/report/items.test.ts › S18.US.01` |
+| M01.X.01 | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M01.X.01` |
+| M01.X.02 | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M01.X.02` |
+| M02.X.01 | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M02.X.01` |
+| M03.X.01 | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M03.X.01` |
+| M03.X.02 | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M03.X.02` |
+| M04.X.01 | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M04.X.01` |
+| M05.X.01 | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M05.X.01` |
+| M05.X.02b | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M05.X.02b` |
+| M06.X.01b | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M06.X.01b` |
+| M06.X.02 | CAVEAT | S22 | S23 | `markets/src/items.test.ts › M06.X.02` |
+| M07.X.01 | SHOW | S22 | S23 | `markets/src/items.test.ts › M07.X.01` |
+| M08.X.01 | SHOW | S22 | S23 | `markets/src/items.test.ts › M08.X.01` |
