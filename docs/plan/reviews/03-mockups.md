@@ -41,5 +41,7 @@
 | W1b | MAJOR | Source popovers inside tables (People in LV and EE) are clipped by the table's `overflow: auto` scroll box at 768, 1280 and 1920 in all three browsers: about 40 px of a 286 px popover shows, so licence, as-of date and record link are unreachable (LV 2 of 20 chips, EE 1 of 14). The designer's measure checked the viewport, not the clipping ancestor | open (designer) |
 | W7 | MINOR | Command bar: Up, Down and Enter do nothing; no `combobox`/`listbox` roles or `aria-selected` | open; a build acceptance test if not in the mockup |
 | W8 | MINOR | Command bar Esc returns focus to the body, not the opener | open |
-| W9 | MINOR | "Show agents": focus stays on the body | fixed in `8f5b8f1` per the designer (web-qa tested `05237c2`) |
-| - | unconfirmed | WebKit sheet focus trap: 4-6 of 12 Tabs escape | the designer reports a fix in `8f5b8f1` (the trap moves focus itself on every Tab) |
+| W9 | MINOR | "Show agents": focus stays on the body | **closed**: verified at `8f5b8f1` in all three engines |
+| - | resolved | WebKit sheet focus trap | **closed**: 0 of 12 Tabs escape in WebKit at `8f5b8f1` |
+
+**Re-test 3 (web-qa at `8f5b8f1`):** 488 Chromium renders clean; WebKit trap and "Show agents" focus closed. W1b (table popover clip) is unchanged and is the only blocker; W7 and W8 stay MINOR.
