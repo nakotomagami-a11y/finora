@@ -37,7 +37,8 @@ Every question a licensed lawyer must settle, with the safe interim value v1 shi
 | LAW-LV-NP-PROCUREMENT | Natural-person procurement winners (LV) | LATER | none |
 | LAW-MARKET-CAP | May the repo ship one cited market-cap figure per market? | drawdown only, unless the source's terms are quoted | none |
 | LAW-AGPL-HOSTED | Does the code licence affect any future hosted service? | no hosted build in v1 | none |
-
-**Not a LAWYER item:** the annual-report filing windows behind check 5. Check 5 states a fact ("not in the register, [N] months after the year ended") and labels the window as Finora's estimate (council, legal agree), so no `LAW-ACCOUNTS-DEADLINE` row is needed.
+| LAW-ACCOUNTS-DEADLINE | The statutory annual-report filing dates (LV, EE, LT) | check 5 states a fact ("not in the register, [N] months after the year ended") with the window labelled as Finora's estimate; the row must be settled before any statutory date is shown as a deadline | none |
+| LAW-COURTS-LT | LITEKO keyword searches by company name and code | not run until a build-time probe confirms no robots or terms bar and the terms are quoted; then organisation parties only (P8), cited, not stored | none |
+| LAW-COURTS-LV | Latvian court portal search (terms unread) | MANUAL link plus the case numbers loaded with insolvency and securing measures | none |
 
 The architect adopts these ids in architecture §10.2; `check-lawyer-register` matches `[pending: lawyer <id>]` markers against them, and each row's test is named in `docs/plan/slices.md`.
