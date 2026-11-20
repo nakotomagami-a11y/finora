@@ -1,5 +1,7 @@
 # qa review: the phase 3 plan (milestone B)
 
+**Verdict (qa, 2026-11-20, at `2314a54`): no open MUST-FIX. The plan is ready for council session 2.** Round 1: 21 MUST-FIX; round 2: 5; milestone A: 11 plus 3 person-row findings. All closed, and legal confirmed each legal item. Carried into the build (not blocking): interim `maxPurgeShare` values and filing-window estimates are re-measured per loader slice; the LV court-portal URL pattern (`lv-risk.md`) and the S7/S3 key-round as-of strategies are settled in their slices; the two NITs were fixed in `b64e2ea` (`read-live-source.test.ts`, `finora.name_changed`; `architecture.md:227` still to update).
+
 `qa` reviewed the plan at `0de4d5f` on 2026-11-20 against `docs/plan/qa-plan-checklist.md` 1-13, Part G and the early-review commitments; committed by the coordinator with legal's conditions (legal 7030098645). Not covered in this pass: the Baltic loader specs and `prototype.md` (both on the branch at `6dc2881` and `20b2c00`, reviewed next), `sanctions.md` (not yet written), and the mockups (web-qa).
 
 **Verdict: not approvable yet, 21 MUST-FIX.** What holds: Part G → appendix is complete (100 of 100 SHOW and CAVEAT ids, diffed); HIDE suites on six surfaces; walking skeleton first; checklist 1-13 each addressed; no real names, tickers or non-reserved example domains.
@@ -52,8 +54,8 @@ All 21 round 1 MUST-FIX are closed. First review of the Baltic specs, `sanctions
 |---|---|---|---|
 | R2-1 | data-osint | `sanctions.md` stored listed natural persons and kept them in the raw cache | **closed**, verified by qa at `88ef579` |
 | R2-2 | data-osint | `sanctions.md:239`: unproven foreign parties on the LV FIU list stored as organisations | **closed**, verified by qa at `0b22c02` (with the sanctions SHOULD-FIX and NITs) |
-| R2-3 | data-baltics | `ee-register.md:98`: sole traders' VAT numbers stored | fixed in `2314a54` (number and `links` row dropped, `finora:vatRegistered` kept); qa to verify |
-| R2-4 | data-baltics | `ee-register.md:62, 122-138`: natural-person insolvency stored | fixed in `2314a54` (FIE status coarsened to `registered`/`struck_off`; FIE records dropped from cards, rulings and pledges; HIDE case in `hide.negative.test.ts`); qa to verify |
+| R2-3 | data-baltics | `ee-register.md:98`: sole traders' VAT numbers stored | **closed**, verified by qa at `2314a54` |
+| R2-4 | data-baltics | `ee-register.md:62, 122-138`: natural-person insolvency stored | **closed**, verified by qa at `2314a54` |
 
 | R2-5 | data-baltics | `lt-sodra.md` still said `live-no-store` in the instant profile | **closed**, verified by qa at `b092931` |
 
