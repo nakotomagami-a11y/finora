@@ -14,6 +14,13 @@ Courts are **agent-only** in v1 (Part G S10: "CAVEAT, agent only"; possible matc
 - **FJC civil:** `storage: store`, as a **court index** (not entity statements): one row per (case, organisation party), read only by the agent tool `us_court_index_search`, never rendered without an agent finding. `cadence`: `quarterly` (*observed: file updated with filings to 2026-06-30*). `asOf`: `[max_date_in_data]` over `FILEDATE`. `maxPurgeShare`: 0.05. `deepLink`: null (FJC has no per-case page); the agent cites the docket (court, docket number, filing date) and, when found, the CourtListener docket via `idb_data_id`. `requires`: none.
 - `attribution`: "Federal Judicial Center, Integrated Database" / "CourtListener (Free Law Project)".
 
+### Contract fields (milestone A.1 checklist)
+- `asOf`: FJC `[max_date_in_data]` over `FILEDATE`; CourtListener per result.
+- `purgeScope`: FJC `window` (the last 10 years); CourtListener `none` (agent-only). `maxPurgeShare`: FJC **0.125**: each quarterly reload drops about one quarter of 40 from the 10-year window (≈ 2.5% of cases), and 5x that is 12.5%.
+- `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4; here the module includes the legal-form token list and the FJC code-book labels.
+- Record unit: one record per case (`record_key` = court + docket + filing date) holding its organisation parties; file order.
+- `personRecordKey`: none: person parties are never loaded (party gate). Share-alike events: none.
+
 ## Items
 | item_id | Call | Caveat | Empty state |
 |---|---|---|---|

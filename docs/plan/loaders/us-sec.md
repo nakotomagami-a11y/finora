@@ -23,10 +23,20 @@ One loader package `packages/sources/src/us/sec/` with five sources that share t
   - companyfacts: `[max_date_in_data]` over `facts.*.*.units.*[].filed`.
   - insider and Form D data sets: `[in_file_name]` (`2026q3_…zip` → 2026-09-30).
   - holders: index `[in_file_name]` (`company.20261118.idx`); documents `[in_file_field]` (the event date in the XML).
-- `maxPurgeShare`: tickers 0.05 (daily list; delistings are few); insider and Form D data sets 0.15 (one quarter of eight leaves the window per load); on-view company and holder documents 0 (filings are never deleted).
 - `deepLink`: company `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}`; filing `https://www.sec.gov/Archives/edgar/data/{cik}/{accessionNoDashes}/`.
 - `orderUrl`: null. `cacheTtl`: none (`store`); on-view sources re-fetch when older than 24 h.
 - Latency (SEC): submissions in under a second after acceptance, XBRL APIs under a minute. Nightly bulk zips (`submissions.zip`, `companyfacts.zip`) exist but are not used in v1: on-view fetches are cheaper than a multi-GB nightly download (*verify sizes in the key-testing round*).
+
+### Contract fields (milestone A.1 checklist)
+- `asOf`: per source, listed above.
+- `purgeScope` and `maxPurgeShare`:
+  - tickers: `full`, **0.02** (floor; daily delistings are a small fraction of about 10,000 rows, to be measured over two pulls in the key-testing round).
+  - insiders and Form D data sets: `window` (8 quarters), **0.625**: each quarterly load drops one quarter of eight (12.5% of records) by design; 5x that is 62.5%.
+  - company and holders: `none` (filings are never deleted).
+- `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4; here the module includes the XBRL concept fallback table.
+- Record unit and sort order: see Refresh and change (one record per issuer-quarter for insider transactions; one role set per issuer for current insiders; one per Form D filing; one per company document).
+- `personRecordKey`: insiders `roles:<issuerCik>` (the issuer's role set), Form D `formd-people:<issuerCik>` (the related persons of the issuer's newest Form D), holders `holders:<subjectCik>:<accession>` (one filing's reporting persons). Hash input: role lines (relationship, title, name) in source order. **The reporting owner's CIK is a person identifier and is dropped (PS6): never a key, never a hash input, never stored.** Role-end detection: the data sets carry no row-local role id and no role start date, so identity is (relationship, occurrence); `finora.role_ended` fires when a relationship's line count falls.
+- Share-alike events: none.
 
 ## Items
 
@@ -96,11 +106,12 @@ Each fiscal year is one `fact_reports` row (`kind = annual_accounts`, `period_st
 | Table.field | Target | item_id | Personal? | Transform |
 |---|---|---|---|---|
 | SUBMISSION.ACCESSION_NUMBER, ISSUERCIK, FILING_DATE, DOCUMENT_TYPE, AFF10B5ONE | event `filing.form345`; record key | S14.US.01 | no | issuer must be a `us-cik-*` entity; `AFF10B5ONE` shown as "Trading plan (Rule 10b5-1) flagged" |
-| REPORTINGOWNER.RPTOWNERCIK, RPTOWNERNAME, RPTOWNER_RELATIONSHIP, RPTOWNER_TITLE | `Person` (or `LegalEntity` for a 10% owner, see party gate) in a `Directorship` or `Ownership` of the issuer | S03.US.01 (officer, director), S04.US.02 (ten percent owner) | **yes** | `RPTOWNERCIK` is used only inside the HMAC person id (§3.3) and is never stored or shown; roles: Director, Officer, TenPercentOwner, Other |
+| REPORTINGOWNER.RPTOWNERNAME, RPTOWNER_RELATIONSHIP, RPTOWNER_TITLE | `Person` in a `Directorship` (officer, director) or `Ownership` (ten percent owner) of the issuer | S03.US.01 (officer, director), S04.US.02 (ten percent owner) | **yes** | roles: Director, Officer, TenPercentOwner, Other |
+| REPORTINGOWNER.RPTOWNERCIK | **dropped: personal code (PS6)** | - | - | an SEC person identifier: never a key, hash input or stored value |
 | NONDERIV_TRANS.TRANS_DATE, TRANS_CODE, TRANS_SHARES, TRANS_PRICEPERSHARE, TRANS_ACQUIRED_DISP_CD | aggregated per issuer and calendar quarter: `fact_reports(kind = insider_quarter)` with `shares_bought` (code P), `shares_sold` (code S), `value_bought`, `value_sold`, `filings` | S14.US.01 | no | only P and S feed net buys and sells; other codes (A, F, M, G, J, ...) are counted in `other_transactions` |
 | owner addresses, footnotes, derivative tables | dropped | - | - | |
 
-"Current roles" = an owner with a Form 3, 4 or 5 for this issuer in the last 12 months. The role row is replaced on each quarterly load, and a role that drops out emits `finora.role_ended` with no name.
+"Current roles" = an owner with a Form 3, 4 or 5 for this issuer in the last 12 months. Filings are grouped into owners by the normalised owner name **within this issuer only**, to build the set; the grouping key is discarded after the parse and never stored or output. The issuer's role set is replaced on each quarterly load; role-end detection as in `personRecordKey` above (no name, no id).
 
 **us-sec-formd** (tables FORMDSUBMISSION, ISSUERS, OFFERING, RELATEDPERSONS)
 
@@ -109,7 +120,7 @@ Each fiscal year is one `fact_reports` row (`kind = annual_accounts`, `period_st
 | ISSUERS.CIK, ENTITYNAME, ENTITYTYPE, JURISDICTIONOFINC, YEAROFINC, STREET1, CITY, STATEORCOUNTRY, ZIPCODE | `us-cik-*` entity (creates one if absent): name, legal form, jurisdiction, address | S01.US.01 | no | only primary issuers (`IS_PRIMARYISSUER_FLAG = YES`) *verify column name* |
 | FORMDSUBMISSION.ACCESSION_NUMBER, FILING_DATE, SUBMISSIONTYPE | event `filing.formd` | S13.US.01 | no | |
 | OFFERING.INDUSTRYGROUPTYPE, REVENUERANGE, TOTALOFFERINGAMOUNT, TOTALAMOUNTSOLD | event data on `filing.formd` (revenue band verbatim, e.g. "$1 - $1,000,000", "Decline to Disclose") | S13.US.01 | no | |
-| RELATEDPERSONS.FIRSTNAME, LASTNAME, RELATIONSHIP_1..3 | `Person` in a `Directorship` (roles: Executive Officer, Director, Promoter) | S03.US.02 | **yes** | address columns dropped |
+| RELATEDPERSONS.FIRSTNAME, LASTNAME, RELATIONSHIP_1..3 | `Person` in a `Directorship` (roles: Executive Officer, Director, Promoter), from the issuer's newest Form D only | S03.US.02 | **yes** | address columns dropped |
 | RECIPIENTS (sales compensation) | dropped | - | - | |
 
 **us-sec-holders**
@@ -117,7 +128,7 @@ Each fiscal year is one `fact_reports` row (`kind = annual_accounts`, `period_st
 | Source field | Target | item_id | Personal? | Transform |
 |---|---|---|---|---|
 | daily `company.idx` rows with form `SCHEDULE 13D`, `SCHEDULE 13D/A`, `SCHEDULE 13G`, `SCHEDULE 13G/A` | index of (subject CIK, accession) | resolution key | no | a 13D/G appears twice in the index (subject and filer); keep pairs where the CIK is a subject company *verify in the key-testing round* |
-| `primary_doc.xml`: issuer CIK, CUSIP, reporting person name, citizenship or place of organisation, type of reporting person, aggregate amount, percent of class, event date | `Ownership` of the subject company: owner name, percent, shares, as-of event date | S04.US.01 | **yes** when the type of reporting person is IN (individual); otherwise no | numeric values only (the XML schema enforces numbers); last 3 years; the newest filing per reporting person wins |
+| `primary_doc.xml`: issuer CIK, CUSIP, reporting person name, citizenship or place of organisation, type of reporting person, aggregate amount, percent of class, event date | `Ownership` of the subject company: owner name, percent, shares, as-of event date | S04.US.01 | **yes** when the type of reporting person is IN (individual); otherwise no | numeric values only (the XML schema enforces numbers); last 3 years, listed newest first, one line per filing (no de-duplication across filings: that would need a person key) |
 
 ## Party gate
 
@@ -127,14 +138,14 @@ Each fiscal year is one `fact_reports` row (`kind = annual_accounts`, `period_st
 ## Identity and joins
 
 - `eid` `us-cik-<10-digit CIK>`, stable for life. CIK ↔ ticker from `us-sec-tickers`. CIK ↔ LEI only through GLEIF (`gleif.md`); SEC files carry no LEI. CIK ↔ EIN from submissions (fill *verify*).
-- People: HMAC person id over source, company eid and the owner CIK or name (§3.3); the owner CIK itself is never stored.
+- People: no person id (§3.3, `PERSON_ROWS=names_no_id`). Person rows are positions inside the issuer's role set; the owner CIK is dropped. The same insider at two issuers is two unrelated rows, so S17.US.01 (shared insiders) stays LATER by construction.
 - Search: public companies are found by name or ticker from `us-sec-tickers` (about 10,000 rows) and by Form D issuer name.
 
 ## Refresh and change
 
 - Tickers: content hash per daily file; row hash per CIK; removed CIKs lose their `Security` statements (delisted), the company stays.
 - Company (on view): re-fetch when older than 24 h; row hash per document section; events added, never deleted (filings don't disappear).
-- Insiders: one record per issuer and calendar quarter (A8): `record_key` = `insiders:<issuerCik>:<yyyy>q<n>`, holding the quarter's transaction aggregate and its filing events; `hashInput` = the quarter's rows (accession, owner key, code, shares, price) sorted by accession and row. Current roles are one record per issuer: `roles:<issuerCik>`, `hashInput` = sorted (owner HMAC id, relationship, title). On a new quarterly file, load it and drop the quarter that leaves the 8-quarter window; unchanged quarters write nothing.
+- Insiders: one record per issuer and calendar quarter (A8): `record_key` = `insiders:<issuerCik>:<yyyy>q<n>`, holding the quarter's transaction aggregate and its filing events; `hashInput` = the quarter's rows (accession, relationship, code, shares, price) sorted by accession and row (no owner identifier). Current roles are one record per issuer: `roles:<issuerCik>`, `hashInput` = the role lines (relationship, title, name) in source order. On a new quarterly file, load it and drop the quarter that leaves the 8-quarter window; unchanged quarters write nothing.
 - Form D: one record per filing: `record_key` = `formd:<accession>`, `hashInput` = the issuer, offering and related-person lines in table order.
 - Tickers: one record per CIK: `tickers:<cik>`. Company: `submissions:<cik>` and `companyfacts:<cik>` (one record each per company, grouped as A8). Holders: `holders:<subjectCik>:<accession>`.
 - Holders: index rows appended daily; documents fetched on view, cached as records.
@@ -163,7 +174,8 @@ All estimated until the key-testing round:
 | `sources/src/us/sec/companyfacts.test.ts` | concept fallback order; 5-year window; duplicate `end` dates resolved by latest `filed`; IFRS company handled |
 | `sources/src/us/sec/items-502.test.ts` | an 8-K with item 5.02 produces `filing.8k.5.02`; no person name is extracted |
 | `ingest/src/sec-fetcher.test.ts` | no request leaves without `SEC_USER_AGENT`; 8 requests per second across concurrent loaders; the User-Agent never appears in logs |
-| `ingest/src/insiders-window.test.ts` | the 9th quarter is dropped; a role missing from the new window emits `finora.role_ended` without a name |
+| `ingest/src/insiders-window.test.ts` | the 9th quarter is dropped within the 0.625 purge guard; a role missing from the new window emits `finora.role_ended` without a name |
+| `sources/src/person-fields.test.ts` (US cases) | no SEC loader's hash input or stored fields contain `RPTOWNERCIK` or any CIK of a reporting person |
 | `ingest/src/party-gate.test.ts` (SEC cases) | 13D/G type IN → personal person; type CO → company; Forms 3/4/5 owners → personal |
 | `domain/src/items/hide.test.ts` | OUT.US.01 has no loader, field map or agent tool |
 | `web/e2e/us-public-needs-key.spec.ts` | with no `SEC_USER_AGENT`, a US public profile shows KEY states and promises nothing |

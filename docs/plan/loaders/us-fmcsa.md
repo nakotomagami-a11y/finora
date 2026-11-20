@@ -10,6 +10,13 @@ Module `packages/sources/src/us/fmcsa/`. Research: `docs/research/us.md` §4.10,
 - `asOf`: `[portal_metadata]` (`rowsUpdatedAt`), then `[max_date_in_data]` over census `mcs150_date`.
 - `maxPurgeShare`: 0.05. `deepLink`: `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string={recordKey}` (*pattern not verified*). `orderUrl`: null. `requires`: none (optional `SOCRATA_APP_TOKEN`). `limits`: `{ requestsPerSecond: 5 }`.
 
+### Contract fields (milestone A.1 checklist)
+- `asOf`: `[portal_metadata, max_date_in_data]`.
+- `purgeScope`: brokers `full`; carriers per opened entity (as `us-states.md`). `maxPurgeShare`: brokers **0.02** (floor; the daily removal share of the 25,081 active brokers is measured over two consecutive pulls at build time); carriers 1.0 per entity re-fetch.
+- `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4; here the module includes the legal-form token list used by the party gate.
+- Record unit: one record per USDOT number, grouping its L&I, census and revocation rows; sorted by `dot_number`.
+- `personRecordKey`: none (officer names are dropped; sole-proprietor carriers are reduced, not stored as persons). Share-alike events: none.
+
 ## Items
 | item_id | Call | Caveat | Empty state |
 |---|---|---|---|

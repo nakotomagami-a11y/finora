@@ -14,6 +14,13 @@ Module `packages/sources/src/us/sam-exclusions/`. Research: `docs/research/us.md
 - `requires`: `["SAM_GOV_API_KEY"]` (**deferred: key pending**, register C7). Without it: `not_checked{reason: "needs_key"}`.
 - `limits`: `{ dailyRequests: 10 }`.
 
+### Contract fields (milestone A.1 checklist)
+- `asOf`: `[in_file_name]`.
+- `purgeScope`: `full`. `maxPurgeShare`: **0.02** (floor). Measurement pending: three consecutive daily files are listed (`…_26321`, `…_26322`, `…_26323`); diffing two needs the keyed download, so it is measured in the key-testing round.
+- `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4.
+- Record unit: one record per `SAM Number`, file order.
+- `personRecordKey`: none (individuals are not read). Share-alike events: none.
+
 ## Items
 | item_id | Call | Caveat | Empty state |
 |---|---|---|---|

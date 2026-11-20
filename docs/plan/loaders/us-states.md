@@ -19,7 +19,6 @@ Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, 
 - `cacheTtl`: `{ refetchHours: 24, purgeUnviewedDays: 30 }` (`LIVE_CACHE_REFETCH_HOURS`, `PERSON_DATA_TTL_DAYS`; P5).
 - `cadence`: `on-view`. `publishedAtUtc`: null (portals refresh daily, NY master monthly).
 - `asOf`: `[portal_metadata]`: the dataset's `rowsUpdatedAt` (Unix seconds) from `GET https://<host>/api/views/<dataset>.json`, read in the same fetch as the rows; it renders as "as published by the portal". It is the dataset's refresh time, not a per-record date; record dates (filing, formation, status dates) are separate statements. Measured 2026-11-19/20: NY 2026-11-19, CO 2026-11-19, CT 2026-11-19, PA 2026-11-03.
-- `maxPurgeShare`: 1.0 per entity re-fetch (the unit is one opened entity: a company can lose all its people or UCC rows); the 30-day purge of unviewed entities is not a sync purge and is not guarded.
 - `deepLink`: null. No state publishes a stable per-entity URL that we verified; the source chip links the dataset page `https://<host>/d/<dataset>`.
 - `orderUrl`: null.
 - `requires`: none. Optional `SOCRATA_APP_TOKEN` (header `X-App-Token`): "requests that aren't using an application token come from a shared pool via IP address", and token requests are not throttled (https://dev.socrata.com/docs/app-tokens.html).
@@ -37,6 +36,14 @@ Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, 
 | PA | `xvd7-5r2c?filing_number=<n>` (one row per party) |
 
 Every query sends `$select` with exactly the columns in the field map, so unread columns (residence addresses, emails, phones) never leave the portal.
+
+### Contract fields (milestone A.1 checklist)
+- `asOf`: `[portal_metadata]` (see above).
+- `purgeScope`: `full`, applied per opened entity: one re-fetch defines that entity's rows in each dataset. `maxPurgeShare`: **1.0 per entity re-fetch**: the unit is one company, which can legitimately lose all its principals, parties or UCC lines between two views (CT terms require withdrawn records to go). The 30-day purge of unviewed entities is the P5 cache purge, not a sync purge.
+- `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4; here the module includes each dataset's `$select` column list, so adding or removing a column re-parses.
+- Record unit and sort order: one record per entity per dataset (see Refresh and change).
+- `personRecordKey` (people sources: NY `chairman_name`, CT `ka36-64k6`, PA party rows): the record is the company's **role set** in that dataset, `recordKey` = `<dataset>:<entity key>`, hash input = every role line (role, name) in the source's order. No person id, hash or code is computed (architecture §3.3, `PERSON_ROWS=names_no_id`). **Role-end detection:** none of the three has a row-local role id or a start date, so a line's identity is its role and its occurrence among lines with that role; `finora.role_ended` fires when the number of lines with a role falls (one event per missing line, no name), never by comparing names. A corrected spelling or reordering emits nothing.
+- Share-alike events: none.
 
 ## Items
 
@@ -136,7 +143,7 @@ UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`: a 
 - No bulk load. **Open:** fetch the entity and its related rows. One record per entity per dataset (architecture A8, long-format rows grouped):
   - `record_key` = `<dataset>:<entity key>`: NY `n9v6-gdp6:<dos_id>`, `3gg2-jgnp:<dos_id>`, `k4vb-judh:<dos_id>`; CO `4ykn-tg5h:<entityid>`, `casm-dbbj:<entityid>`, `8upq-58vz:<entityid>`; CT `n7gp-d28j:<accountnumber>`, `ka36-64k6:<accountnumber>`, `ah3s-bes7:<accountnumber>`, `xfev-8smz:<accountnumber>`; PA `xvd7-5r2c:<filing_number>` (all party rows of a business are one record).
   - `hashInput`: the field-map columns of each row in the order listed above, normalised, rows sorted by their natural key (NY history `film_num|date_filed`; CO `transactionid`; CO UCC `fileid|debtorid`; CT principal `name__c|designation`; CT filing `filing_date|type|volume|pages`; CT UCC `id_lien_flng_nbr`; PA `party_type|last_name|first_name|middle_name`).
-  - A change in any row rewrites that dataset's record for the entity; people are diffed by their HMAC id inside the record so an ended role still emits `finora.role_ended`.
+  - A change in any row rewrites that dataset's record for the entity. People: see `personRecordKey` above for role-end detection.
 - **Re-fetch on view** when the cached copy is older than 24 h. Rows present before and absent now are **deleted** (no tombstone), including withdrawn or corrected CT rows (CT terms: "promptly correct or remove"; legal condition). A removed person row emits `finora.role_ended` with no name (P4).
 - **Purge:** entities not viewed for 30 days are deleted with all their rows (`live_cache_views`, P5).
 - History events (§3.7): `finora.name_changed`, `finora.address_changed`, `finora.status_changed`, `finora.legal_form_changed` between two fetches of the same entity; `finora.role_ended`.

@@ -10,6 +10,13 @@ Module `packages/sources/src/us/fdic/`. Research: `docs/research/us.md` §4.3, p
 - `asOf`: `[in_file_field]` — the response's `meta.index.createTimestamp`; then `[max_date_in_data]` over `REPDTE` for financials.
 - `maxPurgeShare`: 0.02. `deepLink`: `https://banks.data.fdic.gov/bankfind-suite/bankfind/details/{recordKey}` (*pattern not verified*; falls back to the BankFind search page). `orderUrl`: null. `requires`: none. `limits`: `{ requestsPerSecond: 2 }` (rate-limit header 20 seen; no published number).
 
+### Contract fields (milestone A.1 checklist)
+- `asOf`: `[in_file_field, max_date_in_data]` (response `meta.index.createTimestamp`, then `REPDTE`).
+- `purgeScope`: `full`. `maxPurgeShare`: **0.02**. Measurement: failures and mergers remove a few institutions a week out of 27,835 (failures: 4 in 2026 to 2026-07-17), well under 0.4%, so the floor applies.
+- `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4.
+- Record unit: one record per institution, per failure, per bank's history set, and per bank-quarter of financials; API order.
+- `personRecordKey`: none. Share-alike events: none.
+
 ## Items
 | item_id | Call | Caveat | Empty state |
 |---|---|---|---|

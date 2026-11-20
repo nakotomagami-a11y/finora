@@ -5,13 +5,21 @@ Module `packages/sources/src/intl/gleif/`. Research: `docs/research/us.md` §4.9
 ## Source
 - Publisher: Global Legal Entity Identifier Foundation. `officialHosts`: `goldencopy.gleif.org`, `api.gleif.org`, `search.gleif.org`.
 - Endpoints:
-  - Publish list: `https://goldencopy.gleif.org/api/v2/golden-copies/publishes/latest` → JSON with the URLs of the full LEI-CDF CSV (`…-gleif-goldencopy-lei2-golden-copy.csv.zip`) and the delta files (`…-lei2-last-day-…csv.zip`; *verify the delta key names on first build*).
+  - Publish list: `https://goldencopy.gleif.org/api/v2/golden-copies/publishes/latest` → JSON with the URL of the full LEI-CDF CSV (`…-gleif-goldencopy-lei2-golden-copy.csv.zip`).
   - Full file measured 2026-11-19 16:00: 510,551,864 bytes zipped, 3,499,919 records, 338 columns.
 - `id`: `intl-gleif-lei`. `licence`: `cc0-1.0` ("The data available through the Access Service are provided under the CC0 licence", https://www.gleif.org/en/meta/lei-data-terms-of-use, verified 2026-11-20). `attribution`: none required; the source chip reads "Global LEI Foundation (GLEIF)". Don't suggest GLEIF endorses Finora; no GLEIF logo.
-- `storage`: `store`. `cadence`: `daily` (GLEIF publishes three times a day; we take one delta a day and a full file weekly). `publishedAtUtc`: "00:00, 08:00, 16:00" (file names carry the time).
+- `storage`: `store`. `cadence`: `weekly` (GLEIF publishes three times a day; v1 takes the full file once a week, see the cadence choice below). `publishedAtUtc`: "00:00, 08:00, 16:00" (file names carry the time).
 - `asOf`: `[in_file_name]` (`20261119-1600-…` → 2026-11-19T16:00Z), then `[max_date_in_data]` over `Registration.LastUpdateDate`.
-- `maxPurgeShare`: 0.02 (weekly full reload; LEIs are never deleted upstream, only re-statused, so a large purge means a broken file).
-- `deepLink`: `https://search.gleif.org/#/record/{recordKey}`. `orderUrl`: null. `requires`: none. `limits`: one full download a week, one delta a day.
+- `deepLink`: `https://search.gleif.org/#/record/{recordKey}`. `orderUrl`: null. `requires`: none. `limits`: one full download a week. The raw cache drops the full file after a successful load (§4.5).
+
+### Contract fields (milestone A.1 checklist)
+- `asOf`: `[in_file_name, max_date_in_data]` (file name time stamp, then `Registration.LastUpdateDate`).
+- `purgeScope`: `full`. `maxPurgeShare`: **0.02**. Measurement: LEIs are re-statused (LAPSED, RETIRED), not removed from the golden copy, so the weekly removal share is expected near 0; two consecutive weekly files settle it at build time (S04 benchmark), and the floor of 2% applies until then.
+- `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4; here the module includes the registration-authority code table.
+- Record unit: one record per LEI (`record_key` = LEI), file order; no grouping needed.
+- `personRecordKey`: none (no person rows; sole-proprietor LEIs are not loaded).
+- Share-alike events: none.
+- **Cadence choice:** weekly full file only in v1, not daily deltas. A delta file can't define what was removed, so purge would need a second source id; a weekly full load keeps one source with `purgeScope: full` and stays current under the 2x-cadence rule (14 days). Daily deltas are a later optimisation.
 
 ## Items
 
@@ -63,14 +71,14 @@ Rows are kept only when `Entity.LegalAddress.Country` or `Entity.LegalJurisdicti
 - A pair whose entity id doesn't resolve leaves the LEI as its own `lei-*` entity (searchable by name and LEI); never matched by name.
 
 ## Refresh and change
-- Weekly full load; daily delta: rows in the delta replace their record. `record_key` = LEI; `hashInput` = the field-map columns in table order.
+- Weekly full load. `record_key` = LEI; `hashInput` = the field-map columns in table order; unchanged rows write nothing.
 - Removal: an LEI missing from a full file is deleted (GLEIF normally keeps them with a status, so the purge guard at 2% catches broken files).
 - History events: `finora.name_changed`, `finora.status_changed` (for example ISSUED → LAPSED) between syncs.
 
 ## Size and time budget
 - Kept rows: about 406,000 (US 365,812; EE 30,619; LT 5,392; LV 4,450) minus about 250 sole proprietors.
 - About 9 statements per row ≈ 3.6 M statements ≈ 0.45 GB at 123 B. Share of the cross-border 1 GB budget: ≈ 0.45 GB.
-- Full parse of 3.5 M rows (filtering 89% away): ≈ 3-5 min, estimated (the probe's single pass over the zip completed in minutes; not timed separately). Daily delta: seconds.
+- Full parse of 3.5 M rows (filtering 89% away): ≈ 3-5 min, estimated (the probe's single pass over the zip completed in minutes; not timed separately), once a week in the background.
 
 ## Fixtures
 - `fixtures/intl/gleif/lei2-golden-copy.csv` with the real header (338 columns; generated from the column list, not copied) and 12 rows: one per RA code above, one RA999999, one LAPSED, one SOLE_PROPRIETOR (must be dropped), one FUND, one non-target country (must be filtered).
@@ -87,8 +95,7 @@ Rows are kept only when `Entity.LegalAddress.Country` or `Entity.LegalJurisdicti
 ## Failure modes
 | Case | Behaviour | UI |
 |---|---|---|
-| Publish list unreachable | keep the last load; sync `failed` | LEI with "as of [date]"; Stale after 2 days |
-| Delta missing for a day | the next delta or the weekly full load catches up | none |
+| Publish list unreachable | keep the last load; sync `failed` | LEI with "as of [date]"; Stale after 14 days |
 | Column renamed | sync `failed` with `schema_changed` | last good data stays |
 
 ## Open questions

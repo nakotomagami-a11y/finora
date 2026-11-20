@@ -19,6 +19,13 @@ Agent tools, not stored loaders (`storage: agent-only`, architecture §3.5). Mod
 - `requires`: SEC feeds need `SEC_USER_AGENT`; the others need nothing.
 - `limits`: SEC shared bucket (8 per second); DOJ 4 per second (global, architecture §7.6a).
 
+### Contract fields (milestone A.1 checklist)
+- `asOf`: `[in_file_field]` per feed (above).
+- `purgeScope`: `none`; `maxPurgeShare`: not applicable (agent-only: nothing is stored, so nothing is purged).
+- `parserVersion` (A1): the hash of the loader module, its field map and the generated item list, as in §4.4 (the tool's parsers).
+- Record unit: none stored; each feed item is one investigation document.
+- `personRecordKey`: none. Share-alike events: none.
+
 ## Items
 | item_id | Call | Caveat | Empty state |
 |---|---|---|---|
