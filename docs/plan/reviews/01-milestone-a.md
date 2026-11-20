@@ -24,6 +24,14 @@
 **Still open on milestone A (qa check at `915b03d`):**
 - **A9 (closed, `f9afef6`, verified by qa): cto's budget numbers.** "Raw cache ≤ 1.5 GB / data dir ≤ 12 GB" is not yet in §4.5 or `benchmarks.md`, and `maxPurgeShare` is not yet the rule `max(2%, 5x measured removal share)` with a boundary test.
 - **A10 (closed, `f9afef6`, verified by qa): N2 regression.** `architecture.md:649` still says "the hold is kept across retries and settled once"; each attempt must settle and a retry takes a new hold.
-- **A11 (open, does not block milestone B): change-feed deletes** (qa). A feed's deletes are explicit (LT tax arrears: 1,379 a day), so the purge guard never sees them, and one bad feed page could clear the list. `maxPurgeShare` applies to a feed sync's deletes too. Test: a feed page that deletes 50% of records is refused as `purge_guard`.
+- **A11 (closed, `0e3cee3`, verified by qa): change-feed deletes** (qa). A feed's deletes are explicit (LT tax arrears: 1,379 a day), so the purge guard never sees them, and one bad feed page could clear the list. `maxPurgeShare` applies to a feed sync's deletes too. Test: a feed page that deletes 50% of records is refused as `purge_guard`.
 
 **cto's corrections to `docs/plan/benchmarks.md` (sent to the architect):** drop the unmeasured "NVMe SSD" from `dev-desktop-1` (8 cores / 16 threads, 32 GB RAM, disk type not recorded); label the statement-layout rows by run (run 2 ran under unrelated CPU load: its times are not budgets, its sizes and write counts are); compare ranked with ranked: trigram top 20 with rank is p50 13 ms, p95 34 ms, beside prefix p50 19 ms, p95 39 ms, so ~40 ms p95 per index is the budget.
+
+**Person rows (§3.3, `names_no_id`), qa check at `37cf9a8` (legal agrees with all three):**
+- **M1, MUST-FIX: a dispute must survive a role-set reload** (R10). Its target is company eid + source + item + an internal hash of the disputed line's normalised content, re-applied after every load; the hash is never output, exported or logged (canary rule). Test `store/src/disputes.test.ts`: dispute officer A, add officer B, A stays suppressed and B shows. Architect's `b61002a` answer: stable targets for findings, citations, disputes and `purpose_log`, test `store/src/person-targets.test.ts`. qa to verify.
+- **S1, SHOULD-FIX: a correction must not read as "a role ended".** Diff on the source's own row-local role id (LV officer `id`, EE `kirje_id`), internal only, else (role, start date); names are never compared. Architect's `b61002a`: test `ingest/src/role-ended.test.ts`. qa to verify.
+- **S2, SHOULD-FIX: §3.4 is stale** (still `p-<20 hex>` with a fixture HMAC key); update it so no builder implements the HMAC. Not mentioned in the architect's last post.
+- **Legal note:** the role-set hash and the dispute content hash are internal change detection only and fall under the PS5 canary scope.
+
+**cto's `benchmarks.md` corrections:** done in `b61002a` per the architect.
