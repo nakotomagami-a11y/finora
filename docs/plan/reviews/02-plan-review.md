@@ -52,8 +52,8 @@ All 21 round 1 MUST-FIX are closed. First review of the Baltic specs, `sanctions
 |---|---|---|---|
 | R2-1 | data-osint | `sanctions.md` stored listed natural persons and kept them in the raw cache | **closed**, verified by qa at `88ef579` |
 | R2-2 | data-osint | `sanctions.md:239`: unproven foreign parties on the LV FIU list stored as organisations | **closed**, verified by qa at `0b22c02` (with the sanctions SHOULD-FIX and NITs) |
-| R2-3 | data-baltics | `ee-register.md:98`: sole traders' VAT numbers stored | open: drop the number for `natural_person = 1`, keep yes/no |
-| R2-4 | data-baltics | `ee-register.md:62, 122-138`: natural-person insolvency stored | open: gate the status mapping and the cards, rulings and pledges files on `natural_person = 0`; HIDE negative case |
+| R2-3 | data-baltics | `ee-register.md:98`: sole traders' VAT numbers stored | fixed in `2314a54` (number and `links` row dropped, `finora:vatRegistered` kept); qa to verify |
+| R2-4 | data-baltics | `ee-register.md:62, 122-138`: natural-person insolvency stored | fixed in `2314a54` (FIE status coarsened to `registered`/`struck_off`; FIE records dropped from cards, rulings and pledges; HIDE case in `hide.negative.test.ts`); qa to verify |
 
 | R2-5 | data-baltics | `lt-sodra.md` still said `live-no-store` in the instant profile | **closed**, verified by qa at `b092931` |
 
