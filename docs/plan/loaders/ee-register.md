@@ -167,6 +167,8 @@ Only the paths below are read. Everything else in the object (registry-card book
 - Counts by reason go to `syncs.report_json.dropped`.
 
 ## Identity and joins
+
+**Sole traders' codes are never personal codes** (legal's S04a condition; measured 2026-11-19): all 24,545 FIE carry an 8-digit registry code starting with 1. Estonian personal codes have 11 digits, so an FIE's id can never be one.
 - `eid` = `ee-<8-digit code>` from `ee-rik-basic`, which owns the entity row. The other four sources attach to it by code; a code not in the latest basic file is skipped `code_not_in_register` (it is either deleted, so it will be tombstoned, or not a register entity).
 - VAT ↔ code: one `links` row per `kmkr_nr` (42.7% of active companies have one).
 - LEI: joined by `gleif.md` (registration authority `RA000181`), not here.

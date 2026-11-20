@@ -155,6 +155,8 @@ Not applicable: these files describe companies only, with no party rows. They ar
 
 ## Identity and joins
 
+**Sole traders' codes are never personal codes** (legal's S04a condition; measured 2026-11-19): every individual enterprise (individuali įmonė, 13,045 registered) and its branches carry a 9-digit register code (first digit 1, 2 or 3). Lithuanian personal codes have 11 digits, so a sole trader's id can never be one.
+
 - `eid` = `lt-<ja_kodas>`. The code is issued for life; no code appears in both files (0 overlap measured).
 - `record_key`: `lt-rc-jar-entities` = `ja_kodas`; bodies, capital, activity = `ja_kodas`.
 - `hashInput` (fixed order; `row_hash` = sha256 truncated to 16 bytes): entities = `[file, ja_pavadinimas, adresas, ja_reg_data, form_kodas, stat_kodas, stat_data_nuo, isreg_data]` (the name and address of natural-person forms are hashed but not stored, so a change still emits no event with personal content: see history below); bodies = the 8 role columns read; capital = `[ist_kapitalas, valiuta, ist_kap_nuo]`; activity = `[veikla code, veikla_atnaujinta]`.

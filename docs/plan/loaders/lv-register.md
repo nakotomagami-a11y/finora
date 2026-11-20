@@ -174,6 +174,11 @@ Not applicable to the identity rows: `register.csv` is the register itself, and 
 
 ## Identity and joins
 
+**Sole traders' registration numbers are never personal codes** (legal's S04a condition; measured on the full register file of 2026-11-19, all 490,496 entities):
+- Every sole-trader form (`IK`, `ZEM`, `ZVJ`, `IND`, `GIM`; 89,764 rows, active and ended) carries a register-issued code: 11 digits starting with 4, 5 or 6 and passing the register checksum, or a 9-digit legacy code (ended entities only).
+- Across the whole file, 11-digit codes start only with 4 (413,448), 5 (41,541), 6 (26) or 9 (1,241). None starts with 0-3, so none can be an old-style personal code (`DDMMYY…`, a day of 01-31), and none starts with 32 (new-style codes). 9-digit legacy codes cannot match the 11-digit personal-code length.
+- So no LV sole trader carries the owner's personal code as its registration number. The store's sole-trader exception covers register codes only; a sole-trader id value that matches the personal-code pattern is refused (S04i test), and the fixture world includes one such row to prove it.
+
 - **Entity id.** `lv-<11-digit regcode>`.
 - **Check digit.** Weights `9,1,4,8,3,10,2,5,7,6` over the first 10 digits, check digit = `(3 − Σ) mod 11`. A result of 10 means no valid code exists for that prefix. All 456,256 eleven-digit codes in the 2026-11-19 file pass. The implementation is `domain/src/ids/lv.ts`, shared with every LV loader.
 - **Join keys.** Other LV sources join by the same code: the tax authority (`Registracijas_kods`, 98.6% found), annual reports (100%), officers and members (100%), insolvency (100%). The VAT number is `LV` + code, embedded (`lv-tax.md`). LEIs are linked by `gleif.md` via `registeredAs` = code, authority `RA000423`.
