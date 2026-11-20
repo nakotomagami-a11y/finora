@@ -797,7 +797,14 @@ Architect's questions: a/b registry code; c no row id (key = registry code + yea
 - Licence: CC BY-SA 3.0 per andmed.eesti.ee. Verified 19 Nov 2026.
 - Keys, limits, cost: none.
 - Legal constraints: the page puts full responsibility for lawful further processing on the user.
-- Tested with: `fetch_emta.py`, `build_index.py`, `diff_pulls.py snapshot`.
+- Natural persons in the list (asked by `legal` for rule 5; measured 2026-11-20 on the 19 Nov file):
+  - **The file does not mark them.** It has no person-type column; the columns are as-of date, code, name, debt, disputed part, scheduled part, schedule end date and oldest due date.
+  - **Estonian sole traders (FIE): 0 rows.** None of the 24,545 FIE in the register appears, and no name carries "FIE". The tax board publishes legal persons only.
+  - **19,622 rows (98.5%) are legal persons in the e-Business Register**, by legal form: private limited companies 19,071; non-profit associations 236; public limited companies 148; limited partnerships 64; cooperatives 38; general partnerships 25; foundations 17; foreign-company branches 13; apartment associations 8; others 2.
+  - **298 rows (1.5%) carry a code that is not in the register.** 277 of those codes start with 6, and the names are mostly foreign companies, associations, embassies and garage cooperatives that are registered only with the tax board. 12 codes are non-numeric.
+  - **About 8 of those 298 (0.04% of the list) identify natural persons.** Four rows are bare personal names; the others are foreign sole proprietorships, a civil partnership and a trust, each named after people. This count comes from a manual review of the names, so it is approximate.
+  - **Loader rule this gives:** keep a row only when its code is in the e-Business Register with a non-FIE legal form. That keeps 19,622 rows and drops every natural person by construction. The 298 codes not in the register are held back: no profile can be pinned to them anyway.
+- Tested with: `fetch_emta.py`, `build_index.py`, `diff_pulls.py snapshot`; the natural-person split with `python -I research/probes/baltics/ee/debtor_persons.py` (the name review is manual and not in the script).
 - Verdict: use. Grade B for S08 (daily and complete, but share-alike).
 
 ### Public procurement register (Riigihangete register)
