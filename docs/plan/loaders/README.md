@@ -24,9 +24,17 @@ Every spec has these sections, in this order. Write "none" rather than leave a s
 
 ## Source
 - Publisher, official URL, file or endpoint URLs (stable alias or how to find the current URL)
-- Licence id and attribution text, as recorded in docs/research; `storage` class (store / share-alike-store / live-no-store / live-cached)
+- Licence id and attribution text, as recorded in docs/research, with `verifiedOn` (URL and date); `storage` class (`store`, `share-alike-store`, `live-no-store`, `live-cached`, `agent-only`, `connector-cache`); `officialHosts`
 - Cadence, publication time (UTC) and the as-of field inside the file that proves freshness
 - Keys or accounts (env var name), rate limits, politeness rules
+
+## Contract fields (architecture §4.2-§4.4)
+- `asOf`: ordered strategies proven on real files (`in_file_field`, `in_file_name`, `max_date_in_data`, `portal_metadata`, `http_last_modified`); key-pending ones marked as such
+- `purgeScope` (`full`, `window`, `periods_in_file`, `none`) and `maxPurgeShare` = max(2%, 5x the measured removal share per refresh period), with the measurement
+- What feeds `parserVersion` (the loader module, its field map, the item list)
+- Record unit and sort order (long-format sources group rows per report or company-period); `changeToken` if the source has one
+- Person sources: the role-line identity (row-local role id, else (role, start date), else (role, occurrence)), shown not to be code- or name-derived
+- History events produced; share-alike-derived events go to `finora-sa.db`
 
 ## Items
 Every Part G item_id this source fills, with its call, caveat text and empty state, copied from 01-data.md.
