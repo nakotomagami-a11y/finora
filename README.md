@@ -6,6 +6,10 @@ Checking a company by hand means hours across a dozen registries and websites. A
 
 **Status: research.** No app code yet. We are first measuring which public data actually exists for the US and the Baltics (Lithuania, Latvia, Estonia) and what it lets us show. Architecture and code come after that.
 
+## Running Finora
+
+v1 runs locally only, on your own machine: one command starts the app on `127.0.0.1` with the public registers loaded (see `docs/plan/slices.md` S12 once it lands). There is no hosted build until the publication-related lawyer questions in `docs/plan/lawyer-register.md` are cleared.
+
 ## Planned tools
 
 | Tool | What it does |

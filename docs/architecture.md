@@ -2,6 +2,8 @@
 
 > **Status: phase 3, milestone B.** §3-§4 (milestone A) are the contract the loader specs implement and were verified by qa. §5-§17 are revised against council session 1, `docs/plan/agents.md`, `docs/plan/ui-build-plan.md` and the loader specs. The slice plan is `docs/plan/slices.md`.
 
+> **v1 runs locally only.** There is no hosted build until the publication-related LAWYER rows in `docs/plan/lawyer-register.md` (including `LAW-AGPL-HOSTED` and the share-alike rows) are cleared by a lawyer (legal; council Part E).
+
 This document is for the people and agents who build Finora. It says where code goes, which way dependencies point, how data flows from a public registry to a sentence in a verdict, and which rules the code enforces. A builder should never have to guess; if this document leaves you guessing, that is a bug in the document.
 
 ---
