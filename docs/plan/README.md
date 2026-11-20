@@ -102,11 +102,11 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | `docs/plan/ui-build-plan.md` | frontend | 3 | landed |
 | `docs/plan/agents.md` | data-osint | 3 | landed `1ecbbc4`; court portals (§4.5a) to follow; §16 lists contract additions for the architect |
 | `docs/plan/prototype.md` | coordinator, with architect | 3 | draft pushed |
-| `docs/plan/lawyer-register.md` (P13) | legal (committed by coordinator) | 3 | 16 rows from legal + 5 added by the coordinator for legal to confirm |
+| `docs/plan/lawyer-register.md` (P13) | legal (committed by coordinator) | 3 | 32 rows, with affected items and tests |
 | `docs/plan/council/02-plan.md` | council + cto (committed by coordinator) | 4 | |
 | `docs/plan/qa-plan-checklist.md` | qa (committed by coordinator) | 3 | done |
-| `docs/plan/reviews/02-plan-review.md` (qa's full plan review, milestone B) | qa (committed by coordinator) | 3 | 21 MUST-FIX, all fixed by their owners; qa re-review pending |
-| `docs/plan/reviews/03-mockups.md` (web-qa's mockup review) | web-qa (committed by coordinator) | 3 | 6 blocking open (designer) |
+| `docs/plan/reviews/02-plan-review.md` (qa's full plan review, milestone B) | qa (committed by coordinator) | 3 | round 1: 21 MUST-FIX closed; round 2: 4 MUST-FIX (1 fixed, 3 open) |
+| `docs/plan/reviews/03-mockups.md` (web-qa's mockup review) | web-qa (committed by coordinator) | 3 | 6 blocking fixed by the designer in `05237c2`; web-qa re-run pending |
 | `docs/plan/reviews/00-early-plan-review.md` (qa's review of the early drafts; architect's committed fixes) | qa + architect (committed by coordinator) | 1 | done; 12 MUST-FIX open for phase 3 |
 
 ## Decisions

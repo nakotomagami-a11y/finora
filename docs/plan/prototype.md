@@ -29,7 +29,7 @@ Each scenario is a real task the maintainer does. The session 3 demos run them o
 |---|---|---|---|
 | U1 | **Morning check.** Open the app; look at Crash monitor | Tiles show drawdown from peak with as-of times; rows without a key say what to add; nothing reads "0%" without data | - |
 | U2 | **"Will this supplier still exist and deliver?"** Search a Latvian company by part of its name, open it | The profile shows status, officers (after a purpose), members that are companies, financials for 5 years, tax rating, insolvency and securing measures, sanctions lines, the 11 checks and the coverage line; every value has its source chip | LV |
-| U3 | **"An unknown company sent an invoice: is it real?"** Paste a name and a registry code from the invoice | Search pins the exact entity by code; if two match by name, the app asks which; a deregistered company reads "Removed from the register" with its date, never "no match" | EE, LT |
+| U3 | **"An unknown company sent an invoice: is it real?"** Paste a name and a registry code from the invoice (in Lithuania, social-insurance debts come with the investigation, not the instant profile) | Search pins the exact entity by code; if two match by name, the app asks which; a deregistered company reads "Removed from the register" with its date, never "no match" | EE, LT |
 | U4 | **Deep dive before signing.** Press Investigate on the profile | The pre-run range shows (typical to worst case under the $1.50 cap) next to today's remaining spend; four lanes run at once with task rows ticking; a question card appears when needed; the report ends in a level with "N of 11 checks ran", findings each with a citation, and an AI-written label on prose | LV, EE, LT, US public |
 | U5 | **US counterparty.** Search a US private company | Live groups for NY, CO, CT and PA arrive one by one, each with a "did not answer" state when it times out; the profile names the registries checked and says owners and accounts are not published in the US | US private |
 | U6 | **US public company.** Open a listed US company | Filings, financials, officers, insider trades behind the purpose gate (with `SEC_USER_AGENT`); without it, a clear `needs_key` state | US public |
@@ -47,7 +47,7 @@ Run from a clean clone, on real data, by a council seat or the maintainer, in th
 3. **Latvian supplier** (U2, D2, D3, D5). Search part of a name; open the company; state a purpose; read People; hover three values to see source, licence and dates; follow one link to the register.
 4. **Investigate** (U4, D4). Press Investigate; read the pre-run range; watch the four lanes; answer the question card; read the verdict, the coverage line and three citations; ask one follow-up.
 5. **Estonian invoice check** (U3). Search by registry code; open; see the tax-debtor line with its CC BY-SA attribution.
-6. **Lithuanian company** (U3). Open; see arrears, insured counts and the paid-extract line for names.
+6. **Lithuanian company** (U3). Open; see tax arrears, the paid-extract line for names, and "Social-insurance data: checked when you investigate"; investigate and see the money agent read social-insurance debts live.
 7. **Sole trader** (U7, D5). Open one; see the facts-only variant.
 8. **US private and public** (U5, U6). Search a common US name; watch the state groups arrive; open a listed company with `SEC_USER_AGENT` set.
 9. **Library and network** (U8, D7). Reopen the investigation from step 4; open the network view of the step 3 company and follow one shared-address link.
@@ -88,7 +88,7 @@ The council answers: would we use this every day? What is missing? Then signs of
 | Where | What | Data |
 |---|---|---|
 | Pre-commit and pre-push hooks | the guard | staged changes, messages, pushed commits |
-| CI on every push to the hub PR | `check`, `test`, `e2e`, `audit`, `demo-boot`, `field-registry`, `guard` | the seeded fixture world; recorded fixtures only; no keys |
+| CI on every push to the hub PR | `check`, `test`, `build` (with the bundle-secret check), `e2e`, `visual`, `audit`, `demo-boot`, `field-registry`, `guard` (the jobs in architecture §14) | the seeded fixture world; recorded fixtures only; no keys |
 | Nightly `live` job (local or a scheduled runner the human approves) | one sync per source against the real endpoint; asserts schemas, as-of freshness and reserved fixture ids staying unassigned | real sources, keys from the environment; output aggregates only |
 | Milestone gate (local, by a seat) | `scripts/milestone-gate.mjs` on the regression set | `research/.cache/` (never committed); prints aggregates only |
 

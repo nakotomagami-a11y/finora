@@ -43,3 +43,16 @@ The full list is in qa's hub post (7030010972). By owner:
 Part G ids carry bracketed labels (`gen-items` strips them, with a test); `agents.md:7` R1-R18; `finora.name_changed` everywhere; `ui-build-plan.md:3` mockups are on the branch.
 
 **Legal notes on the fixes (not blocking):** a fired rule id kept in the main store must never embed a value from a share-alike source (add to `agents/src/share-alike.test.ts`); FMCSA needs its `verifiedOn` URL and date before the source is enabled.
+
+## Round 2 (qa at `68ace5d`, 2026-11-20)
+
+All 21 round 1 MUST-FIX are closed. First review of the Baltic specs, `sanctions.md`, `prototype.md` and `lawyer-register.md`: **4 MUST-FIX.**
+
+| # | Owner | Finding | Status |
+|---|---|---|---|
+| R2-1 | data-osint | `sanctions.md` stored listed natural persons and kept them in the raw cache | fixed after the review in `64667b7` / `5659fa1` (persons dropped at parse into an in-memory index; no raw cache for the three lists, `rawCache: false` in `8ba77c1`); qa to verify |
+| R2-2 | data-osint | `sanctions.md:239`: unproven foreign parties on the LV FIU list stored as organisations | open: load only with a legal-form token, else drop as `unproven_party` |
+| R2-3 | data-baltics | `ee-register.md:98`: sole traders' VAT numbers stored | open: drop the number for `natural_person = 1`, keep yes/no |
+| R2-4 | data-baltics | `ee-register.md:62, 122-138`: natural-person insolvency stored | open: gate the status mapping and the cards, rulings and pledges files on `natural_person = 0`; HIDE negative case |
+
+**SHOULD-FIX (round 2):** sanctions: "listed" only with an issuing country; rule out only on a differing official id, not an address country; define the officer and sole-trader match path (options, signal, MCP name-only form); measured `maxPurgeShare` for UK, LV FID, ESMA and OFAC consolidated; `verifiedOn` URLs for EU, OFAC and UK. Baltic specs: no "late/overdue/deadline" vocabulary in events and test names (`filing.not_in_register`); `lv-risk.md` S10.LV.01 is LATER with MANUAL, with the portal host in `officialHosts`. `prototype.md` (coordinator, fixed): LT demo step and the CI jobs. `lawyer-register.md` (coordinator, fixed): affected-items and test columns, one stated row count. NITs: sanctions hash and `parserVersion` for UK, LV FID, ESMA; OFAC hash order; `officialHosts` gaps; fixture-id ranges in §3.4; `ruled_out` in `agents.md:169`; a test per R8 rule; `us-sec.md:111` points at the accession rule.
