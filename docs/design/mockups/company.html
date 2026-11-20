@@ -226,7 +226,9 @@
     let rows;
     if (subj.key === "lv") rows = R("Employees", { state: "data", html: `<span class="num">18</span> <span class="muted">· 30 Sep 2026</span> ${sparkline([14, 15, 15, 16, 16, 17, 17, 18], 96, 20)}`, src: S.vid, conf: "official", caveat: "Employees from tax filings, quarterly; covers 54-58% of active companies." });
     else if (subj.key === "ee") rows = R("Employees", { state: "data", value: "No employee count from the tax board for Q3 2026", src: S.emtaTax, conf: "official", caveat: "Quarterly, from the tax board (CC BY-SA); board members are not counted." });
-    else if (subj.key === "lt") rows = R("Insured employees", { state: "data", html: `<span class="num">27</span> <span class="muted">· 19 Nov 2026</span> ${sparkline([22, 23, 25, 24, 26, 27, 27, 27], 96, 20)}`, src: S.sodra, conf: "official", caveat: "Insured count from the social-insurance fund; no licence stated by the publisher." });
+    else if (subj.key === "lt") rows = phase === "report"
+      ? R("Insured employees", { state: "data", value: "27 on 20 Nov 2026", src: S.sodra, conf: "official", caveat: "Read live from Sodra by the money and tax agent and never stored, while the licence question is open." })
+      : R("Social-insurance data", { state: "not_checked", reason: "agent_only", agent: "money and tax" });
     else if (subj.key === "us-public") rows = secMissing ? R("Employees", { state: "not_checked", reason: "needs_key", text: "Set the SEC contact (user agent)" }) : R("Employees", { state: "data", value: "2,140 (FY 2025)", src: S.secFacts, conf: "official", caveat: "From the annual report (self-reported)." });
     else return "";
     return section({ id: "workforce", sid: "S07", title: "Workforce", body: `<div class="rows">${rows}</div>` });
@@ -245,8 +247,8 @@
       ${R("Tax debt", { state: "checked_none", sourceName: "the Tax and Customs Board's debtor list", asOf: "19 Nov 2026", src: S.emtaDebt })}
       ${R("Taxes paid", { state: "data", html: `<span class="num">€96k in 2025</span> <span class="tag tag-sa">CC BY-SA</span>`, src: S.emtaTax, conf: "official", caveat: "Taxes paid for 39.1% of active companies; share-alike licence. Left out of exports." })}`;
     else rows = `
-      ${R("Tax arrears", { state: "data", html: `<span class="num">€3,420</span> overdue since 2 Sep 2026 ${sev("point_to_check")}`, src: S.vmiArrears, conf: "official" })}
-      ${R("Social-insurance debt", { state: "checked_none", sourceName: "Sodra's debtor list", asOf: "19 Nov 2026", src: S.sodra, caveat: "Social-insurance fund; no licence stated by the publisher." })}
+      ${R("Tax arrears", { state: "data", html: `<span class="num">€3,420</span> on the list since 2 Sep 2026 (79 days) ${sev("point_to_check")}`, src: S.vmiArrears, conf: "official" })}
+      ${phase === "report" ? R("Social-insurance debt", { state: "checked_none", sourceName: "Sodra's debtor list (read live, not stored)", asOf: "20 Nov 2026", src: S.sodra }) : R("Social-insurance debt", { state: "not_checked", reason: "agent_only", agent: "money and tax" })}
       ${R("Taxes paid", { state: "data", html: `<span class="num">€318k in 2025</span>`, src: S.vmiTax, conf: "official" })}`;
     return section({ id: "tax", sid: "S08", title: "Taxes and arrears", body: `<div class="rows">${rows}</div>` });
   }
@@ -309,9 +311,9 @@
     if (state === "loading" || natural) return "";
     let rows;
     if (secMissing) rows = R("Filings", { state: "not_checked", reason: "needs_key", text: "Set the SEC contact (user agent) to load filings" });
-    else if (subj.key === "us-public") rows = `${R("Accounts filed on time", { state: "data", value: "10-K for FY 2025 filed 20 Nov 2025, on time", src: S.sec, conf: "official" })}${R("Material events", { state: "data", value: "Officer change (8-K item 5.02), 14 Feb 2026", src: S.sec, conf: "official" })}`;
+    else if (subj.key === "us-public") rows = `${R("Accounts filed", { state: "data", value: "10-K for FY 2025 filed 20 Nov 2025", src: S.sec, conf: "official" })}${R("Material events", { state: "data", value: "Officer change (8-K item 5.02), 14 Feb 2026", src: S.sec, conf: "official" })}`;
     else if (subj.key === "us-private") rows = R("Filing history", { state: "data", value: "Periodic report filed 2 Jul 2026", src: S.coSos, conf: "official", caveat: "State filing history, where the state publishes it (40% of samples)." });
-    else rows = R("Accounts filed on time", { state: "data", value: `Annual report for 2025 filed ${subj.key === "ee" ? "30 Jun 2026" : subj.key === "lt" ? "12 May 2026" : "28 Apr 2026"}, before the deadline`, src: { lv: S.fsLV, ee: S.rik, lt: S.jar }[subj.key], conf: "official" });
+    else rows = R("Accounts filed", { state: "data", value: `Annual report for 2025 in the register since ${subj.key === "ee" ? "30 Jun 2026" : subj.key === "lt" ? "12 May 2026" : "28 Apr 2026"}`, src: { lv: S.fsLV, ee: S.rik, lt: S.jar }[subj.key], conf: "official" });
     return section({ id: "filings", sid: "S13", title: "Filings and events", body: `<div class="rows">${rows}</div>` });
   }
 
@@ -388,11 +390,11 @@
       : fired.length ? fired.map(([c, i]) => `<div class="why-item">${icon(c[1] === "hard" ? "x" : "bang", "icon icon-sm")}<span><a href="#check-${i + 1}">Check ${i + 1}</a>: ${esc(c[2])} <span class="muted">(${c[1] === "hard" ? "hard flag" : "soft flag"})</span></span></div>`).join("")
       : `<div class="why-item">${icon("check", "icon icon-sm")}<span>No hard or soft flag in the checks that ran.</span></div>`;
     const explain = {
-      lv: "The company is active, files its accounts on time and has grown revenue for three years. Two things are worth a look before you pay a deposit: it changed its name in September, and an open securing measure since October stops it from registering changes. Ask what the measure relates to and whether it is close to being lifted.",
-      ee: "The company is registered, files on time and is not on the tax debtor list. It made a small loss in 2025, and a 2024 commercial pledge means a lender holds security over its assets, which is common for a freight company with vehicles.",
+      lv: "The company is active, its annual reports are in the register and it has grown revenue for three years. Two things are worth a look before you pay a deposit: it changed its name in September, and an open securing measure since October stops it from registering changes. Ask what the measure relates to and whether it is close to being lifted.",
+      ee: "The company is registered, its 2025 annual report is in the register and it is not on the tax debtor list. It made a small loss in 2025, and a 2024 commercial pledge means a lender holds security over its assets, which is common for a freight company with vehicles.",
       lt: "The company is active and profitable, but it is on the tax arrears list for €3,420 since September. That is below the serious threshold; ask whether a payment plan is in place.",
       "us-private": "The company is registered and in good standing in Colorado, with no UCC filings, exclusions or sanctions hits. US public sources say nothing about its owners, accounts or taxes, so there is not enough data for a conclusion.",
-      "us-public": "The company files on time and is profitable. A federal civil case names a party with the same name; the record has no identifier, so it needs your review before it means anything.",
+      "us-public": "The company's annual filings are in and it is profitable. A federal civil case names a party with the same name; the record has no identifier, so it needs your review before it means anything.",
     }[subj.key];
     return `<section class="verdict ${L[2]}" aria-labelledby="verdict-h">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="label">Verdict</span>${ruleTag()}</div>
@@ -408,7 +410,7 @@
   }
   function keyFindings() {
     return {
-      lv: [["Renamed from Paraugs Wood SIA on 3 Sep 2026, within the last 6 months.", "status"], ["An open securing measure since 2 Oct 2026 prohibits registering changes.", "insolvency"], ["Revenue up 10% in 2025 to €2.41m, profit €142k; accounts filed on time.", "financials"]],
+      lv: [["Renamed from Paraugs Wood SIA on 3 Sep 2026, within the last 6 months.", "status"], ["An open securing measure since 2 Oct 2026 prohibits registering changes.", "insolvency"], ["Revenue up 10% in 2025 to €2.41m, profit €142k; the 2025 annual report is in the register.", "financials"]],
       ee: [["A commercial pledge of €150,000 was registered in March 2024.", "insolvency"], ["Not on the tax debtor list as of 19 Nov 2026.", "tax"], ["A small loss of €12k in 2025 after four profitable years.", "financials"]],
       lt: [["On the tax arrears list for €3,420 since 2 Sep 2026.", "tax"], ["Profitable for five years; equity €640k.", "financials"], ["No social-insurance debt as of 19 Nov 2026.", "tax"]],
       "us-private": [["Good Standing in Colorado since 2019.", "status"], ["No UCC filings in Colorado.", "insolvency"], ["Owners, accounts and taxes are not published for US private companies.", "owners"]],
