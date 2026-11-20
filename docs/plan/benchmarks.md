@@ -18,6 +18,8 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 | First core load | ≤ 30 min; LV and LT searchable in ≈ 2 min, EE in ≈ 6 min |
 | Daily refresh | ≤ 5 min, never blocking reads |
 | Unchanged reload | one `syncs` row, 0 statement writes |
+| Raw cache | ≤ 1.5 GB (latest artifact per source, gzip; measured gzip ratios: LV register x4.7, LT legal entities x4.0, LV members x4.5; estimate ≈ 1.3 GB) |
+| Whole data dir | ≤ 12 GB |
 | Per source | records, bytes per record, statements, facts and events reported by each loader slice |
 
 ## Recorded measurements
