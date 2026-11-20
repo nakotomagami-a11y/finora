@@ -48,11 +48,18 @@ def mempool_height(probe_id):
 
 
 def btc_rpc_height(probe_id):
-    payload = json.dumps({"jsonrpc": "1.0", "id": 1, "method": "getblockcount", "params": []}).encode()
-    status, body, hdrs, s = get(probe_id, "https://bitcoin-rpc.publicnode.com", headers={"Content-Type": "application/json"}, data=payload)
-    height = as_json(body).get("result") if status == 200 else None
-    return summarise(probe_id, "public bitcoin rpc getblockcount", status, body, hdrs, s, {
-        "height": height, "supply_from_height_btc": round(btc_supply(height)) if height else None,
+    """Best block header over the public RPC: height and block time (the as-of) in two calls."""
+    def call(method, params, suffix):
+        payload = json.dumps({"jsonrpc": "1.0", "id": 1, "method": method, "params": params}).encode()
+        return get(probe_id + suffix, "https://bitcoin-rpc.publicnode.com", headers={"Content-Type": "application/json"}, data=payload)
+    status, body, hdrs, s = call("getbestblockhash", [], "")
+    best = as_json(body).get("result") if status == 200 else None
+    _, hb, _, _ = call("getblockheader", [best], "_header") if best else (None, b"{}", None, None)
+    header = as_json(hb).get("result") or {}
+    height = header.get("height")
+    return summarise(probe_id, "public bitcoin rpc best block header", status, body, hdrs, s, {
+        "height": height, "header_keys": sorted(header.keys()) or None, "age_hours": age_hours(header.get("time")),
+        "supply_from_height_btc": round(btc_supply(height)) if height else None,
     })
 
 

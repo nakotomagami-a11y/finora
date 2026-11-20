@@ -18,7 +18,7 @@
 - **Attribution:** "Source: ESMA, Financial Instruments Reference Data System (FIRDS)".
 - **Storage:** `store`.
 - **Cadence:** `daily`. FIRDS publishes reference data each business day. `publishedAtUtc: "08:00"` (FIRDS publication runs early morning CET; not measured, so the job runs at 08:00 UTC and a later run is cheap: unchanged is one sync row).
-- **As-of rule:** the maximum `publication_date` over all returned documents. A response with no `publication_date` fails the sync with `as_of_missing`.
+- **As-of rule:** `max_date_in_data` over `publication_date` of all returned documents (proven on the 2026-11-20 responses). A response with no `publication_date` fails the sync with `as_of_missing`.
 - **Keys:** none. **Limits:** none published. Politeness: 1 request/s, 6 requests per sync. `limits: { requestsPerSecond: 1, dailyRequests: 12 }`.
 
 ```ts
@@ -33,7 +33,8 @@ export const meta: SourceMeta = {
   storage: "store",
   cadence: "daily",
   publishedAtUtc: "08:00",
-  asOf: { kind: "json-max", path: "response.docs[].publication_date" },
+  asOf: [{ strategy: "max_date_in_data", field: "response.docs[].publication_date" }],
+  maxPurgeShare: 0.07,
   deepLink: "https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds&isin={isin}",
   orderUrl: null,
   requires: [],
@@ -90,6 +91,9 @@ Not applicable in the party sense: FIRDS rows are instruments, not parties. The 
 - **Change detection:** content hash over the six raw responses; equal → one `unchanged` sync row. Otherwise the row hash per record key.
 - **Removal:** a listing that ends (termination date set, `TERM`, or absent from every response) is **deleted** with its Security entity. History event on the company: `finora.listing_ended` with `data: { mic, isin }` and the sync date, item `S14.LTLVEE.01`. A new listing emits `finora.listing_added`.
 - **Unchanged file:** one sync row, no writes.
+- **Record unit and sort:** one listing, (`isin`, `mic`), built from all its versions; sorted by `mic`, then `isin`. Hash input `[isin, mic, listedSince, lei]`.
+- **`parserVersion`:** the module `packages/sources/src/intl/esma-firds/` (fetch, parse, the current-record rule), its field map, `venues.ts` and the items list.
+- **`maxPurgeShare`: 0.07.** Rule: max(2%, 5 × the measured removal share per refresh period). One delisting removes 1 of 67 records (1.5%); the register holds 45 terminated listings across the six venues over its history, so a day with one delisting is normal. 5 × 1.5% ≈ 0.07. That blocks a broken response for the larger venues (a venue coming back empty removes 7-33%). The smallest venue (3 listings, 4.5%) is caught by a second rule: every venue query returns all versions, including terminated ones, so a healthy venue never returns zero documents. A venue response with zero documents ends the sync `partial` with reason `venue_empty`, and nothing is purged.
 
 ## Size and time budget
 
@@ -119,6 +123,7 @@ Not applicable in the party sense: FIRDS rows are instruments, not parties. The 
 |---|---|---|
 | Endpoint down or HTTP error | sync `failed`, previous rows kept | the row keeps showing with its as-of date; Stale after 2 days (daily cadence) |
 | One of six venues fails | sync `partial`, nothing purged | as above |
+| A venue returns zero documents | sync `partial` with `venue_empty`, nothing purged | as above |
 | Schema change (a mapped field missing in every doc) | sync `failed` with `schema_changed` | as above; the Sources page shows the failure |
 | Stale `publication_date` | `stale_skipped` | as above |
 | Search endpoint withdrawn | `failed`; fallback documented below | as above |

@@ -61,7 +61,7 @@ market_latest(
 ```
 
 - **Window:** only observations dated on or after `peakSince − 10 days` are stored (the 10 days give a previous close at the window start). Moving `peakSince` earlier in Settings triggers a full refetch of every series; moving it later deletes the rows before the new window.
-- **Provenance to `SourceRef`:** `sourceId` from `market_series.source_id`; `licenceId`, `retrievedAt` and `asOf` from `market_obs.sync_id` → `syncs`. `sourceUrl` is the source's `deepLink`. Values Finora computes (drawdown, value lost, the debt ticker, bitcoin supply) are `derived: true` and cite the series they come from.
+- **Provenance to `SourceRef`:** `sourceId` from `market_series.source_id`; `licenceId`, `retrievedAt`, `asOf` and `asOfBasis` from `market_obs.sync_id` → `syncs`; `checkedAt` from the source's latest content or unchanged sync. `sourceUrl` is the source's `deepLink`. Values Finora computes (drawdown, value lost, the debt ticker, bitcoin supply) are `derived: true` and cite the series they come from.
 - **Connector cache:** `connector-cache.db` is never exported, never included in an API list or MCP bulk tool, and never served to another user (R17). Deleting a key in Settings deletes that source's rows.
 
 ### 1.3 Licence registry entries (`packages/sources/src/licences.ts`)
@@ -175,9 +175,26 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 
 ### 1.7 Refresh and change (all sources)
 
-- **Change detection:** content hash per artifact (§4.4 step 1); equal → one `unchanged` sync. Otherwise the loader upserts `market_obs` by (`series_id`, `date`): a changed value is overwritten (FRED and the World Bank revise history) and records the new `sync_id`.
-- **Removal:** for full-history sources (FRED, Treasury, World Bank), an observation inside the window that is absent from a complete pull is deleted. Incremental sources (X4, S7, TWSE) never delete inside the window; they only append or overwrite. The pipeline's purge (§4.4 step 6) applies with this scope: **architect, please add a per-source `purgeScope: "full" | "none"` to `SourceMeta`.**
+- **Change detection:** content hash per artifact plus `parserVersion` (§4.4 step 1, A1); both equal → one `unchanged` sync. Otherwise the loader upserts `market_obs` by (`series_id`, `date`): a changed value is overwritten (FRED and the World Bank revise history) and records the new `sync_id`.
+- **`parserVersion`** for a market source is the hash of its module under `packages/sources/src/<cc>/<id>/` (fetch and parse), its field map, the items list, and `packages/markets/src/tiles.ts` (a tile's `valueLost` rule or unit change must re-parse). `calc.ts` is not part of it: it runs at read time over stored observations.
+- **Record unit:** one observation, (`series_key`, `date`), sorted by `series_key` then `date` ascending. Its hash input is `[series_key, date, value]`, and the value is normalised to the source's stated decimals. Market sources write `market_obs` rows, not `records` rows (1.2). The pipeline's staging table holds `(series_key:date, hash)` pairs the same way.
+- **Removal:** for full-history sources (FRED, Treasury, World Bank), an observation inside the window that is absent from a complete pull is deleted. Incremental sources (X4, S7, S3, TWSE) and snapshot sources (C1, C3, O3) never delete in a sync; they only append or overwrite. The pipeline's purge (§4.4 step 6) applies with this scope: **architect, please add a per-source `purgeScope: "full" | "none"` to `SourceMeta`.**
+- **`maxPurgeShare`** = max(2%, 5 × the measured removal share per refresh period), per §4.4. The removal share measured over two pulls (2026-11-19 and -20) was 0 for every full-history source: rows only grew. So the value is **0.02**. Sources with `purgeScope: "none"` declare `0` and never delete in a sync. Settings-driven deletions (moving `peakSince` later, changing a fund symbol, removing a key) are explicit jobs outside the sync purge and are logged as such.
+- **`checkedAt`** (A5): every row shows "checked [time]" from the latest content or unchanged sync, beside its as-of. The stale rule (1.4 step 9) uses the observation date, never `checkedAt`.
 - **History events:** none. Market series emit no `finora.*` events.
+
+| Source | Record unit, sort | `asOf` (proven) | `maxPurgeShare` | `purgeScope` |
+|---|---|---|---|---|
+| us-treasury-debt | observation, by date | `max_date_in_data` (`record_date`) | 0.02 | full |
+| us-fred-open, us-fred-cited | observation, by series then date | `max_date_in_data` (`observation_date`) | 0.02 | full |
+| tw-twse-index | observation, by date | `max_date_in_data` (`Date`, ROC) | 0 | none |
+| intl-worldbank-pinksheet | observation, by month | `in_file_field` (sheet "Monthly Prices", A4 "Updated on …") | 0.02 | full |
+| stocks-s7 | observation, by slot then date | `max_date_in_data` (`date`), proven in the key round | 0 | none |
+| gold-s3 | observation, by date | `max_date_in_data`, proven in the key round | 0 | none |
+| crypto-x4-ohlc | observation, by pair then date | `max_date_in_data` (`timestamp`) | 0 | none |
+| crypto-o3-btc-height | one snapshot per UTC day | `in_file_field` (block header `time`) | 0 | none |
+| crypto-c1 | one snapshot per series | `in_file_field` (`updated_at`, `last_updated`) | 0 | none |
+| crypto-c3-global | one snapshot | `in_file_field` (`last_updated`) | 0 | none |
 
 ### 1.8 Fixtures
 
@@ -218,7 +235,7 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
   officialHosts: ["api.fiscaldata.treasury.gov", "fiscaldata.treasury.gov"],
   licence: "us-gov-public-domain", attribution: "Source: U.S. Treasury, Fiscal Data (Debt to the Penny)",
   storage: "store", cadence: "daily", publishedAtUtc: null,
-  asOf: { kind: "json-max", path: "data[].record_date" },
+  asOf: [{ strategy: "max_date_in_data", field: "data[].record_date" }], maxPurgeShare: 0.02,
   deepLink: "https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/", orderUrl: null,
   requires: [], limits: { requestsPerSecond: 1 }, items: ["M08.X.01"], purgeScope: "full" }
 ```
@@ -255,7 +272,7 @@ Two registry entries share one parser because their licences differ (one storage
   licence: "fred-public-domain",
   attribution: "Source: FRED, Federal Reserve Bank of St. Louis; original: Board of Governors of the Federal Reserve System (Z.1), U.S. Energy Information Administration (oil)",
   storage: "store", cadence: "daily", publishedAtUtc: null,
-  asOf: { kind: "csv-max", column: "observation_date" },
+  asOf: [{ strategy: "max_date_in_data", field: "observation_date" }], maxPurgeShare: 0.02,
   deepLink: "https://fred.stlouisfed.org/series/{seriesId}", orderUrl: null,
   requires: [], limits: { requestsPerSecond: 1 }, items: ["M01.X.01", "M07.X.01"], purgeScope: "full" }
 
@@ -290,7 +307,7 @@ Two registry entries share one parser because their licences differ (one storage
   homepage: "https://openapi.twse.com.tw/", officialHosts: ["openapi.twse.com.tw"],
   licence: "ogdl-tw-1.0", attribution: "Taiwan Stock Exchange, TWSE OpenAPI (Open Government Data License, version 1.0)",
   storage: "store", cadence: "daily", publishedAtUtc: "22:00",
-  asOf: { kind: "json-max", path: "[].Date", calendar: "roc" },
+  asOf: [{ strategy: "max_date_in_data", field: "[].Date", calendar: "roc" }], maxPurgeShare: 0,
   deepLink: "https://openapi.twse.com.tw/", orderUrl: null,
   requires: [], limits: { requestsPerSecond: 1 }, items: ["M03.X.01"], purgeScope: "none" }
 ```
@@ -324,7 +341,7 @@ Two registry entries share one parser because their licences differ (one storage
   officialHosts: ["www.worldbank.org", "thedocs.worldbank.org"],
   licence: "cc-by-4.0", attribution: "World Bank Commodity Price Data (The Pink Sheet), CC BY 4.0",
   storage: "store", cadence: "monthly", publishedAtUtc: null,
-  asOf: { kind: "xlsx-cell", sheet: "Monthly Prices", match: "^Updated on (.+)$" },
+  asOf: [{ strategy: "in_file_field", sheet: "Monthly Prices", cell: "A4", match: "^Updated on (.+)$" }], maxPurgeShare: 0.02,
   deepLink: "https://www.worldbank.org/en/research/commodity-markets", orderUrl: null,
   requires: [], limits: { requestsPerSecond: 1 }, items: ["M05.X.01"], purgeScope: "full" }
 ```
@@ -356,7 +373,7 @@ Two registry entries share one parser because their licences differ (one storage
   homepage: "https://www.tiingo.com/", officialHosts: ["api.tiingo.com"],
   licence: "provider-personal-s7", attribution: "<the provider's required attribution line, private terms notes S7>",
   storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
-  asOf: { kind: "json-max", path: "[].date" },
+  asOf: [{ strategy: "max_date_in_data", field: "[].date" }], maxPurgeShare: 0,   // proven on real responses in the key round
   deepLink: null, orderUrl: null,
   requires: ["MARKETS_S7_API_KEY"], limits: { dailyRequests: 1000, requestsPerHour: 50 },
   items: ["M01.X.02", "M02.X.01", "M03.X.02", "M04.X.01"], purgeScope: "none" }
@@ -395,7 +412,7 @@ Two registry entries share one parser because their licences differ (one storage
   homepage: "https://www.alphavantage.co/", officialHosts: ["www.alphavantage.co"],
   licence: "provider-personal-s3", attribution: "<the provider's attribution, private terms notes S3>",
   storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
-  asOf: { kind: "json-max", path: "data[].date" },
+  asOf: [{ strategy: "max_date_in_data", field: "data[].date" }], maxPurgeShare: 0,   // proven in the key round
   deepLink: null, orderUrl: null, requires: ["MARKETS_S3_API_KEY"], limits: { dailyRequests: 25 },
   items: ["M05.X.02b"], purgeScope: "none" }
 ```
@@ -414,7 +431,7 @@ Two registry entries share one parser because their licences differ (one storage
   homepage: "https://www.bitstamp.net/api/", officialHosts: ["www.bitstamp.net"],
   licence: "provider-derived-x4", attribution: null,
   storage: "connector-cache", cadence: "daily", publishedAtUtc: "00:05",
-  asOf: { kind: "json-max", path: "data.ohlc[].timestamp", epoch: "s" },
+  asOf: [{ strategy: "max_date_in_data", field: "data.ohlc[].timestamp", epoch: "s" }], maxPurgeShare: 0,
   deepLink: null, orderUrl: null, requires: [], limits: { requestsPerSecond: 1 },
   items: ["M06.X.01b"], purgeScope: "none" }
 ```
@@ -443,15 +460,16 @@ Two registry entries share one parser because their licences differ (one storage
 { id: "crypto-o3-btc-height", country: "intl", publisher: "<public RPC O3, from meta>",
   homepage: "https://www.publicnode.com/", officialHosts: ["bitcoin-rpc.publicnode.com", "mempool.space"],
   licence: "rpc-display-o3", attribution: null, storage: "store", cadence: "daily", publishedAtUtc: null,
-  asOf: { kind: "fetch-time" }, deepLink: null, orderUrl: null, requires: [],
+  asOf: [{ strategy: "in_file_field", field: "result.time", epoch: "s" }], maxPurgeShare: 0,
+  deepLink: null, orderUrl: null, requires: [],
   limits: { requestsPerSecond: 1 }, items: ["M06.X.01b"], purgeScope: "none" }
 ```
-- Request: `POST https://bitcoin-rpc.publicnode.com` with body `{"jsonrpc":"1.0","id":1,"method":"getblockcount","params":[]}`, reading `result` (an integer; 976,632 on 2026-11-19).
+- Requests: `POST https://bitcoin-rpc.publicnode.com` with `{"jsonrpc":"1.0","id":1,"method":"getbestblockhash","params":[]}`, then `{"jsonrpc":"1.0","id":2,"method":"getblockheader","params":["<hash>"]}`. Read `result.height` and `result.time` (epoch seconds) from the header. Measured 2026-11-20: height 976,676, header 0.3 h old; probe `publicnode_btc_height` in `onchain.py`.
 - Fallback host: O1, `GET https://mempool.space/api/blocks/tip/height`, plain-text integer. O1's software is AGPL-3.0, and users may point `MARKETS_BTC_HEIGHT_URL` at their own instance.
 - Supply: `btcSupply(height)` in `packages/markets/src/btc-supply.ts` sums each halving era: 210,000 blocks, subsidy starting at 50 BTC and halved by integer division in satoshis, from block 0 to `height` inclusive. Measured gap to an explorer's reported supply: 28 BTC of 20.1 M (unclaimed early subsidy), documented in the row's note.
-- `asOf` is the fetch time, because block height has no publication date. Store one `market_obs` row per UTC day (the last fetch of the day) in series `btc:supply` (`coins`, `daily_7d`), plus a `market_latest` row.
+- `asOf` is the best block's header `time`. On the fallback host, the as-of is the tip block's `timestamp` from `GET https://mempool.space/api/block/<hash>` (proven in phase 1). Store one `market_obs` row per UTC day (the last fetch of the day) in series `btc:supply` (`coins`, `daily_7d`), plus a `market_latest` row.
 
-**Items:** `M06.X.01b` (bitcoin supply, used only for value lost). **Field map:** `result` → height → `btcSupply` → value. **Tests:** `packages/markets/src/btc-supply.test.ts` (height 0 → 50; 209,999 → 10,500,000; 210,000 → 10,500,025; monotonic; never above 21,000,000), `packages/sources/src/intl/o3/o3.test.ts` (JSON-RPC envelope; fallback host on failure).
+**Items:** `M06.X.01b` (bitcoin supply, used only for value lost). **Field map:** `result.height` → `btcSupply` → value; `result.time` → as-of. No other header field is read. **Tests:** `packages/markets/src/btc-supply.test.ts` (height 0 → 50; 209,999 → 10,500,000; 210,000 → 10,500,025; monotonic; never above 21,000,000), `packages/sources/src/intl/o3/o3.test.ts` (JSON-RPC envelope; fallback host on failure).
 **Fixtures:** a JSON-RPC response with a fixture height. **Failure modes:** both hosts down → the supply keeps its last value; the bitcoin value lost shows with the supply's as-of; after 2 days the value lost is hidden (null) and the drawdown stays.
 **Open questions:** none.
 
@@ -463,7 +481,7 @@ Two registry entries share one parser because their licences differ (one storage
   homepage: "https://www.coingecko.com/en/api", officialHosts: ["api.coingecko.com"],
   licence: "provider-attribution-c1", attribution: "<the 'Powered by' line required by C1's terms, private notes C1>",
   storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
-  asOf: { kind: "json-field", path: "data.updated_at", epoch: "s" },
+  asOf: [{ strategy: "in_file_field", field: "data.updated_at", epoch: "s" }], maxPurgeShare: 0,
   deepLink: null, orderUrl: null, requires: [], optional: ["MARKETS_C1_DEMO_KEY"],
   limits: { requestsPerMinute: 10 }, items: ["M06.X.02", "M06.X.01b"], purgeScope: "none" }
 ```
@@ -486,7 +504,7 @@ Two registry entries share one parser because their licences differ (one storage
   homepage: "https://coinpaprika.com/api/", officialHosts: ["api.coinpaprika.com"],
   licence: "provider-personal-c3", attribution: "<the 'Powered by' credit, private notes C3>",
   storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
-  asOf: { kind: "json-field", path: "last_updated", epoch: "s" },
+  asOf: [{ strategy: "in_file_field", field: "last_updated", epoch: "s" }], maxPurgeShare: 0,
   deepLink: null, orderUrl: null, requires: [], limits: { requestsPerSecond: 1 },
   items: ["M06.X.02"], purgeScope: "none" }
 ```
