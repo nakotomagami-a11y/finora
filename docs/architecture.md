@@ -267,6 +267,7 @@ Conditions that hold in v1, each with an enforcement point and a test:
 | US SEC filer | `us-cik-<10-digit CIK>` | reserved range `99xxxxxxxx` |
 | US state record | `us-<state>-<state id>` | prefix `FX` |
 | LEI-only entity | `lei-<LEI>` | fixture variant of ISO 7064 mod 97 |
+| Sanctions list entry (company) | `sanc-<list>-<entry id>` | the per-list reserved fixture ranges in `docs/plan/loaders/sanctions.md` |
 | Person in company context | `p-<record id>-<position>`, internal only, never output (§3.3; no HMAC in v1) | follows the company's fixture id |
 
 The nightly `live` job asserts the reserved ranges stay unassigned in the real registers. `fixtures/ids.test.ts` checks every fixture id against its rule.
@@ -284,6 +285,8 @@ Every source's registry entry (§4.2) has exactly one storage class. The class d
 | `agent-only` | investigation `documents` only | web checks, live national sanctions lists, UN list, news, US enforcement feeds, and the LT social-insurance files (S07.LT.01, S08.LT.02, S18.LT.02: read live by the money agent's `read_live_source` tool (`agents.md` §4.4b), never stored; council and legal, `LAW-SODRA-LICENCE`; the instant profile shows "Social-insurance data: checked when you investigate") | fetched by agents at query time, cited, kept only as investigation documents under the R11 TTL |
 | `store`, agent-read only | `finora.db` `court_index` | the FJC civil court index (1.56 M organisation-party rows, ≈ 0.2 GB, measured) | stored, read only by the legal agent's court tool, never rendered without an accepted agent finding |
 | `connector-cache` | `connector-cache.db` | licensed market series (user keys) | never exported, never served to another user (R17) |
+
+**One declared exception to "exactly one class": a person view.** A source whose file mixes companies and natural persons may declare, besides its class for company rows, an in-memory `live-no-store` person view of the same download (today only the EU, OFAC and UK sanctions lists: `resolve/src/person-index.ts`, officer screening behind the purpose gate, `LAW-SANCTIONS-PERSONS`). The person rows are dropped at parse from the stored path (`person_entry`), the source sets `rawCache: false`, and the view obeys every `live-no-store` guarantee above. Test: `resolve/src/person-index.test.ts`.
 
 `SHARE_ALIKE_MODE` (`store` default, or `live-no-store`) switches the EE share-alike sources with no code change (legal's condition for clearing the share-alike store). CI runs the EE loader tests in both modes.
 
