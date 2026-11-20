@@ -8,20 +8,20 @@
 
 | # | Owner | Finding | Fix | Status |
 |---|---|---|---|---|
-| 1 | architect + data-osint | Share-alike data leaks into the main store through investigations (findings, signals, citation snapshots in `finora.db`) | share-alike-derived rows go to `finora-sa.db` or keep a reference only; in `live-no-store` they keep no value; `agents/src/share-alike.test.ts` both modes (legal: required) | open |
-| 2 | data-osint | The run clock (6 min) kills a run before its question default (10-30 min) | exclude `waiting` time from the run clock; test | open |
-| 3 | data-osint | The model controls question defaults, blocking and candidates | defaults, blocking and timeouts from the kind table only; `entity_choice` options from `search_companies`; `cap_reached` runtime-only; one test each | open |
-| 4 | data-osint | Fetched pages are stored before the P8 filter | filter before storage; verify quotes against the filtered text; canary asserts `documents` rows (legal: required) | open |
-| 5 | data-osint | Follow-ups have no rules | apply §5.2 and §6.4 (banned terms, uncited-sentence drop, quote check), the $0.25 cap test, follow-up scenarios in §13-§14 (legal: required) | open |
-| 6 | data-osint + architect | The agent-path canary is narrower than §10.4 | iterate `items.generated.ts` plus the Part H categories; follow-ups among the asserted surfaces | open |
-| 7 | data-osint + architect | "Linked entity" undefined in the wrong-company rule | name the store `links` table (official-id `same_as` only); say when `Finding.entityId` may differ from the pin | open |
-| 8 | frontend | Slice numbers differ from `slices.md` | use `slices.md`'s mapping | open |
-| 9 | frontend | Gallery route `/dev/states` vs `/design` | `/design` everywhere; align test names | open |
-| 10 | frontend | Purpose session in `sessionStorage` vs the HTTP-only cookie | the cookie set by `POST /purpose` | open |
-| 11 | frontend | `not_evaluated` mapped to `not_checked{later}` | the check-level `not_evaluated{trackedSince}`, with a `FieldRow` row | open |
-| 12 | frontend | An empty list renders "none found" | "none found" only from `checked_none{source, asOf}`; an empty array is a contract error, tested; `not_published` and `checked_none` states on role and holder tables | open |
-| 13 | frontend + architect | Two homes for banned terms, and grade wording missing | one file, with letter-grade and credit-score patterns and tests | open |
-| 14 | frontend | Sole traders named in search results and the header | legal form plus code (L3, P6); cases in `search.spec.ts`, `seo-headers.spec.ts` (legal: agreed) | open |
+| 1 | architect + data-osint | Share-alike data leaks into the main store through investigations (findings, signals, citation snapshots in `finora.db`) | share-alike-derived rows go to `finora-sa.db` or keep a reference only; in `live-no-store` they keep no value; `agents/src/share-alike.test.ts` both modes (legal: required) | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 2 | data-osint | The run clock (6 min) kills a run before its question default (10-30 min) | exclude `waiting` time from the run clock; test | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 3 | data-osint | The model controls question defaults, blocking and candidates | defaults, blocking and timeouts from the kind table only; `entity_choice` options from `search_companies`; `cap_reached` runtime-only; one test each | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 4 | data-osint | Fetched pages are stored before the P8 filter | filter before storage; verify quotes against the filtered text; canary asserts `documents` rows (legal: required) | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 5 | data-osint | Follow-ups have no rules | apply §5.2 and §6.4 (banned terms, uncited-sentence drop, quote check), the $0.25 cap test, follow-up scenarios in §13-§14 (legal: required) | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 6 | data-osint + architect | The agent-path canary is narrower than §10.4 | iterate `items.generated.ts` plus the Part H categories; follow-ups among the asserted surfaces | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 7 | data-osint + architect | "Linked entity" undefined in the wrong-company rule | name the store `links` table (official-id `same_as` only); say when `Finding.entityId` may differ from the pin | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 8 | frontend | Slice numbers differ from `slices.md` | use `slices.md`'s mapping | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 9 | frontend | Gallery route `/dev/states` vs `/design` | `/design` everywhere; align test names | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 10 | frontend | Purpose session in `sessionStorage` vs the HTTP-only cookie | the cookie set by `POST /purpose` | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 11 | frontend | `not_evaluated` mapped to `not_checked{later}` | the check-level `not_evaluated{trackedSince}`, with a `FieldRow` row | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 12 | frontend | An empty list renders "none found" | "none found" only from `checked_none{source, asOf}`; an empty array is a contract error, tested; `not_published` and `checked_none` states on role and holder tables | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 13 | frontend + architect | Two homes for banned terms, and grade wording missing | one file, with letter-grade and credit-score patterns and tests | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
+| 14 | frontend | Sole traders named in search results and the header | legal form plus code (L3, P6); cases in `search.spec.ts`, `seo-headers.spec.ts` (legal: agreed) | fixed (`7c5afaf` architecture, `5649fc9` agents, `5d71425` UI); qa to verify |
 | 15 | data-us | Accession numbers as record keys and hash inputs (their prefix can be a person's CIK) | key individual filers on issuer + filing date + sequence; `person-fields.test.ts` checks accession prefixes (legal: required) | fixed `e20002a` (qa to verify) |
 | 16 | data-us | A live portal's empty answer wipes a company's people | the two-miss rule per dataset query (legal: required) | fixed `e20002a` (qa to verify) |
 | 17 | data-markets | `esma-firds.md` has no `purgeScope` | `full` | fixed `5e68685` (qa to verify) |
@@ -41,3 +41,5 @@ The full list is in qa's hub post (7030010972). By owner:
 
 ## NIT
 Part G ids carry bracketed labels (`gen-items` strips them, with a test); `agents.md:7` R1-R18; `finora.name_changed` everywhere; `ui-build-plan.md:3` mockups are on the branch.
+
+**Legal notes on the fixes (not blocking):** a fired rule id kept in the main store must never embed a value from a share-alike source (add to `agents/src/share-alike.test.ts`); FMCSA needs its `verifiedOn` URL and date before the source is enabled.
