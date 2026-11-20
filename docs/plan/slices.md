@@ -90,6 +90,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-ACCOUNTS-DEADLINE | dormant: needed only before a statutory date is ever shown as a deadline; `domain/src/checks/filing-window.test.ts` proves v1 never shows one |
      | LAW-P7-SCOPE | `domain/src/policy/purposes.test.ts` |
      | LAW-DEFAMATION | `agents/src/orchestrator.subject.test.ts` |
+     | LAW-BACKUP-RETENTION | `store/src/backup-classes.test.ts`, `cli/src/backup.test.ts` (no person-level table or row in any backup; 3 kept) |
      | LAW-DISPUTE-WINDOW | `store/src/disputes.test.ts` |
      | LAW-MARKET-CAP | `markets/src/items.test.ts` (no value lost without quoted terms) |
      | LAW-AGPL-HOSTED | no hosted build in v1; `web/e2e/source-link.spec.ts` (R18) |
@@ -245,11 +246,11 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Acceptance:**
   1. On a fresh clone (Windows and Linux), `pnpm finora` ends with a production build on `127.0.0.1:3000`, with no manual step besides optional keys; LV is searchable ≈ 2 min after the app is up (P10); the cold path (clone → install → build → app up) is recorded as a number on `dev-desktop-1` in `benchmarks.md`.
   5. A CLI `data sync` started while the app's scheduler syncs the same source ends `already_running`, and no rows are lost; two app starts run one job runner; during a sync, an investigation event is written and broadcast with no `SQLITE_BUSY` and no heartbeat gap above 3 s in CI; the absolute targets (health p95 < 100 ms, heartbeats < 1 s late) are recorded on `dev-desktop-1`.
-  6. With less than 15 GB free, `pnpm finora` refuses the core load and says why; `doctor` detects and repairs a corrupted fixture store from the latest backup and the raw cache; an investigation deleted before the corruption stays deleted; backups hold only company-level user data (no person row, no documents); a missing `deletions.log` makes `--repair` refuse.
+  6. With less than 15 GB free, `pnpm finora` refuses the core load and says why; `doctor` detects and repairs a corrupted fixture store from the latest backup and the raw cache; an investigation deleted before the corruption stays deleted; backups copy only the allowlisted tables with legal's three filters (no person-level table, no dispute on a person line, no sole-trader judgement, no unpinned investigation); a missing `deletions.log` makes `--repair` refuse.
   2. `pnpm finora --demo` works offline in under 60 s.
   3. A second run is incremental: unchanged sources download nothing and write nothing.
   4. `milestone-gate.mjs` prints aggregates only (a test asserts no entity name, code or id in its output) and its LV run meets the M2 gate.
-- **Tests:** `scripts/finora.test.mjs`, `scripts/milestone-gate.test.mjs`, `server/src/jobs.test.ts`, `server/src/jobs.main-thread.test.ts`, `store/src/leases.test.ts`, `cli/src/backup.test.ts`, `cli/src/doctor.test.ts`, `store/src/deletions-log.test.ts`, CI `demo-boot` (Linux and Windows).
+- **Tests:** `scripts/finora.test.mjs`, `scripts/milestone-gate.test.mjs`, `server/src/jobs.test.ts`, `server/src/jobs.main-thread.test.ts`, `store/src/leases.test.ts`, `cli/src/backup.test.ts`, `cli/src/doctor.test.ts`, `store/src/deletions-log.test.ts`, `store/src/backup-classes.test.ts`, CI `demo-boot` (Linux and Windows).
 - **Demo:** delete the clone, clone again, run `pnpm finora`, look up a Latvian counterparty, investigate it, then run `node scripts/milestone-gate.mjs --country lv`.
 
 **M2 demo (council session 3b):** the Latvian walking skeleton end to end from one command, live, with one question answered and a cited verdict; the milestone-gate output pasted into `docs/plan/council/03-m2.md`. **No second country's loaders start before this demo passes.**
