@@ -8,7 +8,7 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 
 | Profile | Hardware | OS | Node / SQLite |
 |---|---|---|---|
-| `dev-desktop-1` | 8-core desktop CPU, NVMe SSD | Windows 11 | Node 24.20, SQLite 3.53.4 (`node:sqlite`) |
+| `dev-desktop-1` | 8 cores / 16 threads, 32 GB RAM, disk type not recorded | Windows 11 | Node 24.20, SQLite 3.53.4 (`node:sqlite`) |
 
 ## Budgets (P10)
 
@@ -26,12 +26,14 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 
 ### Statement layout (cto, 2026-11-20, `dev-desktop-1`)
 
-LV company file, 490,496 rows → 4,975,756 statements.
+LV company file. Run 1: quiet machine, 490,496 rows → 4,975,756 statements. Run 2: 490,539 rows, taken while an unrelated application held about 50% of the CPU; **run 2 times are not budgets**, its sizes and write counts are (see `research/probes/cto/README.md`).
 
-| Layout | First load | Size | Per statement | Reload of an unchanged file |
-|---|---|---|---|---|
-| Drafted (text keys, timestamps per row, indexes during load) | 1,039 s | 1,879 MB | 378 B | 1,430 s, all 4,976,210 statements rewritten |
-| Lean (adopted: integer keys, interned props, sync ids, row hash per record, indexes after load) | 28.8 s | 612 MB | 123 B | 8.9 s, 0 writes |
+| Layout | Run | First load | Size | Per statement | Reload of an unchanged file |
+|---|---|---|---|---|---|
+| Drafted (text keys, timestamps per row, indexes during load) | 1 | 1,039 s | 1,879 MB | 378 B | not measured |
+| Drafted | 2 | - | 1,879 MB, grew to 2,045 MB on reload | 378 B | 1,430 s (not a budget), all 4,976,210 statements rewritten |
+| Lean (adopted: integer keys, interned props, sync ids, row hash per record, indexes after load) | 1 | 28.8 s | 612 MB | 123 B | 8.9 s, 0 writes |
+| Lean | 2 | - | 612 MB | 123 B | 28.6 s (not a budget), 0 writes |
 
 ### Facts and record units (cto, 2026-11-20)
 
@@ -55,5 +57,7 @@ All 1,422,706 Baltic company names, 25.8 characters on average.
 
 | Index | Size | Build | Query |
 |---|---|---|---|
-| FTS5 `unicode61 remove_diacritics 2` (prefix) | 81 MB | 6.3 s | top-20 prefix search: p50 19 ms, p95 39 ms (earlier run, 1.42M rows) |
-| FTS5 `trigram remove_diacritics 1` | 126 MB | 7.8 s | top-20 substring search: p50 0.18 ms, p95 0.76 ms |
+| FTS5 `unicode61 remove_diacritics 2` (prefix) | 81 MB | 6.3 s | top 20, ranked: p50 19 ms, p95 39 ms |
+| FTS5 `trigram remove_diacritics 1` | 126 MB | 7.8 s | top 20, ranked (`order by rank`): p50 13 ms, p95 34 ms |
+
+The search API ranks, so the budget is about 40 ms p95 per index. (An unranked trigram query measured p50 0.18 ms; it is not comparable.)
