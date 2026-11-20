@@ -58,7 +58,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
   2. `check-deps` fails when a package declares a dependency its table row forbids.
   3. ESLint fails on `any`, on `process.env` outside `env.ts`, on a Node built-in in `packages/domain`, and on a forbidden cross-package import. SHOULD (not blocking): the denylist rule flags a denylisted identifier fed through `FINORA_GUARD_DENYLIST`.
   4. `check-lawyer-register` fails on a `[pending: lawyer]` marker with no register row.
-  5. `gen-items` produces 155 items with their calls; the generated file is checked current in CI.
+  5. `gen-items` produces 155 items with their calls, stripping the labels in brackets after an id (`S01.US.03a (PA)`); the generated file is checked current in CI.
   6. `ci` runs on the hub PR beside `guard`; both green.
   7. Every row of `docs/plan/lawyer-register.md` has the test below that holds its interim value; `check-lawyer-register` fails if a row has no entry here.
 
@@ -86,7 +86,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-CO-DISCLAIMER | `web/e2e/co-disclaimer.spec.ts` |
      | LAW-SHARE-ALIKE | `ingest/src/share-alike.test.ts`, `ingest/src/live-no-store.test.ts` |
      | LAW-SODRA-LICENCE | `agent-tools/src/social-insurance.test.ts` (read live, nothing written), `sources/src/licences.test.ts` |
-     | LAW-ACCOUNTS-DEADLINE | `domain/src/checks/filing-window.test.ts` (no statutory deadline is ever shown; legal and the coordinator asked to remove this row, and the test stays either way) |
+     | LAW-ACCOUNTS-DEADLINE | dormant: needed only before a statutory date is ever shown as a deadline; `domain/src/checks/filing-window.test.ts` proves v1 never shows one |
      | LAW-P7-SCOPE | `domain/src/policy/purposes.test.ts` |
      | LAW-DEFAMATION | `agents/src/orchestrator.subject.test.ts` |
      | LAW-DISPUTE-WINDOW | `store/src/disputes.test.ts` |
@@ -213,7 +213,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
   5. A finding citing another company's statement is rejected; a 39-character quote is rejected.
   6. Unknown price refuses to start.
   7. **Not accepted until** data-osint's measured run (`agents.md` §12) has replaced the modelled costs and calibrated the estimate (cto).
-- **Tests:** `agents/src/orchestrator.parallel.test.ts`, `agents/src/orchestrator.subject.test.ts`, `agents/src/orchestrator.timeout.test.ts`, `agents/src/orchestrator.stop.test.ts`, `agents/src/questions.test.ts`, `agents/src/findings.test.ts`, `agents/src/citations.test.ts`, `agents/src/budget.test.ts`, `agents/src/estimate.test.ts`, `agents/src/runner.limits.test.ts`, `agents/src/runner.retry.test.ts`, `agents/src/runner.errors.test.ts`, `agents/src/runner.timeout.test.ts`, `agents/src/tools.errors.test.ts`, `agents/src/recovery.test.ts`, `agents/src/events.test.ts`, `server/src/sse.resume.test.ts`, `server/src/routes/v1/investigations/**/route.contract.test.ts`, `agent-tools/src/*.test.ts` (store tools).
+- **Tests:** `agents/src/orchestrator.parallel.test.ts`, `agents/src/orchestrator.subject.test.ts`, `agents/src/orchestrator.timeout.test.ts`, `agents/src/orchestrator.stop.test.ts`, `agents/src/questions.test.ts`, `agents/src/findings.test.ts`, `agents/src/citations.test.ts`, `agents/src/followup.test.ts`, `agents/src/share-alike.test.ts`, `agents/src/budget.test.ts`, `agents/src/estimate.test.ts`, `agents/src/runner.limits.test.ts`, `agents/src/runner.retry.test.ts`, `agents/src/runner.errors.test.ts`, `agents/src/runner.timeout.test.ts`, `agents/src/tools.errors.test.ts`, `agents/src/recovery.test.ts`, `agents/src/events.test.ts`, `server/src/sse.resume.test.ts`, `server/src/routes/v1/investigations/**/route.contract.test.ts`, `agent-tools/src/*.test.ts` (store tools).
 - **Demo:** `FINORA_DEMO=1 pnpm dev`; `curl -X POST .../api/v1/investigations` on a fixture company; `curl -N .../events` streams four lanes in parallel; answer the question with `curl`; the `verdict` event arrives.
 
 ### S10 Specialists, open-web tools and the verdict
