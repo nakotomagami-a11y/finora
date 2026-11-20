@@ -177,3 +177,9 @@ Legal accepts cto's answer (switchable share-alike storage, company-level "offic
 ## Amendment (cto, phase 3): US budget and the binding cap
 
 P10 gains **US ≤ 1 GB** (data-us estimates ≈ 0.75 GB, plus GLEIF ≈ 0.45 GB inside the cross-border 1 GB). The per-source caps now sum to 9.75 GB (LV 2.5, EE 3 + 0.25 share-alike, LT 2, cross-border 1, US 1); **the whole-store cap of 10 GB is the binding one**, and our own history (P9, `HISTORY_MAX_GB=1`) counts inside it. Per-source caps are limits on each loader, not allocations to fill. 🟡 Estimates: ≈ 7.75 GB, ≈ 8.75 GB with a full year of history. The FJC court index (organisation parties, 10 years) is the largest unmeasured US table: the US loader slice reports its records and bytes per record, and if the index alone passes 0.3 GB it drops to 5 years before anything else is cut. Also: raw cache ≤ 1.5 GB; data dir ≤ 12 GB.
+
+## Amendment (cto, phase 3): GLEIF weekly and two purge-guard refinements
+
+1. **GLEIF: a weekly full load in v1**, not daily deltas (a delta can't define removals). ≈ 0.6 GB download, ≈ 2.5 min parse; it runs outside the 5-minute daily budget, staggered so it never shares a window with the EE general-data parse. Deltas stay a later optimisation.
+2. **`window` sources** (SEC insider and Form D sets, FJC index): records whose period aged out of the window are expected and not counted against the guard; records missing inside the window count against `max(2%, 5x measured)`. Test: a new quarter that drops the oldest passes; a file missing half of a quarter still inside the window ends `purge_guard`.
+3. **Live states, re-fetch on view:** an empty or not-found response is not proof of removal. Keep the cached rows and show "[state] registry did not return this company on [date]"; delete only when the registry marks the record withdrawn or corrected (the CT rule). Test: an empty re-fetch keeps the rows; a withdrawn record removes them.
