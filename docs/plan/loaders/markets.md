@@ -33,7 +33,7 @@ This is a group spec: one shared part (series model, maths, scheduling, settings
 
 ### 1.2 Data model (addition to architecture §3.8)
 
-Market series are not entities. Writing a `records` row per daily observation would double their size for no gain, so series rows carry provenance through their `sync_id`, and `syncs` already holds the licence, retrieval time and upstream as-of (§3.2). **architect: please add these three tables to §3.8 and §8.** They live in `finora.db` for `store` sources and in `connector-cache.db` (same DDL) for `connector-cache` sources.
+Market series are not entities. Writing a `records` row per daily observation would double their size for no gain, so series rows carry provenance through their `sync_id`, and `syncs` already holds the licence, retrieval time and upstream as-of (§3.2). The architect takes these three tables into §3.8 and §8 in milestone B. They live in `finora.db` for `store` sources and in `connector-cache.db` (same DDL) for `connector-cache` sources.
 
 ```sql
 market_series(
@@ -79,7 +79,7 @@ market_latest(
 | `provider-personal-c3` | true | false | true | false | 2026-11-19, private terms notes, C3 |
 | `rpc-display-o3` | false | false | false | true (chain data "is not Service Content") | 2026-11-19, private terms notes, O3 |
 
-Invariant 3 (§4.2) puts every `redistribution: false` source in `connector-cache`, which matches the storage column below. **architect: R17's enforcement point says a `connector-cache` connector "needs a key from env". Three keyless sources here are `connector-cache` too: X4, C3 and the cited FRED series; C1's key is optional. Please read it as "redistribution = false ⇒ connector-cache; a key is required only where `requires` lists one".**
+Invariant 3 (§4.2) puts every `redistribution: false` source in `connector-cache`, which matches the storage column below. R17 reads "redistribution = false ⇒ connector-cache; a key is required only where `requires` lists one" (architect, accepted; legal: consistent with memo rule 5). So X4, C3 and the cited FRED series are keyless `connector-cache` sources, and C1's key is optional.
 
 ### 1.4 Maths (`packages/markets/src/calc.ts`, pure)
 
@@ -123,8 +123,22 @@ type MarketRow = {
   drawdownPct: number | null; dayChangePct: number | null;
   valueLost: SourcedValue<number> | null;      // only where the tile config allows it
   unit: Unit; caveatKey: string | null; symbol: string | null;   // symbol only for fund slots
+  cadence: "quarterly" | "monthly" | "daily_exchange" | "daily_7d" | "live";
+  delayed: boolean;
+  peakBasis: "since" | "all_time" | "seeded";
 };
 ```
+
+Three fields from the frontend plan (frontend, 7029664310), defined here so the UI never guesses:
+
+- **`cadence`** is `"live"` when `current` comes from a `market_latest` row inside its freshness limit (1.4 step 2). Otherwise it is the series' `frequency`.
+- **`delayed`** is a fixed property of the source: true when the source publishes its observation at least one day after the observation date. It is true for Treasury (1 business day), FRED oil (≈ 2 days), FRED Japan (next day), Z.1 (about 10 weeks), the World Bank (the next month), TWSE (the evening after the session) and S7 or S3 end-of-day closes. It is false for X4, C1 and O3, and for S7 when its intraday endpoint is available. It sits in the tile config beside each series, and `tiles.test.ts` asserts every series has it.
+- **`peakBasis`:**
+  - `"since"`: the highest close since `peakSince`, the normal case
+  - `"all_time"`: the total-crypto row, whose peak is the C3 all-time high
+  - `"seeded"`: the peak or the window start comes from `seeds.ts`, and the row cites the seed
+
+  A row with `peakKnown: false` keeps `peakBasis: "since"` and renders "tracking since".
 
 ### 1.5 Settings (P12)
 
@@ -178,17 +192,17 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 - **Change detection:** content hash per artifact plus `parserVersion` (§4.4 step 1, A1); both equal → one `unchanged` sync. Otherwise the loader upserts `market_obs` by (`series_id`, `date`): a changed value is overwritten (FRED and the World Bank revise history) and records the new `sync_id`.
 - **`parserVersion`** for a market source is the hash of its module under `packages/sources/src/<cc>/<id>/` (fetch and parse), its field map, the items list, and `packages/markets/src/tiles.ts` (a tile's `valueLost` rule or unit change must re-parse). `calc.ts` is not part of it: it runs at read time over stored observations.
 - **Record unit:** one observation, (`series_key`, `date`), sorted by `series_key` then `date` ascending. Its hash input is `[series_key, date, value]`, and the value is normalised to the source's stated decimals. Market sources write `market_obs` rows, not `records` rows (1.2). The pipeline's staging table holds `(series_key:date, hash)` pairs the same way.
-- **Removal:** for full-history sources (FRED, Treasury, World Bank), an observation inside the window that is absent from a complete pull is deleted. Incremental sources (X4, S7, S3, TWSE) and snapshot sources (C1, C3, O3) never delete in a sync; they only append or overwrite. The pipeline's purge (§4.4 step 6) applies with this scope: **architect, please add a per-source `purgeScope: "full" | "none"` to `SourceMeta`.**
+- **Removal:** for full-history sources (FRED, Treasury, World Bank), an observation inside the window that is absent from a complete pull is deleted. Incremental sources (X4, S7, S3, TWSE) and snapshot sources (C1, C3, O3) never delete in a sync; they only append or overwrite. This is `SourceMeta.purgeScope` (§4.2): `window` for the full-history pulls, so the purge only covers the pulled date range; `none` for the rest.
 - **`maxPurgeShare`** = max(2%, 5 × the measured removal share per refresh period), per §4.4. The removal share measured over two pulls (2026-11-19 and -20) was 0 for every full-history source: rows only grew. So the value is **0.02**. Sources with `purgeScope: "none"` declare `0` and never delete in a sync. Settings-driven deletions (moving `peakSince` later, changing a fund symbol, removing a key) are explicit jobs outside the sync purge and are logged as such.
 - **`checkedAt`** (A5): every row shows "checked [time]" from the latest content or unchanged sync, beside its as-of. The stale rule (1.4 step 9) uses the observation date, never `checkedAt`.
 - **History events:** none. Market series emit no `finora.*` events.
 
 | Source | Record unit, sort | `asOf` (proven) | `maxPurgeShare` | `purgeScope` |
 |---|---|---|---|---|
-| us-treasury-debt | observation, by date | `max_date_in_data` (`record_date`) | 0.02 | full |
-| us-fred-open, us-fred-cited | observation, by series then date | `max_date_in_data` (`observation_date`) | 0.02 | full |
+| us-treasury-debt | observation, by date | `max_date_in_data` (`record_date`) | 0.02 | window |
+| us-fred-open, us-fred-cited | observation, by series then date | `max_date_in_data` (`observation_date`) | 0.02 | window |
 | tw-twse-index | observation, by date | `max_date_in_data` (`Date`, ROC) | 0 | none |
-| intl-worldbank-pinksheet | observation, by month | `in_file_field` (sheet "Monthly Prices", A4 "Updated on …") | 0.02 | full |
+| intl-worldbank-pinksheet | observation, by month | `in_file_field` (sheet "Monthly Prices", A4 "Updated on …") | 0.02 | window |
 | stocks-s7 | observation, by slot then date | `max_date_in_data` (`date`), proven in the key round | 0 | none |
 | gold-s3 | observation, by date | `max_date_in_data`, proven in the key round | 0 | none |
 | crypto-x4-ohlc | observation, by pair then date | `max_date_in_data` (`timestamp`) | 0 | none |
@@ -237,7 +251,7 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
   storage: "store", cadence: "daily", publishedAtUtc: null,
   asOf: [{ strategy: "max_date_in_data", field: "data[].record_date" }], maxPurgeShare: 0.02,
   deepLink: "https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/", orderUrl: null,
-  requires: [], limits: { requestsPerSecond: 1 }, items: ["M08.X.01"], purgeScope: "full" }
+  requires: [], limits: { requestsPerSecond: 1 }, items: ["M08.X.01"], purgeScope: "window" }
 ```
 - Endpoint: `GET https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page[size]=10000&fields=record_date,tot_pub_debt_out_amt,debt_held_public_amt,intragov_hold_amt&filter=record_date:gte:<peakSince − 400 days>`. One page holds everything; measured full table 8,437 rows, 2.8 MB, 1.1 s.
 - Publication: the previous business day's figure appears late in the US day. It was not yet published at 19:45 UTC on 2026-11-19, so the 6-hourly poll catches it on the next run.
@@ -255,7 +269,7 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 
 Rows from `peakSince − 400 days` are kept, enough for the 365-day rate.
 
-**Identity and joins:** none; national series. **Refresh:** full pull, `purgeScope: "full"`.
+**Identity and joins:** none; national series. **Refresh:** full pull of the window, `purgeScope: "window"`.
 **Fixtures:** `fixtures/us-treasury-debt.json` in the API's envelope (`data`, `meta` with `total-count`, `links`), 450 synthetic business days.
 **Tests:** `packages/sources/src/us/treasury-debt/treasury-debt.test.ts` (parse, field map, as-of = max `record_date`).
 **Failure modes:** API down → keep rows, Stale after 2 business days; a missing `record_date` → `as_of_missing`; a value that drops by more than 5% day on day → sync `failed` with `implausible_change` (it has never happened, so it means a parse error).
@@ -274,7 +288,7 @@ Two registry entries share one parser because their licences differ (one storage
   storage: "store", cadence: "daily", publishedAtUtc: null,
   asOf: [{ strategy: "max_date_in_data", field: "observation_date" }], maxPurgeShare: 0.02,
   deepLink: "https://fred.stlouisfed.org/series/{seriesId}", orderUrl: null,
-  requires: [], limits: { requestsPerSecond: 1 }, items: ["M01.X.01", "M07.X.01"], purgeScope: "full" }
+  requires: [], limits: { requestsPerSecond: 1 }, items: ["M01.X.01", "M07.X.01"], purgeScope: "window" }
 
 { id: "us-fred-cited", /* same fields, except: */ licence: "fred-citation-required",
   attribution: "Source: FRED, Federal Reserve Bank of St. Louis; index data reprinted with the owner's permission, as FRED's series notes state",
@@ -294,7 +308,7 @@ Two registry entries share one parser because their licences differ (one storage
 
 **Field map:** `observation_date` → `market_obs.date` (transform above); `<SERIES>` value → `market_obs.value` (skip empty and `.`; reject non-finite). Every other column: none exist.
 
-**Identity:** `series_key` as above. **Refresh:** full window pull, `purgeScope: "full"`.
+**Identity:** `series_key` as above. **Refresh:** full pull of the window, `purgeScope: "window"`.
 **Fixtures:** one CSV per series in the measured format, from the fixture series. **Tests:** `packages/sources/src/us/fred/fred.test.ts` (missing-value forms; quarter start → end; units × 1e6 for Z.1; the cited series lands in `connector-cache.db` only).
 **Failure modes:** HTTP error or an HTML page instead of CSV (first line not `observation_date,`) → `failed` with `not_csv`; keep rows; Stale per frequency.
 **Open questions:** none. The unit of `BOGZ1LM893064105Q` is "Millions of Dollars" on its series page; the parser asserts this against `fixtures/fred-units.json`, and a nightly `live` job re-reads the page.
@@ -343,7 +357,7 @@ Two registry entries share one parser because their licences differ (one storage
   storage: "store", cadence: "monthly", publishedAtUtc: null,
   asOf: [{ strategy: "in_file_field", sheet: "Monthly Prices", cell: "A4", match: "^Updated on (.+)$" }], maxPurgeShare: 0.02,
   deepLink: "https://www.worldbank.org/en/research/commodity-markets", orderUrl: null,
-  requires: [], limits: { requestsPerSecond: 1 }, items: ["M05.X.01"], purgeScope: "full" }
+  requires: [], limits: { requestsPerSecond: 1 }, items: ["M05.X.01"], purgeScope: "window" }
 ```
 - Fetch: GET the homepage, take the first link matching `https://[^"']+CMO-Historical-Data-Monthly\.xlsx` (the URL changes each month), then GET it (588 KB measured).
 - Layout (measured 2026-11-20, sheet **"Monthly Prices"**):
@@ -356,7 +370,7 @@ Two registry entries share one parser because their licences differ (one storage
 
 **Items:** `M05.X.01` CAVEAT "Monthly average" (NC).
 **Field map:** column A month → `market_obs.date` = last day of that month; the `Gold` column → series `worldbank:gold` (`usd_per_oz`, frequency `monthly`). No other column is read.
-**Refresh:** full pull, `purgeScope: "full"` (the Bank revises recent months).
+**Refresh:** full pull of the window, `purgeScope: "window"` (the Bank revises recent months).
 **Fixtures:** `fixtures/worldbank-pinksheet.xlsx` is **generated at test time** by `fixtures/xlsx-writer.ts` (stored zip entries, the five sheets by name, the same header rows). It is never committed, because the guard blocks binaries. **Tests:** `packages/sources/src/intl/worldbank/pinksheet.test.ts` (link discovery, gold column by name, `…` handling, unit assertion, as-of from row 4).
 **Failure modes:**
 - No xlsx link on the page → `failed` with `link_not_found`.
