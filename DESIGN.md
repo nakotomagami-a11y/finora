@@ -201,12 +201,12 @@ The calls are Part G; the treatments the mockups show:
 - **S08:** an arrears check line first, then taxes by year. LV debt amount is MANUAL; LV rating verbatim. EE tax data carries a `CC BY-SA` tag and "Left out of exports". The LT arrears age counts from the list's entry date, so it is evaluated from day one. US collapses to one line. Sole traders: no S08 at all (HIDE).
 - **S09:** one check line per register; US says "Checked UCC filings in Colorado and Connecticut only; other states not checked".
 - **S10 in LT, LV and EE:** MANUAL in v1 (council, Baltic court rows): "Check manually at the official court-decision portal", with a caveat that agents don't search it in this version. Check 10 counts as not possible there, and the coverage line names it ("court cases (check manually at the court portal)"); never "none found". In LV, case numbers on S09 events link to the portal, but that does not count as running check 10. Baltic investigations reach at most 10 of 11 checks.
-- **S15, offer domain** (council item 7, O2; `agents.md` §2.5): with an offer domain, the web section reports it first, in one of four outcomes:
+- **S15, offer domain** (council item 7, O2; `agents.md` §2.5): with an offer domain, the web section reports it first, in one of four outcomes (the signals). The three that aren't tied all fire the one rule `website_inconsistent` (point to check):
   - `offer_domain_tied`: a fact, none found ("paraugs-timber.example is the company's website …");
-  - `offer_domain_not_tied`: "[domain] is not linked to [company] in the register or on its own website", a point to check;
-  - `offer_domain_other_company`: "[domain] belongs to another company: its homepage states registration no. …", a point to check **ranked first among points to check** in key findings;
-  - `offer_domain_unresolvable`: "[domain] does not resolve", a point to check.
-  `website_inconsistent` stays the rule for the register-listed domain. `domain_newer_than_company` fires only on a **registry creation date** (US RDAP, .lt) under 12 months old or newer than the company; certificate-log dates read "certificates seen since [date]" and never fire it. Mockups: `?state=report&offer=match|mismatch|other|unresolvable`.
+  - `offer_domain_not_tied`: "[domain] is not linked to [company] in the register or on its own website";
+  - `offer_domain_other_company`: "[domain] belongs to another company: its homepage states registration no. …", **ranked first among points to check** in key findings;
+  - `offer_domain_unresolvable`: "[domain] does not resolve".
+  `website_inconsistent` is also the rule for the register-listed domain. `domain_newer_than_company` fires only on a **registry creation date** (US RDAP, .lt) under 12 months old or newer than the company; certificate-log dates read "certificates seen since [date]" and never fire it. Mockups: `?state=report&offer=match|mismatch|other|unresolvable`.
 - **S10 in the US, S11 live lists, S15, S16:** AGENT on the profile; a running line during a run; findings in the report. Court parties who are not proven companies read "a private individual" (P8).
 - **S11:** one line per list with its as-of date; a hit becomes a question card (§9.2).
 - **S14:** US public only: ticker, net insider buys and sells per quarter behind the purpose gate.

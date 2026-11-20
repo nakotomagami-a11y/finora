@@ -1,5 +1,7 @@
 # Display options for council session 1
 
+> **Superseded by `DESIGN.md`.** This page is the phase 1 advice trail; build from `DESIGN.md` and the mockups.
+>
 > **Session 1 has ruled** (`docs/plan/council/01-data.md`). Where this page and that record differ, the council record wins: for example the fixed 11-check list, `paid_only` for Lithuanian names, S05 and S12 LATER, company-to-company network only, and the 12-hour purpose session. `DESIGN.md` and the screens follow the council record; this page stays as the advice trail.
 >
 > Designer's advice to the council. Updated for the legal memo (`docs/research/legal.md`) and the council's session 0 framing (rubric, three empty states, v1 agents, banned verdict words). Written before the display matrix is final. It offers **ways to show** each data item; the council decides **whether** to show it. Where the research changes a fact, the research wins and this page is updated.
@@ -257,7 +259,7 @@ From `docs/research/legal.md`, product rules. Each one gets a fixed component, s
 | 2. Natural-person data behind a stated purpose, logged | **Purpose gate**: the People and Owners sections stay collapsed until the user picks a purpose from a short list (for example "checking a business partner"). It's asked once per session and shown in a small "Purpose: …" line above those sections, with a change link. |
 | 3, 16. Source, licence, retrieval date and access tier on every record | The **source chip** (§2) gains an access-tier word ("open data", "API with key", "display only"). The licence links to the Sources page. |
 | 6. Disclaimer on every verdict about a person | A fixed **disclaimer line** in the People section and the report footer (§3.15). |
-| 7. Unsourced claims are not rendered | KeyFinding and FindingItem render nothing without at least one source. A verdict with zero sourced claims falls back to "Not enough evidence for a verdict". |
+| 7. Unsourced claims are not rendered | KeyFinding and FindingItem render nothing without at least one source. A verdict with zero sourced claims falls back to the single line "No written explanation for this report" (council session 2, item 12; the earlier wording here is withdrawn). |
 | 8. Sanctions wording | §3.11. |
 | 9. AI-written text labelled on every surface | An **"AI-written" tag** on the verdict, every agent finding summary, chat answers and exports. Official values never carry it. This also separates register facts from agent prose at a glance. |
 | 10. Correction and objection channel on every entity page | A **"Report an error or object"** link in every company header and on every finding's overflow menu. It opens a short form. An objected statement switches to the **Disputed** state (§1). |
