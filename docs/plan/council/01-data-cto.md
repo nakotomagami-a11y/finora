@@ -123,3 +123,23 @@ A technical option for legal and the council: drop the LV masked code and the EE
 ## Not fixable by engineering
 
 LT S03 People (0%), US private S04 and S06 (0%), and EE S07 (26.9%) have no free source with more. No build effort raises them. Show "Not published in [country]" and spend no effort there. The council decides whether the country promise changes.
+
+## Amendment (cto, 2026-11-20): M03 Taiwan peak
+
+The designer is right; "computed from the first run" is withdrawn, because a 0% drawdown on day one reads as "no crash". Revised call: seed the peak once from a cited official figure, if legal clears it (the same open question as "one cited figure per market" in `markets.md`). Until then the tile shows "Peak not known yet: tracking since [date]" with no drawdown percentage, never 0%. Effort S either way.
+
+On store size: the call is narrow facts, not wide rows (16 B per figure vs 11 B for one row per report, against 123 B as statements). The per-country budgets above become the loader acceptance criteria.
+
+## Legal review of these calls (legal seat, 2026-11-20)
+
+Not legal advice; positions cite `legal.md` rules.
+
+**Agreed, no legal objection:** load rule 4 (HIDE and LATER never loaded; rule 1); load rule 2 (every stored property maps to a SHOW or CAVEAT item; rule 4, data minimisation); load rule 3 for company data; the refresh cadence, the US live-query call, FL LATER and the markets cadence, subject to the notes below.
+
+**Not cleared, with conditions:**
+1. **Share-alike store (§3):** not cleared; rule 4's reach to a local store is a **LAWYER** item. Acceptable only if the four rows can switch to agent-only without code changes. The EE tax-debtor file may include natural persons (sole traders): "?" until checked; any natural person is excluded or handled under rule 5.
+2. **Ended person roles and "officer left" events (§4):** the 0-day default is correct. The event itself is natural-person data: until a lawyer sets the period, do not store "officer left" events that name a natural person. Company-level change events are fine.
+3. **Tombstones (§4):** company tombstones are fine. A struck-off sole trader's tombstone keeps a natural person's name: rule 5, identity fields only, company context, purpose note; **LAWYER** if shown.
+4. **HMAC person join key (§8): not supported.** A keyed hash stored locally is still personal data: anyone with the original code list can recompute it, and it links persons across companies (rules 1 and 4). Use the company-to-company fallback. If the council wants the person link, a lawyer decides first.
+5. **SEC insider data (Forms 3/4/5):** named insiders are natural persons. Company context only (rule 2); no stored person-level history beyond what the matrix needs; **LAWYER** for the retention period.
+6. **US state caching (§5):** each cache entry needs a TTL and the state licence's terms checked before the cache goes live; "?" until data-us reads the six licences.
