@@ -34,7 +34,50 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 - Keys, limits, cost: free, no key. Per-IP limits without numbers (.lv, .ee). rdap.org redirector: 10 requests per 10 s.
 - Legal constraints: one lookup for one domain the user is investigating fits the stated purposes best; bulk lookups or building a domain-to-company table does not. The .lv purpose clause is the tightest: **legal to confirm** whether a due-diligence lookup fits "technical or administrative needs" or "to contact the domain name holder over legal problems". Its reuse clause covers only all or a significant part of the WHOIS, which a single lookup is not.
 - Tested with: `domain.mjs` `registration()`, via `reality_check.mjs`.
-- Verdict: use with caveat. Query time only, one domain per investigation, show the derived facts (registered on, registrant is an organisation, registrant code matches), keep the raw text only in the investigation's documents (TTL), never in shared datasets or exports.
+- Verdict: **LATER until legal reads the terms** (council session 1, item 5). The full texts are quoted in §1.1a below. If legal clears them: CAVEAT, query time only, one domain per investigation, showing only domain age (creation date), registrar and the .lv/.ee register-code match. The registrant's name and contacts are never shown. Raw text stays only in the investigation's documents (TTL), never in shared datasets or exports.
+
+#### 1.1a The WHOIS and web-archive terms, quoted in full for legal
+
+Council session 1, item 5, asked for these texts. Retrieved 2026-11-20. "Banner" is the notice each registry's port-43 WHOIS server returns with every answer; the web page is the registry's published policy. Not legal advice: the readings below are for `legal` to confirm or reject.
+
+**What Finora would do with WHOIS:** one lookup of one domain, when a user investigates a company whose website it is. Shown: creation date (domain age), registrar, and whether the registrant code equals the register code (.lv, .ee). Never shown: the registrant's name, email, phone or address. Nothing is kept outside that investigation; there are no bulk lookups and no domain-to-company table.
+
+**.lv (NIC.LV)**
+- Web policy "NIC WHOIS Policy", Riga, 8 May 2018, in force 25 May 2018 ([nic.lv](https://nic.lv/en/nic-whois-policy)), section "Terms of Use of WHOIS", in full:
+  > By submitting a WHOIS request, the requestor agrees that: The WHOIS service is provided solely for information purposes; It is permitted to use the WHOIS service only for technical or administrative needs associated with the operation of the Internet or in order to contact the domain name holder over legal problems; Requestor will not use information obtained using WHOIS: to allow, enable or in any other way support sending of unsolicited mails (spam); for any kind of advertising; to disrupt stability and security of the Internet. It is not permitted to obtain (including copying) or re-use in any form or by any means all or quantitatively or qualitatively significant part of the WHOIS without NIC.LV's express permission.
+- Same policy, "Technical Limitations": "In order to prevent data mining, the limit of queries per IP address is introduced. Advanced search is not available, and it is not possible to query by holder's name, email, address, phone or fax."
+- Banner: the same clauses, word for word, under `[Disclaimer]`.
+- Reading for legal: the reuse clause covers "all or ... significant part", so one lookup falls outside it. The open point is the purpose clause: is checking a company before a deal a "technical or administrative need associated with the operation of the Internet"? The "contact the domain name holder over legal problems" limb does not fit.
+
+**.ee (Estonian Internet Foundation)**
+- Web page "WHOIS Terms and Conditions", §2 ([internet.ee](https://www.internet.ee/domains/whois-terms-and-conditions)), in full:
+  > All information disclosed through the .ee WHOIS service is protected by the rights of the database owner in compliance with the applicable Copyright Act and binding international conventions. Copyright Eesti Interneti SA (english Estonian Internet Foundation, hereinafter as "EIS"). All rights reserved. The WHOIS service is accessible only through the accesses created by EIS, the WHOIS protocol (restricted information) or Rest WHOIS in compliance with the terms and conditions of using WHOIS, with the following restrictions: 1. the WHOIS search results may not be used for business, advertising, reproduction, recompilation, redistribution, reuse or any other similar purposes; 2. the WHOIS search results may not be downloaded for the creation of a personal database or used as a backend for a search engine. In addition, WHOIS search results may not be obscured (partially or completely), hidden or removed. If any of the search results obtained through WHOIS is transferred to a third party, it must be done in its entirety as original information provided by EIS, with reference to the respective source and copyright holder.
+- The same page, §3: for legal-person registrants it publishes "their name, commercial registry code, and names and email addresses of their administrative and technical contacts". The page says the Estonian version prevails if the two differ.
+- Banner: "Search results may not be used for commercial, advertising, recompilation, repackaging, redistribution, reuse, obscuring or other similar activities."
+- Reading for legal: the tightest of the three. "Business ... or any other similar purposes" and "reuse" may cover showing a derived fact to a user doing business due diligence. The "in its entirety" rule also conflicts with showing selected fields only: a third party gets the whole result or nothing. Finora is free and non-commercial, but its users check companies for business reasons.
+
+**.lt (DOMREG)**
+- Web page "Searching for the domain in WHOIS" ([domreg.lt](https://www.domreg.lt/en/services/whois/)): "WHOIS database is used only for the information on a specific .lt domain and its holder."
+- Banner (version 0.4), in full:
+  > By submitting a query you agree not to use the information made available to: - allow, enable or otherwise support the transmission of unsolicited, commercial advertising or other solicitations whether via email or otherwise; - target advertising in any possible way; - to cause nuisance in any possible way to the registrants by sending (whether by automated, electronic processes capable of enabling high volumes or other possible means) messages to them.
+- The Procedural Regulation for the .lt domain (edition 3.0, 2023-06-01, [PDF](https://www.domreg.lt/informacija/dokumentai/procedural-regulation.pdf)) defines the WHOIS database (3.20) as data "which can be used individually by electronic means" and sets no other rule on using it.
+- Reading for legal: the loosest of the three. One lookup about one domain matches "information on a specific .lt domain and its holder", and none of the banned uses (advertising, solicitations, nuisance) applies. The .lt server gives the creation date but no register code.
+
+**The web archive (Internet Archive, Wayback Machine)**
+- The live terms page (`https://archive.org/about/terms.php`) now renders only in a browser that runs its scripts; a headless browser returned an empty shell. The text below is the last server-rendered version, headed "Terms of Use 31 Dec 2014", from the archive's own capture of that page on 2024-11-30 (`https://web.archive.org/web/20241130085839/https://archive.org/about/terms.php`). **Legal should confirm the live text is unchanged.**
+- The relevant clauses, verbatim:
+  > Access to the Archive's Collections is provided at no cost to you and is granted for scholarship and research purposes only.
+
+  > You agree not to interfere with the work of other users or Archive personnel, servers, or resources.
+
+  > In particular, you certify that your use of any part of the Archive's Collections will be limited to noninfringing or fair use under copyright law.
+
+  > In using the Archive's site, Collections, and/or services, you further agree (a) not to violate anyone's rights of privacy, (b) not to act in any way that might give rise to civil or criminal liability, (c) not to use or attempt to use another person's password, (d) not to collect or store personal data about anyone, (e) not to infringe any copyright, trademark, patent, or other proprietary rights of any person, ...
+
+  > ... we request that, according to standard academic practice, if you use the Archive's Collections for any research that results in an article, a book, or other publication, you list the Archive as a resource in your bibliography.
+- The archive's help centre ("Internet Archive Access Policy", [help.archive.org](https://help.archive.org/help/internet-archive-access-policy/)): "The Internet Archive's Terms of Use governs patrons' use of the collection of Web pages and other digital content available through the Internet Archive."
+- **What Finora would do:** ask the capture index (CDX) for one domain's capture dates, show the first and last capture year, and link to a snapshot. No page content is copied or stored, and no personal data is collected.
+- Reading for legal: two questions. Does a user checking a company count as "research"? And could capture dates for a domain be "personal data about anyone"? For a sole trader's domain they could, so legal rule 5 applies there either way.
 
 #### Certificate transparency: Cert Spotter API and crt.sh
 - Publisher and official URL: SSLMate Cert Spotter `https://api.certspotter.com/v1/issuances`; Sectigo crt.sh `https://crt.sh/?q=<domain>&output=json`.
@@ -66,7 +109,7 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 - Rows and coverage: 🟢 at least one capture for 95% of sample websites (20 of 21).
 - Size and speed: 🟢 p50 877 ms, p95 2.3 s.
 - Licence: **unverified**. The Internet Archive terms page could not be fetched (its text did not render). No rate limit is published; the CDX server caps results at 150,000.
-- Verdict: use with caveat until the terms are read. Store only dates and snapshot links; show the archived page by linking to it, never by copying it.
+- Verdict: **LATER until legal reads the terms** (council session 1, item 5; text quoted in §1.1a). If cleared: CAVEAT, storing only capture dates and snapshot links, and linking to archived pages, never copying them.
 
 #### The company's own homepage
 - Access: one HTTPS GET of the homepage, as a browser would, when the user investigates the company.
@@ -302,6 +345,8 @@ Sample sizes are small (7-9 per country). The rates below say what the agent can
 | S15 | LV | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates |
 | S15 | LT | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code |
 | S15 | US | SAM.gov URL or web search → DNS, RDAP, CT, Wayback, homepage | B | website 100% of sample; RDAP date 100%; registrant 0% | per-query; licence verified Y |
+| S15.whois | LV, EE, LT | ccTLD WHOIS (port 43): creation date, registrar, register-code match | C | date: LT 2/2, EE 6/9, LV 0/2; code match: EE 4/9, LV 1/2 | per-query; licence verified Y (terms quoted in full, §1.1a); council S1 item 5: LATER until legal reads them; registrant name and contacts never shown |
+| S15.archive | all | Wayback CDX: first and last capture, snapshot link | C | 95% of sites known | per-query; licence verified N (live terms page renders only by script; 2014 text quoted, §1.1a); council S1 item 5: LATER until legal reads it |
 | S16 | all | GDELT DOC 2.0 (news, last 3 months) | C | 16% raw hits; 41% of queries answered | API; licence verified Y; 1 request per 5 s per IP; titles + links only |
 | S16 | US | SEC / DOJ / FTC press releases | A | not measured on the sample | bulk; licence verified Y (public) |
 | S16 | all | social profiles linked from the company's own website | C | 41% | per-query; licence verified Y (own site); links only, no platform data |
@@ -467,7 +512,7 @@ No checksum applies to these IDs. Whether a list ever reuses an ID after a delis
 No paid service is needed for v1 beyond the LLM key. Web search runs on the same key at $10 per 1,000 searches.
 
 **Other open items**
-- **Legal:** whether a due-diligence lookup fits the .lv and .ee WHOIS purpose clauses; the Internet Archive terms (the page did not render); whether showing a map platform's rating and count without LLM processing is allowed; the UN list terms (403).
+- **Legal (council S1 item 5):** the .lt, .lv and .ee WHOIS terms and the web archive's terms, quoted in full in §1.1a with one reading each: .lt looks compatible, .lv turns on its purpose clause, .ee's "business ... or any other similar purposes" and its "in its entirety" rule are the hardest, and the archive's "scholarship and research purposes only" needs a reading. Also: whether showing a map platform's rating and count without LLM processing is allowed; the UN list terms (403).
 - **data-osint, next round:** the US Consolidated Screening List bulk file (not downloaded); the LV FIU national list (download returned HTTP 500); a second GDELT run off-peak.
 - **data-us:** the CFPB 403 (bot protection on the API and the bulk file).
 
