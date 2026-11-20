@@ -22,13 +22,13 @@
 | 12 | frontend | An empty list renders "none found" | "none found" only from `checked_none{source, asOf}`; an empty array is a contract error, tested; `not_published` and `checked_none` states on role and holder tables | open |
 | 13 | frontend + architect | Two homes for banned terms, and grade wording missing | one file, with letter-grade and credit-score patterns and tests | open |
 | 14 | frontend | Sole traders named in search results and the header | legal form plus code (L3, P6); cases in `search.spec.ts`, `seo-headers.spec.ts` (legal: agreed) | open |
-| 15 | data-us | Accession numbers as record keys and hash inputs (their prefix can be a person's CIK) | key individual filers on issuer + filing date + sequence; `person-fields.test.ts` checks accession prefixes (legal: required) | open |
-| 16 | data-us | A live portal's empty answer wipes a company's people | the two-miss rule per dataset query (legal: required) | open |
+| 15 | data-us | Accession numbers as record keys and hash inputs (their prefix can be a person's CIK) | key individual filers on issuer + filing date + sequence; `person-fields.test.ts` checks accession prefixes (legal: required) | fixed `e20002a` (qa to verify) |
+| 16 | data-us | A live portal's empty answer wipes a company's people | the two-miss rule per dataset query (legal: required) | fixed `e20002a` (qa to verify) |
 | 17 | data-markets | `esma-firds.md` has no `purgeScope` | `full` | fixed `5e68685` (qa to verify) |
 | 18 | data-markets | C1 keeps only the latest snapshot, yet the peak uses the highest ever seen | drop the local maximum, or legal clears it | fixed `5e68685`: peak = max(C3 all-time high, current C1 total) (qa to verify) |
-| 19 | data-us | `us-fmcsa.md`: two storage classes for one source id; a natural person's address reduced to state, `legal_name`/`dba_name` kept; "verified partial" without URL and date | one class per source id; drop personal names, address country only; cite the terms or keep LATER (legal: required) | open |
-| 20 | data-us | `us-fdic.md`: `purgeScope: full` but only the latest quarter is fetched | `window`, or split the source | open |
-| 21 | data-us | `us-sam-exclusions.md` loads firms that may be sole proprietors | load only firms that pass the party gate (legal: required) | open |
+| 19 | data-us | `us-fmcsa.md`: two storage classes for one source id; a natural person's address reduced to state, `legal_name`/`dba_name` kept; "verified partial" without URL and date | one class per source id; drop personal names, address country only; cite the terms or keep LATER (legal: required) | fixed `e20002a` (qa to verify) |
+| 20 | data-us | `us-fdic.md`: `purgeScope: full` but only the latest quarter is fetched | `window`, or split the source | fixed `e20002a` (qa to verify) |
+| 21 | data-us | `us-sam-exclusions.md` loads firms that may be sole proprietors | load only firms that pass the party gate (legal: required) | fixed `e20002a` (qa to verify) |
 
 ## SHOULD-FIX (fix in the same revision)
 
