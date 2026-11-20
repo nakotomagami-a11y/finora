@@ -147,4 +147,6 @@ Each call holds its own `max_uses` × `SEARCH_RESULT_TOKENS_EST` × input price 
 - **data-osint:** items 5, 6, 7, 9, 10 and 16 in `agents.md` (`80e8c81`), plus the CFO rerun and crash-recovery points. Item 6 is to be aligned to holds per call.
 - **frontend:** items 7, 8, 10, 11, 12, 13 and 15 in `ui-build-plan.md` draft 6.
 - **coordinator:** items 1-4 in `77c6252`.
-- **Open:** architect (items 5, 6, 7, 8, 11, 14, 15, the parallel lane, and the suppressions form above) and designer (items 7, 10, 11, 13).
+- **architect:** items 3 (lane), 5, 7, 8, 11, 13, 14 (slice splits: S04a/S04i/S04f, S04b/S04u, S09a/S09b, S15r/S15g/S15f, S20 and S24 server/UI) and 15 in `47acc2b`. Two points in it predate the final rulings and are to be aligned: US suppressions must be **role-level**, and item 6 holds are **per call**.
+- **data-osint:** item 6 aligned to holds per call in `bee282f` (`agents/src/budget.parallel.test.ts`).
+- **Open:** the architect's two alignments above; designer (items 7, 10, 11, 13).
