@@ -1,6 +1,6 @@
 # UI build plan
 
-> **Status: phase 3 draft 2.** Owner: `frontend`. Written from `DESIGN.md` v1, `docs/design/IA.md`, the mockups in `docs/design/mockups/` (opened in Chromium at 1280 and 390 px wide for this revision), `docs/design/display-options.md`, council session 1 (`docs/plan/council/01-data.md` Parts B-H), `docs/plan/reviews/00-early-plan-review.md`, `docs/plan/agents.md`, `docs/plan/loaders/markets.md`, `docs/architecture.md` and `docs/plan/slices.md`. The mockups win on looks, this plan wins on behaviour. Open conflicts between sources are listed in §16. Items that wait on someone else are marked **[pending: ...]**.
+> **Status: phase 3 draft 3.** Owner: `frontend`. Written from `DESIGN.md` v1, `docs/design/IA.md`, the mockups in `docs/design/mockups/` (opened in Chromium at 1280 and 390 px wide for this revision), `docs/design/display-options.md`, council session 1 (`docs/plan/council/01-data.md` Parts B-H), `docs/plan/reviews/00-early-plan-review.md`, `docs/plan/agents.md`, `docs/plan/loaders/markets.md`, `docs/architecture.md` and `docs/plan/slices.md`. The mockups win on looks, this plan wins on behaviour. Open conflicts between sources are listed in §16. Items that wait on someone else are marked **[pending: ...]**.
 
 A builder reading this file, `DESIGN.md` and the mockups should never have to guess. If something is unclear, that is a bug in this file.
 
@@ -608,7 +608,7 @@ Other rules:
 ## 11. Language, copy and formatting
 
 - **Four locales:** `en`, `lt`, `lv`, `et` (the URL segment is `et`). All text is in `packages/i18n/messages/<locale>.json`, namespaced: `common`, `shell`, `search`, `field`, `company`, `investigate`, `agents`, `report`, `network`, `library`, `crash`, `settings`, `errors`. ICU plurals. The parity test (S02) fails on a missing key, an empty string or a different ICU argument.
-- **Banned wording** (council clarification 2) covers every string Finora writes: verdict and status labels, finding statements, catalogue strings, controls, LLM prose. The list is `packages/i18n/src/banned.ts`. `banned.test.ts` checks every catalogue string, case-insensitively and whole-word, with no exception list. Controls use "Reset", not "Clear". The only exemption is a verbatim quote inside `Quote`, with its citation. Equivalents in LT, LV and ET are added to the list by native review. **[pending: the designer or council owns the final list]**
+- **Banned wording** (council clarification 2) covers every string Finora writes: verdict and status labels, finding statements, catalogue strings, controls, LLM prose. The list is `packages/i18n/src/banned.ts`. `banned.test.ts` checks every catalogue string, case-insensitively and whole-word, with no exception list. Controls use "Reset", not "Clear". The only exemption is a verbatim quote inside `Quote`, with its citation. The LT, LV and ET lists are word **stems** (the languages inflect), drafted in DESIGN.md §4 and pending native review: until that review the locale test warns and the English test fails the build.
 - **LLM text** with a banned term is rejected, regenerated once, then replaced by the sourced facts alone (council clarification 2). That is a runtime rule; the UI renders the facts-only fallback as a normal state.
 - **Numbers and dates** use `Intl` with the active locale. A company's money keeps its own currency (EUR, USD, "LVL (before the euro)"). Dates show the register's as-of date plus the retrieval date in the chip. Relative times only where an absolute time is also available (title attribute or chip).
 - **Register words** keep the register's language, plus an English gloss in the pill where one exists, never our paraphrase alone.
@@ -783,7 +783,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   11. A reload mid-run restores an identical state: the DOM text after reload equals the DOM text before it, apart from elapsed timers.
   12. Losing the connection shows the banner after 3 s, keeps the content and recovers without a duplicate finding.
   13. At most one announcement per lane status change, none per step; the question and the verdict announce once each.
-  14. Below 1024 px the panel sits under the content, and a sticky summary bar ("4 agents · 2 running · $0.31", a link to the panel) keeps the run visible while the user scrolls the sections (the mockup places the lanes far below the sections on a phone; designer to confirm the bar).
+  14. Below 1024 px the panel sits under the content, and a sticky summary bar ("4 agents · 2 running · $0.31", a link to the panel) keeps the run visible while the user scrolls the sections (confirmed by the designer: it reads "4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel).
   15. A lane step with an unknown key renders "Working"; no model text reaches a lane (type and unit test).
   16. Reduced motion: no pulse, no wash; counters still change.
   17. The lead lane reads "Lead: resolve and plan" and ends with "Pinned to registration no. {code}"; the verdict lane is queued until the specialists end; "4 agents" in the header counts the four specialists; free text that matches no registry record ends with "Not found in the loaded registers", no lanes start, and the page says no web search ran on an unpinned name.
@@ -909,23 +909,12 @@ Slices that depend only on fixtures start before the real API lands (the archite
 9. Number the UI slices (§14) into `slices.md`; the `U` names are placeholders.
 10. `GET /settings/status` returns presence for each key and the SEC contact setting.
 
-**Designer (the mockups answered most of draft 1's asks; these remain):**
-1. **Mobile run view.** On a phone the lanes sit below all sections. Confirm the sticky summary bar (U5 criterion 14), or place the agents earlier.
-2. **`scope` question and cap timeouts** conflict with `agents.md` (see the conflicts table below). Please align the mockup text.
-3. **Language switch.** DESIGN.md puts theme in the top bar and does not say where the language switch lives. The plan puts it in Settings.
-4. **Home page data.** The country status cards need "loaded {date}" per country from the API (U3), and the Recent list needs the library DTO.
-5. Final banned-words list with LT, LV and ET equivalents, and the shortcut list dialog (a small `?` dialog is in the plan; not in the mockups).
-
-**Open conflicts between sources** (the plan follows the first-named source until resolved):
-
-| Topic | Source A | Source B | Plan follows |
-|---|---|---|---|
-| `scope` question | `agents.md` §7: the web agent asks whether a candidate site is the company's (Yes / No / Not sure), default "Not sure" | `DESIGN.md` §9.2: options with their extra cost, default the cheapest useful | `agents.md` (the runtime defines the question) |
-| Timeouts | `agents.md` §7: `cap_reached` default after 10 min; `entity_choice` 30 min | `DESIGN.md` §9.2: 30 min for the others, the cap question included | `agents.md` |
-| Cap extension scope | `agents.md` and the early plan review: once per **investigation** | `DESIGN.md` §9.2: once per **run** | once per investigation |
-| Lanes | `agents.md` §2: lead, four specialists, verdict | `DESIGN.md` §9.1: the same six lanes, counted as "4 agents" | agree: six lanes, four counted |
-| Sole-trader Investigate | `agents.md` §2.1: no agents run on a natural person | `display-options.md` §10 (old): the sheet says the run reports facts | `agents.md`: no Investigate button; the page is the facts-only report |
-| Purpose list | `DESIGN.md` §8.3: four purposes, draft for legal | the API owns the list | the API list, rendered as radio buttons |
+**Designer: all answered (2026-11-20, commit `319a123`).**
+- The runtime wins every conflict: `scope` is "Is {domain} this company's website?" (Yes / No / Not sure, default "Not sure" after 30 min); the cap extension is once per investigation and its question defaults after 10 min; six lanes, four counted; sole traders have no Investigate, Network or agent rows; the purpose list comes from the API as radio buttons.
+- **Mobile run view:** below 1024 px a sticky bar under the top bar reads "4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel. Question cards always render inline at the top.
+- Language switch is in Settings. The home page's per-country "loaded {date}" and the library DTO come from the API.
+- Banned words in LT, LV and ET are word stems (the languages inflect), drafted in DESIGN.md §4 and marked for native review: until then the locale test warns and the English test fails the build.
+- A `?` shortcuts dialog is in DESIGN.md §14.
 
 **data-osint:** `agents.md` answered most of this (roles, key lists, fake-provider scenarios). Still open: the per-lane timing hints for the UI ("usually under a minute" for registry, money and legal; "usually 1 to 2 min" for web, from osint.md §4.8) as numbers in the estimate DTO, and the route that re-runs one agent.
 
