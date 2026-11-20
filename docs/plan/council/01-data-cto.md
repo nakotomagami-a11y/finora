@@ -153,3 +153,10 @@ Not legal advice; positions cite `legal.md` rules.
 4. **HMAC person join key: withdrawn.** S17 for LV and EE uses company-to-company links only (shared addresses, corporate members). Person-to-person links wait for a lawyer and a council call; that also covers S17.US.01 (shared SEC insiders across issuers). No extra build cost.
 5. **SEC insiders:** company context only; only what the matrix rows need is stored; the retention period is a config value for a lawyer to set.
 6. **US state cache:** each source's registry entry gets a cache TTL and the state licence. Proposed defaults: re-fetch on view when older than 24 h; purge entries not viewed in 30 days. The US live slice is not accepted until data-us has recorded all six licences.
+
+## Legal's acceptance (2026-11-20)
+
+Legal accepts cto's answer (switchable share-alike storage, company-level "officer left" events, sole-trader tombstones, the HMAC withdrawal and company-to-company links, SEC insiders in company context, and the debtor-list check; the loader's rule 5 guard stays because the register can change). Three test conditions carry into the plan:
+1. `live-no-store` mode has a negative test: no write to disk, no cache entry, no log line containing the debtor data.
+2. The US cache defaults (24 h re-fetch, 30-day purge) are acceptable; the live US slice stays blocked until all six state licences are recorded; rule 16 applies to each cached statement.
+3. The 30-day purge has a test that deletes a cached entry not viewed in that period.
