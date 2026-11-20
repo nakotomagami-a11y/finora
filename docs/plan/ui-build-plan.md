@@ -1,6 +1,6 @@
 # UI build plan
 
-> **Status: phase 3 draft 4 (qa review of 0de4d5f answered).** Owner: `frontend`. Written from `DESIGN.md` v1, `docs/design/IA.md`, the mockups in `docs/design/mockups/` (opened in Chromium at 1280 and 390 px wide for this revision), `docs/design/display-options.md`, council session 1 (`docs/plan/council/01-data.md` Parts B-H), `docs/plan/reviews/00-early-plan-review.md`, `docs/plan/agents.md`, `docs/plan/loaders/markets.md`, `docs/architecture.md` and `docs/plan/slices.md`. The mockups win on looks, this plan wins on behaviour. Open conflicts between sources are listed in §16. Items that wait on someone else are marked **[pending: ...]**.
+> **Status: phase 3 draft 5 (qa review of 0de4d5f answered; Baltic court, check 5 and Sodra changes, and web-qa's mockup findings folded in).** Owner: `frontend`. Written from `DESIGN.md` v1, `docs/design/IA.md`, the mockups in `docs/design/mockups/` (opened in Chromium at 1280 and 390 px wide for this revision), `docs/design/display-options.md`, council session 1 (`docs/plan/council/01-data.md` Parts B-H), `docs/plan/reviews/00-early-plan-review.md`, `docs/plan/agents.md`, `docs/plan/loaders/markets.md`, `docs/architecture.md` and `docs/plan/slices.md`. The mockups win on looks, this plan wins on behaviour. Open conflicts between sources are listed in §16. Items that wait on someone else are marked **[pending: ...]**.
 
 A builder reading this file, `DESIGN.md` and the mockups should never have to guess. If something is unclear, that is a bug in this file.
 
@@ -21,6 +21,7 @@ A builder reading this file, `DESIGN.md` and the mockups should never have to gu
 13. [Policy and legal rules in the UI](#13-policy-and-legal-rules-in-the-ui)
 14. [UI slices](#14-ui-slices)
 15. [Test strategy for the UI](#15-test-strategy-for-the-ui)
+    - [15a. Mockup defects the build must not copy](#15a-mockup-defects-the-build-must-not-copy)
 16. [Asks of other seats and open items](#16-asks-of-other-seats-and-open-items)
 
 ---
@@ -276,6 +277,9 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 
 Rules:
 - Optional fields (LEI, VAT, website) render **no row** when absent. Core fields and every risk check always render a state.
+- **Courts (S10).** In LT, LV and EE, S10 is `not_checked{reason: manual_lookup}`: "Check manually at the official court-decision portal", with the official link only and a caveat that agents do not search that portal in this version. Check 10 is **not possible** there (`not_possible`), so the coverage line reads "10 of 11 checks ran · 1 not possible in Latvia" and never "none found"; the instant checks card shows it as not run, not as "Runs when you investigate". An LV case number on a securing-measure event links to the portal and does not count as running check 10. Only the US has an agent court search (S10.US.01 and S10.US.02: AGENT state, "Possible match by name, needs review").
+- **Lithuanian social insurance (S07.LT.01, S08.LT.02).** `not_checked{reason: agent_only}` on the profile ("the money and tax agent checks this when you investigate"). In a report the value carries a chip "read live by the money and tax agent, not stored". The LT coverage line names it. LT check 7 runs on the stored debtor list (S08.LT.01); its 180-day age rule counts from the list's entry date ("on the list since 2 Sep 2026 (79 days)"), so it is not `not_evaluated`.
+- **Check 5 wording.** The label is "Accounts filed" (not "on time"). The line says what the register holds: "Annual report for 2025 in the register since 28 Apr 2026", or "Annual report for 2025 not in the register, 14 months after the year ended". The words "late", "overdue" and "deadline" never appear in a string Finora writes (`i18n/src/copy-rules.test.ts` scans the catalogue and the verdict fixtures), because only an estimate of the filing window exists.
 - A section whose rows are all `not_published` collapses into one sentence: "Lithuania publishes no ownership data".
 - `restricted` depends on the rule (country, legal form, section), never on the record. The UI renders what the DTO says and never infers the lock from missing data.
 - Register words are shown as the register writes them, with an English gloss where one exists ("Likviduojamas · under liquidation"), and carry `lang` for the source's language.
@@ -447,7 +451,7 @@ type InvestigationState = {
 | `plan` | The four specialist lanes start (all together in v1, so no dependency text). The **lead** lane ("Lead: resolve and plan") exists from the start and ends with "Pinned to registration no. {code}"; the **verdict** lane stays `queued` until the specialists end |
 | `run.status` | Lane status icon and text; `waiting` links to the question; `failed` shows the machine code mapped to catalogue text and **Re-run {agent}** (agents.md §2.7 offers it) (route: `POST /investigations/:id/runs/:runId/rerun`) |
 | `run.step` | The lane's `ActivityLine` (replaces the previous line) |
-| `run.task` | A `TaskRow` appears or changes; header task count |
+| `run.task` | A `TaskRow` appears or changes; header task count. In the Baltics the legal lane lists "court portals: manual in the Baltics" as a `skipped` task |
 | `run.source` | The lane's "sources read" counter and the header source count tick up |
 | `finding` | A `FindingItem` lands in the matching `SectionCard` (by the item's section) with a 600 ms accent wash (none under reduced motion) and in the report's evidence group. A finding with no section shows only in the evidence group. A `context` finding has no severity and no severity chip, and never counts as a fired rule. A web finding with anchor `name_only` shows "Linked by name only"; a news item that is not confirmed shows "Mentions the name; not confirmed to be this company" and is never a key finding. No citation: never rendered |
 | `question` | `QuestionCard` pinned to the top of the panel; lanes it blocks show "Waiting for your answer" |
@@ -741,6 +745,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   10. Switching locale (in Settings) keeps path and query.
   11. The home page shows one card per country with its promise ("full check", "money and status check; no names", "registration and filings") and its load time; a country still loading shows its percent; Recent lists the last investigations with code and time.
   12. The `SpendPill` shows today's spend against the daily cap, turns `--warn` from 80%, and is hidden under 768 px.
+  13. At 390 px the status pill sits under the name and the name takes at least 60% of the row width.
 - **Tests:** `ui/src/primitives/combobox/combobox.test.tsx`, `web/src/components/search/*.test.tsx`, `web/e2e/search.spec.ts`, `web/e2e/command-bar.spec.ts`, `web/e2e/shell.spec.ts`, `web/e2e/shell.responsive.spec.ts`, `web/e2e/locale.spec.ts`.
 - **Demo:** press `/`, type part of an example name, arrow to a result, open it, switch to `lt`.
 
@@ -896,6 +901,25 @@ Slices that depend only on fixtures start before the real API lands (the archite
 **Definition of done for a UI slice:** every acceptance criterion holds; `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm e2e` are green; the gallery shows every state of the slice's components; I have checked it in a real browser at the four widths; qa has no open MUST-FIX; web-qa has no open MUST-FIX.
 
 ---
+
+## 15a. Mockup defects the build must not copy
+
+web-qa swept the mockups (commit `7dc2e76`, 448 renders). These findings are build requirements; each has a test in the slice that builds the component.
+
+| Defect in the mockups | Build requirement | Slice and test |
+|---|---|---|
+| Source popovers run off-screen at 390 px (16 of 20 chips) | `SourceChip` popovers use collision handling with an 8 px viewport padding and flip or shift, so the licence, as-of date and record link are fully inside the viewport at 390 | U4: `web/e2e/source-chip.spec.ts` opens every chip on the LV profile at 390 and asserts the popover box is inside the viewport |
+| About 4,000 px of dead vertical space on phones (`flex: 1 1 240px` becomes a height when rows stack) | Rows stack with no flex-basis height; row height follows content. A row with a 40 px value is about 40 px | U4: `web/e2e/profile.layout.spec.ts` asserts no row has more than 30 px of empty space at 390 |
+| Search rows crush the name to 74 px at 390 | At 390 the status pill moves under the name; the name gets the full row width and clamps to two lines | U3: `web/e2e/search.responsive.spec.ts` asserts the name box is at least 60% of the row at 390 |
+| `aria-expanded` stays `true` after Esc | Use the Radix Popover (it owns `aria-expanded`); focus stays on the chip | U1: `popover.test.tsx` |
+| Sheets are not modal (focus not trapped, Esc does nothing) | Sheet is a Radix Dialog: focus trapped, background inert, Esc closes, focus returns to the opener. The pre-run sheet is the one blocking step before money is spent | U1: `sheet.test.tsx`; U5: `investigation.sheet.spec.ts` (Tab never leaves the sheet; Esc closes) |
+| Touch targets below 40 px (chips 22 px, Retry 22 px, pills 30 px) | Every interactive target is at least 24 px (WCAG 2.2) and at least 44 px on coarse pointers, the chip's tap area included, without making the chip look bigger | U1: `design.target-size.spec.ts` on the gallery at 390 with `hasTouch` |
+| `--faint` used for text (the "/" separators) | `--faint` is for icons and dividers only; separators are decorative `aria-hidden` glyphs or borders | U1: `check-tokens` forbids `--faint` as a text colour |
+| Loading and error states without an `h1`, headings jumping from h1 to h3 | Every page state has exactly one `h1` and an ordered heading tree | U3, U4: `structure.spec.ts` over every state |
+| `/` and `Ctrl/Cmd+K` do nothing outside the search page; the top-bar field only navigates | The command bar is a real dialog on every page | U3: `command-bar.spec.ts` on each tool page |
+| The page loads dark when the OS says light | With no stored choice, follow `prefers-color-scheme` | U1: `theme.spec.ts` with `colorScheme: "light"` |
+| Inert controls ("Stop and write the report", "Report a problem", "All line items", "Open") | A control that does nothing is not rendered. Every control in the build has an action and a result state | every slice: the gallery e2e clicks every control and asserts a visible result or navigation |
+| States with no URL: reconnecting, stopped by user and its report, retry of one failed agent, command bar open, `not_evaluated` | Each is a gallery state in `/design` (`?state=reconnecting`, `stopped`, `lane-failed`, `command-bar`, `not-evaluated`) | U1, U5: listed in `fixtures/ui.test.ts` |
 
 ## 16. Asks of other seats and open items
 
