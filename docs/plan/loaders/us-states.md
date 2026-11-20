@@ -32,7 +32,7 @@ Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, 
 | Open (writes the cache) | the entity's row by key, plus its people, history and UCC rows below |
 | NY people and history | `3gg2-jgnp?corpid_num=<dos_id>`; `k4vb-judh?dos_id=<dos_id>` |
 | CO history and UCC | `casm-dbbj?entityid=<entityid>`; `8upq-58vz?organizationid=<entityid>` (id match only) |
-| CT people, history, UCC | `ka36-64k6?business_id=<id>`; `ah3s-bes7?account=<accountnumber>`; `xfev-8smz?$where=upper(debtor_nm_bus)='<NAME>'` |
+| CT people and history | `ka36-64k6?business_id=<id>`; `ah3s-bes7?account=<accountnumber>`. CT UCC (`xfev-8smz`) is queried only by the legal agent, by exact name |
 | PA | `xvd7-5r2c?filing_number=<n>` (one row per party) |
 
 Every query sends `$select` with exactly the columns in the field map, so unread columns (residence addresses, emails, phones) never leave the portal.
@@ -109,7 +109,7 @@ Personal = natural-person data (purpose gate, P5 TTL). Every other column of the
 | `billingstreet`, `billingcity`, `billingstate`, `billingpostalcode`, `billingcountry` | text | `Address` | S01.US.02 | no | |
 | `business_email_address`, ownership flags (woman-, veteran-, minority-, LGBTQI-owned) | | dropped | - | - | personal or sensitive |
 
-**CT `ka36-64k6` (principals)**: `business_id` → join; `name__c` → `Person.name`; `designation` (Officer, Director, Officer;Director; empty on 84% of rows) → role (S03.US.03, **personal**). **Dropped, never selected (HIDE fields, legal rule 2, P3 home addresses):** `residence_address`, `residence_street_address_*`, `residence_city`, `residence_state`, `residence_zip_code`, `residence_country`, and the principal's business address. **CT `qh2m-n44y` (agents): not read.** **CT `ah3s-bes7`**: `account`, `filing_date`, `type`, `filing_type` → event `register.filing` (S02.US.02, S13.US.03); `organizer_name`, `name_of_incorporator` dropped. **CT `xfev-8smz`**: `id_lien_flng_nbr` (record key), `lien_status`, `cd_flng_type`, `debtor_nm_bus` → event `register.ucc_debtor` (S09.US.01); person debtor and secured-party person columns not selected.
+**CT `ka36-64k6` (principals)**: `business_id` → join; `name__c` → `Person.name`; `designation` (Officer, Director, Officer;Director; empty on 84% of rows) → role (S03.US.03, **personal**). **Dropped, never selected (HIDE fields, legal rule 2, P3 home addresses):** `residence_address`, `residence_street_address_*`, `residence_city`, `residence_state`, `residence_zip_code`, `residence_country`, and the principal's business address. **CT `qh2m-n44y` (agents): not read.** **CT `ah3s-bes7`**: `account`, `filing_date`, `type`, `filing_type` → event `register.filing` (S02.US.02, S13.US.03); `organizer_name`, `name_of_incorporator` dropped. **CT `xfev-8smz`** (UCC liens): **not read by the loader** (no entity id; legal 7030098645). The legal agent's tool may query it by exact business name and return `id_lien_flng_nbr`, `lien_status`, `cd_flng_type` and the filing date as a possible match, never stored; person debtor and secured-party person columns are never selected.
 
 **PA `xvd7-5r2c`** (one row per business and party)
 
@@ -127,11 +127,11 @@ PA publishes no status field: `status` stays empty and the UI shows "Status: not
 
 ## Party gate
 
-Not applicable to the register rows: each row is the registered entity itself, and these datasets list business entities only (no sole proprietors; trade-name files are not read). `natural_person = 0` for every state entity. The legal-form tables (`legal-forms.ts`) hold only the organisation forms measured on 2026-11-20 (NY 15+, CO 15, CT 15, PA 15 values, all organisations); a row whose form is not in the table is skipped (`unknown_form`), so a sole proprietorship can't enter through a new code. PA party types "Owner" and "Member" are people in an organisation's context (behind the purpose gate), not the entity itself.
+Not applicable to the register rows: each row is the registered entity itself, and these datasets list business entities only (no sole proprietors; trade-name files are not read). `natural_person = 0` for every state entity. The legal-form tables (`legal-forms.ts`) hold only the organisation forms measured on 2026-11-20 (NY 15+, CO 15, CT 15, PA 15 values, all organisations); a row whose form is not in the table is skipped (`unknown_form`), so a sole proprietorship can't enter through a new code. Every PA party row, including "Owner" and "Member", is treated as a natural person (P8, legal 7030098645): personal, behind the purpose gate, never loaded or linked as a company, even when the party is in fact an organisation.
 
 UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`:
 - **CO:** attached as a fact only when `organizationid` equals the entity id (an official-ID match).
-- **CT:** the lien file has no entity id, so an exact normalised-name match on `debtor_nm_bus` (with a legal-form token) is attached as a **possible match only**: "UCC filing under this exact name, needs review". It never feeds a verdict rule and never reads as a fact about the company (S09 caveat).
+- **CT:** the lien file has no entity id, so nothing is shown on the instant profile without an identifier match (legal, 7030098645). An exact normalised-name match on `debtor_nm_bus` (with a legal-form token) is **not stored**; the legal agent may surface it as "UCC filing under this exact name, needs review" (a possible match that never feeds a verdict rule). The S09 check line reads "Checked UCC filings in Colorado (by registry id); Connecticut by name through the agent only".
 - Person debtor columns are never selected, so a person debtor can't reach the store. Drop reasons: `ucc_name_mismatch`, `ucc_no_form_token`, `ucc_person_columns_not_read`.
 
 ## Identity and joins
@@ -144,8 +144,8 @@ UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`:
 ## Refresh and change
 
 - No bulk load. **Open:** fetch the entity and its related rows. One record per entity per dataset (architecture A8, long-format rows grouped):
-  - `record_key` = `<dataset>:<entity key>`: NY `n9v6-gdp6:<dos_id>`, `3gg2-jgnp:<dos_id>`, `k4vb-judh:<dos_id>`; CO `4ykn-tg5h:<entityid>`, `casm-dbbj:<entityid>`, `8upq-58vz:<entityid>`; CT `n7gp-d28j:<accountnumber>`, `ka36-64k6:<accountnumber>`, `ah3s-bes7:<accountnumber>`, `xfev-8smz:<accountnumber>`; PA `xvd7-5r2c:<filing_number>` (all party rows of a business are one record).
-  - `hashInput`: the field-map columns of each row in field-map order, normalised. Row order: history and UCC rows by their natural key (NY history `film_num|date_filed`; CO `transactionid`; CO UCC `fileid|debtorid`; CT filing `filing_date|type|volume|pages`; CT UCC `id_lien_flng_nbr`); **people rows in source order** (never sorted by name; §3.3). This is the only definition of the hash order.
+  - `record_key` = `<dataset>:<entity key>`: NY `n9v6-gdp6:<dos_id>`, `3gg2-jgnp:<dos_id>`, `k4vb-judh:<dos_id>`; CO `4ykn-tg5h:<entityid>`, `casm-dbbj:<entityid>`, `8upq-58vz:<entityid>`; CT `n7gp-d28j:<accountnumber>`, `ka36-64k6:<accountnumber>`, `ah3s-bes7:<accountnumber>`; PA `xvd7-5r2c:<filing_number>` (all party rows of a business are one record).
+  - `hashInput`: the field-map columns of each row in field-map order, normalised. Row order: history and UCC rows by their natural key (NY history `film_num|date_filed`; CO `transactionid`; CO UCC `fileid|debtorid`; CT filing `filing_date|type|volume|pages`); **people rows in source order** (never sorted by name; §3.3). This is the only definition of the hash order.
   - A change in any row rewrites that dataset's record for the entity. People: see `personRecordKey` above for role-end detection.
 - **Re-fetch on view** when the cached copy is older than 24 h. Two cases (cto 7029779579, legal 7029000097):
   - **The registry returns the entity.** Its rows are replaced from the response: a line that is gone (a withdrawn or corrected CT principal, an ended role, a released UCC lien) is **deleted** (no tombstone). A removed person line emits `finora.role_ended` with no name (P4).
