@@ -199,7 +199,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 
 | Component | Purpose | States | Keyboard |
 |---|---|---|---|
-| `InvestigateSheet` | Opens from Investigate. Shows the estimate range ("typically $0.46, up to $0.92"), the cap, spend left today, the per-agent breakdown behind a disclosure, the purpose line, the "facts, not a verdict" note for sole traders, and **Start investigation** | `estimating`, `ready`, `no-key` (steps to add `ANTHROPIC_API_KEY`, "Check again"), `daily-cap` (spend, reset time), `estimate-error` | Dialog rules; focus lands on **Start** when ready |
+| `InvestigateSheet` | Opens from Investigate. Shows the estimate range ("typically $0.46, up to $0.92"), the cap, spend left today, the per-agent breakdown behind a disclosure, the purpose line and **Start investigation**. Per-agent defaults behind the disclosure: Identifying the company $0.02, Registry and people $0.06, Money and tax $0.06, Legal, insolvency and sanctions $0.07, Web, domain and news $0.20, Verdict $0.05 (typical, mid tier; replaced by measured values) | `estimating`, `ready`, `no-key` (steps to add `ANTHROPIC_API_KEY`, "Check again"), `daily-cap` (spend, reset time), `estimate-error` | Dialog rules; focus lands on **Start** when ready |
 | `AgentPanel` | The panel beside the sections (below on < 1024 px). Holds `RunHeader`, the pinned question, the lanes | §6 | `Tab` through lanes; arrow keys move between lane headers |
 | `RunHeader` | Overall progress bar, "4 agents · 17 tasks · 31 sources", spend against the cap, **Stop**, connection state | `planning`, `running`, `waiting`, `paused-at-cap`, `synthesising`, `done`, `stopped`, `failed`, `reconnecting` | `Stop` is a button |
 | `AgentLane` | One agent: role name, status (icon and text), the current step, sources read, elapsed time plus "usually under a minute" or "usually 1 to 2 min", own cost, progress, and its `TaskRow`s | `queued`, `running`, `waiting`, `done`, `failed`, `stopped`, `budget_exceeded`. The running dot pulses 1.6 s, and not under reduced motion | `Enter` expands or collapses the tasks |
@@ -313,7 +313,9 @@ Structure (top to bottom), as separate children so no wrapper can cover the leve
 2. **Coverage on the same line**: "7 of 11 checks ran · 2 not possible in [country] · 31 sources · 19 Nov 2026". `not_enough_data` also lists the checks that did not run, each with its reason ("Owners: restricted in [country]").
 3. **Why this level**: the fired rules, each linking to its finding, or "No hard or soft flag in the checks that ran".
 4. **Explanation**: the AI-written sentences, each with its citation chips, under an `AiLabel`. `VerdictText` drops any sentence with no citation (R7). If nothing is left, it shows "Not enough evidence for a verdict".
-5. The `ChecksList` (the fixed 11 checks), then key findings, each linked to its evidence.
+5. The `ChecksList` (the fixed 11 checks, ids 1-11), then key findings, each linked to its evidence.
+
+Fired rules render through the catalogue (`rules.<ruleId>`, for example `rules.arrears_serious`), never from model text. Coverage skip reasons (`not_possible_in_country`, `run_failed`, `stopped`, `budget_exceeded`, `needs_key`) each have their own catalogue line. If the explanation is `null` (reason `banned_term_fallback`), the block shows the fired rules and findings with the line "No written explanation for this report" and nothing else; the level is unaffected.
 
 Variants: `not_enough_data` (muted `?`, the "why" is the reason list: not pinned, status not current, fewer than 6 of 11 ran, neither money check ran); `not-confirmed` ("Not enough data: company not confirmed"); `facts-only` for natural persons and sole traders: no verdict block at all ("Facts only: no verdict is given on a private individual") plus the disclaimer.
 
@@ -325,11 +327,11 @@ All question cards pin to the top of `AgentPanel`, are announced once (§6.5), a
 
 | Variant | Content | Default and timeout |
 |---|---|---|
-| `entity_choice` | Cards: registry code, legal form, status, city, registered date, and **None of these**. Lithuanian name collisions are common, so the distinguishing facts are always shown | **No default and no countdown.** If it times out the report shows "Not enough data: company not confirmed" |
-| `sanctions_match` | Side-by-side records. Rows appear only where at least one side has a value, marked match, differs or not on the list; official identifier rows come first. Buttons: Same entity, Different, Not sure. Outcome wording: "Confirmed: same registration number" (rule-based), "Confirmed by you" (with who and when), "Possible match, needs review". The word "sanctioned" renders only for `status: listed` | Not sure after the timeout, shown as "answered by default" |
-| `scope` | "This company has 40 subsidiaries. Check all, or only the 5 largest?" with the cost of each option, and "skip web and news" as the cheap option | the agent's stated default, marked "answered by default" |
-| `cap_reached` | "Stop here and write the report" (default, the primary button) or "Allow up to $0.50 more", clipped to what is left of the daily cap. Offered once per investigation. Second time: only the stop button and "Extension already used for this investigation". Nothing left today: no option and the daily-cap text | default is stop |
-| `free_text` | One text input and the reason it is asked | the agent's default |
+| `entity_choice` | Asked by the lead; up to 5 cards: registry code, legal form, status, city, registered date, and **None of these**. Lithuanian name collisions are common, so the distinguishing facts are always shown | **No default and no countdown.** After 30 minutes the investigation ends and the report shows "Not enough data: company not confirmed". Blocks every lane |
+| `sanctions_match` | Asked by the legal agent. Side-by-side records. Rows appear only where at least one side has a value, marked match, differs or not on the list; official identifier rows come first. Buttons: Same entity, Different, Not sure. Outcome wording: "Confirmed: same registration number" (rule-based), "Confirmed by you" (with who and when), "Possible match, needs review". The word "sanctioned" renders only for `status: listed` | "Not sure" after 30 minutes, shown as "answered by default"; it blocks only the legal lane |
+| `scope` | Asked by the web agent when a candidate website has no anchor to the company: the site and why it is uncertain, then "Yes, it's theirs" / "No" / "Not sure" | "Not sure" after the timeout, marked "answered by default"; the site then stays "linked by name only" |
+| `cap_reached` | "Stop here and write the report" (default, the primary button) or "Allow up to $0.50 more", clipped to what is left of the daily cap. Offered once per investigation. Second time: only the stop button and "Extension already used for this investigation". Nothing left today: no option and the daily-cap text | stop, after 10 minutes. All lanes pause as `paused_at_cap` |
+| `free_text` | Asked by the lead when free text names no country and the name exists in several registers: one text input with the candidate countries as quick replies | no default; times out like `entity_choice` |
 
 Keyboard: the card is a landmark region labelled with the question; options are a radio group (arrow keys), `Enter` submits, `Esc` does nothing (a question is never dismissed). The panel shows the timeout as plain text ("The default applies at 14:32") for kinds that have one.
 
@@ -403,7 +405,7 @@ GET /investigations/:id/events   -> SSE, header Last-Event-ID = lastEventId   (a
 - **Batching.** Events received between two animation frames are reduced together and rendered once. With 17 tasks ticking this keeps the page at one render per frame. The measured budget is an event on screen within 500 ms of arrival.
 - **Connection states** (`RunHeader` shows them): `connecting`, `live`, `reconnecting` (shown after 3 s offline, content stays), `failed` (after 5 minutes: "Lost connection to the app. Reload to continue"). Backoff 1, 2, 4, 8, then 15 s, with jitter. A silence of 45 s (two missed 20 s heartbeats) forces a reconnect.
 - **Money** is integer micro-USD end to end; sums are integer; formatting uses `Intl.NumberFormat` with the locale. No float arithmetic on money (a test searches for it in the reducer).
-- **Text is never model prose in a lane.** A lane step is `stepKey` + `params` rendered from the catalogue (`agents.step.<key>`). An unknown key renders the generic "Working". Findings, explanations and answers are model text, always with `AiLabel`.
+- **Text is never model prose in a lane.** A lane step is `stepKey` + `params` (for example `step.fetching_page`, `step.searching_courts`) and a task is `labelKey` + `params` (`task.screen_sanctions`, `task.live_list`, `task.search_courts`, `task.domain_report`, `task.news_search`), both rendered from the `agents` catalogue namespace. An unknown key renders the generic "Working". The key lists live in `docs/plan/agents.md` §11. Lanes start within 2 s of the pin (staggered 1 s apart), so the first frame after `plan` shows `queued` lanes turning `running` in sequence. Findings, explanations and answers are model text, always with `AiLabel`.
 
 ### 6.2 Reducer state
 
@@ -428,12 +430,12 @@ type InvestigationState = {
 | Event | Effect on screen |
 |---|---|
 | `investigation.status` | Header status text and progress; `done` shows the verdict; `budget_exceeded` shows the "report written from what was found" note |
-| `plan` | Lanes appear in `queued` state with their dependencies ("after Registry") |
-| `run.status` | Lane status icon and text; `waiting` links to the question; `failed` shows the machine code mapped to catalogue text and a **Retry this agent** only if the API offers it **[pending: agents.md]** |
+| `plan` | The four specialist lanes appear (all start together in v1, so no dependency text). Before it, the **lead** shows as one compact row, "Identifying the company"; after the pin it collapses to "Pinned to {register} record {code}" |
+| `run.status` | Lane status icon and text; `waiting` links to the question; `failed` shows the machine code mapped to catalogue text and **Re-run {agent}** (agents.md §2.7 offers it) **[pending: architect, the route that re-runs one agent]** |
 | `run.step` | The lane's `ActivityLine` (replaces the previous line) |
 | `run.task` | A `TaskRow` appears or changes; header task count |
 | `run.source` | The lane's "sources read" counter and the header source count tick up |
-| `finding` | A `FindingItem` lands in the matching `SectionCard` (by `section`) with a 600 ms accent wash (none under reduced motion) and in the report's evidence group. A finding with no `section` shows only in the evidence group. No citation: never rendered |
+| `finding` | A `FindingItem` lands in the matching `SectionCard` (by the item's section) with a 600 ms accent wash (none under reduced motion) and in the report's evidence group. A finding with no section shows only in the evidence group. A `context` finding has no severity and no severity chip, and never counts as a fired rule. A web finding with anchor `name_only` shows "Linked by name only"; a news item that is not confirmed shows "Mentions the name; not confirmed to be this company" and is never a key finding. No citation: never rendered |
 | `question` | `QuestionCard` pinned to the top of the panel; lanes it blocks show "Waiting for your answer" |
 | `question.answered` | The card collapses to "Answered: {answer}" (by you or by default) and the lane resumes |
 | `cost` | The lane's cost and the header's spend against the cap. Between 80% and 100% of the cap the header turns `--warn` |
@@ -635,7 +637,7 @@ Each rule has one place in the UI and a named test. Rules R1-R18 are the legal m
 | HIDE items (S04.LV.02, S04.LV.03, S04.EE.02, S16.ALL.04, OUT.US.01) | The UI has no component or prop that can render them. `restricted` shows a lock keyed on the rule | `web/e2e/hide.spec.ts`: DOM and text of every profile fixture have no HIDE id, no canary beneficial-owner name, no canary personal code or birth-date pattern (P3, P8) |
 | R2, P2 purpose gate | `PurposeGate` (§5.3) | `web/e2e/people-purpose.spec.ts`: no person values before a purpose; three companies send three requests carrying the purpose; after 12 h + 1 min the section is locked again (fake clock) |
 | R3, R16 source, licence, date | `SourceChip`, `SourcesTable`, `AttributionFooter` | `web/e2e/report-sources.spec.ts`, `web/e2e/sources-page.spec.ts` |
-| R5, P6 facts-only | `isNaturalPerson` from the DTO switches to `FactsOnlyBlock` | `web/e2e/facts-only.spec.ts`: no verdict block, the disclaimer at the top, S08 tax rows absent, S06 behind the purpose gate, Investigate sheet says "facts, not a verdict" |
+| R5, P6 facts-only | `isNaturalPerson` from the DTO switches to `FactsOnlyBlock` | `web/e2e/facts-only.spec.ts`: no verdict block, the disclaimer at the top, S08 tax rows absent, S06 behind the purpose gate, the Investigate action is replaced by the line "No agents run on a private individual: the facts on this page are the report" (the lead refuses natural persons, `subject_is_natural_person`) |
 | R6 disclaimer | `PersonDisclaimer` on every page whose DTO has `containsPersonalData` | `web/e2e/disclaimer.spec.ts` |
 | P7 blocked uses | The purpose list excludes them; the footer links to the terms | `web/e2e/people-purpose.spec.ts` asserts the option list |
 | R7 unsourced claims | `VerdictText` and `FindingItem` render nothing without a citation | `web/src/components/report/verdict-text.test.tsx` |
@@ -733,7 +735,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   5. A section whose rows are all `not_published` collapses to one sentence.
   6. A person section before a purpose has no person value in the DOM; after a purpose it shows rows and the "Purpose: ... · Change" line; three companies in one session send the purpose three times.
   7. LT S03 shows the role facts and "Names are not in Lithuania's open data. Available as a paid register extract." with a link only to the register's own order page (host check); it never says "Not published" for LT names.
-  8. The sole-trader fixture shows `FactsOnlyBlock`, the disclaimer at the top, no verdict block and no S08 tax rows.
+  8. The sole-trader fixture shows `FactsOnlyBlock`, the disclaimer at the top, no verdict block, no S08 tax rows and no Investigate button (the line "No agents run on a private individual" replaces it).
   9. Every section and finding has "Report an error or object"; after submitting, the refetched section shows the `disputed` state.
   10. The Sources page lists each source with licence, attribution, cadence and last sync; every `SourceChip` links to its row; the LATER rows and their triggers are listed.
   11. `X-Robots-Tag: noindex` and the `robots` meta are present; `<title>` follows L3.
@@ -764,6 +766,8 @@ Slices that depend only on fixtures start before the real API lands (the archite
   14. Below 1024 px the panel is a bottom sheet with a sticky summary bar; `Esc` collapses it.
   15. A lane step with an unknown key renders "Working"; no model text reaches a lane (type and unit test).
   16. Reduced motion: no pulse, no wash; counters still change.
+  17. The lead row reads "Identifying the company" and collapses to "Pinned to {register} record {code}" after the pin; free text that matches no registry record ends with "Not found in the loaded registers", no lanes start, and the page says no web search ran on an unpinned name.
+  18. A failed lane offers "Re-run {agent}" and a `budget_exceeded` lane says which checks did not run (coverage reasons have their own text).
 - **Tests:** `web/src/components/investigate/*.test.tsx`, `web/src/components/investigate/sanctions-match.test.tsx`, `web/e2e/investigation.flow.spec.ts`, `web/e2e/investigation.question.spec.ts`, `web/e2e/investigation.cap.spec.ts`, `web/e2e/investigation.stop.spec.ts`, `web/e2e/investigation.reload.spec.ts`, `web/e2e/investigation.reconnect.spec.ts`, `web/e2e/investigation.live-region.spec.ts`, `web/e2e/investigation.latency.spec.ts`, `web/e2e/investigation.visual.spec.ts`, `web/e2e/investigation.a11y.spec.ts`, `web/e2e/no-key.spec.ts`.
 - **Demo:** `pnpm finora --demo`, open an example company, press Investigate, watch four lanes tick, answer the which-company question, press Stop on a second run.
 
@@ -887,7 +891,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 2. Mockup states I need that the screen list may not yet hold: `not_checked.agent_only` and `manual_lookup` rows, the `restricted` lock row, the "Derived by Finora" chip, the facts-only page, `cap-used` and daily-cap sheets, the connection `reconnecting` banner, the `too-large` network state, the Crash tile states `coarse`, `choose-fund`, `peak-unknown`, `stale`.
 3. The final banned-words list (with LT, LV and ET equivalents) and the shortcut list dialog.
 
-**data-osint:** the event script format for `fixtures/agents/`, the per-run timing hints ("usually under a minute"), the names of the four agents and their `stepKey` catalogue, and whether a failed agent can be retried on its own.
+**data-osint:** `agents.md` answered most of this (roles, key lists, fake-provider scenarios). Still open: the per-lane timing hints for the UI ("usually under a minute" for registry, money and legal; "usually 1 to 2 min" for web, from osint.md §4.8) as numbers in the estimate DTO, and the route that re-runs one agent.
 
 **web-qa:** the gallery and `?state=` contract (§12) are the way to reach every state; tell me if a state you need has no URL.
 
