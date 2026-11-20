@@ -220,7 +220,7 @@
       case "manual_lookup":
         return `<span class="state-line">${icon("hand", "icon icon-sm")}<span>Check manually at ${esc(r.site)} · <a href="#" onclick="return false">Open ${icon("ext", "icon icon-sm")}</a></span></span>`;
       case "restricted":
-        return `<span class="state-line lock">${icon("lock", "icon icon-sm")}<span>Not shown in ${esc(r.country)}: restricted by ${esc(r.basis)}</span></span>`;
+        return `<span class="state-line lock">${icon("lock", "icon icon-sm")}<span>${esc(r.text || `Not shown in ${r.country}: restricted by ${r.basis}`)}</span></span>`;
       case "error":
         return `<span class="state-line error">${icon("warn", "icon icon-sm")}<span>Not checked: ${esc(r.text || "the register did not answer")} · <button class="link-btn" type="button">Retry</button></span></span>`;
       case "later":

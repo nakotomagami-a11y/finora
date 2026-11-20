@@ -17,6 +17,7 @@
   const keys = param("keys", "none") === "set";
   const state = param("state", "full");
   const stale = state === "stale";
+  const taiwanSeeded = param("taiwan", "tracking") === "seeded";
 
   const src = (name, short, licence, asOf, extra = {}) => ({ name, short, licence, asOf, ...extra });
   const SRC = {
@@ -34,10 +35,16 @@
 
   function ddStrip() {
     const rows = [
-      ["Crypto, total", 29.0, true], ["Oil, WTI", 13.4], ["Oil, Brent", 12.0], ["Europe", keys ? 11.2 : null, false, "Add your key"], ["US stocks (quarterly)", 8.4], ["Japan", 6.1], ["Gold (monthly avg)", 3.0], ["Taiwan", "peak"],
+      ["Crypto, total", 29.0, true], ["Oil, WTI", 13.4], ["Oil, Brent", 12.0], ["Europe", keys ? 11.2 : null, false, "Add your key"], ["US stocks (quarterly)", 8.4], ["Japan", 6.1], ...(taiwanSeeded ? [["Taiwan (seeded peak)", 5.2]] : []), ["Gold (monthly avg)", 3.0], ...(taiwanSeeded ? [] : [["Taiwan", "peak"]]),
     ];
     return `<section class="card" style="padding:20px;display:flex;flex-direction:column;gap:14px" aria-labelledby="dd-h">
-      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><h2 id="dd-h" class="serif" style="font-size:26px">Distance from peak</h2><span class="small muted">peak = highest daily close since 1 Jan 2025 · sorted by drop</span></div>
+      <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+        <span class="label">Value below peaks</span>
+        <span class="tile-big num" style="color:var(--ink)">≈ $6.3 trillion</span>
+        <span class="small ink2">Sums the rows whose sources allow a value: US stocks (quarterly, Q2 2026) and the total crypto market (${stale ? "07:40" : "09:55"}). Bitcoin and ether are part of the crypto total, not added again. Peaks fall on different dates; the oldest figure is from Q2 2026.</span>
+        <span>${Finora.conf("derived")}</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><h2 id="dd-h" class="serif" style="font-size:26px">Distance from peak</h2><span class="small muted">peak = highest daily close since 1 Jan 2025 (crypto total: its all-time high) · sorted by drop</span></div>
       <div class="dd-strip">${rows.map(([n, v, st, alt]) => `<div class="dd-row"><span class="dd-name">${esc(n)}</span>
         ${typeof v === "number" ? `<span class="dd-bar" aria-hidden="true"><i style="width:${Math.min(100, v * 2.5)}%"></i></span><span class="dd-val num delta-down">${icon("arrowDown", "icon icon-sm")}−${v.toFixed(1)}%${st && stale ? ' <span class="stale-date small">(2 h old)</span>' : ""}</span>`
         : v === "peak" ? `<span class="dd-bar" aria-hidden="true"></span><span class="dd-val small muted">peak not known yet</span>`
@@ -62,11 +69,11 @@
     return `<div class="tiles">
       ${tile({ id: "M01", title: "US stocks", big: "−8.4%", sub: "Total US equity value, below its peak quarter", rows: [["Value below peak", "≈ $5.1 trillion"], ["Peak", "Q4 2025"], ...(keys ? [["Daily, via your fund", "−9.7% · close 19 Nov"]] : [])], caveat: "Quarterly; includes non-listed equity." + (keys ? " The daily line: " + PROXY : ""), foot: `${chipOf(SRC.z1)}${keys ? chipOf(SRC.fund) : `<a href="settings.html?state=keys-missing">Add a key for daily</a>`}`, spark: [100, 104, 108, 111, 103, 96, 92] })}
       ${keys ? tile({ id: "M02", title: "Europe, in USD", big: "−11.2%", sub: "Close 19 Nov · peak 18 Feb 2026", caveat: PROXY, foot: chipOf(SRC.fund), spark: [100, 103, 107, 104, 98, 92, 89] }) : tile({ id: "M02", title: "Europe", empty: keyEmpty("This tile needs your own stock-data key."), foot: `<span>No number without a key</span>` })}
-      ${tile({ id: "M03", title: "Asia and Pacific", big: "−6.1%", sub: "Japan · close 19 Nov · peak 9 Jul 2026", rows: [["Taiwan", "Peak not known yet: tracking since 16 Nov 2026"], ["South Korea", keys ? "−4.8% · via your key" : `<a href="settings.html?state=keys-missing">Add your key</a>`], ["Other markets, in USD", keys ? "−7.9% · via your fund" : "Choose a fund in settings"]], caveat: "Taiwan's peak is seeded once from a cited official figure when legal clears it; until then no percentage is shown, never 0%.", foot: `${chipOf(SRC.fredJp)}${chipOf(SRC.twse)}`, spark: [100, 102, 106, 103, 99, 95, 94] })}
+      ${tile({ id: "M03", title: "Asia and Pacific", big: "−6.1%", sub: "Japan · close 19 Nov · peak 9 Jul 2026", rows: [["Taiwan", taiwanSeeded ? "−5.2% · peak seeded from the exchange's published record" : "Peak not known yet: tracking since 16 Nov 2026"], ["South Korea", keys ? "−4.8% · via your key" : `<a href="settings.html?state=keys-missing">Add your key</a>`], ["Other markets, in USD", keys ? "−7.9% · via your fund" : "Choose a fund in settings"]], caveat: "Taiwan's peak is seeded once from a cited official figure when legal clears it; until then no percentage is shown, never 0%.", foot: `${chipOf(SRC.fredJp)}${chipOf(SRC.twse)}`, spark: [100, 102, 106, 103, 99, 95, 94] })}
       ${keys ? tile({ id: "M04", title: "Americas excluding the US, in USD", big: "−14.6%", sub: "Close 19 Nov · peak 2 Jan 2026", caveat: PROXY, foot: chipOf(SRC.fund) }) : tile({ id: "M04", title: "Americas excluding the US", empty: fundEmpty(), foot: `<span>No number until a fund is chosen</span>` })}
       ${tile({ id: "M05", title: "Gold", big: "−3.0%", sub: "October 2026 average · peak month Aug 2026", rows: keys ? [["Daily spot, via your key", "−2.4% · close 19 Nov"]] : [], caveat: "Monthly average." + (keys ? " Daily spot with your own key; personal use." : ""), foot: chipOf(SRC.wb) + (keys ? chipOf(SRC.fund) : ""), spark: [90, 94, 99, 100, 98, 97] })}
       ${state === "error" ? tile({ id: "M06", title: "Crypto", empty: `<span class="state-line error">${icon("warn", "icon icon-sm")}<span>Not checked: the public node and the aggregator did not answer. <button class="link-btn" type="button">Retry</button></span></span>`, foot: `<span>Last good value 07:40, hidden rather than shown as current</span>` })
-        : tile({ id: "M06", title: "Crypto", big: "−29.0%", sub: `Total market · ${stale ? '<span class="stale-date">as of 07:40, 2 h old</span>' : "as of 09:55"}`, rows: [["Bitcoin", "−24.5%"], ["Ether", "−38.2%"], ["Peak (total)", "6 Oct 2025"]], caveat: "Self-hosted, personal use; attribution. Market cap lost is not shown until its source's terms are confirmed.", foot: `${chipOf(SRC.chain, stale)}${chipOf(SRC.agg, stale)}`, spark: [100, 92, 85, 80, 76, 72, 71] })}
+        : tile({ id: "M06", title: "Crypto", big: "−29.0%", sub: `Total market · ${stale ? '<span class="stale-date">as of 07:40, 2 h old</span>' : "as of 09:55"}`, rows: [["Total market below peak", "≈ $1.2 trillion"], ["Peak (total)", "all-time high, 6 Oct 2025"], ["Bitcoin", "−24.5% · ≈ $0.66 trillion below peak"], ["Ether", "−38.2% · ≈ $0.21 trillion below peak"]], caveat: "Self-hosted, personal use; attribution. Value below peak = drop in price × current supply (computed by Finora).", foot: `${chipOf(SRC.chain, stale)}${chipOf(SRC.agg, stale)}`, spark: [100, 92, 85, 80, 76, 72, 71] })}
       ${tile({ id: "M07", title: "Oil", big: "−13.4%", sub: "WTI · close 17 Nov (2-day lag) · peak 14 Apr 2025", rows: [["Brent", "−12.0%"]], foot: chipOf(SRC.eia), spark: [100, 97, 92, 95, 90, 88, 87] })}
     </div>`;
   }
@@ -101,6 +108,7 @@
   Finora.mount("crash", render, [
     { key: "keys", label: "Keys", options: [["none", "No keys: official data only"], ["set", "Your stock key and fund symbols set"]] },
     { key: "state", label: "Data state", options: [["full", "Current"], ["loading", "Loading"], ["stale", "One source stale"], ["error", "One source failed"]] },
+    { key: "taiwan", label: "Taiwan peak", options: [["tracking", "Not known yet: tracking"], ["seeded", "Seeded from a cited figure"]] },
   ], { spend: true });
 })();
 </script>

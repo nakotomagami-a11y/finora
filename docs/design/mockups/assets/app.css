@@ -217,7 +217,7 @@ h1, h2, h3, p { margin: 0; }
 .lane.failed { border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
 .lane-head { display: flex; align-items: center; gap: var(--s-2); }
 .lane-name { font-weight: 600; font-size: var(--text-small); }
-.lane-meta { margin-left: auto; font: 11.5px/1 var(--font-mono); color: var(--muted); white-space: nowrap; }
+.lane-meta { margin-left: auto; font: 11.5px/16px var(--font-mono); color: var(--muted); }
 .status { display: inline-flex; align-items: center; gap: 5px; font: 500 11px/1 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .status.running { color: var(--accent); }
 .status.running .dot { animation: pulse var(--dur-pulse) infinite; }

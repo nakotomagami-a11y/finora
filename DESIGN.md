@@ -190,7 +190,7 @@ Summary; routes and the tool manifest are in `docs/design/IA.md`.
 The calls are Part G; the treatments the mockups show:
 
 - **S02:** status pill in register words; dated events where history exists; "Changes in the last 6 months" from our snapshots, or "Not evaluated: tracked since [date]" on a new install.
-- **S03:** purpose gate, then a role table with the purpose line above it. LV, EE, US: "Current roles only; past roles are not published. People appear only in this company's context." LT: role facts ("Has a manager since …", "No board") and names as `paid_only`. US private states that publish no officers: NP. Personal codes, hashes and birth dates never appear (P3).
+- **S03:** purpose gate, then a role table with the purpose line above it. LV, EE, US: "Current roles only; past roles are not published. People appear only in this company's context." LT: role facts ("Has a manager since …", "No board") and names as `paid_only`. US private states that publish no officers: NP. Personal codes, hashes and birth dates never appear (P3). Every table with names ends with the rule 6 disclaimer line. **LV fallback** (`LV_PERSON_ROWS=role_counts`, a lawyer trigger; `?lvpeople=role_counts`): role counts and start dates, a LOCK row "Officer names: pending a legal review", the caveat "Officers are not screened against sanctions lists: names not loaded", check 3 on counts and dates, check 9 "Company screened; officers not screened: names not loaded", and the coverage line adds "officer names (pending a legal review)".
 - **S04:** LV and EE show company members only; members who are private individuals and beneficial owners are LOCK rows citing legal rule 1. LT is `paid_only`. US private is NP ("No US source publishes owners of private companies"). US public shows 13D/G and 10% holders behind the purpose gate.
 - **S06:** five years, newest first, currency and period in the header; sparkline and last-year change with arrow and sign; "[year] not filed" as partial; "All line items" disclosure. US private collapses to one line. Sole traders: behind the purpose gate, facts only.
 - **S07:** headcount plus a 24-month line; EE uses the three council lines ("N employees on [date] …", "No employee count from the tax board for [quarter]", "Paid no state taxes in [year] …").
@@ -217,6 +217,7 @@ A well inside the People (and US Owners, Securities) section: legend "Why are yo
   - **task sub-rows** from `run.task`: icon (check, spinner, clock for queued, x for failed, skip), label, sources read or "queued"/"skipped".
 - **Findings land in their section** with a 600 ms accent ring; the section shows "The [agent] agent is checking this now: [step]" until then.
 - **Waiting lanes** get an amber border; failed lanes a red border.
+- **Reconnecting** (`?state=reconnecting`): the header stats read "Reconnecting · last update [time]", running lanes add "last update N s ago", and a warn banner says "Connection lost at [time]. Reconnecting (attempt N)… The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost." with Retry now. The stream resumes from `Last-Event-ID`; nothing on the page is cleared.
 
 ### 9.2 Question cards
 
@@ -270,7 +271,9 @@ Rows: country code, name, code and time, a status note when relevant (one agent 
   - Key-only tiles without a key show the tile's shape with "Add your key"; fund tiles without a symbol show "Choose a fund in settings". Never a number without data.
   - Fund-proxy tiles are titled "[Region], in USD" with the council caveat.
   - Taiwan: "Peak not known yet: tracking since [date]", never 0%.
-  - "Market cap lost" appears only where the source's terms are confirmed (US total equity value from Z.1 today).
+  - **Value below peak** appears only on rows whose tile config allows it (`valueLost` in `docs/plan/loaders/markets.md`): US stocks from Z.1, bitcoin and ether (drop × current supply, "computed by Finora"), and the total crypto market. Fund, index, gold and oil rows show drawdown only.
+  - **Peak basis** (`peakBasis`): `since` reads "peak = highest daily close since [date]"; `all_time` (total crypto) reads "all-time high, [date]"; `seeded` (Taiwan, once legal clears it) reads "peak seeded from [source]" (`?taiwan=seeded`).
+  - **Value below peaks** summary at the top of the drawdown card (`totalWiped`): "≈ $X trillion", then a sentence naming every row it sums with its as-of ("US stocks (quarterly, Q2 2026) and the total crypto market (09:55)"), "Peaks fall on different dates; the oldest figure is from [as-of]", and the Derived by Finora badge. Bitcoin and ether are inside the crypto total and are never added on top of it.
   - A failed source hides its value ("Last good value 07:40, hidden rather than shown as current"); a stale one shows amber dates and a banner.
 - "How it's calculated" and the attribution lines close the page. Fund symbols and key data stay on this machine.
 
