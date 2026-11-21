@@ -2,8 +2,8 @@
 // S9 and security SEC-1 to SEC-4, each reproduced first.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { balticCheckDigit } from "@finora/domain";
-import { openStore } from "@finora/store";
+import { balticCheckDigit, isBalticPersonalCode, isFixtureRegisterCode, isValidRegisterCode } from "@finora/domain";
+import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { fetchOnView, type LiveCachedLoader } from "./live-cache.ts";
 import { clearLiveView, liveView } from "./live-views.ts";
@@ -20,9 +20,14 @@ const dir = () => {
   dirs.push(d);
   return d.path;
 };
+/** An EE/LT-format code that does not also pass the LV register check digit (that overlap is ambiguous by design). */
 const eeLt = () => {
-  const first10 = ["3000", "1010", "00"].join("");
-  return `${first10}${balticCheckDigit(first10)}`;
+  for (let i = 0; i < 100; i++) {
+    const first10 = `3000101${String(i).padStart(3, "0")}`;
+    const code = `${first10}${balticCheckDigit(first10)}`;
+    if (isBalticPersonalCode(code) && !isValidRegisterCode("lv", code) && !isFixtureRegisterCode("lv", code)) return code;
+  }
+  throw new Error("no candidate");
 };
 
 describe("SEC-1: P3 holds for every value, event data included", () => {
@@ -37,18 +42,64 @@ describe("SEC-1: P3 holds for every value, event data included", () => {
 });
 
 describe("SEC-2: a report entry is built from known fields, never a value", () => {
-  it("strips extra keys from loader drops, maps an unknown prop and a free-text party type away", async () => {
+  it("a stray key or a free-text reason makes the record invalid; a free-text party type never reaches the report", async () => {
     const db = memoryDb();
-    const record = companyRecord(1);
-    (record as unknown as { dropped: unknown[] }).dropped = [
-      { reason: "hide_item", prop: "name", value: SENTINEL },
-      { reason: `free text ${SENTINEL}`, prop: SENTINEL },
-    ];
-    record.parties = [{ type: `Holder ${SENTINEL}`, entities: [] }];
-    const outcome = await sync(db, fakeSource({}, { records: [record] }));
-    const stored = JSON.stringify(db.prepare("SELECT report_json FROM main.syncs").all());
-    expect(stored).not.toContain(SENTINEL);
-    expect(outcome.report?.dropped).toEqual({ hide_item: 1, other: 1, party_not_proven: 1 });
+    const extraKey = companyRecord(1);
+    (extraKey as unknown as { dropped: unknown[] }).dropped = [{ reason: "hide_item", prop: "name", value: SENTINEL }];
+    const freeReason = companyRecord(2);
+    (freeReason as unknown as { dropped: unknown[] }).dropped = [{ reason: `free text ${SENTINEL}` }];
+    const party = companyRecord(3);
+    party.parties = [{ type: `Holder ${SENTINEL}`, entities: [] }];
+    const outcome = await sync(db, fakeSource({}, { records: [extraKey, freeReason, party] }));
+    expect(outcome.report?.skipped).toEqual({ invalid_record: 2 });
+    expect(outcome.report?.dropped).toEqual({ party_not_proven: 1 });
+    const everything = JSON.stringify(["syncs", "records", "statements", "events", "entities"].map((t) => db.prepare(`SELECT * FROM main.${t}`).all()), (_k, v) =>
+      v instanceof Uint8Array ? "bytes" : v,
+    );
+    expect(everything).not.toContain(SENTINEL);
+  });
+});
+
+describe("SEC-1 + S9 across every field: one code, refused or counted wherever it is put", () => {
+  it("in a record key, a line id, a row reference, a dropped entry, event data and a company's free text", async () => {
+    const db = memoryDb();
+    const code = eeLt();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+    const inKey = { ...companyRecord(2), recordKey: `ee-${code}` };
+    const inLine = roleSetRecord(1, [{ name: "A", role: "board_member", rowId: code }]);
+    const inRowRef = { ...companyRecord(3), rowRef: code, dropped: [{ reason: "free_text" as const, prop: "notes" }] };
+    const inDropped = companyRecord(4);
+    (inDropped as unknown as { dropped: unknown[] }).dropped = [{ reason: "free_text", prop: code }];
+    const inEvent = companyRecord(5);
+    inEvent.events = [{ entityEid: "lv-00000000005", type: "register.note", date: "2026-10-01", itemId: "S09.LV.01", data: { note: code } }];
+    const inText = companyRecord(6, { extra: [{ prop: "notes", value: `Contact ${code}`, itemId: "S01.LV.01" }] });
+    const eeText = { ...companyRecord(7), entities: [{ ...companyRecord(7).entities[0]!, eid: "ee-10000007", country: "ee", statements: [{ prop: "name", value: `Example ${code} OÜ`, itemId: "S01.EE.01" }] }], recordKey: "ee-10000007" };
+    const outcome = await sync(db, fakeSource({ id: "mixed", items: ["S01.LV.01"] }, { records: [inKey, inLine, inRowRef, inDropped, inEvent, inText, eeText] }));
+    expect(outcome.report?.skipped).toEqual({ person_field: 2 });
+    expect(outcome.report?.dropped).toEqual({ personal_code: 3, free_text: 2 });
+    expect(JSON.stringify(outcome.report)).not.toContain(code);
+    expect(scanStore(db, [code])).toEqual([]);
+  });
+});
+
+describe("fencing: the lease is renewed inside every write transaction", () => {
+  it("a takeover between two batches stops the sync: nothing further written, nothing purged", async () => {
+    const db = memoryDb();
+    const loader = fakeSource({}, { records: companies(1, 50) });
+    await sync(db, loader);
+    loader.state.records = companies(101, 130);
+    loader.state.asOf = { in_file_field: "2026-11-02" };
+    const parse = loader.parse.bind(loader);
+    loader.parse = async function* (raw, ctx) {
+      let n = 0;
+      for await (const r of parse(raw, ctx)) {
+        if (++n === 15) db.prepare("UPDATE main.leases SET holder = 'taken-over'").run();
+        yield r;
+      }
+    };
+    const outcome = await runSync(db, loader, { fetcher: noNetwork, holder: "mine", batch: { maxRecords: 10 } });
+    expect(outcome).toMatchObject({ kind: "partial", report: { reason: "lease_lost" } });
+    expect(records(db)).toBe(70);
   });
 });
 

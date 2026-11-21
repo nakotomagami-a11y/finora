@@ -439,6 +439,13 @@ type ParsedRecord = {
 
 `parse` is pure given the artifacts, so `sources/src/<cc>/<id>/<id>.test.ts` runs it on committed synthetic fixtures with no network.
 
+Contract rules from the S04i security review:
+- **Strict records.** Every object in a `ParsedRecord` is validated strictly, so a key the contract doesn't name makes the record invalid. A drop's `reason` is one of `DROP_REASONS` (`domain/config/drop-reasons.ts`), and a loader slice adds its own reasons there.
+- **Keys hold no codes.** A record key or line id that holds a personal code or a person row id refuses the record (`person_field`), and so do a person record's hash input and row reference.
+- **Archives are capped.** A loader that unpacks an archive caps the decompressed size (the raw cache uses `RAW_MAX_BYTES`), and its parser is reviewed in its slice for entity expansion and prototype keys.
+- **Source ids are safe names.** A source id matches `^[a-z0-9][a-z0-9-]{1,63}$`, because it names folders.
+- **Workers trust a fixed registry.** A sync worker resolves a source id against a registry fixed in its entry module, never a module named in its job.
+
 ### 4.4 The pipeline (`packages/ingest`)
 
 For one source, one sync:

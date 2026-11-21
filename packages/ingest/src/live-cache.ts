@@ -12,6 +12,7 @@ import {
   deleteRecords,
   entityByCode,
   finishSync,
+  heartbeat,
   liveCheckedAt,
   markViewed,
   missSince,
@@ -90,6 +91,8 @@ export async function fetchOnView(
     }
 
     db.exec("BEGIN IMMEDIATE");
+    // Fencing: the view's lease is renewed inside its own transaction.
+    if (!heartbeat(db, lease, 60_000, options.now.getTime())) throw new Error("lease lost");
     for (const answer of answers) {
       const prefix = keyOf(view.recordKey, answer.dataset);
       if (answer.status === "error") {

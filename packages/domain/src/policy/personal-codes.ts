@@ -1,3 +1,5 @@
+import { isFixtureRegisterCode, isValidRegisterCode } from "../ids/check-digits.ts";
+
 // Policy P3 and canary scans (PS5): no personal code is ever stored, logged or output. Apply these
 // to values that can belong to a person, never to a company's registration number (qa #20).
 
@@ -66,3 +68,21 @@ export const COMPANY_ID_PROPS: ReadonlySet<string> = new Set(["registrationNumbe
 
 /** Internal person row ids (architecture §3.3) are never output, logged or stored outside their row. */
 export const PERSON_EID = /\bp-\d+-\d+\b/;
+
+/**
+ * Whether free text holds a personal code: the LV hyphenated form and the US SSN everywhere, and
+ * every 11-digit run that has the LV shape or passes the EE/LT check. Two exceptions keep LV
+ * register codes out (about 6% fit the EE/LT check, lv-register.md): a run right after `lv-` is an
+ * LV entity id, and in an LV context a run with a valid or fixture LV check digit is a register code.
+ */
+export function textHoldsPersonalCode(text: string, country: string | null = null): boolean {
+  if (findPersonalCodes(text).some((h) => h.kind !== "ee_lt_personal_code")) return true;
+  for (const m of text.matchAll(/(?<!\d)\d{11}(?!\d)/g)) {
+    const run = m[0];
+    if (text.slice(Math.max(0, m.index - 3), m.index) === "lv-") continue;
+    if (idIsPersonalCode("lv", run)) return true;
+    const registerCode = country === "lv" && (isValidRegisterCode("lv", run) || isFixtureRegisterCode("lv", run));
+    if (isBalticPersonalCode(run) && !registerCode) return true;
+  }
+  return false;
+}

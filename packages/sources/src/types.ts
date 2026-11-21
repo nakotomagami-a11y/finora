@@ -1,6 +1,6 @@
 // The loader contract (architecture §4.2-§4.3). Parsers are pure given their artifacts, so every
 // loader is tested on committed synthetic fixtures with no network.
-import type { SchemaName } from "@finora/domain";
+import type { DropReason, SchemaName } from "@finora/domain";
 
 export type StorageClass = "store" | "share-alike-store" | "live-no-store" | "live-cached" | "agent-only" | "connector-cache";
 export type AsOfStrategy = "in_file_field" | "in_file_name" | "max_date_in_data" | "portal_metadata" | "http_last_modified";
@@ -69,17 +69,7 @@ export type PartyRef = {
   entities: ParsedEntity[];
 };
 
-export type DropReason =
-  | "hide_item"
-  | "later_item"
-  | "personal_code"
-  | "party_not_proven"
-  | "sole_trader_address"
-  | "sole_trader_vat"
-  | "natural_person_tax"
-  | "natural_person_insolvency"
-  | "invalid_record"
-  | (string & {});
+export type { DropReason } from "@finora/domain";
 
 export type ParsedRecord = {
   recordKey: string;

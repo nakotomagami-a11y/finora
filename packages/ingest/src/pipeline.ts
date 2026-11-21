@@ -146,6 +146,16 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       throw new LeaseLost();
     }
   };
+  /** Fencing (qa on S04i): the lease row is renewed inside the write transaction itself, so a
+   *  takeover between two transactions rolls back whatever this one would have written. */
+  const begin = () => {
+    db.exec("BEGIN IMMEDIATE");
+    if (lost || !heartbeat(db, lease, ttl, now().getTime())) {
+      lost = true;
+      db.exec("ROLLBACK");
+      throw new LeaseLost();
+    }
+  };
 
   const started = now();
   const startedAt = started.toISOString();
@@ -269,8 +279,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
         }
 
         if (!db.isTransaction) {
-          assertLease();
-          db.exec("BEGIN IMMEDIATE");
+          begin();
           batchStart = Date.now();
           inBatch = 0;
         }
@@ -297,8 +306,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       if (before !== null && removed > Math.max(Math.ceil(meta.maxPurgeShare * before), 5) && options.allowMassPurge !== true) {
         return finish("partial", { upstreamAsOf: asOf, asOfBasis: basis, reason: "purge_guard" });
       }
-      assertLease();
-      db.exec("BEGIN IMMEDIATE");
+      begin();
       replaceShareAlike(db, { sourceId: meta.id, licenceId: meta.licence, startedAt, upstreamAsOf: asOf, records: memoryRecords }, memory);
       db.exec("COMMIT");
       report.written = memoryRecords;
@@ -315,7 +323,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
         allowMassPurge: options.allowMassPurge === true,
         day,
         windowStart: loader.windowStart?.(artifacts) ?? null,
-        assertLease,
+        begin,
         maxMs,
       });
       endStaging(db);
@@ -328,7 +336,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       }
     }
 
-    if (classChanged) moveOutOf(db, meta.id, previousStorage as StorageClass, storage, options.rawCacheDir ?? null);
+    if (classChanged) moveOutOf(db, meta.id, previousStorage as StorageClass, storage, options.rawCacheDir ?? null, begin);
     if (storage !== "live-no-store") setContentHash(db, syncId, hash);
     return finish("content", { upstreamAsOf: asOf, asOfBasis: basis });
   } catch (error) {
@@ -401,9 +409,9 @@ export function countDrops(report: SyncReport, drops: readonly Drop[]): void {
 }
 
 /** A7: after a full reload into the new class, nothing of the source stays in the old one. */
-function moveOutOf(db: DatabaseSync, sourceId: string, from: StorageClass, to: StorageClass, rawCacheDir: string | null): void {
+function moveOutOf(db: DatabaseSync, sourceId: string, from: StorageClass, to: StorageClass, rawCacheDir: string | null, begin: () => void): void {
   if (from === to) return;
-  db.exec("BEGIN IMMEDIATE");
+  begin();
   if (from === "store") purgeSourceFromMain(db, sourceId);
   if (from === "share-alike-store") purgeShareAlike(db, sourceId);
   db.exec("COMMIT");
@@ -420,7 +428,7 @@ function moveOutOf(db: DatabaseSync, sourceId: string, from: StorageClass, to: S
 function purge(
   db: DatabaseSync,
   loader: SourceLoader,
-  run: { deletes: string[]; periods: Set<string>; allowMassPurge: boolean; day: string; windowStart: string | null; assertLease: () => void; maxMs: number },
+  run: { deletes: string[]; periods: Set<string>; allowMassPurge: boolean; day: string; windowStart: string | null; begin: () => void; maxMs: number },
 ): { deleted: number; tombstoned: number; events: number; guard: boolean } {
   const { meta } = loader;
   const total = countRecords(db, meta.id);
@@ -441,8 +449,7 @@ function purge(
   let tombstoned = 0;
   let deleted = 0;
   for (let i = 0; i < candidates.length; ) {
-    run.assertLease();
-    db.exec("BEGIN IMMEDIATE");
+    run.begin();
     const start = Date.now();
     const batch: number[] = [];
     for (; i < candidates.length && Date.now() - start <= run.maxMs; i++) {

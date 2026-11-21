@@ -6,6 +6,7 @@ export { BANNED_STEMS, BANNED_WORDS_EN, findBannedTerms } from "./config/banned-
 export type { BannedLocale, BannedMatch } from "./config/banned-terms.ts";
 export { HIDE_ITEM_IDS, isLoadable, item } from "./items/policy.ts";
 export { CONCEPTS, isConcept, type Concept } from "./config/concepts.ts";
+export { DROP_REASONS, isDropReason, type DropReason } from "./config/drop-reasons.ts";
 export { eidKind, isInternalEid, type EidKind } from "./ids/eid.ts";
 export {
   eeCheckDigit,
@@ -31,7 +32,16 @@ export {
 } from "./config/purposes.ts";
 export { isNaturalPerson, naturalPersonCaption } from "./policy/persons.ts";
 export { NATURAL_PERSON_DROPPED_SECTIONS, naturalPersonDrop, SOLE_TRADER_DROPPED_PROPS } from "./policy/natural-person-load.ts";
-export { balticCheckDigit, COMPANY_ID_PROPS, findPersonalCodes, idIsPersonalCode, isBalticPersonalCode, PERSON_EID, type PersonalCodeHit } from "./policy/personal-codes.ts";
+export {
+  balticCheckDigit,
+  COMPANY_ID_PROPS,
+  findPersonalCodes,
+  idIsPersonalCode,
+  isBalticPersonalCode,
+  PERSON_EID,
+  textHoldsPersonalCode,
+  type PersonalCodeHit,
+} from "./policy/personal-codes.ts";
 export {
   FINORA_EXTENSIONS,
   FTM_UPSTREAM,

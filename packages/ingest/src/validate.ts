@@ -1,13 +1,15 @@
 // Every parsed record is validated before it is gated or written; an invalid one is a counted skip.
-import { findPersonalCodes, PERSON_EID, SCHEMAS } from "@finora/domain";
+import { DROP_REASONS, findPersonalCodes, PERSON_EID, SCHEMAS, textHoldsPersonalCode } from "@finora/domain";
 import type { ParsedRecord } from "@finora/sources";
 import { z } from "zod";
 
+// Strict everywhere: a key the contract does not name makes the record invalid, so a loader's
+// stray field (a `value` inside a drop) can never reach the store or the report (SEC-2).
 const text = z.string().min(1);
-const statement = z.object({ prop: text, value: z.string(), itemId: text, lang: z.string().optional(), line: z.number().int().nonnegative().optional() });
-const entity = z.object({
+const statement = z.strictObject({ prop: text, value: z.string(), itemId: text, lang: z.string().optional(), line: z.number().int().nonnegative().optional() });
+const entity = z.strictObject({
   eid: text,
-  schema: z.enum(SCHEMAS as unknown as [string, ...string[]]),
+  schema: z.enum(SCHEMAS),
   country: text,
   legalForm: z.string().nullish(),
   status: z.string().nullish(),
@@ -16,13 +18,13 @@ const entity = z.object({
 });
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}/);
 
-const record = z.object({
+const record = z.strictObject({
   recordKey: text,
   hashInput: z.array(z.string()),
   entities: z.array(entity),
   reports: z
     .array(
-      z.object({
+      z.strictObject({
         entityEid: text,
         kind: text,
         periodStart: isoDate.nullish(),
@@ -30,16 +32,18 @@ const record = z.object({
         currency: z.string().nullish(),
         unitScale: z.number().int().positive().optional(),
         itemId: text,
-        facts: z.array(z.object({ concept: text, value: z.number().finite() })),
+        facts: z.array(z.strictObject({ concept: text, value: z.number().finite() })),
       }),
     )
     .optional(),
-  events: z.array(z.object({ entityEid: text, type: text, date: isoDate, data: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).optional(), itemId: text })).optional(),
+  events: z
+    .array(z.strictObject({ entityEid: text, type: text, date: isoDate, data: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).optional(), itemId: text }))
+    .optional(),
   parties: z
     .array(
-      z.object({
+      z.strictObject({
         type: z.string().nullish(),
-        code: z.object({ country: text, value: text }).nullish(),
+        code: z.strictObject({ country: text, value: text }).nullish(),
         entities: z.array(entity),
       }),
     )
@@ -48,25 +52,32 @@ const record = z.object({
   rowRef: z.string().optional(),
   period: isoDate.optional(),
   op: z.enum(["upsert", "delete"]).optional(),
-  dropped: z.array(z.object({ reason: text, prop: z.string().optional() })).optional(),
+  dropped: z.array(z.strictObject({ reason: z.enum(DROP_REASONS), prop: z.string().optional() })).optional(),
 });
 
 export type Validation = { ok: true; record: ParsedRecord } | { ok: false; reason: "invalid_record" | "person_field" };
 
+/** Whether a stored key holds a personal code or a person row id (country-aware for 11 digits). */
+function keyLeaks(key: string, countries: ReadonlySet<string>): boolean {
+  return PERSON_EID.test(key) || textHoldsPersonalCode(key, countries.has("lv") ? "lv" : null);
+}
+
 /**
- * Validates one parsed record. The returned record is the schema's output, so a key the contract
- * does not name (a stray `value` in a drop) never reaches the store or the report (SEC-2). A
- * record about a person whose key, hash input, line ids or row reference holds a personal code or
- * a person row id is refused whole (PS6, qa S9): a loader bug must not get a code into the store.
+ * Validates one parsed record and returns the schema's output. A record whose stored keys (record
+ * key, line ids) hold a personal code or a person row id is refused whole, and so is a person
+ * record whose hash input or row reference does (PS6, qa S9): a loader bug must not get a code
+ * into the store.
  */
 export function validateRecord(value: unknown): Validation {
   const parsed = record.safeParse(value);
   if (!parsed.success) return { ok: false, reason: "invalid_record" };
   const r = parsed.data as ParsedRecord;
+  const countries = new Set(r.entities.map((e) => e.country));
+  const stored = [r.recordKey, ...(r.lineIds ?? []).filter((x): x is string => x !== null)];
+  if (stored.some((k) => keyLeaks(k, countries))) return { ok: false, reason: "person_field" };
   const aboutPeople = r.entities.some((e) => e.schema === "Person") || (r.parties ?? []).some((p) => p.entities.some((e) => e.schema === "Person"));
-  if (aboutPeople) {
-    const keys = [r.recordKey, ...r.hashInput, ...(r.lineIds ?? []).filter((x): x is string => x !== null), r.rowRef ?? ""];
-    if (keys.some((k) => findPersonalCodes(k).length > 0 || PERSON_EID.test(k))) return { ok: false, reason: "person_field" };
+  if (aboutPeople && [...r.hashInput, r.rowRef ?? ""].some((k) => findPersonalCodes(k).length > 0 || PERSON_EID.test(k))) {
+    return { ok: false, reason: "person_field" };
   }
   return { ok: true, record: r };
 }

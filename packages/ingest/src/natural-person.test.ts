@@ -109,7 +109,8 @@ describe("S04i acceptance 6: a refused sole-trader id is counted and withheld, n
   it("never reports a row reference that is itself code-shaped", async () => {
     const db = memoryDb();
     const id = ["010190", "12345"].join("");
-    const outcome = await sync(db, fakeSource({ id: "lv-register" }, { records: [soleTrader("lv", "lv-ik", id, id)] }));
+    const record = { ...soleTrader("lv", "lv-ik", id, "row-9"), rowRef: id };
+    const outcome = await sync(db, fakeSource({ id: "lv-register" }, { records: [record] }));
     expect(outcome.report?.droppedRows.find((d) => d.reason === "personal_code")).toEqual({ reason: "personal_code", prop: "registrationNumber" });
   });
 

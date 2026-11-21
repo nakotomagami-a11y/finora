@@ -11,10 +11,12 @@ import {
   item,
   naturalPersonDrop,
   PERSON_EID,
+  textHoldsPersonalCode,
+  type DropReason,
 } from "@finora/domain";
 import type { ParsedEntity, ParsedRecord, PartyRef } from "@finora/sources";
 
-export type Drop = { reason: string; prop?: string; rowRef?: string };
+export type Drop = { reason: DropReason; prop?: string; rowRef?: string };
 export type GateResult = {
   entities: ParsedEntity[];
   reports: NonNullable<ParsedRecord["reports"]>;
@@ -25,8 +27,8 @@ export type GateResult = {
   refused: string[];
 };
 
-/** A drop reason is a short snake_case word; anything else from a loader reports as "other" (SEC-2). */
-const reasonOf = (reason: string) => (/^[a-z][a-z0-9_]{0,39}$/.test(reason) ? reason : "other");
+/** Properties that name another row of the store: a person's row id there is by design (§3.3). */
+const REFERENCE_PROPS = new Set(["organization", "director", "member", "owner", "asset", "holder", "parent", "subsidiary", "entity", "subject"]);
 const leaksPerson = (value: string) => findPersonalCodes(value).length > 0 || PERSON_EID.test(value);
 
 export type PartyLookup = (country: string, code: string) => { naturalPerson: boolean } | null;
@@ -38,7 +40,7 @@ function safeRowRef(rowRef: string | undefined): string | undefined {
   return codeShaped || /\bp-\d+-\d+\b/.test(rowRef) ? undefined : rowRef;
 }
 
-function itemDrop(itemId: string): string | null {
+function itemDrop(itemId: string): DropReason | null {
   if (isLoadable(itemId)) return null;
   return item(itemId)?.call === "hide" ? "hide_item" : "later_item";
 }
@@ -61,8 +63,8 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
   const drops: Drop[] = [];
   // Built field by field: a report entry is a known reason, a known property and a row-local
   // reference, never a loader's free text and never a value (SEC-2).
-  const drop = (reason: string, prop?: string) =>
-    drops.push({ reason: reasonOf(reason), ...(prop !== undefined && isProp(prop) ? { prop } : {}), ...(rowRef ? { rowRef } : {}) });
+  const drop = (reason: DropReason, prop?: string) =>
+    drops.push({ reason, ...(prop !== undefined && isProp(prop) ? { prop } : {}), ...(rowRef ? { rowRef } : {}) });
   for (const d of record.dropped ?? []) drop(d.reason, d.prop);
   const withheld: GateResult["withheld"] = [];
   const refused: string[] = [];
@@ -80,9 +82,18 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
     const statements = entity.statements.filter((s) => {
       const byItem = itemDrop(s.itemId);
       if (byItem) return void drop(byItem, s.prop), false;
-      if (!naturalPerson) return true;
+      if (!naturalPerson) {
+        // A company's free text is scanned too (legal on S04i, SEC-1 scope): a name, an address or
+        // a description never carries a personal code. Its own ids and references to other rows are not.
+        if (COMPANY_ID_PROPS.has(s.prop) || REFERENCE_PROPS.has(s.prop)) return true;
+        if (!textHoldsPersonalCode(s.value, entity.country) && !PERSON_EID.test(s.value)) return true;
+        drop("personal_code", s.prop);
+        withheld.push({ entityEid: entity.eid, prop: s.prop, reason: "personal_code" });
+        refused.push(s.value);
+        return false;
+      }
       const byRule = naturalPersonDrop(s);
-      if (byRule) return void drop(byRule, s.prop), false;
+      if (byRule) return void drop(byRule as DropReason, s.prop), false;
       const ownId = entity.schema !== "Person" && COMPANY_ID_PROPS.has(s.prop);
       const leaks = ownId ? idIsPersonalCode(entity.country, s.value) : findPersonalCodes(s.value).length > 0;
       if (leaks) {
@@ -100,7 +111,7 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
     const byItem = itemDrop(r.itemId);
     if (byItem) return void drop(byItem), false;
     const byRule = natural.has(r.entityEid) ? naturalPersonDrop({ prop: "", itemId: r.itemId }) : null;
-    if (byRule) return void drop(byRule), false;
+    if (byRule) return void drop(byRule as DropReason), false;
     return true;
   });
   const events = (record.events ?? [])
@@ -108,7 +119,7 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
       const byItem = itemDrop(e.itemId);
       if (byItem) return void drop(byItem), false;
       const byRule = natural.has(e.entityEid) ? naturalPersonDrop({ prop: "", itemId: e.itemId }) : null;
-      if (byRule) return void drop(byRule), false;
+      if (byRule) return void drop(byRule as DropReason), false;
       return true;
     })
     .map((e) => {
