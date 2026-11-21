@@ -223,7 +223,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `CompanyHeader` | Overline (`Company · Latvia`, `Investigation running`, `Investigation report · {date time}`), H1 (≤ 3 lines then truncated, full name in the tooltip and the identity row; **for a natural person or sole trader the H1 is the legal form and registry code, for example "Individual enterprise · {code}", never the name**, and so is `<title>`; L3, P6), meta row (status pill with gloss, legal form with gloss, registration number, address), optional LEI and VAT, and the actions. Profile: **Investigate** (primary), Network, Report a problem. Run: Stop and write the report, Skip to report. Report: Network, Re-run, Report a problem | `loading`, `profile`, `running`, `report`, `sole-trader` (facts-only variant: no Investigate, no Network, no agent rows) | - |
 | `CoverageLine` | "[Country]'s official data: ... Not in open data: ..." in a well before any result. Text is a catalogue key per country, plus `us-private` and `us-public-no-sec`. The designer replaced the icon strip with this line | one per country variant | - |
 | `SectionIndex` | Pills that jump to each section on the profile and report | - | links in tab order |
-| `ChecksAside` | The aside on a profile: "Checks from official data", the fixed line "No verdict yet. These checks use official data only; the rest run when you investigate. Missing does not mean clean." (O1: the profile shows no level), checks 1 to 9 with their results and "Runs when you investigate" for 10 and 11 (check 10 is "not possible" in the Baltics), then **Investigate** and the typical cost. A check whose data is past its cycle shows a `clock` icon, not a check mark. Below 1024 px a one-line checks tally ("7 of 11 checks ran from official data") sits under the page header. The same `ChecksList` renders the full 11 in a report | `profile` (1-9), `report` (1-11), `check not_evaluated` | - |
+| `ChecksAside` | The aside on a profile: "Checks from official data", the fixed line "No verdict yet. These checks use official data only; the rest run when you investigate. Missing does not mean clean." (O1: the profile shows no level), checks 1 to 9 with their results and "Runs when you investigate" for 10 and 11 (check 10 is "not possible" in the Baltics), then **Investigate** and the typical usage. A check whose data is past its cycle shows a `clock` icon, not a check mark. Below 1024 px a one-line checks tally ("7 of 11 checks ran from official data") sits under the page header. The same `ChecksList` renders the full 11 in a report | `profile` (1-9), `report` (1-11), `check not_evaluated` | - |
 | `SectionCard` | A titled section with its rows and the agent findings that landed in it. Collapses to one sentence when every row is "not published" | `loading` (skeleton rows), `loaded`, `all-gaps`, `error` (retry) | The heading is focusable by `j/k` navigation only on the report page (§8) |
 | `FieldRow` | One value with its label, state and chips (§5.1) | all `SectionResult` states plus `loading` | - |
 | `CheckLine` | One risk check: "Checked the debtor list as of 18 Nov 2026: none found", or a finding | `none-found`, `point-to-check`, `concern`, `not-checked`, `possible-match` (a stored-list name hit: "Possible match, needs review", with the entry's identifiers and the list date), `ruled-out` (the entry's own registration number differs from the company's code: "Name matches an entry with a different registration number; not the same company", shown as detail under the none-found line). "Sanctioned" appears only for `status: listed` (an official-ID match), `not-evaluated` ("Not evaluated: tracked since {date}", `clock` icon, P14) | - |
@@ -266,7 +266,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `NetworkGraph` | Canvas, one hop, companies only (§5.8) | `loading`, `graph`, `empty`, `too-large`, `error` | The canvas is focusable: arrows move the selection to the nearest neighbour, `Enter` opens the node card, `Esc` clears. The list twin is the full alternative |
 | `NetworkList` | The same data grouped by relation (shared address, corporate member). Default view under 768 px | the same five | list keyboard |
 | `NodeCard`, `EdgeCard` | A company node with its facts, or an edge with its relation and `SourceChip` | `open` | `Esc` |
-| `LibraryList`, `LibraryItem`, `LibraryFilters` | Past investigations: subject, country, verdict level and coverage, date, cost, status. Filter by level, country, text | `empty`, `list`, `filtered`, `no-match`, `error` | `Arrow` keys move between items, `Enter` opens |
+| `LibraryList`, `LibraryItem`, `LibraryFilters` | Past investigations: subject, country, verdict level and coverage, date, usage, status. Filter by level, country, text | `empty`, `list`, `filtered`, `no-match`, `error` | `Arrow` keys move between items, `Enter` opens |
 | `CrashGrid`, `CrashTile` | One tile per M id (§5.9) | `live`, `delayed`, `coarse` (official), `not_configured`, `peak-unknown`, `stale`, `error`, `loading` | Tiles are not focusable unless they hold an action; actions are links or buttons |
 | `DrawdownStrip` | "Distance from peak" card: one row per market sorted by drop, a bar plus a signed percentage with an arrow; "Not configured" (with "How to set it up") or "peak not known yet" in place of a bar where needed. Peak definition in the card header ("peak = highest daily close since 1 Jan 2025") | `full`, `with-gaps` | rows with actions are links |
 | `DebtTicker` | M08: the ticking estimate with an `estimate` tag, the official figure and its date, the 30-day change. The ticking digits are `aria-hidden`; a static text carries "Estimate {x}; official {y} as of {date}" | `live`, `error` (shows the official figure only) | - |
@@ -456,16 +456,19 @@ GET /investigations/:id/events   -> SSE, header Last-Event-ID = lastEventId   (a
 ### 6.2 Reducer state
 
 ```ts
+// Integer standard tokens end to end; cto's and the architect's shape. No currency field exists.
+type Usage = { unit: "st"; used: number; held: number; cap: number; extensionGranted: boolean; turns?: number; perModel?: Record<string, ModelTokens> };
+
 type InvestigationState = {
   lastEventId: number;
   status: InvestigationStatus;
   runs: Record<RunId, { role: AgentRole; status: RunStatus; stepKey?: string; stepParams?: Params;
                         waitingOn?: QuestionId; sourcesRead: number; startedAt?: string; endedAt?: string;
-                        spentMicroUsd: number; tasks: TaskId[] }>;
+                        usage: Usage; tasks: TaskId[] }>;
   tasks: Record<TaskId, TaskState>;
   findings: Record<FindingId, Finding>;           // keyed, so a replay cannot duplicate
   questions: Record<QuestionId, QuestionState>;   // pending | answered(by human|default)
-  cost: { spentMicroUsd: number; heldMicroUsd: number; capMicroUsd: number };
+  usage: Usage;                                    // the investigation's, integers only; the daily one comes from the status route
   verdict: Verdict | null;
   connection: "connecting" | "live" | "reconnecting" | "failed";
 };
@@ -494,7 +497,7 @@ type InvestigationState = {
 - **Answer** disables the card while posting, then waits for `question.answered`. A failure re-enables it with the error text.
 - **Cap extension** is a `cap_reached` question, not a new control.
 - **Re-run the whole investigation** opens the Investigate sheet again with the same subject and creates a new run URL. The old run stays in the library.
-- **Re-run one agent** (`POST .../runs/:runId/rerun`, agents.md §2.8). The lane shows **Re-run {agent}** only for a specialist whose run ended `failed`, `stopped` or `budget_exceeded` (or `done` with a turn, tool or time limit), and "Re-check now" on any specialist once the investigation is more than 24 hours old. It is hidden while the investigation runs, when the room left on the investigation cap or the daily cap is less than the role's `high` cost, and after two re-runs of that role; the button's tooltip text (a visible line, not tooltip-only) says which. The new run appears as a new lane row; the old run stays, marked "Replaced by a re-run", and its findings leave the verdict. When the new run ends the verdict is recomputed and the page shows "Verdict updated {time}".
+- **Re-run one agent** (`POST .../runs/:runId/rerun`, agents.md §2.8). The lane shows **Re-run {agent}** only for a specialist whose run ended `failed`, `stopped` or `budget_exceeded` (or `done` with a turn, tool or time limit), and "Re-check now" on any specialist once the investigation is more than 24 hours old. It is hidden while the investigation runs, when the room left on the investigation cap or the daily cap is less than the role's `high` usage, and after two re-runs of that role; the button's tooltip text (a visible line, not tooltip-only) says which. The new run appears as a new lane row; the old run stays, marked "Replaced by a re-run", and its findings leave the verdict. When the new run ends the verdict is recomputed and the page shows "Verdict updated {time}".
 - **Reload** restores the same state (acceptance test in U5).
 
 ### 6.5 Announcements (live region)
@@ -629,7 +632,7 @@ Test widths are web-qa's four: **390×844, 768×1024, 1280×800, 1920×1080**. T
 |---|---|
 | ≥ 1280 | Tool rail (56 px), content column up to 880 px, **agent panel** at the right (360 to 400 px), chat dock as a second right column when open |
 | 1024 to 1279 | Tool rail, content, agent panel at the right (336 px); the chat is a right sheet |
-| 768 to 1023 | Tool rail; the agent panel and the chat move **below the content**. A **compact lane list** sits right under the page header (one line per lane: status, step, time, cost, and a link to all tasks), and the sticky run bar stays visible while the sections scroll |
+| 768 to 1023 | Tool rail; the agent panel and the chat move **below the content**. A **compact lane list** sits right under the page header (one line per lane: status, step, time, usage, and a link to all tasks), and the sticky run bar stays visible while the sections scroll |
 | < 768 | **Bottom bar** replaces the rail. One column. Tables become scrollable regions with a sticky first column (key figures show 3 years, then scroll). The network opens in list view. The sheet is a bottom sheet |
 | 1920 | Content stays at its maximum width and is centred. The panel does not grow. Nothing stretches to 1920 |
 
@@ -781,7 +784,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 ### U4 Company profile, field system and sources page
 
-- **Scope:** the `explorer/[country]/[code]` route with the shared layout, `CompanyHeader`, `CoverageLine`, `SectionCard` and the sections of Part G (S01-S04, S06-S09, S13, S14, the agent-only placeholders for S10, S11 live lists, S15, S16, the S17 summary, S18's check lines), `FieldRow` and all its states, `SourceChip`, `PurposeGate`, `ReportProblem`, `PersonDisclaimer`, the facts-only variant, `SectionIndex`, `ChecksAside` (checks 1 to 9 with the Investigate action and typical cost), `SourcesTable` and the Sources page, `AttributionFooter`, noindex and titles, Suspense per section, per-section error boundaries. Section order follows DESIGN.md §8.1: S02, S03, S04, S06, S07, S08, S09, S10, S11, S13, S14 (US public), S15·S16, S17; S01 is the header; S05 and S12 are not rendered.
+- **Scope:** the `explorer/[country]/[code]` route with the shared layout, `CompanyHeader`, `CoverageLine`, `SectionCard` and the sections of Part G (S01-S04, S06-S09, S13, S14, the agent-only placeholders for S10, S11 live lists, S15, S16, the S17 summary, S18's check lines), `FieldRow` and all its states, `SourceChip`, `PurposeGate`, `ReportProblem`, `PersonDisclaimer`, the facts-only variant, `SectionIndex`, `ChecksAside` (checks 1 to 9 with the Investigate action and typical usage), `SourcesTable` and the Sources page, `AttributionFooter`, noindex and titles, Suspense per section, per-section error boundaries. Section order follows DESIGN.md §8.1: S02, S03, S04, S06, S07, S08, S09, S10, S11, S13, S14 (US public), S15·S16, S17; S01 is the header; S05 and S12 are not rendered.
 - **Acceptance:**
   1. For each of the five fixtures (LT, LV, EE, US public, US private) every section state matches the mockup at the four widths (web-qa).
   2. The registry test of §13 passes: only SHOW and CAVEAT ids for the country, every SHOW and CAVEAT id of these sections present in the gallery, none of HIDE or LATER.
@@ -840,7 +843,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   7. The facts-only fixture has no verdict block.
   8. `ChecksList` always shows the same 11 checks; its counts equal the coverage line.
   9. `j` and `k` move between findings, `Enter` expands a chip; order in the DOM equals the visual order.
-  10. The follow-up dock shows its cost, cap and state; an answer carries `AiLabel` and citations, and says "Not found in the evidence" when it has none; at 1023 px and below it is a sheet (tested at 1024 and 1023).
+  10. The follow-up dock shows its usage, cap and state; an answer carries `AiLabel` and citations, and says "Not found in the evidence" when it has none; at 1023 px and below it is a sheet (tested at 1024 and 1023).
   11. `AttributionFooter` lists each cited source's line once.
   12. Re-run starts a new run under a new URL; the old one remains in the library.
   13. Opening the run URL later (new session) shows the stored report.
@@ -852,7 +855,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 - **Scope:** `LibraryList`, `LibraryItem`, `LibraryFilters`, the sidebar placement (≥ 1024 px, Explorer tool) and the full page below it.
 - **Acceptance:**
-  1. Each item shows subject, country, verdict level and coverage, date, cost and status; the level is shown as icon and word.
+  1. Each item shows subject, country, verdict level and coverage, date, usage and status; the level is shown as icon and word.
   2. Filters by level, country and text work together and the URL holds them; "no match" says which filters apply and offers Reset.
   3. States: empty, list, filtered, no-match, error with Retry.
   4. Arrow keys move between items and `Enter` opens; the list is one tab stop plus arrows.
@@ -960,11 +963,11 @@ web-qa swept the mockups (commit `7dc2e76`, 448 renders). These findings are bui
 1. Accept deviations D1-D4 (§1), including `FieldRow` and `SourceChip` in `apps/web`.
 2. Search response shape: `GET /search?q=` returns groups with state: `{ groups: { id, kind: "bulk" | "live", country, state: "ready" | "loading" | "error", percent?, results[] }[] }`. Live state registers are separate requests the client fires in parallel (`GET /search/live/{register}?q=`), each returning one group, so a slow register never blocks the rest. **[pending: architect]**
 3. SSE: `Last-Event-ID` header on the first request, with a `?lastEventId=` fallback.
-4. Library DTO: subject, country, entity id, verdict level, coverage, cost, status, started, finished; and whether delete or archive exists (R11).
+4. Library DTO: subject, country, entity id, verdict level, coverage, usage, status, started, finished; and whether delete or archive exists (R11).
 5. Network DTO: nodes (company id, name, code, status, country), edges (relation `shared_address | corporate_member`, `SourceRef`, `derived` flag, date), an address-hub node with `companyCount`, and `truncated`.
 6. Crash DTO: `MarketRow` as in `loaders/markets.md` §1.4, plus `cadence`, `delayed`, `peakBasis` (`since | all_time | seeded`), the source and attribution line per row, and `totalWiped` with its included rows and oldest as-of.
 7. The Part G table as `packages/domain/src/items/items.generated.ts` (D3), with the empty-state key per id.
-8. Estimate and daily-cap DTOs for the Investigate sheet: `{ low, typical, high, basis, capMicroUsd, dailyLeftMicroUsd, dailyResetsAt }`.
+8. Estimate and daily-cap DTOs for the Investigate sheet: `{ low, typical, high, basis, cap: Usage, daily: Usage, dailyResetsAt }` (architect's contract, architecture §5).
 9. Number the UI slices (§14) into `slices.md`; the `U` names are placeholders.
 10. `GET /settings/status` returns presence for each key and the SEC contact setting.
 
