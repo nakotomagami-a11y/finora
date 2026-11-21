@@ -14,15 +14,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 // The client bundle, and the server-rendered pages, where Next.js inlines any NEXT_PUBLIC_ value it finds.
 const SCANNED_DIRS = ["apps/web/.next/static", "apps/web/.next/server/app"];
 
-/** Every environment variable that holds a secret or a personal contact string. */
-export const SECRET_NAMES = [
-  "ANTHROPIC_API_KEY",
-  "SEC_USER_AGENT",
-  "SOCRATA_APP_TOKEN",
-  "COURTLISTENER_TOKEN",
-  "CERTSPOTTER_API_KEY",
-  "SAM_GOV_API_KEY",
-];
+/**
+ * Every environment variable that holds a secret or a personal contact string. v1 takes no keys
+ * (H5): the contact header is the one setting left, and a model key in the user's shell is still
+ * watched, so it can never reach a bundle.
+ */
+export const SECRET_NAMES = ["ANTHROPIC_API_KEY", "SEC_USER_AGENT"];
 
 export const SENTINEL_PREFIX = "finora-sentinel-";
 
