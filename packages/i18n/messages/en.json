@@ -62,6 +62,7 @@
     "method_not_allowed": "This request type is not allowed here.",
     "not_found": "Nothing was found at this address.",
     "not_implemented": "This part of Finora is not built yet.",
+    "payload_too_large": "The request is too large.",
     "purpose_blocked": "Finora does not support this purpose.",
     "notFoundTitle": "Page not found",
     "notFoundAction": "Go to the start page"

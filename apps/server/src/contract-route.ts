@@ -13,8 +13,32 @@ import type { RouteHandler } from "./router-types.ts";
 export type ValidInput = { params: Record<string, unknown>; query: Record<string, unknown>; body: unknown; request: Request };
 export type Service = (input: ValidInput) => Promise<Response> | Response;
 
+/** Request bodies are small JSON; a larger one is refused unread (qa, legal on S04b). */
+export const MAX_BODY_BYTES = 64 * 1024;
+
 /** The field path of the first issue only: never the value the client sent. */
 const where = (error: z.ZodError) => error.issues[0]?.path.join(".") || "(root)";
+
+/** The body as text, or null once it passes the cap: reading stops there, so a huge body is never held whole. */
+async function readCapped(request: Request): Promise<string | null> {
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (declared > MAX_BODY_BYTES) return null;
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
 
 export function contractRoute(operationId: string, service?: Service): RouteHandler {
   const route = API_ROUTES.find((r) => r.operationId === operationId);
@@ -36,9 +60,11 @@ async function validate(route: ApiRoute, request: Request, rawParams: Record<str
   if (!query.success) return errorResponse("bad_request", 400, `query.${where(query.error)}`);
   let body: unknown = undefined;
   if (route.body) {
+    const text = await readCapped(request);
+    if (text === null) return errorResponse("payload_too_large", 413);
     let json: unknown;
     try {
-      json = await request.json();
+      json = JSON.parse(text);
     } catch {
       return errorResponse("bad_request", 400, "body");
     }

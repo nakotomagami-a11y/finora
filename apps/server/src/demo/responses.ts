@@ -4,7 +4,7 @@ import type { ApiRoute } from "@finora/api-contract";
 import { agentsStatus, AT, companyReport, EID, snapshot, source, usage, verdict } from "@finora/api-contract/samples";
 import type { ValidInput } from "../contract-route.ts";
 
-const hit = { eid: EID, caption: "Example Company 1 SIA", code: "00000000001", country: "lv", legalForm: "lv-sia", status: "active", match: "prefix", isNaturalPerson: false };
+const hit = { eid: EID, caption: "Example Company 1 SIA", code: "40003000018", country: "lv", legalForm: "lv-sia", status: "active", match: "prefix", isNaturalPerson: false };
 const sourceInfo = { id: "fx-lv-register", country: "lv", publisher: "Example register", licenceId: "cc0-1.0", licenceName: "CC0 1.0", attribution: null, storage: "store", cadence: "daily", freshness: "current", asOf: "2026-11-21", lastSync: null };
 
 const BODIES: Record<string, (input: ValidInput) => unknown> = {
@@ -13,8 +13,8 @@ const BODIES: Record<string, (input: ValidInput) => unknown> = {
   company: ({ params }) => ({ ...companyReport(), header: { ...companyReport().header, eid: params.eid } }),
   companySection: ({ params }) => ({ eid: params.eid, section: params.section, result: { state: "not_checked", reason: { reason: "needs_purpose", purposes: ["counterparty_check"] } } }),
   companyNetwork: () => ({
-    nodes: [{ eid: EID, name: "Example Company 1 SIA", code: "00000000001", status: "active", country: "lv" }, { eid: "lv-00000000002", name: "Example Company 2 SIA", code: "00000000002", status: "active", country: "lv" }],
-    edges: [{ from: EID, to: "lv-00000000002", relation: "shared_address", source: source() }],
+    nodes: [{ eid: EID, name: "Example Company 1 SIA", code: "40003000018", status: "active", country: "lv" }, { eid: "lv-40003000022", name: "Example Company 2 SIA", code: "40003000022", status: "active", country: "lv" }],
+    edges: [{ from: EID, to: "lv-40003000022", relation: "shared_address", source: source() }],
     hubs: [],
     truncated: false,
   }),

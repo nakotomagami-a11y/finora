@@ -1,7 +1,7 @@
 // Shapes every area shares (architecture §5.1, §5.4, §7.2). Strict objects throughout: a field the
 // contract does not name is a contract error, so no DTO can grow an unreviewed field (a value, a
 // currency, a person's name) without a schema change.
-import { COUNTRIES, ERROR_CODES, ITEMS, PURPOSES } from "@finora/domain";
+import { COUNTRIES, eidKind, ERROR_CODES, isInternalEid, ITEMS, PURPOSES } from "@finora/domain";
 import { z } from "zod";
 
 const ITEM_IDS = new Set<string>(ITEMS.map((i) => i.id));
@@ -12,8 +12,11 @@ export const Country = z.enum(COUNTRIES);
 export const ItemId = z.string().refine((id) => ITEM_IDS.has(id), { message: "unknown item id" });
 export const PurposeId = z.enum(PURPOSES);
 export const ErrorCode = z.enum(ERROR_CODES);
-/** A public entity id (§3.4); never a person row id (`p-N-N`), which no DTO carries. */
-export const Eid = z.string().regex(/^[a-z]{2,4}(-[a-z0-9]+)+$/i).refine((eid) => !/^p-\d+-\d+$/.test(eid), { message: "a person row id never leaves the store" });
+/**
+ * A public entity id, by the domain's eid table (§3.4): person and relationship row ids never
+ * reach a URL, title, log or export (PS5), and an LV eid needs a register check digit.
+ */
+export const Eid = z.string().max(80).refine((eid) => eidKind(eid) !== null && !isInternalEid(eid), { message: "not a public entity id" });
 export const SectionId = z.string().regex(/^S(0[1-9]|1[0-8])$/);
 export const Role = z.enum(["lead", "registry", "money", "legal", "web", "verdict", "followup"]);
 export const CheckId = z.number().int().min(1).max(11);

@@ -9,6 +9,7 @@ export const ERROR_CODES = [
   "method_not_allowed",
   "not_found",
   "not_implemented",
+  "payload_too_large",
   "purpose_blocked",
 ] as const;
 

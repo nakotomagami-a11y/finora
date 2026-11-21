@@ -35,8 +35,8 @@ describe("common.ts", () => {
     }
   });
 
-  it("an eid is a public id, never a person row id", () => {
-    expect(Eid.safeParse("lv-00000000001").success).toBe(true);
-    expect(Eid.safeParse("p-12-3").success).toBe(false);
+  it("an eid is a public id by the domain's table: never a person or relationship row id (PS5)", () => {
+    for (const eid of ["lv-40003000018", "ee-00000009", "us-ct-FX0002", "us-cik-9900000042"]) expect(Eid.safeParse(eid).success, eid).toBe(true);
+    for (const eid of ["p-12-3", "rel-1-0", "lv-00000000001", "../..", "x".repeat(81)]) expect(Eid.safeParse(eid).success, eid).toBe(false);
   });
 });

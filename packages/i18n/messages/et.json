@@ -62,6 +62,7 @@
     "method_not_allowed": "Seda tüüpi päring ei ole siin lubatud.",
     "not_found": "Sellel aadressil ei leitud midagi.",
     "not_implemented": "See Finora osa ei ole veel valmis.",
+    "payload_too_large": "Päring on liiga suur.",
     "purpose_blocked": "Finora ei toeta seda eesmärki.",
     "notFoundTitle": "Lehte ei leitud",
     "notFoundAction": "Mine avalehele"

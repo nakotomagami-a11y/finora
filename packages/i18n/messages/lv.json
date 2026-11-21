@@ -62,6 +62,7 @@
     "method_not_allowed": "Šāda veida pieprasījums šeit nav atļauts.",
     "not_found": "Šajā adresē nekas netika atrasts.",
     "not_implemented": "Šī Finora daļa vēl nav izveidota.",
+    "payload_too_large": "Pieprasījums ir pārāk liels.",
     "purpose_blocked": "Finora neatbalsta šo mērķi.",
     "notFoundTitle": "Lapa nav atrasta",
     "notFoundAction": "Doties uz sākumlapu"

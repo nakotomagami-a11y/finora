@@ -62,6 +62,7 @@
     "method_not_allowed": "Šio tipo užklausa čia neleidžiama.",
     "not_found": "Šiuo adresu nieko nerasta.",
     "not_implemented": "Ši Finora dalis dar nesukurta.",
+    "payload_too_large": "Užklausa per didelė.",
     "purpose_blocked": "Finora nepalaiko šio tikslo.",
     "notFoundTitle": "Puslapis nerastas",
     "notFoundAction": "Eiti į pradžios puslapį"

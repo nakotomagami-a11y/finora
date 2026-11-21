@@ -7,7 +7,7 @@ import type { InvestigationSnapshot, Verdict } from "../investigations.ts";
 import type { CompanyReport } from "../report.ts";
 
 export const AT = "2026-11-22T08:00:00.000Z";
-export const EID = "lv-00000000001";
+export const EID = "lv-40003000018";
 
 export const source = (over: Partial<SourceRef> = {}): SourceRef => ({
   sourceId: "fx-lv-register",
@@ -26,7 +26,7 @@ export const usage = (over: Partial<Usage> = {}): Usage => ({ unit: "st", used: 
 const checks = Array.from({ length: 11 }, (_, i) => ({ checkId: i + 1, state: "ran" as const, outcome: "none_found" as const, signals: [], statementIds: [] }));
 
 export const companyReport = (): z.input<typeof CompanyReport> => ({
-  header: { eid: EID, country: "lv", code: "00000000001", legalForm: "lv-sia", status: "active", name: "Example Company 1 SIA", caption: "Example Company 1 SIA" },
+  header: { eid: EID, country: "lv", code: "40003000018", legalForm: "lv-sia", status: "active", name: "Example Company 1 SIA", caption: "Example Company 1 SIA" },
   isNaturalPerson: false,
   containsPersonalData: true,
   coverage: { ran: 11, total: 11, skipped: [] },

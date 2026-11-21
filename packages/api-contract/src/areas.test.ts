@@ -12,7 +12,7 @@ import { SettingsStatusResponse } from "./settings.ts";
 import { SourcesResponse } from "./sources.ts";
 import { agentsStatus, AT, EID, source, usage, verdict } from "./testing/samples.ts";
 
-const hit = { eid: EID, caption: "Example Company 1 SIA", code: "00000000001", country: "lv", legalForm: "lv-sia", status: "active", match: "prefix", isNaturalPerson: false };
+const hit = { eid: EID, caption: "Example Company 1 SIA", code: "40003000018", country: "lv", legalForm: "lv-sia", status: "active", match: "prefix", isNaturalPerson: false };
 const sourceInfo = { id: "fx-lv-register", country: "lv", publisher: "Example register", licenceId: "cc0-1.0", licenceName: "CC0 1.0", attribution: null, storage: "store", cadence: "daily", freshness: "current", asOf: "2026-11-21", lastSync: null };
 
 describe("search.ts", () => {
@@ -25,8 +25,8 @@ describe("search.ts", () => {
 
 describe("network.ts", () => {
   it("accepts company edges and refuses a share on an address edge", () => {
-    const node = { eid: EID, name: "Example Company 1 SIA", code: "00000000001", status: "active", country: "lv" };
-    const edge = { from: EID, to: "lv-00000000002", relation: "corporate_member", source: source(), share: 40 };
+    const node = { eid: EID, name: "Example Company 1 SIA", code: "40003000018", status: "active", country: "lv" };
+    const edge = { from: EID, to: "lv-40003000022", relation: "corporate_member", source: source(), share: 40 };
     expect(NetworkResponse.safeParse({ nodes: [node], edges: [edge], hubs: [], truncated: false }).success).toBe(true);
     expect(NetworkResponse.safeParse({ nodes: [node], edges: [{ ...edge, relation: "shared_address" }], hubs: [], truncated: false }).success).toBe(false);
   });
