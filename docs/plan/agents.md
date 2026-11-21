@@ -8,7 +8,7 @@ Inputs: council sessions 0 and 1 (`docs/plan/council/00-framing.md`, `01-data.md
 
 Every example uses fictional names, made-up codes and reserved domains (`.example`, `.test`).
 
-**Revised 2026-11-21 for the human's decision (hub 7066789927): no API keys at all.** The agent runtime runs on the local Claude Code CLI (`claude -p`, stream-json), on the user's existing subscription login, the same way the mission seats run. Never the Messages API, never a provider key, never a paid search API: the model's web search and page reading go through the CLI's own `WebSearch` and `WebFetch`. CI and tests use recorded fixtures through a fake CLI (§13). The runtime is specified in §3.4; cost becomes estimated plan usage (§8).
+**Revised 2026-11-21 for the human's decision (hub 7066789927): no API keys at all.** The agent runtime runs on the local Claude Code CLI (`claude -p`, stream-json), on the user's existing subscription login, the same way the mission seats run. Never the Messages API, never a provider key, never a paid search API: the model's web search and page reading go through the CLI's own `WebSearch` and `WebFetch`. CI and tests use recorded fixtures through a fake CLI (§13). The runtime is specified in §3.4; cost becomes subscription usage in standard tokens (§8, cto 7066903638). Folded in on 2026-11-21: H5 (coordinator 7066836297), cto's units, qa's seven runtime checks (7066914402), the council's H5 requirements (7066864444, 7066916684) and legal's conditions (7066909710, 7066921682). Whether the subscription terms allow this use is the human's decision (legal 7066854077, council 7066880821); until then the runtime is built and tested on the fake CLI only.
 
 Revised after council session 2 (`docs/plan/council/02-plan.md`: items 5, 6, 7, 8, 9, 10 and 16, plus CFO's non-blocking cost items). Earlier: revised 2026-11-20 for qa's plan review (`docs/plan/reviews/02-plan-review.md`, MUST-FIX 1-7 and the agents SHOULD-FIX list) and the council's court ruling (Part G: S10.LT.01, S10.LV.01, S10.EE.01 LATER with MANUAL). Architecture `7c5afaf` states the matching contract.
 
@@ -16,7 +16,7 @@ Revised after council session 2 (`docs/plan/council/02-plan.md`: items 5, 6, 7, 
 
 ## 1. What an investigation is
 
-The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-check list from locally loaded data. An investigation adds what only query-time work can add:
+The instant profile (no LLM, no usage) already answers checks 1-9 of the council's 11-check list from locally loaded data. An investigation adds what only query-time work can add:
 
 - **check 10, court cases**, searched in the US (FJC index, CourtListener with a token). In LT, LV and EE check 10 is not possible in v1: the coverage line reads "Court cases: check manually at [portal]" (council; §4.5a);
 - **check 11, web presence consistent with the register**, from DNS, certificate logs, the homepage and (.lt and US only) the domain's creation date;
@@ -55,17 +55,17 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
 
 ## 2. Roles
 
-| Role id | Card title (designer owns wording) | Owns checks | Model (default, CLI `--model`) | Effort (`--effort`) | Turns max | Tool calls max | Typical / worst estimated usage, USD-equivalent (🟡 modelled) |
+| Role id | Card title (designer owns wording) | Owns checks | Model (default, CLI `--model`) | Effort (`--effort`) | Turns max | Tool calls max | Typical / worst usage, standard tokens (🟡 modelled, cto's conversion) |
 |---|---|---|---|---|---|---|---|
-| `lead` | Identifying the company | 1 | `AGENT_MODEL_LEAD` = `sonnet` | low | 4 | 8 | $0.02 / $0.04 |
-| `registry` | Registry and people | 2, 3, 4 | `AGENT_MODEL_SPECIALIST` = `sonnet` | medium | 4 | 12 | $0.06 / $0.12 |
-| `money` | Money and tax | 5, 6, 7 | same | medium | 4 | 12 | $0.06 / $0.12 |
-| `legal` | Legal, insolvency and sanctions | 8, 9, 10 | same | medium | 8 | 24 | $0.07 / $0.16 |
-| `web` | Web, domain and news | 11 | same | medium | 12 | 30 | $0.20 / $0.40 |
-| `verdict` | Verdict | - (rules); explanation | `AGENT_MODEL_SYNTH` = `sonnet` | medium | 2 | 0 | $0.05 / $0.08 |
-| `followup` | (follow-up panel) | - | `AGENT_MODEL_SYNTH` | low | 3 | 4 | $0.03 / $0.10 |
+| `lead` | Identifying the company | 1 | `AGENT_MODEL_LEAD` = `sonnet` | low | 4 | 8 | 7k / 13k st |
+| `registry` | Registry and people | 2, 3, 4 | `AGENT_MODEL_SPECIALIST` = `sonnet` | medium | 4 | 12 | 20k / 40k st |
+| `money` | Money and tax | 5, 6, 7 | same | medium | 4 | 12 | 20k / 40k st |
+| `legal` | Legal, insolvency and sanctions | 8, 9, 10 | same | medium | 8 | 24 | 23k / 53k st |
+| `web` | Web, domain and news | 11 | same | medium | 12 | 30 | 67k / 133k st |
+| `verdict` | Verdict | - (rules); explanation | `AGENT_MODEL_SYNTH` = `sonnet` | medium | 2 | 0 | 17k / 27k st |
+| `followup` | (follow-up panel) | - | `AGENT_MODEL_SYNTH` | low | 3 | 4 | 10k / 33k st |
 
-- Totals for one investigation: **$0.46 typical, $0.92 worst, as estimated usage** (osint.md §4.6, table "Mid model throughout"). On a subscription nothing is billed per call: the figures are the CLI's own list-price estimate (`total_cost_usd`), and the caps (§8.2) protect the user's plan usage. These are the `basis: "defaults"` values of the estimate (§8.3) until this install has 10 finished investigations, and until the measured run (§12) replaces them.
+- Totals for one investigation: **≈ 153k st typical, ≈ 307k st worst** (osint.md §4.6, "Mid model throughout", converted at cto's 1 st = 3 × 10⁻⁶ of the CLI's `total_cost_usd`). On a subscription nothing costs money; the caps (§8.2) protect the user's plan. These are the `basis: "defaults"` values of the estimate (§8.3) until this install has 10 finished investigations, and until the measured run (§12) replaces them.
 - **Typical wall time per role** (🟡, for `typicalSeconds` in the estimate DTO; osint.md §4.8): lead 15 s, registry 25 s, money 25 s, legal 30 s, web 90 s, verdict 20 s, follow-up 10 s. Replaced by the measured run (§12).
 - The architecture's hard ceilings (40 turns, 80 tool calls per run) stay as a safety net; the per-role limits above are what normally stops a run.
 - The CLI owns the model calls inside a run, so Finora sets limits per run, not per call: `--max-turns` (the turns column) and `--max-budget-usd` (the run's allocation, §8.1). Tool calls are counted by Finora's MCP endpoint and gate (§3.4).
@@ -130,8 +130,8 @@ The instant profile (no LLM, $0) already answers checks 1-9 of the council's 11-
   - the banned-term check of §6.4 applies: reject, regenerate once, then answer "No written answer: the question can be answered from the findings listed below" with the cited findings only;
   - the P8 text filter of §9 point 2 applies to every sentence and quote;
   - `generatedBy: "ai"` on every answer (R9).
-- **Cost:** held on the follow-up ledger ($0.25, `AGENT_FOLLOWUP_CAP_USD`) and the daily ledger, never on the investigation ledger; a hold that would exceed either is refused with `followup_cap`.
-- Tests: `agents/src/followup.test.ts` (uncited sentence dropped; bad quote rejected; banned term → regenerate → fallback; P8 canary text; the $0.25 cap refuses the next call).
+- **Usage:** held on the follow-up ledger (85k st, `AGENT_FOLLOWUP_CAP_ST`) and the daily ledger, never on the investigation ledger; a hold that would exceed either is refused with `followup_cap`.
+- Tests: `agents/src/followup.test.ts` (uncited sentence dropped; bad quote rejected; banned term → regenerate → fallback; P8 canary text; the 85k st cap refuses the next run).
 
 ### 2.8 Re-running one agent
 `POST /api/v1/investigations/:id/runs/:runId/rerun` (architecture §5.1). Rules:
@@ -184,19 +184,25 @@ claude -p
   --strict-mcp-config --mcp-config <run dir>/mcp.json
   --allowedTools "mcp__finora__<each role tool>"
   --permission-prompt-tool mcp__finora__web_gate
-  --max-turns <role turns> --max-budget-usd <allocation + extension>
+  --max-turns <role turns> --max-budget-usd <(slice - H) x 3e-6>
   --no-session-persistence --setting-sources "" --disable-slash-commands
 ```
+plus, in the child's environment: `CLAUDE_CODE_MAX_OUTPUT_TOKENS=4096`, `CLAUDE_CODE_MAX_TURNS=<role turns>`, `CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS=1` and `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=<role searches>`.
 
-- **The user's own login.** The binary is `FINORA_CLAUDE_BIN` (default `claude` on the PATH), signed in with the user's subscription. Finora never reads, stores or asks for a credential. The child's environment is the server's **minus** `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL` and every `CLAUDE_CODE_USE_*` provider switch, so a key in the user's shell can never turn an investigation into API billing. Without a signed-in CLI, Investigate opens the "Sign in to Claude Code" sheet (designer) and the instant profile works as before.
-- **Isolation.** The working directory is a fresh, empty `<data dir>/agents/runs/<runId>/` (system prompt, MCP config with a one-time token, nothing else), removed when the run ends. `--setting-sources ""` loads no user, project or local settings (so no user hooks or plugins), `--strict-mcp-config` loads only Finora's server, `--disable-slash-commands` removes skills, `--tools` removes every built-in except the role's web tools, and `--no-session-persistence` keeps the transcript out of `~/.claude` (investigation content stays in Finora's data dir, under its retention and deletion rules).
-- **Fail closed on start.** The first `system/init` event must show: `apiKeySource: "none"`; `tools` equal to the role's MCP tools plus its built-ins, nothing more; `mcp_servers` exactly `[finora: connected]` with no `mcp_server_errors`; no plugin whose `path` is not `builtin`; `slash_commands` and `skills` empty. Anything else kills the process before the first user message and ends the run `failed: runtime_unsafe` (test `agents/src/cli.init.test.ts`, one case per field).
+- **Backends** (council 7066880821): `AgentBackend = "cli" | "local" | "fake"`. `fake` (§13) is what CI and every test use; `cli` is this section, enabled only after the human's terms decision; `local` (an open-weights model on the user's machine, cto 7066920998) is a later option behind the same interface, running Finora's own tool loop. Switching backend is configuration, not a rewrite.
+
+- **The user's own login.** The binary is `FINORA_CLAUDE_BIN` (default `claude` on the PATH), signed in with the user's subscription. Finora never reads, stores or forwards a credential, and never runs `--bare` (bare mode reads no subscription login and needs a key). **The child's environment is an allowlist** (qa check 2, built like `run-next.mjs`): `PATH`, `HOME` or `USERPROFILE`, on Windows `SystemRoot`, `APPDATA`, `LOCALAPPDATA`, `TEMP` and `TMP`, plus the variables above, and nothing else: no `ANTHROPIC_*`, no `CLAUDE_CODE_USE_*`, no secret of the server. Measured: with only `PATH` and `USERPROFILE` the CLI still authenticates through the subscription. Test: a sentinel secret in the server's environment is absent from the child's. Without an installed or signed-in CLI, Investigate shows "Claude Code isn't installed" or "Claude Code isn't signed in" with the one command to fix it (designer 7066861889); the instant profile works as before.
+- **Isolation.** The working directory is a fresh, empty directory in the OS temp dir, outside the repository and the data dir (coordinator, H5), holding the system prompt and the MCP config with a one-time token, nothing else, and removed when the run ends. `--setting-sources ""` loads no user, project or local settings (so no user hooks or plugins), `--strict-mcp-config` loads only Finora's server, `--disable-slash-commands` removes skills, `--tools` removes every built-in except the role's web tools, and `--no-session-persistence` keeps the transcript out of `~/.claude` (investigation content stays in Finora's data dir, under its retention and deletion rules). **No subagents:** the `Agent` tool is never in `--tools` and the built-in agents are disabled, because a subagent's usage is missing from the result's `usage` (cto) and legal makes it a condition. **Isolation is tested, not assumed** (qa check 3, council addition 3): `agents/src/cli.isolation.test.ts` builds a home directory holding a user `CLAUDE.md`, a hook, a skill and an MCP server config, each with a canary, runs the exact spawn line against it (the fake CLI in CI; the real CLI in the measured run), and asserts no canary reaches the transcript or the tool list and no hook ran. If isolation cannot be proven, the `cli` backend does not ship and the council is told first.
+- **Fail closed on start.** The first `system/init` event must show: `apiKeySource: "none"`; no `Agent` tool; `tools` equal to the role's MCP tools plus its built-ins, nothing more; `mcp_servers` exactly `[finora: connected]` with no `mcp_server_errors`; no plugin whose `path` is not `builtin`; `slash_commands` and `skills` empty. Anything else kills the process before the first user message and ends the run `failed: runtime_unsafe` (test `agents/src/cli.init.test.ts`, one case per field).
 - **Finora's tools over MCP.** `mcp.json` points the CLI at the Finora server's own Streamable HTTP endpoint for this run, `http://127.0.0.1:<port>/agent-mcp/<runId>` with a per-run bearer token (never the public `/mcp` surface). The handlers run inside the server with the investigation's context: store, ledger, P8 filter, documents, questions. Tool names reach the model as `mcp__finora__<tool>`.
 - **The web gate** (`mcp__finora__web_gate`, the CLI's permission-prompt tool) answers every `WebSearch` and `WebFetch` call, because neither is in `--allowedTools`. It allows a search while the run has searches left, and a fetch only for a URL that passes the §4.6 allowlist, counts and robots rules for this run (hosts known before the run start come from the register, the offer domain and `news_search`; candidate hosts come from this run's `WebSearch` results, which the runner reads from the stream). Everything else is denied with a reason the model sees (`search_limit`, `host_not_allowed`, `fetch_limit`). Without the gate, a `-p` run denies both tools (measured, below), so a broken gate fails closed.
 - **Questions park the turn, not the process.** `ask_human` records the question and returns "Question recorded. End your turn now; the answer comes as the next message." The turn ends with a `result` event; the process stays alive on its open stream-json input; the answer is written as the next user message (measured: a second message 60 s later ran as a new turn in the same process). No transcript is saved, so a server restart loses the process: on boot, the run restarts with its accepted findings, its answered questions and its task results in the first message (architecture §7 recovery).
 - **Stop and limits.** Stop sends the stream-json interrupt, then SIGINT, then kills after 5 s. `--max-turns` and `--max-budget-usd` end a run with the CLI's own subtype, mapped to `turn_limit` and `budget_exceeded`.
-- **What the stream gives the runner** (measured 2026-11-21, Claude Code 2.1.327): `system/init` (model, tools, MCP servers, plugins, `apiKeySource`); `assistant` messages with `tool_use` blocks and per-message `usage`; `user` messages with `tool_result` blocks; `system/permission_denied` and `system/api_retry`; one `result` per turn with `subtype`, `is_error`, `num_turns`, `total_cost_usd`, `usage` (input, cache creation and read, output), `modelUsage` per model and `permission_denials`. Note that `usage.server_tool_use.web_search_requests` stayed 0 when the CLI's `WebSearch` ran, so searches are counted from the `tool_use` blocks.
-- **Measured on this machine** (`research/.cache/osint/cli-spike/`, never committed): a run with the key variables removed authenticates through the subscription (`apiKeySource: "none"`); `--setting-sources ""` is accepted; `--tools "WebSearch,WebFetch"` leaves exactly those two built-ins; a `WebFetch` that no rule allows is denied in `-p` and listed in `permission_denials`; `--allowedTools "WebFetch(domain:*.europa.eu)"` allows that domain and denies others. Not yet measured, so the first runtime slice proves them first: the `--permission-prompt-tool` round trip through an HTTP MCP server, the stream-json interrupt keeping the process alive, and how `total_cost_usd` accumulates across turns of one process.
+- **The plan's own limit pauses, never fails** (council requirement 2, legal condition 3). The CLI emits a `rate_limit_event` (measured, below) and the turn ends `is_error` with `terminal_reason: "api_error"`. The runner pauses the investigation: every run goes to `waiting` (`waitingOn: "plan_limit"`), and the header reads "Usage limit reached: resumes after [time]", with the time from `rate_limit_info.resetsAt`. The user may resume after that time, or stop and write the report, which counts the unrun checks as not run; the verdict never runs on partial evidence while paused. Finora never retries on its own and never starts a second process to get around the limit. A recorded transcript ending in the limit is a scenario (§13).
+- **Paid extra usage stays off** (legal condition 1, council addition 2). The same `rate_limit_info` carries `overageStatus` and `isUsingOverage` (measured). A run that reports `isUsingOverage: true`, or an `overageStatus` that allows overage, is interrupted at once, and the investigation pauses with "Paid extra usage is on in your Claude account. Turn it off to continue." So Finora can refuse to draw on it instead of only warning; the one-time notice of council addition 2 stays as well.
+- **What the stream gives the runner** (measured 2026-11-21, Claude Code 2.1.327): `system/init` (model, tools, MCP servers, plugins, `apiKeySource`); `assistant` messages with `tool_use` blocks and per-message `usage`; `user` messages with `tool_result` blocks; `system/permission_denied` and `system/api_retry`; one `result` per turn with `subtype`, `is_error`, `num_turns`, `total_cost_usd`, `usage` (input, cache creation and read, output), `modelUsage` per model and `permission_denials`. Note that `usage.server_tool_use.web_search_requests` stayed 0 when the CLI's `WebSearch` ran, so searches are counted from the `tool_use` blocks. Per cto, a mid-turn `assistant` message's `output_tokens` is a placeholder; only the `result` totals are final.
+- **The plan-limit stream** (measured when this machine's plan window ran out, 2026-11-21): a `rate_limit_event` with `rate_limit_info { status: "rejected", resetsAt: <epoch seconds>, rateLimitType: "five_hour", overageStatus, overageDisabledReason, isUsingOverage, unifiedWindows: { five_hour: { utilization, resetsAt, status }, seven_day: {...} } }`; then a synthetic `assistant` message with `error: "rate_limit"`, `api_error: "usage_limit_reached"` and `api_error_status: 429`; then a `result` with `is_error: true`, `terminal_reason: "api_error"` and `total_cost_usd: 0`. Whether `rate_limit_event` also arrives on runs that are not limited is measured in the runtime slice.
+- **Measured on this machine** (`research/.cache/osint/cli-spike/`, never committed): a run with the key variables removed authenticates through the subscription (`apiKeySource: "none"`); `--setting-sources ""` is accepted; `--tools "WebSearch,WebFetch"` leaves exactly those two built-ins; a `WebFetch` that no rule allows is denied in `-p` and listed in `permission_denials`; `--allowedTools "WebFetch(domain:*.europa.eu)"` allows that domain and denies others. With only `PATH` and `USERPROFILE` in its environment, the CLI still authenticates. Not yet measured, so the first runtime slice proves them first: the `--permission-prompt-tool` round trip through an HTTP MCP server, the stream-json interrupt keeping the process alive, and how `total_cost_usd` accumulates across turns of one process.
 
 ---
 
@@ -439,49 +445,46 @@ Kinds follow the settled contract: `entity_choice | sanctions_match | scope | ca
 | `entity_choice` | lead | several register candidates, or a fuzzy-only match | up to 5 `search_companies` candidates from this run (name, code, legal form, status, city; natural persons and sole traders never offered) + "None of these" | **no default, no countdown**; after `QUESTION_TIMEOUT` (30 min), or on "None of these", the investigation ends `done` with verdict level `not_enough_data`, reason "company not confirmed" | everything |
 | `sanctions_match` | legal | a list entry matches by name and no second identifier settles it either way | "Same company" / "Different company" / "Not sure" for a company entry; "Same person" / "Different person" / "Not sure" for an officer hit; with the entry's identifiers side by side with the register's | default "Not sure" after 30 min (fires `sanctions_unsure`); marked "answered by default" | the legal run only |
 | `scope` | web | a candidate website has no anchor; or the user's free text names a domain that differs from the register's | "Yes, it's theirs" / "No" / "Not sure" | default "Not sure" → the site stays "linked by name only" | the web run only |
-| `cap_reached` | runtime | the investigation's held + settled spend reaches the cap the first time | "Stop and write the report" (default) / "Allow up to $0.50 more" (clipped to what is left of the daily cap) | default after 10 min; offered once per investigation; a second hit ends the investigation `budget_exceeded` with no question | all runs (each goes to `waiting` with `waitingOn: "cap"`; the header reads "paused at cap") |
+| `cap_reached` | runtime | the investigation's held + settled usage reaches the cap the first time | "Stop and write the report" (default) / "Allow up to a third more of the cap" (+170k st, clipped to what is left of the daily cap) | default after 10 min; offered once per investigation; a second hit ends the investigation `budget_exceeded` with no question | all runs (each goes to `waiting` with `waitingOn: "cap"`; the header reads "paused at cap") |
 | `free_text` | lead | the free-text subject has no country and the name exists in several countries' registers | the candidate countries as quick replies, plus free text | no default; after 30 min the investigation ends `done` with `not_enough_data`, reason "country not given" | everything |
 
 - At most 3 questions per investigation from agents (`cap_reached` not counted): the lead may ask 2 (`free_text`, then `entity_choice`), each specialist 1. A fourth `ask_human` call returns `question_limit`, and the agent records the open point as a context finding. If several list entries need a `sanctions_match` answer, the legal agent asks about the strongest one (most matching identifiers); the others stay "possible match, needs review" and fire `sanctions_unsure`.
 - The question is rendered from a fixed template per kind (title, options and labels from the catalogue; entity fields from the resolved refs; the agent's `why` line passes the banned-word and P8 text checks).
 - Parking and resume follow §3.4: the asking turn ends, the process waits, and the answer arrives as the next user message.
-- 🟡 Usage: a late answer can miss the CLI's prompt cache, so the next turn re-reads the run's context (about $0.02-0.08 of estimated usage at the mid tier). The estimate's high end includes one such resume per run that may ask (§8.3).
+- 🟡 Usage: a late answer can miss the CLI's prompt cache, so the next turn re-reads the run's context (about 7k-27k st at the mid tier). The estimate's high end includes one such resume per run that may ask (§8.3).
 
 ---
 
-## 8. Cost (estimated usage on the user's plan)
+## 8. Usage (standard tokens of the user's plan; cto 7066903638, council 7066916684)
 
-Nothing is billed per call: runs use the user's Claude subscription. What a run uses still counts against the plan's limits, so the council's caps stay (decision 3, guardrail 1), measured in the CLI's own **USD-equivalent estimate** (`total_cost_usd`, list prices). The UI says "estimated usage", never a charge.
+Nothing costs money: runs use the user's Claude subscription (H5). What a run uses still counts against the plan, so the council's caps stay, in **standard tokens (st)**: 1 st = one Sonnet-class uncached input token; a run's usage in st = the CLI's own `total_cost_usd` ÷ (3 × 10⁻⁶). The dollar figure is an internal meter only, in a field named so it cannot be rendered (`meterInternal`): no UI, API, MCP or log string ever shows a currency (qa check 6, `agents/src/no-currency.test.ts` scans the DOM, API, MCP and log output). The words are "usage" and "cap", never "cost", "spend" or "price" (designer 7066861889).
 
-### 8.1 Allocate and settle, per run
-- The CLI owns the model calls, so Finora holds per **run**, not per call. Before a run starts, its **allocation** is held on the investigation ledger, the daily ledger and, for follow-ups, the follow-up ledger: the role's `high` estimate (§8.3), clipped to what the caps leave. Finora enforces the caps itself from live usage (below) and interrupts a turn at the cap. As a backstop, the process is started with `--max-budget-usd` = the allocation plus the one-shot extension, so a CLI that Finora loses track of still stops on its own (the CLI warns that spend can pass its cap a little).
-- **Live usage:** each turn's `result` event reports the run's `total_cost_usd`; between turns, the runner adds the per-message `usage` of `assistant` events at the prices of `packages/agents/src/prices.ts` (estimate only), so the `cost` event and the caps move during a turn.
-- **Settle:** when the run ends, the ledger settles at its last reported `total_cost_usd` and releases the rest of the allocation. A run whose usage passes its allocation logs `hold_underestimate` (role, allocation, settled) and counts as used; no further run of that investigation starts if its allocation would then pass the cap, and the verdict still runs inside its reserve.
-- **Crash recovery** (CFO): on boot, every allocation left open by a dead process settles at its last reported usage plus one turn's worst case, before any run restarts.
-- **Reaching the cap** means the live usage plus the open allocations would pass it. The first time for the investigation cap: every run's turn is interrupted (§3.4), runs go to `waiting` (`waitingOn: "cap"`), and one `cap_reached` question is asked; "Allow up to $0.50 more" raises the allocations and sends each interrupted run a "continue" message; a second time, the investigation ends `budget_exceeded` with no question.
-- **The verdict's reserve:** 15% of the investigation cap (`SYNTH_RESERVE`) is never allocated to specialists: their combined allocations and usage may reach at most 85% of the cap. When the extension is granted, the reserve stays 15% of the original cap.
-- **The daily cap hit mid-run:** the daily ledger reserves the verdict's 15% when the investigation starts. If a specialist's usage would pass the daily cap, every run stops (no question; the daily cap cannot be raised from inside a run), and the verdict runs inside its reserve. The UI shows the usage and reset sheet.
-- **The plan's own limit:** a run that ends with the CLI's `rate_limit` error after the CLI's own retries ends `failed: plan_limit`; the investigation's other runs continue, and the coverage line names the checks not run. Finora never retries around a plan limit.
-- **Follow-ups** hold on the follow-up ledger and the daily ledger, never on the investigation ledger (§2.7).
-- Tests (`agents/src/budget.test.ts`, with the fake CLI): an allocation is held before the process starts, and `--max-budget-usd` is the allocation plus the extension; a run that settles above its allocation logs `hold_underestimate`, then no new run starts and the verdict still runs (council item 6); under the default $1.50 cap the four specialists start within the 2 s window plus the 1 s stagger and none waits on the ledger (`agents/src/budget.parallel.test.ts`, S09); open allocations settle on recovery; specialists stop at 85%; the daily cap hit mid-run stops all runs and the verdict still runs; the extension keeps the reserve; a `rate_limit` end is `plan_limit`.
+### 8.1 Hold, then settle; the CLI is the hard stop
+1. **Before spawning a run,** hold its slice on the investigation, daily and (for follow-ups) follow-up ledgers: the role's share from §2 (converted to st), with the 15% synthesis reserve kept back. A spawn that would push held + settled past any cap does not start.
+2. **Spawn with the CLI's own limits:** `--max-budget-usd` = (slice − H) × 3 × 10⁻⁶; `CLAUDE_CODE_MAX_OUTPUT_TOKENS=4096`, so one response is bounded (≈ 20k st of output); `CLAUDE_CODE_MAX_TURNS` = the role's turn cap. H covers the CLI's one-response overshoot: 25k st by default, then the measured p95 of a single response.
+3. **Finora's backstops, from the stream:** turns are counted from unique `assistant` message ids, and at the cap the run gets SIGINT (a clean end of turn); when the per-step input and cache tokens (accurate mid-run) pass the slice, SIGINT at once.
+4. **Settle** from the `result`'s `total_cost_usd`, never from summed steps. A crash that leaves no result, or a zeroed one, settles at the held worst case and logs `settled_at_hold` (the CFO's crash rule).
+5. **The global daily hold** means parallel runs cannot jointly overshoot. A run that settles above its hold logs `hold_underestimate`, no new run starts, and the verdict still runs inside its reserve.
+6. **The cap flow:** the first time held + settled reaches the investigation cap, every run is interrupted (`waitingOn: "cap"`) and one `cap_reached` question offers "Stop and write the report" (default) or "Allow up to a third more of the cap" (+170k st, clipped to what is left of the daily cap). A second hit ends the investigation `budget_exceeded`. The daily cap hit mid-run stops every run, and the verdict runs inside its reserve.
+7. **The plan's own limit** pauses the investigation (§3.4); it is not a Finora cap and is never retried around.
+8. **Ledger contents** (legal condition 4): counts and the unit only, never prompts, responses or the account's identity.
+- Tests (`agents/src/budget.test.ts`, `budget.parallel.test.ts`, on recorded transcripts): st is derived from `total_cost_usd` and a zeroed crash result settles at the hold; the spawn carries `--max-budget-usd` = slice − H, the output and turn caps, and no `Agent` tool; SIGINT at the turn cap yields a settled result; a mid-run case where per-step tokens cross the slice gets SIGINT before the next request and settles at or under hold + H; the four specialists start within the stagger without waiting on the ledger; the cap question, the extension and the daily cap behave as in step 6.
 
-### 8.2 Caps (council decision 3; guardrail 1)
-| Cap (estimated usage) | Default | Env |
+### 8.2 Caps (same strength as the old dollar caps)
+| Cap | Default | Env |
 |---|---|---|
-| Per investigation | $1.50 | `AGENT_COST_CAP_USD` (max `AGENT_COST_CAP_MAX_USD` = $5.00) |
-| One-shot extension | $0.50, once per investigation, never past the daily cap | `AGENT_CAP_EXTENSION_USD` |
-| Per follow-up | $0.25 | `AGENT_FOLLOWUP_CAP_USD` |
-| Per day (all investigations and follow-ups, local midnight) | $10.00, cannot be raised from inside a run | `AGENT_DAILY_CAP_USD` |
-
-Prices in `packages/agents/src/prices.ts` (per model: input, output, cache write, cache read) are used only for the pre-run estimate and for live usage between `result` events; the settled figure is the CLI's own `total_cost_usd`. Money is integer micro-USD everywhere.
+| Per investigation | 500k st | `AGENT_CAP_ST` |
+| One-shot extension | +170k st, once per investigation, never past the daily cap | `AGENT_EXTENSION_ST` |
+| Per follow-up | 85k st | `AGENT_FOLLOWUP_CAP_ST` |
+| Per day (all investigations and follow-ups, local midnight) | 3.3M st, cannot be raised from inside a run | `AGENT_DAILY_CAP_ST` |
 
 ### 8.3 The pre-run estimate (council requirement)
-`POST /api/v1/investigations/estimate {subject, roles[]}` → `{ low, typical, high, basis, drivers[] }` in micro-USD of estimated usage.
-1. For each role, take the 10th percentile, median and 95th percentile of settled usage from `cost_ledger` for that role, model and effort, once this install has ≥ 10 finished investigations (`basis: "history"`); otherwise the defaults in §2 (`basis: "defaults"`: typical = the typical column; low = 0.6 × typical; high = the worst column).
-2. `typical` = sum of medians; `low` = sum of 10th percentiles; `high` = sum of 95th percentiles plus one cache-expiry resume for each role that may ask a question (lead, legal, web), clamped to the cap ("up to the cap").
-3. Drivers, each adjusting before the sum and returned as `drivers[]` for the UI: no known website (web role × 1.3); country (US public without `SEC_USER_AGENT`: money and registry roles × 0.5, fewer sections); model and effort per role (linear in price); a cap below the typical sum (warning).
-4. The UI shows: "Estimated usage $0.30-0.92, usually about $0.46, on your Claude plan. Cap $1.50. Today: $X of $10 left." The cap, not the estimate, is enforced.
-5. **Calibrated** (council item 6) means: across the measured run (§12) and the M2 gate runs, at least 90% of investigations settle at or under the `high` shown before they started, and the median settled usage is within ±30% of `typical`. Below that, the agent slice is not accepted; cut agent depth (turns, searches) before raising the cap (CFO kill criterion). `scripts/milestone-gate.mjs` prints both numbers. Test: `agents/src/estimate.test.ts` (defaults path, history path with a fixture ledger, clamping, drivers).
+`POST /api/v1/investigations/estimate {subject, roles[]}` → `{ low, typical, high, basis, drivers[] }` in st.
+1. For each role, the 10th percentile, median and 95th percentile of settled st from the usage ledger for that role, model and effort, once this install has ≥ 10 finished investigations (`basis: "history"`); otherwise the defaults (`basis: "defaults"`): typical ≈ 153k st and worst ≈ 307k st per investigation, the old model converted, split by role as in §2; low = 0.6 × typical.
+2. `typical` = sum of medians; `low` = sum of 10th percentiles; `high` = sum of 95th percentiles plus one cache-expiry resume for each role that may ask a question (lead, legal, web), clamped to the cap.
+3. Drivers as before: no known website (web role × 1.3); US public without `SEC_USER_AGENT` (money and registry × 0.5); model and effort per role; a cap below the typical sum (warning).
+4. **Shown as a share of the cap** (designer, cto 7066920998): "Typically about 30% of this investigation's cap, at most about 60%", and "Today: 18% of your daily cap used · resets at 00:00". Behind a disclosure: standard tokens and turns, and raw tokens per model from `modelUsage`. The info popover (council addition 1): "Standard tokens are Finora's measure of how much of your Claude plan a run uses. Your plan's own limits are set by your plan, and Finora can't see them." Never a currency, and never a share of the user's whole plan (the `utilization` the CLI reports in `rate_limit_info` is used for the pause message only, unless the council decides otherwise).
+5. **Calibrated** (council item 6) keeps its definition: at least 90% of investigations settle at or under the `high` shown before they started, and the median within ±30% of `typical`. `scripts/milestone-gate.mjs` prints both. Test: `agents/src/estimate.test.ts`.
 
 ---
 
@@ -545,7 +548,7 @@ Before wrapping, any `<document` or `</document` sequence inside the text is esc
 | document stored | `run.source` | domain, title, kind |
 | finding accepted | `finding` | severity from signals; `generatedBy: "ai"` |
 | question | `question` / `question.answered` | per §7 |
-| usage | `cost` | per run and total, in micro-USD of estimated usage (§8.1) |
+| usage | `usage` | per run and total, in st, with the share of the cap (§8); never a currency |
 | verdict | `verdict` | level and fired rules (rule-based) + explanation (AI) |
 
 The header counts "4 agents · N tasks · N sources" from `run.task` and `run.source` events (designer).
@@ -567,7 +570,7 @@ The header counts "4 agents · N tasks · N sources" from `run.task` and `run.so
 ## 12. The measured run
 
 No key is needed: it runs through the signed-in CLI, on the plan of whoever starts it. It can run as soon as the runtime slice lands:
-1. `finora agents measure --sample research/.cache/osint/samples.json --per-country 3 --models sonnet,haiku` runs real investigations on 3 reality-check companies per country at two tiers (12 + 12 runs; about $5 of estimated usage).
+1. `finora agents measure --sample research/.cache/osint/samples.json --per-country 3 --models sonnet,haiku` runs real investigations on 3 reality-check companies per country at two tiers (12 + 12 runs; about 1.7M st of the plan of whoever starts it).
 2. Per run and role it records, from the stream: input, cache-write, cache-read and output tokens (`modelUsage`); `total_cost_usd`; turns; tool calls; web searches (counted from `tool_use` blocks, §3.4); gate denials; wall time; questions asked (answered automatically from a fixed script for the measurement).
 3. Output: `research/.cache/agents/measure-<date>.json` (entity-level, never committed) and an aggregate table pasted into `osint.md` §4.6 and §2 above: p50/p95 per role and tier.
 4. Acceptance (cto, `01-data-cto.md` §6): the runtime slice is not accepted until these numbers replace the modelled defaults, and the calibration rule of §8.3 step 5 holds.
@@ -585,9 +588,9 @@ No key is needed: it runs through the signed-in CLI, on the plan of whoever star
 4. a `listed` sanctions entry whose matching identifier is not the subject's.
 `name_only` findings are not counted as wrong, but they are listed by count, because they are the next most likely source of one.
 
-**Output** (aggregates only, exit 0 when every line passes, else 1): `entities`, `pinned`, `wrongCompanyFindings` (must be 0), `nameOnlyFindings`, `citedClaimRate` (verdict and explanation sentences with ≥ 1 verified citation, must be 100%), `fillDelta` (from the fresh sample, below), `spendUsd`, `withinHighPct` and `medianVsTypicalPct` (§8.3 step 5).
-- The fresh 10-per-country sample checks **profile fill only**, at $0; it starts no investigation.
-- `--budget-usd <n>` keeps its own ledger and never starts an investigation whose pre-run `high` exceeds what is left. Gate spend is shown in the totals, and gate runs feed the estimate history like any investigation.
+**Output** (aggregates only, exit 0 when every line passes, else 1): `entities`, `pinned`, `wrongCompanyFindings` (must be 0), `nameOnlyFindings`, `citedClaimRate` (verdict and explanation sentences with ≥ 1 verified citation, must be 100%), `fillDelta` (from the fresh sample, below), `usageSt`, `withinHighPct` and `medianVsTypicalPct` (§8.3 step 5).
+- The fresh 10-per-country sample checks **profile fill only**, with no usage; it starts no investigation.
+- `--budget-st <n>` keeps its own ledger and never starts an investigation whose pre-run `high` exceeds what is left. Gate usage is shown in the totals, and gate runs feed the estimate history like any investigation.
 - Test: `scripts/milestone-gate.test.mjs` on the fixture world (one planted wrong-company citation → exit 1; budget stop; question answering by script).
 
 ---
@@ -595,6 +598,7 @@ No key is needed: it runs through the signed-in CLI, on the plan of whoever star
 ## 13. Fixtures: the fake CLI
 
 - **The fake CLI** (`packages/agents/testing/fake-claude.mjs`, set as `FINORA_CLAUDE_BIN` in every test, CI and `FINORA_DEMO=1`) speaks the same stream-json protocol as `claude -p`: it accepts the same flags (and fails on one the runtime should not pass), emits a `system/init` from them, reads its scenario, and for each scripted `tool_use` calls the run's Finora MCP endpoint as a real MCP client, so the real tool handlers, gate, ledger and P8 filter run. Scripted `WebSearch` and `WebFetch` calls go through the web gate first, then return their `toolStubs` output. It emits `assistant`, `user` and per-turn `result` events with the scripted `usage` and `total_cost_usd`, waits for the next stream-json message after an `ask_human`, and honours the interrupt. No test ever starts the real CLI or touches the network.
+- **Transcripts are fixtures, so H4 applies** (qa check 1, legal MUST 1): every committed transcript is written by hand against the fixture world (`Example Company ...`, FX codes, hosts on `.invalid`, `.example` or `.test`), or recorded on the fixtures profile with `WebSearch` and `WebFetch` answered by the fake. No real company, page, hostname or person ever enters one. `fixtures/agents/transcripts.h4.test.ts` fails on any hostname outside the fixture allowlist, and every transcript passes `guard tree`.
 - Format: `fixtures/agents/<scenario>.json` = `{ scenario, subject: <fixture entity id>, toolStubs: { <tool>: [ { input, output } ] }, turns: { <role>: [ { content: [...blocks], usage: {...}, totalCostUsd } ] } }`. Store tools read the fixture store; Finora's open-web tools and the CLI's `WebSearch` and `WebFetch` read `toolStubs`.
 - Every name, code, URL and quote is fictional: companies "Example Trading SIA", "Sample Logistics OÜ", "Demo Parts UAB", "Placeholder Freight Inc."; domains on `.example` and `.test`; codes per the fixture-ID rules (architecture, qa #9).
 - Recorded real transcripts stay in `research/.cache/agents/` and are never committed; fixtures are written by hand from the scenario list below (a builder may read a recording for structure only).
@@ -609,13 +613,16 @@ No key is needed: it runs through the signed-in CLI, on the plan of whoever star
 | `website-dead-ee` | register-listed domain does not resolve → `website_inconsistent` |
 | `news-collision` | GDELT returns a same-name article from another country → listed as "not confirmed", no key finding |
 | `gdelt-down` | GDELT errors → news fallback search → coverage shows news as checked by fallback |
-| `cap-reached` | first cap hit → `cap_reached` question → "Allow $0.50 more" → second hit ends `budget_exceeded` |
+| `cap-reached` | first cap hit → `cap_reached` question → "Allow up to a third more of the cap" → second hit ends `budget_exceeded` |
 | `p8-canary` | §9 assertions |
 | `prompt-injection` | §10.3 assertions |
 | `sole-trader` | lead refuses; facts-only report offered |
 | `followup` | a follow-up with one cited sentence, one uncited sentence (dropped), one bad quote (rejected) and a banned term on the first attempt (regenerated) |
 | `share-alike-ee` | the money agent cites an EE tax-board value: SA-derived rows go to `finora-sa.db` in `store` mode; nothing derived is kept in `live-no-store` mode |
 | `courts-baltic` | an LV subject: no court task, check 10 `not_possible`, MANUAL link |
+| `plan-limit` | the legal run's turn ends in the plan-limit stream of §3.4: the investigation pauses with the reset time, nothing is retried, "Stop and write the report" counts the unrun checks as not run |
+| `overage-on` | a run reports `isUsingOverage: true`: it is interrupted and the investigation pauses with the overage message |
+| `isolation` | the canary home of §3.4: nothing of it reaches the transcript or the tool list |
 | `invoice-offer-domain` | Investigate with `offerDomain` set to a lookalike domain on a reserved TLD: the domain resolves, is registered 2 months ago (fixture RDAP), its homepage states no code → `offer_domain_not_tied` and `domain_newer_than_company` fire, the level is `points_to_check`, and the offer-domain finding is key finding 01 |
 | `key-findings` | a concern, three points to check (one `regulator_warning`), a name-only court match and a context finding → key findings are the concern, then the regulator warning, then the next by check number; the name-only and context findings never appear |
 
@@ -636,6 +643,7 @@ Test: `agents/src/scenarios.test.ts` replays every scenario through the fake CLI
 6. The CLI is started with exactly the §3.4 flags; its environment has no `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL` or `CLAUDE_CODE_USE_*`; an init event with an extra tool, an extra MCP server, a non-builtin plugin or `apiKeySource` other than `none` ends the run `runtime_unsafe` before any message is sent.
 7. The web gate: a search past the run's limit, a fetch of a host not on the allowlist, and a fetch past the run's count are denied; a host from this run's `WebSearch` results is allowed for `/` and 3 same-host pages only.
 8. Without a signed-in CLI (the fake CLI's `not_signed_in` mode), Investigate answers `agents_unavailable` and the UI shows the sign-in sheet; the instant profile is unaffected.
+9. qa's runtime checks (7066914402): transcripts pass the H4 hostname test; the child's environment is the allowlist (sentinel test); isolation is proven with the canary home; the spawn arguments allow only Finora's tools plus `WebSearch` and `WebFetch` (no shell, no file write, no `Agent`); the caps hold on recorded transcripts, including the mid-run and crash cases; no currency on any surface; a plan-limit transcript pauses and Finora retries nothing.
 
 **Agent tools and specialists (data-osint):**
 1. Every scenario in §13 passes.
@@ -656,7 +664,8 @@ Test: `agents/src/scenarios.test.ts` replays every scenario through the fake CLI
 | `AGENT_MODEL_LEAD`, `AGENT_MODEL_SPECIALIST`, `AGENT_MODEL_SYNTH` | `sonnet` | CLI `--model` values; `haiku` is the cheaper option for specialists (osint.md §4.6) |
 | `AGENT_EFFORT_LEAD`, `AGENT_EFFORT_SPECIALIST`, `AGENT_EFFORT_SYNTH` | `low`, `medium`, `medium` | set explicitly; model defaults differ |
 | `AGENT_CONCURRENCY` | 4 | ceiling 6 |
-| `AGENT_COST_CAP_USD`, `AGENT_COST_CAP_MAX_USD`, `AGENT_CAP_EXTENSION_USD`, `AGENT_FOLLOWUP_CAP_USD`, `AGENT_DAILY_CAP_USD` | 1.50, 5.00, 0.50, 0.25, 10.00 | §8.2 |
+| `AGENT_BACKEND` | `fake` | `cli` after the human's terms decision; `local` later (§3.4) |
+| `AGENT_CAP_ST`, `AGENT_EXTENSION_ST`, `AGENT_FOLLOWUP_CAP_ST`, `AGENT_DAILY_CAP_ST` | 500000, 170000, 85000, 3300000 | §8.2 |
 | `SYNTH_RESERVE` | 0.15 | §8.1 |
 | `QUESTION_TIMEOUT` | 30 min (`cap_reached`: 10 min) | §7 |
 | `AGENT_CALL_TIMEOUT`, `AGENT_RUN_TIMEOUT`, `INVESTIGATION_TIMEOUT` | 120 s of stream silence, 6 min (web 8), 20 min | §3.3 |
@@ -672,7 +681,7 @@ Test: `agents/src/scenarios.test.ts` replays every scenario through the fake CLI
 - **Baltic court portals (§4.5a):** LATER with MANUAL (council); triggers recorded in §4.5a and in `lawyer-register.md` (`LAW-COURTS-LT`, `LAW-COURTS-LV`).
 - **Rule table entries marked "proposed"** (§6.2): council confirms in session 2.
 - Contract additions (`Finding.kind`, `signalIds`, `get_checks`, the label keys, the question limits) were accepted into architecture §7 (milestone B).
-- **Measured run** (§12): no longer waits for a key; it runs once the runtime slice lands, on the plan of whoever starts it.
+- **Measured run** (§12): no key needed, but it waits for the human's decision on the subscription terms (legal 7066854077); until then S10 is accepted on transcripts only and M2 does not pass (council 7066880821).
 - **legal:** (a) the CLI's `WebSearch` and `WebFetch` results reach the model without Finora's P8 output filter (§9 point 1); they are host-limited, never stored or cited, and filtered at `record_finding` and `cite_page`. (b) Investigation content now goes to the model under the user's own Claude account and plan terms, not under an API key's terms. (c) `--no-session-persistence` keeps transcripts out of `~/.claude`.
 - **security:** the CLI's `WebFetch` connection is not address-pinned by Finora (§4.6); the gate's host rules and the CLI's own refusals are the controls. The per-run MCP endpoint is bound to `127.0.0.1` with a one-time bearer token.
 - **Not yet measured (§3.4):** the permission-prompt-tool round trip through an HTTP MCP server, the stream-json interrupt keeping the process alive, and usage accumulation across turns. The runtime slice proves them first; if the permission-prompt tool does not work as specified, the fallback is per-run `--allowedTools "WebFetch(domain:...)"` rules for the hosts known before the run, with candidate websites checked through `homepage_facts` only.
