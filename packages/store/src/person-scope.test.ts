@@ -66,6 +66,7 @@ describe("PS2: people exist only inside one company", () => {
       "endStaging",
       "entityByCode",
       "expireMarketLatest",
+      "failRunningMarketSyncs",
       "failSync",
       "findByIdentifier",
       "finishSync",

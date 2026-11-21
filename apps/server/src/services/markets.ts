@@ -2,11 +2,11 @@ import "server-only";
 // Crash monitor service (S22): opens the store, reads the user's local provider file (H4), runs the
 // market jobs in the background and answers the crash endpoint from what is stored. The endpoint never
 // calls an upstream source. The provider file's contents never reach a log, an error or a response.
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { CrashResponse } from "@finora/api-contract";
-import { parseProviders, readMarketSettings, type Fetch, type Providers } from "@finora/markets";
-import { FetchError, type PoliteFetch } from "@finora/sources";
+import { parseProviders, PROVIDERS_MAX_BYTES, readMarketSettings, type Fetch, type Providers } from "@finora/markets";
+import { FetchError, LICENCES, type PoliteFetch } from "@finora/sources";
 import { openStore, type Store } from "@finora/store";
 import pkg from "../../package.json" with { type: "json" };
 import { getDataDir } from "../data-dir.ts";
@@ -45,9 +45,13 @@ function getStore(): Store {
 
 /** The user's provider file, read once: a missing or broken file configures nothing (qa 7066883380, condition 1). */
 export function loadProviders(path: string): { providers: Providers; problems: string[] } {
-  if (!existsSync(path)) return { providers: {}, problems: [] };
   try {
-    return parseProviders(readFileSync(path, "utf8"));
+    // Checked before reading (N5): a directory, a device or an oversized file is never read.
+    const stat = statSync(path, { throwIfNoEntry: false });
+    if (!stat) return { providers: {}, problems: [] };
+    if (!stat.isFile()) return { providers: {}, problems: ["file: not a regular file"] };
+    if (stat.size > PROVIDERS_MAX_BYTES) return { providers: {}, problems: ["file: too large"] };
+    return parseProviders(readFileSync(path, "utf8"), { reservedLicenceIds: Object.keys(LICENCES) });
   } catch {
     return { providers: {}, problems: ["file: unreadable"] };
   }
@@ -86,7 +90,7 @@ export function startMarkets(): void {
     void import("@finora/markets/fixtures").then(({ fakeMarketFetch, fixtureProviders }) => {
       useMarketsStore(demo, fixtureProviders());
       return runDueMarketJobs({ store: demo, now: () => FIXTURE_NOW, settings: () => settingsOf(demo), providers: fixtureProviders(), userAgent: "Finora demo", fetch: politePolicy(fakeMarketFetch()) });
-    });
+    }).catch((error: unknown) => console.error(`markets: demo pass failed (${error instanceof Error ? error.name : "unknown"})`));
     return;
   }
   const s = getStore();

@@ -176,6 +176,13 @@ export function marketCheckedAt(db: DatabaseSync, sourceId: string): string | nu
 }
 
 /** The latest finished sync of a source, whatever its kind: a failure with nothing stored shows as an error. */
+/** Closes the syncs a crashed run of this source left running, before a new one starts (N3). */
+export function failRunningMarketSyncs(db: DatabaseSync, sourceId: string, at: string): number {
+  return Number(
+    db.prepare("UPDATE main.syncs SET kind = 'failed', finished_at = ?, report_json = ? WHERE source_id = ? AND kind = 'running'").run(at, JSON.stringify({ reason: "interrupted" }), sourceId).changes,
+  );
+}
+
 export function lastMarketSync(db: DatabaseSync, sourceId: string): { kind: string; finishedAt: string | null } | null {
   const r = db
     .prepare(`SELECT kind, finished_at FROM main.syncs WHERE source_id = ? AND kind <> 'running' ORDER BY id DESC LIMIT 1`)

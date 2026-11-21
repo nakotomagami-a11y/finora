@@ -11,6 +11,7 @@ import {
   beginSync,
   countMarketObservations,
   deleteMarketObservations,
+  failRunningMarketSyncs,
   finishSync,
   lastContentSync,
   missingMarketDates,
@@ -75,6 +76,8 @@ export async function runMarketSource(store: Store, c: MarketConnector, opts: Ru
   const { db } = store;
   const storage = c.meta.storage;
   upsertSource(db, { id: c.meta.id, storage, purgeScope: c.meta.purgeScope }, opts.now);
+  // Runs of one source never overlap (one job pass at a time), so a running row here was left by a crash.
+  failRunningMarketSyncs(db, c.meta.id, opts.now);
   const syncId = beginSync(db, { sourceId: c.meta.id, licenceId: c.meta.licence, storage, parserVersion: c.parserVersion, startedAt: opts.now });
   try {
     return await runSync(store, c, opts, syncId);

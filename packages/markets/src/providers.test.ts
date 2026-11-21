@@ -33,11 +33,33 @@ describe("the local provider file (H4; qa 7066883380)", () => {
     ["a licence without a verified date", (p) => void ((x4(p).licence as Json).verifiedOn = "soon")],
     ["a cited series on an unknown row", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M09.X.01:macro", attribution: "a" }])],
     ["a daily US row whose attribution doesn't state personal use (legal 7066891816)", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "the owner's copyright, via the fixture provider" }])],
+    ["a daily US row whose attribution negates personal use", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "Not for personal use; the owner's copyright" }])],
+    ["an attribution with a line break (N2)", (p) => void (x4(p).attribution = "first line\nsecond line")],
+    ["a publisher with a bidi override (N2)", (p) => void (x4(p).publisher = "Fixture \u202eprovider")],
+    ["a licence name with a zero-width mark (N2)", (p) => void ((x4(p).licence as Json).name = "Fixture\u200bterms")],
+    ["a cited series attribution with a control character (N2)", (p) => void (((p["fred-cited"] as Json).series as Json[])[0] = { id: "X", rowKey: "M03.X.01:japan", attribution: "owner\u0007" })],
+    ["a placeholder in a URL's host (N5)", (p) => void ((x4(p).urls as Json).latest = `https://{pair}.${fixtureHost("x4")}/ohlc/`)],
+    ["a placeholder the connector doesn't fill (N5)", (p) => void ((x4(p).urls as Json).latest = `https://${fixtureHost("x4")}/ohlc/{pair}/?k={key}`)],
+    ["a placeholder in a template that takes none (N5)", (p) => void (((p.c1 as Json).urls as Json).global = `https://${fixtureHost("c1")}/global?{pair}`)],
+    ["two entries with one licence id (N4)", (p) => void (((p.c1 as Json).licence as Json).id = "fixture-x4")],
     ["two cited series on one row", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M03.X.01:japan", attribution: "a" }, { id: "Y", rowKey: "M03.X.01:japan", attribution: "b" }])],
   ];
   it.each(refusals)("refuses %s, and then configures nothing at all", (_name, mutate) => {
     const { providers, problems } = parseProviders(file(mutate));
     expect(problems.length).toBeGreaterThan(0);
+    expect(providers).toEqual({});
+  });
+
+  it("reads __proto__, constructor and toString as unknown codes and never throws (N1)", () => {
+    const text = '{"version":1,"providers":{"__proto__":{},"constructor":{},"toString":{}}}';
+    const { providers, problems } = parseProviders(text);
+    expect(problems).toEqual(["providers.?: unknown provider code", "providers.?: unknown provider code", "providers.?: unknown provider code"]);
+    expect(providers).toEqual({});
+  });
+
+  it("refuses a licence id that is already a built-in licence (N4)", () => {
+    const { providers, problems } = parseProviders(fixtureProvidersJson(), { reservedLicenceIds: ["fixture-c3"] });
+    expect(problems).toEqual(["providers.c3.licence.id: already used by a built-in licence or another entry"]);
     expect(providers).toEqual({});
   });
 

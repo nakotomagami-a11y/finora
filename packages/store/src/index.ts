@@ -72,6 +72,7 @@ export {
   deleteMarketSeries,
   deleteMarketSource,
   expireMarketLatest,
+  failRunningMarketSyncs,
   lastMarketSync,
   marketCheckedAt,
   marketSyncInfo,

@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CrashResponse } from "@finora/api-contract";
@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { connector, marketConnectors, providerLicences, readMarketSettings, type MarketConnector, type Providers } from "@finora/markets";
 import { fakeMarketFetch, fixtureHost, fixtureProviders, fixtureProvidersJson, FIXTURE_TODAY } from "@finora/markets/fixtures";
 import { FetchError, type Licence, type PoliteFetch } from "@finora/sources";
-import { openStore, readMarketSeries, writeBackup, type Store } from "@finora/store";
+import { beginSync, openStore, readMarketSeries, writeBackup, type Store } from "@finora/store";
 import { markClientPoll, runDueMarketJobs } from "./jobs.ts";
 import { connectorProblems, runMarketSource } from "./runner.ts";
 import { buildCrashView } from "./view.ts";
@@ -134,6 +134,20 @@ describe("the market runner (loaders/markets.md §1.7)", () => {
       spy.mockRestore();
     }
     expect(readMarketSeries(store.db).flatMap((s) => s.observations)).toEqual([]);
+  });
+
+  it("closes a sync a crashed run of the same source left running, before it starts its own (N3)", async () => {
+    const store = openStore({ dataDir: null });
+    const c = get("us-treasury-debt");
+    await run(store, c);
+    await run(store, get("us-fred-open"));
+    const left = beginSync(store.db, { sourceId: c.meta.id, licenceId: c.meta.licence, storage: "store", parserVersion: c.parserVersion, startedAt: NOW });
+    const other = beginSync(store.db, { sourceId: "us-fred-open", licenceId: "fred-public-domain", storage: "store", parserVersion: "x", startedAt: NOW });
+    await run(store, c);
+    const kindOf = (id: number) => store.db.prepare("SELECT kind, report_json FROM main.syncs WHERE id = ?").get(id) as { kind: string; report_json: string };
+    expect(kindOf(left).kind).toBe("failed");
+    expect(JSON.parse(kindOf(left).report_json)).toEqual({ reason: "interrupted" });
+    expect(kindOf(other).kind).toBe("running");
   });
 
   it("names a refusal, stores no value from the failed sync, and the row then shows an error", async () => {
@@ -292,6 +306,17 @@ describe("loading the provider file (H4)", () => {
       expect(Object.keys(loadProviders(path).providers).sort()).toEqual(["c1", "c3", "e1", "fred-cited", "o3", "x4"]);
       writeFileSync(path, "{ broken");
       expect(loadProviders(path)).toEqual({ providers: {}, problems: ["file: not JSON"] });
+      // Checked before any read (N5): an oversized file and a directory are refused unread.
+      writeFileSync(path, " ".repeat(64 * 1024 + 1));
+      expect(loadProviders(path)).toEqual({ providers: {}, problems: ["file: too large"] });
+      const folder = join(dir, "folder.json");
+      mkdirSync(folder);
+      expect(loadProviders(folder)).toEqual({ providers: {}, problems: ["file: not a regular file"] });
+      // A file licence may not reuse a built-in licence id (N4).
+      const json = JSON.parse(fixtureProvidersJson()) as { providers: { x4: { licence: { id: string } } } };
+      json.providers.x4.licence.id = "fred-public-domain";
+      writeFileSync(path, JSON.stringify(json));
+      expect(loadProviders(path).problems).toEqual(["providers.x4.licence.id: already used by a built-in licence or another entry"]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

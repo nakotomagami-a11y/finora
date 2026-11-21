@@ -47,7 +47,7 @@ export const MarketRow = z
   .refine((r) => r.state !== "not_configured" || (r.value === undefined && r.drawdownPct === undefined), { message: "no number for a provider that is not configured" })
   .refine((r) => r.ticker === undefined || r.itemId === "M08.X.01", { message: "only the debt row carries a ticker" })
   // The daily US rows are lit for personal use only: a value is shown only with an attribution saying so (legal 7066891816, condition 1).
-  .refine((r) => r.itemId !== "M01.X.03" || r.value === undefined || /\bpersonal use\b/i.test(r.attribution ?? ""), { message: "a daily US row needs its personal-use attribution" });
+  .refine((r) => r.itemId !== "M01.X.03" || r.value === undefined || /^Personal use; \S/.test(r.attribution ?? ""), { message: "a daily US row needs its personal-use attribution" });
 
 export const CrashResponse = z
   .object({

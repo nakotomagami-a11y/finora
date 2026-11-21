@@ -14,6 +14,14 @@ export const PROVIDER_URLS = {
 } as const;
 export type ProviderCode = keyof typeof PROVIDER_URLS;
 
+/** The placeholders each template may hold: exactly the ones its connector fills (S22 re-check N5). */
+const PLACEHOLDERS: Readonly<Record<string, readonly string[]>> = {
+  "x4.daily": ["pair", "limit", "start"],
+  "x4.latest": ["pair"],
+  "o3.block": ["hash"],
+  "fred-cited.series": ["id", "from"],
+};
+
 export type ProviderEntry = {
   /** Bare hostnames only; every fetch, deep link and terms URL must sit on one of them. */
   hosts: string[];
@@ -38,20 +46,31 @@ const ENTRY_KEYS = ["hosts", "urls", "licence", "termsUrl", "attribution", "home
 const LICENCE_KEYS = ["id", "name", "redistribution", "nonCommercial", "attributionRequired", "verifiedOn"];
 /** The rows a cited series may fill: Japan, and the daily US rows legal lit for personal use (7066891816). */
 export const SERIES_ROW_KEYS = new Set(["M03.X.01:japan", "M01.X.03:us_large", "M01.X.03:us_broad", "M01.X.03:us_tech"]);
-/** Legal's condition 1: each daily US row's attribution line states personal use. */
+/**
+ * Legal's condition 1: each daily US row's attribution line states personal use. It must open with
+ * "Personal use;", as the Part G caveat does, so a line such as "not for personal use" never passes.
+ */
 const PERSONAL_USE_ROWS = "M01.X.03:";
-export const PERSONAL_USE = /\bpersonal use\b/i;
+export const PERSONAL_USE = /^Personal use; \S/;
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown, max = 500): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
+/** One line of display text: no control or format characters, so no line break, bidi override or zero-width mark (N2). */
+const line = (v: unknown, max: number): v is string => str(v, max) && !/[\p{Cc}\p{Cf}]/u.test(v) && v.trim() === v;
 
 function hostOk(h: unknown): h is string {
   return typeof h === "string" && HOST.test(h) && !IP_LITERAL.test(h) && h !== "localhost" && !h.endsWith(".localhost") && !h.includes("*");
 }
 
-/** An https URL (placeholders allowed in path and query) whose host is one of `hosts`. */
-function urlOk(u: unknown, hosts: readonly string[]): boolean {
-  if (!str(u, 1000)) return false;
+/**
+ * An https URL whose host is one of `hosts`. Placeholders may sit only in the path and query, and only
+ * the names in `allowed` (N5): a placeholder in the authority could steer the fetch to another host.
+ */
+function urlOk(u: unknown, hosts: readonly string[], allowed: readonly string[] = []): boolean {
+  if (!str(u, 1000) || /[\p{Cc}\p{Cf}\s]/u.test(u)) return false;
+  const authority = /^https:\/\/([^/?#]*)/.exec(u)?.[1];
+  if (authority === undefined || authority.includes("{") || authority.includes("}")) return false;
+  for (const [, name] of u.matchAll(/\{([^}]*)\}/g)) if (!allowed.includes(name as string)) return false;
   try {
     const url = new URL(u.replace(/\{[a-z]+\}/g, "x"));
     return url.protocol === "https:" && url.username === "" && url.password === "" && url.port === "" && hosts.includes(url.hostname);
@@ -65,7 +84,7 @@ function strict(value: Record<string, unknown>, keys: readonly string[], where: 
 }
 
 /** Problems are codes and paths only, never a value from the file (it may hold hosts; qa condition 5). */
-export function parseProviders(text: string): { providers: Providers; problems: string[] } {
+export function parseProviders(text: string, opts: { reservedLicenceIds?: readonly string[] } = {}): { providers: Providers; problems: string[] } {
   const problems: string[] = [];
   if (new TextEncoder().encode(text).length > PROVIDERS_MAX_BYTES) return { providers: {}, problems: ["file: too large"] };
   let body: unknown;
@@ -77,9 +96,12 @@ export function parseProviders(text: string): { providers: Providers; problems: 
   if (!isRecord(body) || body.version !== 1 || !isRecord(body.providers)) return { providers: {}, problems: ["file: needs version 1 and a providers object"] };
   strict(body, ["version", "providers"], "file", problems);
   const providers: Providers = {};
+  const licenceIds = new Set<string>();
   for (const [code, raw] of Object.entries(body.providers)) {
-    const where = `providers.${code in PROVIDER_URLS ? code : "?"}`;
-    if (!(code in PROVIDER_URLS)) {
+    // Own keys only: "__proto__", "constructor" or "toString" must read as unknown codes, never throw (N1).
+    const known = Object.hasOwn(PROVIDER_URLS, code);
+    const where = `providers.${known ? code : "?"}`;
+    if (!known) {
       problems.push(`${where}: unknown provider code`);
       continue;
     }
@@ -94,17 +116,22 @@ export function parseProviders(text: string): { providers: Providers; problems: 
     const okHosts = hosts.filter(hostOk);
     const urls = isRecord(raw.urls) ? raw.urls : {};
     strict(urls, PROVIDER_URLS[code as ProviderCode], `${where}.urls`, problems);
-    for (const name of PROVIDER_URLS[code as ProviderCode]) if (!urlOk(urls[name], okHosts)) problems.push(`${where}.urls.${name}: an https URL on one of the entry's hosts`);
+    for (const name of PROVIDER_URLS[code as ProviderCode]) {
+      if (!urlOk(urls[name], okHosts, PLACEHOLDERS[`${code}.${name}`])) problems.push(`${where}.urls.${name}: an https URL on one of the entry's hosts, with placeholders only in its path or query`);
+    }
     if (!urlOk(raw.termsUrl, okHosts)) problems.push(`${where}.termsUrl: an https URL on one of the entry's hosts`);
     if (!urlOk(raw.homepage, okHosts)) problems.push(`${where}.homepage: an https URL on one of the entry's hosts`);
-    if (!str(raw.publisher, 120)) problems.push(`${where}.publisher: required`);
-    if (raw.attribution !== null && !str(raw.attribution, 200)) problems.push(`${where}.attribution: a line of text or null`);
+    if (!line(raw.publisher, 120)) problems.push(`${where}.publisher: one line of text`);
+    if (raw.attribution !== null && !line(raw.attribution, 200)) problems.push(`${where}.attribution: one line of text or null`);
     const lic = isRecord(raw.licence) ? raw.licence : null;
     if (!lic) problems.push(`${where}.licence: required`);
     else {
       strict(lic, LICENCE_KEYS, `${where}.licence`, problems);
       if (!str(lic.id, 80) || !/^[a-z0-9][a-z0-9.-]*$/.test(lic.id)) problems.push(`${where}.licence.id: lower-case id`);
-      if (!str(lic.name, 200)) problems.push(`${where}.licence.name: required`);
+      if (!line(lic.name, 200)) problems.push(`${where}.licence.name: one line of text`);
+      // A file licence never shadows a built-in one or another entry's (N4).
+      if (typeof lic.id === "string" && (opts.reservedLicenceIds?.includes(lic.id) || licenceIds.has(lic.id))) problems.push(`${where}.licence.id: already used by a built-in licence or another entry`);
+      if (typeof lic.id === "string") licenceIds.add(lic.id);
       for (const flag of ["redistribution", "nonCommercial", "attributionRequired"]) if (typeof lic[flag] !== "boolean") problems.push(`${where}.licence.${flag}: true or false`);
       if (typeof lic.verifiedOn !== "string" || !ISO_DATE.test(lic.verifiedOn)) problems.push(`${where}.licence.verifiedOn: a date`);
     }
@@ -114,12 +141,12 @@ export function parseProviders(text: string): { providers: Providers; problems: 
       if (list.length === 0 || list.length > 8) problems.push(`${where}.series: 1 to 8 entries`);
       series = [];
       for (const s of list) {
-        if (!isRecord(s) || !str(s.id, 40) || !/^[A-Z0-9]+$/.test(s.id) || typeof s.rowKey !== "string" || !SERIES_ROW_KEYS.has(s.rowKey) || !str(s.attribution, 200)) {
+        if (!isRecord(s) || !str(s.id, 40) || !/^[A-Z0-9]+$/.test(s.id) || typeof s.rowKey !== "string" || !SERIES_ROW_KEYS.has(s.rowKey) || !line(s.attribution, 200)) {
           problems.push(`${where}.series: each needs id, a known rowKey and an attribution line`);
           continue;
         }
         strict(s, ["id", "rowKey", "attribution"], `${where}.series`, problems);
-        if (s.rowKey.startsWith(PERSONAL_USE_ROWS) && !PERSONAL_USE.test(s.attribution)) problems.push(`${where}.series: a daily US row's attribution must state personal use`);
+        if (s.rowKey.startsWith(PERSONAL_USE_ROWS) && !PERSONAL_USE.test(s.attribution)) problems.push(`${where}.series: a daily US row's attribution must open with "Personal use; "`);
         if (series.some((x) => x.rowKey === s.rowKey)) problems.push(`${where}.series: one series per row`);
         series.push({ id: s.id, rowKey: s.rowKey, attribution: s.attribution });
       }
