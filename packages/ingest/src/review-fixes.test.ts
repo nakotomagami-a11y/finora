@@ -101,6 +101,50 @@ describe("legal on S04i: free text refuses any Baltic personal-code format, what
   });
 });
 
+describe("legal on S04i: a person record's keys get the strict rule; company records keep the country-aware one", () => {
+  /** An 11-digit value that passes both the EE/LT personal-code check and the LV register check digit. */
+  const overlap = () => {
+    for (let i = 0; i < 100000; i++) {
+      const first10 = `3800101${String(i).padStart(3, "0")}`;
+      const candidate = `${first10}${balticCheckDigit(first10)}`;
+      if (isBalticPersonalCode(candidate) && isValidRegisterCode("lv", candidate)) return candidate;
+    }
+    throw new Error("no candidate");
+  };
+
+  it("refuses the overlap value in a person record's key, key suffix or line id", async () => {
+    const db = memoryDb();
+    const code = overlap();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+    const lines = [{ name: "A", role: "board_member", rowId: "1" }];
+    const records = [
+      { ...roleSetRecord(1, lines), recordKey: code },
+      { ...roleSetRecord(1, lines), recordKey: `lv-00000000001:officers:${code}` },
+      roleSetRecord(1, [{ name: "A", role: "board_member", rowId: code }]),
+    ];
+    const outcome = await sync(db, fakeSource({ id: "lv-officers", items: ["S03.LV.01"] }, { records }));
+    expect(outcome.report?.skipped).toEqual({ person_field: 3 });
+    expect(scanStore(db, [code])).toEqual([]);
+  });
+
+  it("a company-only LV record keyed on a valid LV register code still loads", async () => {
+    const db = memoryDb();
+    const code = overlap();
+    const record = { ...companyRecord(1), recordKey: code };
+    expect((await sync(db, fakeSource({ id: "lv-register" }, { records: [record] }))).report?.written).toBe(1);
+  });
+
+  it("a reference prop holding something other than a row id is scanned (qa on S04i)", async () => {
+    const db = memoryDb();
+    const code = eeLt();
+    const record = companyRecord(1, { extra: [{ prop: "owner", value: code, itemId: "S01.LV.01" }, { prop: "owner", value: "lv-00000000002", itemId: "S01.LV.01" }] });
+    const outcome = await sync(db, fakeSource({}, { records: [record] }));
+    expect(outcome.report?.dropped).toEqual({ personal_code: 1 });
+    expect(scanStore(db, [code])).toEqual([]);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM main.statements WHERE value = 'lv-00000000002'").get()).toEqual({ n: 1 });
+  });
+});
+
 describe("fencing: the lease is renewed inside every write transaction", () => {
   it("a takeover between two batches stops the sync: nothing further written, nothing purged", async () => {
     const db = memoryDb();

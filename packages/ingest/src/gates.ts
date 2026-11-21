@@ -11,7 +11,9 @@ import {
   item,
   naturalPersonDrop,
   PERSON_EID,
+  eidKind,
   freeTextHoldsPersonalCode,
+  isInternalEid,
   type DropReason,
 } from "@finora/domain";
 import type { ParsedEntity, ParsedRecord, PartyRef } from "@finora/sources";
@@ -85,7 +87,9 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
       if (!naturalPerson) {
         // A company's free text is scanned too (legal on S04i, SEC-1 scope): a name, an address or
         // a description never carries a personal code. Its own ids and references to other rows are not.
-        if (COMPANY_ID_PROPS.has(s.prop) || REFERENCE_PROPS.has(s.prop)) return true;
+        if (COMPANY_ID_PROPS.has(s.prop)) return true;
+        // A reference is let through only when it has a row-id shape; anything else is scanned (qa on S04i).
+        if (REFERENCE_PROPS.has(s.prop) && (eidKind(s.value) !== null || isInternalEid(s.value))) return true;
         if (!leaksPerson(s.value)) return true;
         drop("personal_code", s.prop);
         withheld.push({ entityEid: entity.eid, prop: s.prop, reason: "personal_code" });

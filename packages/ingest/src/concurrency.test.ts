@@ -68,6 +68,9 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     const store = openStore({ dataDir: dir.path });
     upsertSource(store.db, { id: "other-source", storage: "store" }, "2026-11-21T00:00:00.000Z");
     const other = beginSync(store.db, { sourceId: "other-source", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-21T00:00:00.000Z" });
+    // cto: a sync of the same source that another process took over must not be marked failed either.
+    upsertSource(store.db, { id: "fake-stuck", storage: "store" }, "2026-11-21T00:00:00.000Z");
+    const takeover = beginSync(store.db, { sourceId: "fake-stuck", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-21T00:00:00.000Z" });
     store.close();
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
     const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-stuck", userAgent: "t", options: {} }, { timeoutMs: 3000, startupMs: 20_000 });
@@ -75,9 +78,11 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     const after = openStore({ dataDir: dir.path });
     expect(after.db.prepare("SELECT source_id, kind FROM main.syncs ORDER BY id").all()).toEqual([
       { source_id: "other-source", kind: "running" },
+      { source_id: "fake-stuck", kind: "running" },
       { source_id: "fake-stuck", kind: "failed" },
     ]);
     expect(after.db.prepare("SELECT kind FROM main.syncs WHERE id = ?").get(other)).toEqual({ kind: "running" });
+    expect(after.db.prepare("SELECT kind FROM main.syncs WHERE id = ?").get(takeover)).toEqual({ kind: "running" });
     expect(after.db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
     after.close();
   }, 60_000);

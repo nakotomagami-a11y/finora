@@ -1,5 +1,5 @@
 // Every parsed record is validated before it is gated or written; an invalid one is a counted skip.
-import { DROP_REASONS, findPersonalCodes, PERSON_EID, SCHEMAS, textHoldsPersonalCode } from "@finora/domain";
+import { DROP_REASONS, freeTextHoldsPersonalCode, PERSON_EID, SCHEMAS, textHoldsPersonalCode } from "@finora/domain";
 import type { ParsedRecord } from "@finora/sources";
 import { z } from "zod";
 
@@ -57,9 +57,21 @@ const record = z.strictObject({
 
 export type Validation = { ok: true; record: ParsedRecord } | { ok: false; reason: "invalid_record" | "person_field" };
 
-/** Whether a stored key holds a personal code or a person row id (country-aware for 11 digits). */
+/** Whether a company-only record's stored key holds a personal code or a person row id (country-aware). */
 function keyLeaks(key: string, countries: ReadonlySet<string>): boolean {
   return PERSON_EID.test(key) || textHoldsPersonalCode(key, countries.has("lv") ? "lv" : null);
+}
+
+/** The public entity ids a key may hold by design: a country prefix and its code (§3.4). */
+const EID_TOKEN = /\b(?:lv|ee|lt)-\d{8,11}\b|\bus-cik-\d{10}\b|\bus-[a-z]{2}-[A-Za-z0-9]+\b|\borg-[0-9a-f]{20}\b|\blei-[A-Z0-9]{20}\b/g;
+
+/**
+ * A record about people gets the strict any-country rule on everything it stores or hashes, after
+ * removing only the entity id tokens a key is meant to hold (legal on S04i): a personal code that
+ * also passes the LV register check digit is refused here, never read as a company code.
+ */
+function personKeyLeaks(key: string): boolean {
+  return PERSON_EID.test(key) || freeTextHoldsPersonalCode(key.replace(EID_TOKEN, " "));
 }
 
 /**
@@ -74,9 +86,10 @@ export function validateRecord(value: unknown): Validation {
   const r = parsed.data as ParsedRecord;
   const countries = new Set(r.entities.map((e) => e.country));
   const stored = [r.recordKey, ...(r.lineIds ?? []).filter((x): x is string => x !== null)];
-  if (stored.some((k) => keyLeaks(k, countries))) return { ok: false, reason: "person_field" };
   const aboutPeople = r.entities.some((e) => e.schema === "Person") || (r.parties ?? []).some((p) => p.entities.some((e) => e.schema === "Person"));
-  if (aboutPeople && [...r.hashInput, r.rowRef ?? ""].some((k) => findPersonalCodes(k).length > 0 || PERSON_EID.test(k))) {
+  if (aboutPeople) {
+    if ([...stored, ...r.hashInput, r.rowRef ?? ""].some(personKeyLeaks)) return { ok: false, reason: "person_field" };
+  } else if (stored.some((k) => keyLeaks(k, countries))) {
     return { ok: false, reason: "person_field" };
   }
   return { ok: true, record: r };

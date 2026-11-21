@@ -5,7 +5,7 @@ import { existsSync, readdirSync, statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { FIXTURE_PROFILE } from "@finora/fixtures";
-import { runSyncInWorker, type SyncReport } from "@finora/ingest";
+import { runSyncsInWorker, type SyncReport } from "@finora/ingest";
 import { LOADERS } from "@finora/sources";
 import { companyValues, openStore, searchCompanies, sourceRefForStatement, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
@@ -48,18 +48,20 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     return 2;
   }
   let failed = 0;
-  for (const { loader } of chosen) {
-    const outcome = await runSyncInWorker(SYNC_WORKER, {
-      dataDir: io.env.dataDir,
-      sourceId: loader.meta.id,
-      userAgent: io.env.secUserAgent ?? "Finora (fixtures)",
-      options: {
-        shareAlikeMode: io.env.shareAlikeMode,
-        allowMassPurge: args.allowMassPurge === true,
-        rawCacheDir: join(io.env.dataDir, "raw"),
-        companyPartyTypes: COMPANY_PARTY_TYPES,
-      },
-    });
+  // One worker runs every chosen source in order, each under its own lease (see ingest/worker.ts).
+  const outcomes = await runSyncsInWorker(SYNC_WORKER, {
+    dataDir: io.env.dataDir,
+    sourceIds: chosen.map((p) => p.loader.meta.id),
+    userAgent: io.env.secUserAgent ?? "Finora (fixtures)",
+    options: {
+      shareAlikeMode: io.env.shareAlikeMode,
+      allowMassPurge: args.allowMassPurge === true,
+      rawCacheDir: join(io.env.dataDir, "raw"),
+      companyPartyTypes: COMPANY_PARTY_TYPES,
+    },
+  });
+  for (const [i, { loader }] of chosen.entries()) {
+    const outcome = outcomes[i]!;
     if (outcome.kind === "failed" || outcome.kind === "partial") failed++;
     const r = outcome.report;
     io.out(`${loader.meta.id}: ${outcome.kind}${r ? `, read ${r.read}, written ${r.written}, unchanged ${r.unchanged}, deleted ${r.deleted}, dropped ${dropsLine(r.dropped)}` : ""}`);
