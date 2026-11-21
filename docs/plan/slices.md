@@ -312,7 +312,8 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Owner:** data-baltics · **with:** architect · **Depends on:** M2
 - **Scope:** every `docs/plan/loaders/ee-*.md` spec, incl. the streamed general-data file, annual-report zips from the download page, the person files as role-set records, tombstones, the share-alike sources in both `SHARE_ALIKE_MODE`s with their derived events in `finora-sa.db`, and the debtor loader rule (keep only register codes with a non-sole-trader form).
 - **Acceptance:** each spec's Tests; every EE SHOW/CAVEAT item renders (`items.test.ts`); HIDE S04.EE.02 and natural-person members never read; legal's debtor condition (a fixture with a bare personal name and a foreign sole proprietorship is dropped); P10: EE ≤ 3 GB + ≤ 0.25 GB share-alike, searchable in ≈ 6 min.
-- **Tests:** the spec files' named tests under `sources/src/ee/`, `ingest/src/share-alike.test.ts` and `ingest/src/live-no-store.test.ts` on the EE fixtures, `sources/src/ee/*.live.test.ts`.
+- **Share-alike layout (cto on S04i):** `finora-sa.db` gets the narrow layout of the main store, keyed on `eid` per A6: `sa_fact_reports(eid, kind, period_start, period_end, sync_id)` and `sa_facts(report_id, concept_id, value) WITHOUT ROWID`, replacing the interim `<concept>@<period end>` statements. `sa_syncs` stays the provenance table and keeps `records`, so the share-alike purge guard still fires (assert it). The slice reports the share-alike store's measured size against the 0.25 GB cap.
+- **Tests:** the spec files' named tests under `sources/src/ee/`, `ingest/src/share-alike.test.ts` and `ingest/src/live-no-store.test.ts` on the EE fixtures, `sources/src/ee/*.live.test.ts`, the share-alike case of `ingest/src/purge-guard.test.ts` on the narrow layout.
 - **Demo:** `pnpm finora-cli data sync --country ee`, open an Estonian company in the UI, see the tax-debtor line with its CC BY-SA attribution; set `SHARE_ALIKE_MODE=live-no-store` and see the same line with no row in any file.
 
 ### S14 Lithuania loaders
@@ -325,8 +326,13 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 ### S15r Entity resolution
 - **Owner:** architect · **Depends on:** S13, S14, S15g
 - **Scope:** `packages/resolve`: official-ID links (`same_as` only), name normalisation per country, candidate scoring and the benchmark, judgements; search results with distinguishing facts for name collisions.
-- **Acceptance:** a company with an LEI and a national code is one profile with both sources; the 200-query benchmark ranks the right company first in ≥ 95%; a human judgement survives every reload.
-- **Tests:** `resolve/src/links.test.ts`, `resolve/src/normalise.test.ts`, `resolve/src/benchmark.test.ts`, `resolve/src/judgements.test.ts`.
+- **Acceptance:**
+  1. A company with an LEI and a national code is one profile with both sources.
+  2. The 200-query benchmark ranks the right company first in ≥ 95%.
+  3. A human judgement survives every reload.
+  4. **Linking in the sync:** §4.4 step 7 links the entities a sync touched (S04i review, D5). Until this slice lands, `same_as` returns none and `Finding.entityId` is the pin; S05 and M2 ship unlinked, as intended.
+  5. **Backfill and relink:** `finora-cli resolve --relink-all` links every entity already in the store (cto). It runs once when linking first ships, and again automatically whenever the linking rules' version changes (keyed like `parserVersion`), under the leases, in a worker. Test: fixture companies and GLEIF records naming their codes are loaded before linking exists; after `--relink-all`, every `same_as` link is present, with no re-sync of the country source.
+- **Tests:** `resolve/src/links.test.ts`, `resolve/src/normalise.test.ts`, `resolve/src/benchmark.test.ts`, `resolve/src/judgements.test.ts`, `resolve/src/relink.test.ts`.
 - **Demo:** `pnpm finora-cli resolve "example companu sia"` shows ranked candidates with scores and reasons.
 
 ### S15g GLEIF

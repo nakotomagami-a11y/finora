@@ -85,6 +85,8 @@ export type SyncOptions = {
   onLiveView?: (sourceId: string, view: LiveView) => void;
   /** Whether the serving process holds this source's live view; without one, never "unchanged". */
   liveViewHeld?: boolean;
+  /** Called on every successful heartbeat: a worker's parent watches it to spot a hung sync. */
+  onProgress?: () => void;
 };
 
 export function effectiveStorage(loader: SourceLoader, mode: SyncOptions["shareAlikeMode"]): StorageClass {
@@ -137,7 +139,9 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
   // lease; a lease taken over by another holder stops this sync before it writes again.
   let lost = false;
   const beat = () => {
-    if (!lost && !db.isTransaction && !heartbeat(db, lease, ttl, now().getTime())) lost = true;
+    if (lost || db.isTransaction) return;
+    if (heartbeat(db, lease, ttl, now().getTime())) options.onProgress?.();
+    else lost = true;
   };
   const timer = setInterval(beat, Math.max(10, Math.floor(ttl / 3)));
   const assertLease = () => {
@@ -240,8 +244,14 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       beat();
     };
 
+    let lastYield = Date.now();
     try {
       for await (const raw of loader.parse(artifacts, { now: startedAt })) {
+        // A parse loop yields at least once a second, so the heartbeat timer can fire (cto on S04i).
+        if (!db.isTransaction && Date.now() - lastYield > 1000) {
+          await new Promise((r) => setImmediate(r));
+          lastYield = Date.now();
+        }
         if (options.signal?.aborted) {
           complete = false;
           report.reason = "interrupted";
