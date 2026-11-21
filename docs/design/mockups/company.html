@@ -445,6 +445,7 @@
     if (state === "question" && q === "entity") L.forEach((l, i) => { if (i === 0) { l.st = "waiting"; l.step = "waiting for you: which company is it?"; l.meta = "12 s · 1% of the cap"; } else { l.st = "queued"; l.tasks = undefined; l.step = ""; l.meta = "waits for the lead"; } });
     if (reconnecting) L.forEach((l) => { if (l.st === "running") l.meta = l.meta + " · last update 12 s ago"; });
     if (limited) L.forEach((l) => { if (l.st === "running") { l.st = "waiting"; l.step = "paused: your Claude plan's usage limit, resumes after 14:00"; } });
+    if (param("lane", "") === "busy" && state === "streaming") { const g = L[3]; g.st = "waiting"; g.label = "waiting: Claude is busy"; g.step = "Claude Code is retrying a short burst; this is not a pause"; }
     if (concurrency2 && state === "streaming") { const w = L[4]; w.st = "queued"; w.label = "waiting to start"; w.step = "starts when a lane finishes (2 agents at a time on this plan)"; w.meta = "0 s"; w.tasks = w.tasks.map((t) => ["queued", t[1], "0"]); }
     if (stopped) L.forEach((l) => { if (l.st === "running" || l.st === "queued") { l.st = l.n === "Verdict" ? "done" : "stopped"; l.step = l.n === "Verdict" ? "written from the findings so far" : "stopped by you at 09:44:05"; } });
     if (state === "question" && (q === "cap" || q === "cap-used")) L.forEach((l) => { if (l.st === "running") { l.st = "waiting"; l.step = "paused at the usage cap"; } });
@@ -559,8 +560,9 @@
       </div></details>
       <p class="small muted">This run uses your Claude subscription through Claude Code on this machine. Finora stops at its own caps. The estimate uses default per-agent usage until this install has 10 finished investigations.</p>`,
       actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Cancel</a><a class="btn btn-primary" href="?${qs({ state: "streaming" })}">Start investigation</a>` });
-    if (state === "agents-off") return sheet({ title: "Agent investigations aren't turned on", body: `
-      <p class="ink2">This install shows company profiles, the checks from official data and Crash monitor. Agent investigations are off until they are turned on on this machine.</p>
+    if (state === "agents-off") return sheet({ title: "Investigations are off on this install", body: `
+      <p class="ink2">Investigations are off on this install. The company profile above is complete; agents need one choice in Settings → Connections.</p>
+      <p class="small muted">What that choice sets up:</p>
       <ol class="small ink2" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Install Claude Code and sign in.</li><li>Set <span class="mono">FINORA_AGENT_BACKEND=cli</span> in <span class="mono">.env.local</span>.</li><li>Restart Finora.</li></ol>`,
       actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn btn-primary" href="settings.html">Open settings</a>` });
     if (state === "busy") return sheet({ title: "Another investigation is running", body: `
@@ -644,6 +646,7 @@
     { key: "install", label: "Snapshot history", options: [["established", "Covers 6 months"], ["new", "New install: not evaluated yet"]] },
     { key: "sec", label: "SEC contact (US public)", options: [["set", "Set"], ["missing", "Missing: needs key"]] },
     { key: "name", label: "Name length", options: [["normal", "Normal"], ["long", "Very long (Latvia)"]] },
+    { key: "lane", label: "Lane state (streaming)", options: [["", "Normal"], ["busy", "One lane: Waiting, Claude is busy"]] },
     { key: "concurrency", label: "Parallel agents (streaming)", options: [["4", "4 at a time"], ["2", "2 at a time: one waiting to start"]] },
     { key: "offer", label: "Offer domain (report, Latvia)", options: [["none", "Not given"], ["match", "Tied to the company"], ["mismatch", "Not tied to the company"], ["other", "Belongs to another company"], ["unresolvable", "Does not resolve"]] },
     { key: "lvpeople", label: "Latvian officer names", options: [["names", "Names (v1 default)"], ["role_counts", "Role counts only (legal fallback)"]] },
