@@ -82,7 +82,7 @@ export function companyEntity(c: FixtureCompany): ParsedEntity {
 }
 
 const register = (country: "lv" | "ee" | "lt" | "us") =>
-  jsonLoader(meta(`fx-${country}-register`, country, "store", country === "us" ? ["S01.US.01", "S01.ALL.01"] : [`S01.${country.toUpperCase()}.01`, "S01.ALL.01"]), () =>
+  jsonLoader(meta(`fx-${country}-register`, country, "store", country === "us" ? ["S01.US.01", "S01.ALL.01"] : [`S01.${country.toUpperCase()}.01`, "S01.ALL.01"], { order: 0 }), () =>
     world()
       .companies.filter((c) => c.country === country)
       .map((c) => ({ recordKey: c.eid, rowRef: `row-${c.code}`, hashInput: [JSON.stringify(c)], entities: [companyEntity(c)] })),

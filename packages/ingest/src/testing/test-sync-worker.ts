@@ -37,4 +37,13 @@ oomSource.parse = function* () {
   for (;;) held.push(Array.from({ length: 1_000_000 }, (_, i) => i));
 };
 
-await serveSyncWorker((sourceId) => [slowSource, liveSource, sentinelSource, stuckSource, hungSource, crashSource, oomSource].find((l) => l.meta.id === sourceId));
+/** Yields records, so a write transaction is open, then runs out of memory inside it (legal on S06). */
+const oomMidSource = fakeSource({ id: "fake-oom-mid" }, { records: companies(1, 3) });
+const parseRecords = oomMidSource.parse.bind(oomMidSource);
+oomMidSource.parse = async function* (artifacts, context) {
+  yield* parseRecords(artifacts, context);
+  const held: number[][] = [];
+  for (;;) held.push(Array.from({ length: 1_000_000 }, (_, i) => i));
+};
+
+await serveSyncWorker((sourceId) => [slowSource, liveSource, sentinelSource, stuckSource, hungSource, crashSource, oomSource, oomMidSource].find((l) => l.meta.id === sourceId));

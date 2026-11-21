@@ -46,6 +46,8 @@ export type SourceMeta = {
    * in parallel, a lane's sources in order. Defaults to the country; GLEIF has its own.
    */
   lane?: string;
+  /** Position in its lane: the register is 0, so the country is searchable first; default 100. */
+  order?: number;
 };
 
 export type ParsedStatement = { prop: string; value: string; itemId: string; lang?: string; line?: number };

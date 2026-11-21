@@ -82,6 +82,21 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     store.close();
   }, 60_000);
 
+  it("out of memory inside a write transaction leaves no row of that batch and no lock behind (legal on S06)", async () => {
+    const dir = tempDir();
+    dirs.push(dir);
+    openStore({ dataDir: dir.path }).close();
+    const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
+    const [outcome] = await runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-oom-mid"], userAgent: "t", options: {} }, { maxHeapMb: 128 });
+    expect(outcome?.report?.reason).toBe("worker_out_of_memory");
+    const store = openStore({ dataDir: dir.path });
+    expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.records").get()).toEqual({ n: 0 });
+    expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.statements").get()).toEqual({ n: 0 });
+    expect(store.db.prepare("SELECT kind FROM main.syncs").all()).toEqual([{ kind: "failed" }]);
+    store.close();
+    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", options: {} })).kind).toBe("content");
+  }, 60_000);
+
   it("a timed-out worker closes only the sync it opened and releases its own lease (qa on S04i)", async () => {
     const dir = tempDir();
     dirs.push(dir);

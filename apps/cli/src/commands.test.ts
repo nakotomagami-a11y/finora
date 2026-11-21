@@ -41,6 +41,17 @@ describe("finora-cli (S04f)", () => {
       expect(lanes.size).toBeGreaterThanOrEqual(4);
       expect(await dataSync({ ...io(), env: { dataDir: fresh, secUserAgent: null, shareAlikeMode: "store" } }, { profile: "fixtures" })).toBe(0);
       expect(workerStartCount() - before).toBe(lanes.size);
+      // Register first in each lane by `meta.order`, not by list position: it finishes before any
+      // other source of its lane starts, so the country is searchable first (cto on S04i).
+      const db = new DatabaseSync(join(fresh, "finora.db"), { readOnly: true });
+      const syncs = db.prepare("SELECT source_id, started_at, finished_at FROM syncs").all() as { source_id: string; started_at: string; finished_at: string }[];
+      db.close();
+      for (const country of ["lv", "ee", "lt"]) {
+        const reg = syncs.find((s) => s.source_id === `fx-${country}-register`)!;
+        const others = syncs.filter((s) => s.source_id !== reg.source_id && FIXTURE_PROFILE.some((p) => p.loader.meta.id === s.source_id && laneOf(p.loader) === country));
+        expect(others.length).toBeGreaterThan(0);
+        for (const other of others) expect(reg.finished_at <= other.started_at, other.source_id).toBe(true);
+      }
       expect(lines.filter((l) => l.startsWith("fx-") || l.startsWith("eu-") || l.startsWith("us-") || l.startsWith("uk-") || l.startsWith("esma-") || l.startsWith("lv-")).length).toBe(FIXTURE_PROFILE.length);
     } finally {
       rmSync(fresh, { recursive: true, force: true });

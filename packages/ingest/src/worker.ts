@@ -72,8 +72,11 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
   post({ type: "done" });
 }
 
-/** A sync worker's old-generation heap cap: P10's 1 GB per worker, enforced (architecture §4.5). */
-export const SYNC_WORKER_HEAP_MB = 1024;
+/**
+ * A sync worker's old-generation heap cap (cto, qa on S06 SEC-1). It is the crash guard only: buffers
+ * are external memory, so P10's RSS budget per worker stays the real bound (architecture §4.5).
+ */
+export const SYNC_WORKER_HEAP_MB = 768;
 export type WorkerLimits = { timeoutMs?: number; startupMs?: number; maxHeapMb?: number };
 
 let started = 0;
@@ -82,6 +85,18 @@ export const workerStartCount = () => started;
 
 /** The lane a source loads in: its declared lane, else its country (architecture §4.5). */
 export const laneOf = (loader: SourceLoader) => loader.meta.lane ?? loader.meta.country;
+
+/**
+ * The sources grouped by lane, each lane in load order: `meta.order` ascending (the register is 0,
+ * the default 100), then list order. The CLI and the scheduler both use it, so neither depends on
+ * how a profile happens to list its sources (cto on S04i).
+ */
+export function lanesOf(loaders: readonly SourceLoader[]): Map<string, string[]> {
+  const lanes = new Map<string, SourceLoader[]>();
+  for (const loader of loaders) lanes.set(laneOf(loader), [...(lanes.get(laneOf(loader)) ?? []), loader]);
+  const rank = (loader: SourceLoader) => loader.meta.order ?? 100;
+  return new Map([...lanes].map(([lane, list]) => [lane, [...list].sort((a, b) => rank(a) - rank(b)).map((l) => l.meta.id)]));
+}
 
 /**
  * Spawns `entry` (a module that calls `serveSyncWorker`) for a batch of sources, run in order.

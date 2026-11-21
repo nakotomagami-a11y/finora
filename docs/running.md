@@ -5,7 +5,7 @@ This page grows with S12 (`pnpm finora` for Latvia) and is final in S25. Until t
 ## First load
 
 - `pnpm finora-cli data sync` starts one long-lived worker thread per lane: LV, EE, LT, sanctions and other cross-border lists, and GLEIF. Lanes run in parallel; inside a lane the sources run in order, the register first (architecture §4.5).
-- Each worker runs under a 1024 MB heap cap. A source that runs out of memory ends its lane's syncs as `failed` with `worker_out_of_memory`; the other lanes and the CLI carry on. `data sync` prints the peak RSS so each loader slice can record it against P10.
+- Each worker runs under a 768 MB heap cap (buffers such as downloaded files are not counted in it). A source that runs out of memory ends its lane's syncs as `failed` with `worker_out_of_memory`; the other lanes and the CLI carry on. `data sync` prints the peak RSS so each loader slice can record it against P10.
 - The sanctions lists download about 178 MB at each start of their lane. Plan for it on a metered connection.
 
 ## Known runtime issue: V8 `jit_page_` check

@@ -5,7 +5,7 @@ import { existsSync, readdirSync, statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { eidKind, isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { FIXTURE_PROFILE } from "@finora/fixtures";
-import { laneOf, runSyncsInWorker, type SyncReport } from "@finora/ingest";
+import { lanesOf, runSyncsInWorker, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { LOADERS } from "@finora/sources";
 import { companyValues, openStore, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
@@ -50,10 +50,9 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
   }
   let failed = 0;
   // One long-lived worker per lane (a country, the sanctions lists, GLEIF), the lanes in parallel,
-  // each lane's sources in order with the register first (architecture §4.5, cto on S04i). A few
+  // each lane's sources in `meta.order`, the register first (architecture §4.5, cto on S04i). A few
   // long-lived workers, never one per source: many short-lived ones crashed V8 (ingest/worker.ts).
-  const lanes = new Map<string, string[]>();
-  for (const { loader } of chosen) lanes.set(laneOf(loader), [...(lanes.get(laneOf(loader)) ?? []), loader.meta.id]);
+  const lanes = lanesOf(chosen.map((p) => p.loader));
   const results = await Promise.all(
     [...lanes.values()].map(async (sourceIds) => {
       const outcomes = await runSyncsInWorker(SYNC_WORKER, {
