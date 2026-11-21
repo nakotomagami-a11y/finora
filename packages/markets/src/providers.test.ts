@@ -33,7 +33,14 @@ describe("the local provider file (H4; qa 7066883380)", () => {
     ["a licence without a verified date", (p) => void ((x4(p).licence as Json).verifiedOn = "soon")],
     ["a cited series on an unknown row", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M09.X.01:macro", attribution: "a" }])],
     ["a daily US row whose attribution doesn't state personal use (legal 7066891816)", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "the owner's copyright, via the fixture provider" }])],
-    ["a daily US row whose attribution negates personal use", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "Not for personal use; the owner's copyright" }])],
+    ...[
+      "Not for personal use only. The owner's copyright",
+      "Personal use excluded. The owner's copyright",
+      "For personal use. The owner's copyright",
+      "For personal use only, the owner's copyright",
+      "The owner's copyright. For personal use only.",
+      "For personal use only.",
+    ].map((attribution): [string, (p: Json) => void] => [`a daily US row whose attribution is "${attribution}" (legal 7070658489)`, (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution }])]),
     ["an attribution with a line break (N2)", (p) => void (x4(p).attribution = "first line\nsecond line")],
     ["a publisher with a bidi override (N2)", (p) => void (x4(p).publisher = "Fixture \u202eprovider")],
     ["a licence name with a zero-width mark (N2)", (p) => void ((x4(p).licence as Json).name = "Fixture\u200bterms")],
@@ -48,6 +55,11 @@ describe("the local provider file (H4; qa 7066883380)", () => {
     const { providers, problems } = parseProviders(file(mutate));
     expect(problems.length).toBeGreaterThan(0);
     expect(providers).toEqual({});
+  });
+
+  it("accepts the approved personal-use sentence whatever its case and spacing, followed by the owner's credit", () => {
+    const text = file((p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "for  PERSONAL use only.  The owner's copyright" }]));
+    expect(parseProviders(text).problems).toEqual([]);
   });
 
   it("reads __proto__, constructor and toString as unknown codes and never throws (N1)", () => {

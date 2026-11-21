@@ -35,9 +35,9 @@ export function fixtureProviders(): Providers {
     e1: entry("e1", { month: at("e1", "/indices/month") }, true),
     "fred-cited": { ...entry("fredcited", { series: at("fredcited", "/graph.csv?id={id}&cosd={from}") }), series: [
         { id: "FIXTUREJP", rowKey: "M03.X.01:japan", attribution: "Fixture index owner, via the fixture provider" },
-        { id: "FIXTUREUSL", rowKey: "M01.X.03:us_large", attribution: "Personal use; fixture index owner's copyright, via the fixture provider; 1-day lag" },
-        { id: "FIXTUREUSB", rowKey: "M01.X.03:us_broad", attribution: "Personal use; fixture index owner's copyright, via the fixture provider; 1-day lag" },
-        { id: "FIXTUREUST", rowKey: "M01.X.03:us_tech", attribution: "Personal use; fixture index owner's copyright, via the fixture provider; 1-day lag" },
+        { id: "FIXTUREUSL", rowKey: "M01.X.03:us_large", attribution: "For personal use only. Fixture index owner's copyright, via the fixture provider; 1-day lag." },
+        { id: "FIXTUREUSB", rowKey: "M01.X.03:us_broad", attribution: "For personal use only. Fixture index owner's copyright, via the fixture provider; 1-day lag." },
+        { id: "FIXTUREUST", rowKey: "M01.X.03:us_tech", attribution: "For personal use only. Fixture index owner's copyright, via the fixture provider; 1-day lag." },
       ],
     },
   };

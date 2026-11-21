@@ -7,6 +7,7 @@ export type { BannedLocale, BannedMatch } from "./config/banned-terms.ts";
 export { HIDE_ITEM_IDS, isLoadable, item } from "./items/policy.ts";
 export { CONCEPTS, isConcept, type Concept } from "./config/concepts.ts";
 export { DROP_REASONS, isDropReason, type DropReason } from "./config/drop-reasons.ts";
+export { opensWithPersonalUse, PERSONAL_USE_SENTENCE } from "./config/personal-use.ts";
 export { eidKind, isInternalEid, type EidKind } from "./ids/eid.ts";
 export {
   eeCheckDigit,

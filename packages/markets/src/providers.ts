@@ -3,6 +3,8 @@
 // file the user fills (`<data dir>/providers.json`). The repo holds only this schema, the parsers under
 // codes, and placeholder hosts for tests. A file that fails the schema configures nothing.
 
+import { opensWithPersonalUse, PERSONAL_USE_SENTENCE } from "@finora/domain";
+
 /** Coded providers Finora has a parser for, and the URL templates each one needs. */
 export const PROVIDER_URLS = {
   x4: ["daily", "latest"],
@@ -46,12 +48,8 @@ const ENTRY_KEYS = ["hosts", "urls", "licence", "termsUrl", "attribution", "home
 const LICENCE_KEYS = ["id", "name", "redistribution", "nonCommercial", "attributionRequired", "verifiedOn"];
 /** The rows a cited series may fill: Japan, and the daily US rows legal lit for personal use (7066891816). */
 export const SERIES_ROW_KEYS = new Set(["M03.X.01:japan", "M01.X.03:us_large", "M01.X.03:us_broad", "M01.X.03:us_tech"]);
-/**
- * Legal's condition 1: each daily US row's attribution line states personal use. It must open with
- * "Personal use;", as the Part G caveat does, so a line such as "not for personal use" never passes.
- */
+/** Legal's condition 1: each daily US row's attribution opens with the approved sentence (domain `PERSONAL_USE_SENTENCE`). */
 const PERSONAL_USE_ROWS = "M01.X.03:";
-export const PERSONAL_USE = /^Personal use; \S/;
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown, max = 500): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
@@ -146,7 +144,7 @@ export function parseProviders(text: string, opts: { reservedLicenceIds?: readon
           continue;
         }
         strict(s, ["id", "rowKey", "attribution"], `${where}.series`, problems);
-        if (s.rowKey.startsWith(PERSONAL_USE_ROWS) && !PERSONAL_USE.test(s.attribution)) problems.push(`${where}.series: a daily US row's attribution must open with "Personal use; "`);
+        if (s.rowKey.startsWith(PERSONAL_USE_ROWS) && !opensWithPersonalUse(s.attribution)) problems.push(`${where}.series: a daily US row's attribution must open with "${PERSONAL_USE_SENTENCE}" and then credit the owner`);
         if (series.some((x) => x.rowKey === s.rowKey)) problems.push(`${where}.series: one series per row`);
         series.push({ id: s.id, rowKey: s.rowKey, attribution: s.attribution });
       }
