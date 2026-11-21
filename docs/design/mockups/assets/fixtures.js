@@ -130,7 +130,7 @@
       ["Insolvency, liquidation, pledges, securing measures", "ok", "UCC filings in Colorado: none found"],
       ["Sanctions and watchlists", "ok", "OFAC and 3 more lists: none found; federal exclusions are a manual lookup"],
       ["Court cases", "ok", "Legal agent: no federal case found"],
-      ["Web presence consistent with the register", "ok", "Web check run on a domain Finora verified (its homepage states the entity ID): created 2019, the year of registration"],
+      ["Web presence consistent with the register", "notrun", "Web check: not run, no website known (add one to check it)"],
     ],
   };
 
