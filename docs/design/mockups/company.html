@@ -57,7 +57,7 @@
     const runStats = phase === "run"
       ? `<div class="run-head" aria-live="polite">
            <span class="run-stats num">${icon("agent", "icon icon-sm")} ${reconnecting ? "Reconnecting · last update 09:43:12" : limited ? "Paused: your Claude plan's usage limit · resumes after 14:00" : overage ? "Paused: paid extra usage is in use in your Claude account" : "Investigating"} · 4 agents · 23 tasks · 31 sources · 18% of the cap</span>
-           ${overageEnabled ? `<span class="caveat" style="color:var(--ink-2)">${icon("warn", "icon icon-sm")}<span>Paid extra usage is on in your Claude account; Finora will stop if a run starts using it.</span></span>` : ""}
+           ${overageEnabled ? `<span class="caveat" style="color:var(--ink-2)">${icon("warn", "icon icon-sm")}<span>Paid extra usage is on in your Claude account; Finora will stop before using it.</span></span>` : ""}
            <div class="meter" role="progressbar" aria-label="Investigation progress" aria-valuenow="58" aria-valuemin="0" aria-valuemax="100"><i style="width:58%"></i></div>
          </div>`
       : "";
@@ -546,8 +546,8 @@
       </div>
       <div class="usage-est" style="display:flex;flex-direction:column;gap:8px">
         <span><strong>Estimated usage.</strong> About 150k standard tokens of your subscription, up to about 310k. Cap 500k. Today: 2.9M of 3.3M left.</span>
-        ${overageEnabled ? `<span class="caveat" style="color:var(--ink-2)">${icon("warn", "icon icon-sm")}<span>Paid extra usage is on in your Claude account; Finora will stop if a run starts using it.</span></span>` : ""}
-        ${param("window", "") === "shown" ? `<span class="small muted">Claude reports your 5-hour window at 42%. That is Claude's own figure; Finora's cap above is separate.</span>` : ""}
+        ${overageEnabled ? `<span class="caveat" style="color:var(--ink-2)">${icon("warn", "icon icon-sm")}<span>Paid extra usage is on in your Claude account; Finora will stop before using it.</span></span>` : ""}
+        ${param("window", "") === "high" ? `<span class="caveat" style="color:var(--ink-2)">${icon("clock", "icon icon-sm")}<span>Claude reports your 5-hour window at 92%; this investigation may pause. (Claude's own figure; Finora's cap above is separate.)</span></span>` : ""}
         <div class="meter" style="position:relative" role="img" aria-label="Typically about 30% of this investigation's cap, at most about 62%"><i style="width:30%"></i><b style="position:absolute;left:30%;width:32%;top:0;bottom:0;background:color-mix(in srgb, var(--accent) 35%, transparent);border-radius:2px"></b></div>
         <span class="small muted">Typically about 30% of this investigation's cap, at most about 62% ·
           <span class="chip-wrap"><button type="button" class="link-btn" data-chip aria-controls="st-info" aria-expanded="false">What is a standard token?</button><span class="pop" id="st-info" role="dialog" aria-label="What is a standard token" hidden>Standard tokens are Finora's measure of how much of your Claude plan a run uses. Your plan's own limits are set by your plan, and Finora can't see them.</span></span></span>
@@ -633,9 +633,9 @@
     const overageCard = overage ? `<section class="question" id="question" aria-labelledby="ov-h" role="region">
       <div class="q-who"><span class="status waiting"><span class="dot"></span>Paused</span><span class="small ink2">Your Claude account</span>${ruleTag()}</div>
       <h2 id="ov-h">Paid extra usage is on in your Claude account. Turn it off to continue.</h2>
-      <p class="small ink2">A run started drawing on paid extra usage at 09:44, so Finora stopped every agent at once: Finora never costs money. Findings so far are kept, and no verdict is written on partial evidence.</p>
+      <p class="small ink2">${param("why", "inuse") === "limit" ? "Your 5-hour window is used up and paid extra usage is permitted, so the next request would have been paid. Finora stopped every agent before it: Finora never costs money." : "A run started drawing on paid extra usage at 09:44, so Finora stopped every agent at once: Finora never costs money."} Findings so far are kept, and no verdict is written on partial evidence.</p>
       <div class="q-options">
-        <button class="q-option default" type="button"><span class="q-title">I turned it off: check and resume</span><span class="q-sub">Resumes only once Claude reports no paid extra usage in use</span></button>
+        <button class="q-option default" type="button"><span class="q-title">Check and resume</span><span class="q-sub">Resumes only when Claude reports paid extra usage off, or a window reset. A pause never ends by itself</span></button>
         <button class="q-option" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Checks that haven't finished count as not run</span></button>
       </div>
     </section>` : "";
@@ -663,7 +663,8 @@
     { key: "sec", label: "SEC contact (US public)", options: [["set", "Set"], ["missing", "Missing: needs key"]] },
     { key: "name", label: "Name length", options: [["normal", "Normal"], ["long", "Very long (Latvia)"]] },
     { key: "overage", label: "Paid extra usage (estimate, run)", options: [["off", "Off"], ["enabled", "On but not in use: warning"]] },
-    { key: "window", label: "Claude's own plan-window figure (estimate)", options: [["", "Not reported"], ["shown", "Reported: shown as Claude's figure"]] },
+    { key: "window", label: "Claude's own plan-window figure (estimate)", options: [["", "Not reported or under 90%"], ["high", "Reported at 92%: warning"]] },
+    { key: "why", label: "Overage pause trigger", options: [["inuse", "Paid usage in use"], ["limit", "Permitted and the window used up"]] },
     { key: "lane", label: "Lane state (streaming)", options: [["", "Normal"], ["busy", "One lane: Waiting, Claude is busy"]] },
     { key: "concurrency", label: "Parallel agents (streaming)", options: [["4", "4 at a time"], ["2", "2 at a time: one waiting to start"]] },
     { key: "offer", label: "Offer domain (report, Latvia)", options: [["none", "Not given"], ["match", "Tied to the company"], ["mismatch", "Not tied to the company"], ["other", "Belongs to another company"], ["unresolvable", "Does not resolve"]] },
