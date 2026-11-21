@@ -1,4 +1,4 @@
-import { opensWithPersonalUse } from "@finora/domain";
+import { isPersonalUseLine } from "@finora/domain";
 import { z } from "zod";
 
 // GET /api/v1/markets/crash (architecture §8, loaders/markets.md §1.4). Written with S22; S04b owns the
@@ -47,8 +47,8 @@ export const MarketRow = z
   // A row whose provider is not configured (H4) shows no number, never 0% (qa 7066883380, condition 4).
   .refine((r) => r.state !== "not_configured" || (r.value === undefined && r.drawdownPct === undefined), { message: "no number for a provider that is not configured" })
   .refine((r) => r.ticker === undefined || r.itemId === "M08.X.01", { message: "only the debt row carries a ticker" })
-  // The daily US rows are lit for personal use only: a value is shown only with legal's approved sentence first (legal 7070658489).
-  .refine((r) => r.itemId !== "M01.X.03" || r.value === undefined || opensWithPersonalUse(r.attribution ?? ""), { message: "a daily US row needs its personal-use attribution" });
+  // The daily US rows are lit for personal use only: a value is shown only with legal's approved line, exactly (legal 7070739448).
+  .refine((r) => r.itemId !== "M01.X.03" || r.value === undefined || isPersonalUseLine(r.attribution ?? ""), { message: "a daily US row needs its personal-use attribution" });
 
 export const CrashResponse = z
   .object({

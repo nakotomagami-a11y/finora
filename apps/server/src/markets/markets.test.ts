@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CrashResponse } from "@finora/api-contract";
-import { PERSONAL_USE_SENTENCE } from "@finora/domain";
+import { isPersonalUseLine } from "@finora/domain";
 import { describe, expect, it, vi } from "vitest";
 import { connector, marketConnectors, providerLicences, readMarketSettings, type MarketConnector, type Providers } from "@finora/markets";
 import { fakeMarketFetch, fixtureHost, fixtureProviders, fixtureProvidersJson, FIXTURE_TODAY } from "@finora/markets/fixtures";
@@ -211,7 +211,7 @@ describe("the Crash monitor view (architecture §8)", () => {
     expect(daily.map((r) => r.rowKey)).toEqual(["M01.X.03:us_large", "M01.X.03:us_broad", "M01.X.03:us_tech"]);
     for (const r of daily) {
       expect(r.state, r.rowKey).toBe("ok");
-      expect(r.attribution?.startsWith(PERSONAL_USE_SENTENCE), r.rowKey).toBe(true);
+      expect(isPersonalUseLine(r.attribution ?? ""), r.rowKey).toBe(true);
       expect(r.valueLostUsd, r.rowKey).toBeUndefined();
     }
     expect(readMarketSeries(store.db).filter((s) => s.seriesKey.startsWith("fred-cited:us_")).map((s) => s.where)).toEqual(["cc", "cc", "cc"]);
@@ -239,7 +239,7 @@ describe("the Crash monitor view (architecture §8)", () => {
     const v = view(store);
     const row = v.tiles.flatMap((t) => t.rows).find((r) => r.rowKey === "M01.X.03:us_large");
     expect(row?.value).toBeDefined();
-    for (const attribution of ["via the fixture provider", "Not for personal use only. Fixture owner", "For personal use. Fixture owner"]) {
+    for (const attribution of ["via the fixture provider", "Personal use; not for personal use by others", "For personal use only. Fixture owner's copyright, via FRED; 1-day lag. Redistribution permitted."]) {
       if (row) row.attribution = attribution;
       expect(CrashResponse.safeParse(v).success, attribution).toBe(false);
     }

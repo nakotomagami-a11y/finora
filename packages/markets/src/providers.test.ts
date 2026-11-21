@@ -34,11 +34,19 @@ describe("the local provider file (H4; qa 7066883380)", () => {
     ["a cited series on an unknown row", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M09.X.01:macro", attribution: "a" }])],
     ["a daily US row whose attribution doesn't state personal use (legal 7066891816)", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "the owner's copyright, via the fixture provider" }])],
     ...[
-      "Not for personal use only. The owner's copyright",
-      "Personal use excluded. The owner's copyright",
-      "For personal use. The owner's copyright",
-      "For personal use only, the owner's copyright",
-      "The owner's copyright. For personal use only.",
+      "Not for personal use only. Fixture owner's copyright, via FRED; 1-day lag",
+      "not for personal use",
+      "Personal use; not for personal use by others",
+      "Personal use excluded. Fixture owner's copyright, via FRED; 1-day lag",
+      "For personal use. Fixture owner's copyright, via FRED; 1-day lag",
+      "For personal use only, Fixture owner's copyright, via FRED; 1-day lag",
+      "For personal use only. Fixture owner's copyright, via FRED; 1-day lag. Redistribution permitted.",
+      "Redistribution permitted. For personal use only. Fixture owner's copyright, via FRED; 1-day lag",
+      "For personal use only. Redistribution permitted. Fixture owner's copyright, via FRED; 1-day lag",
+      "For personal use only. Fixture; owner's copyright, via FRED; 1-day lag",
+      "Fixture owner's copyright, via FRED; 1-day lag",
+      "For personal use only. Fixture owner's copyright, via FRED",
+      "For personal use only. 's copyright, via FRED; 1-day lag",
       "For personal use only.",
     ].map((attribution): [string, (p: Json) => void] => [`a daily US row whose attribution is "${attribution}" (legal 7070658489)`, (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution }])]),
     ["an attribution with a line break (N2)", (p) => void (x4(p).attribution = "first line\nsecond line")],
@@ -57,8 +65,8 @@ describe("the local provider file (H4; qa 7066883380)", () => {
     expect(providers).toEqual({});
   });
 
-  it("accepts the approved personal-use sentence whatever its case and spacing, followed by the owner's credit", () => {
-    const text = file((p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "for  PERSONAL use only.  The owner's copyright" }]));
+  it("accepts the approved line whatever its case and spacing, with the owner as its only free slot", () => {
+    const text = file((p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "for  PERSONAL use only.  Fixture Owner, Inc.'s COPYRIGHT, via fred;  1-day lag" }]));
     expect(parseProviders(text).problems).toEqual([]);
   });
 

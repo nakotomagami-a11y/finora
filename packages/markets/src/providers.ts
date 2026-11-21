@@ -3,7 +3,7 @@
 // file the user fills (`<data dir>/providers.json`). The repo holds only this schema, the parsers under
 // codes, and placeholder hosts for tests. A file that fails the schema configures nothing.
 
-import { opensWithPersonalUse, PERSONAL_USE_SENTENCE } from "@finora/domain";
+import { isPersonalUseLine, PERSONAL_USE_TEMPLATE } from "@finora/domain";
 
 /** Coded providers Finora has a parser for, and the URL templates each one needs. */
 export const PROVIDER_URLS = {
@@ -48,7 +48,7 @@ const ENTRY_KEYS = ["hosts", "urls", "licence", "termsUrl", "attribution", "home
 const LICENCE_KEYS = ["id", "name", "redistribution", "nonCommercial", "attributionRequired", "verifiedOn"];
 /** The rows a cited series may fill: Japan, and the daily US rows legal lit for personal use (7066891816). */
 export const SERIES_ROW_KEYS = new Set(["M03.X.01:japan", "M01.X.03:us_large", "M01.X.03:us_broad", "M01.X.03:us_tech"]);
-/** Legal's condition 1: each daily US row's attribution opens with the approved sentence (domain `PERSONAL_USE_SENTENCE`). */
+/** Legal's condition 1: each daily US row's attribution is exactly the approved line, the owner its only free slot (domain `PERSONAL_USE_TEMPLATE`). */
 const PERSONAL_USE_ROWS = "M01.X.03:";
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -144,7 +144,7 @@ export function parseProviders(text: string, opts: { reservedLicenceIds?: readon
           continue;
         }
         strict(s, ["id", "rowKey", "attribution"], `${where}.series`, problems);
-        if (s.rowKey.startsWith(PERSONAL_USE_ROWS) && !opensWithPersonalUse(s.attribution)) problems.push(`${where}.series: a daily US row's attribution must open with "${PERSONAL_USE_SENTENCE}" and then credit the owner`);
+        if (s.rowKey.startsWith(PERSONAL_USE_ROWS) && !isPersonalUseLine(s.attribution)) problems.push(`${where}.series: a daily US row's attribution must be exactly "${PERSONAL_USE_TEMPLATE}"`);
         if (series.some((x) => x.rowKey === s.rowKey)) problems.push(`${where}.series: one series per row`);
         series.push({ id: s.id, rowKey: s.rowKey, attribution: s.attribution });
       }
