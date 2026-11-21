@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i and S06 **accepted**; S22 waits on qa's re-verify of `cae16c6`, SEC-5/7/8 and the M01 daily rows; before S05's first real load: `meta.order` (the worker heap cap is in); S04b next (architect); agent runtime accepted (C18, C19), plan edits pending; H6 (the subscription terms) awaits the human; H4 tree sweep: 130 hits left | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i and S06 **accepted**; S05 (Latvia) in progress: the first-load fast path and the LV lane memory, rulings in `reviews/slices/S05.md`; S22 waits on SEC-5/7/8 and the M01 daily rows; S04b next (architect, after `check-outside-names.mjs`); agent runtime accepted (C18, C19) and written into architecture §7 and slices S09a-S12; H6 (the subscription terms) awaits the human; H4: guard tree 0 outside `.agent-office/`, qa's full manual sweep pending | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
@@ -154,7 +154,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
 
 - **S12 boot refusals** (cto, accepted by legal and qa): `scripts/finora.mjs` refuses every heap, inspect and report flag in `NODE_OPTIONS` and `execArgv`, the worker's `execArgv` included; `--report-exclude-env` is the only exception. Each has a test. `docs/running.md` notes the V8 `jit_page_` check (many short-lived worker isolates), its trigger and the Node version, and the roughly 178 MB the sanctions lists download at each start.
-- **Before S05's first real load** (architect): `resourceLimits` on every sync worker (`maxOldGenerationSizeMb` about 768; an OOM ends `worker_failed`, the parent and other lanes run on; qa MUST, cto agrees); `meta.order` so the register syncs first in its lane, with a test that the country is searchable once its register lands; S12's scheduler and background load use the same lanes (one worker per lane, counted).
+- **Before S05's first real load** (architect): **done** (`0f20896`, `c82e87b`): the sync-worker heap cap at 768 MB (the crash guard; P10's RSS budget stays the real bound), an OOM inside an open transaction stores nothing of that batch (tested), and `SourceMeta.order` with `lanesOf()` puts each lane's register first (tested); S12 acceptance 10 uses the same lanes.
 - **Edge instrumentation warnings** (S22): `apps/web/src/instrumentation.ts` guards its server import with `NEXT_RUNTIME === "nodejs"`; frontend owns the file, the architect reviews the env-lint allowance.
 
 - **Native review of the `lt`, `lv` and `et` texts** (legal, S02): the Baltic UI and terms texts are drafted by the frontend seat and listed in `packages/i18n/REVIEW.md`; no seat is a native speaker. They ship marked as drafts, and native review goes to the session 3 agenda (the human may know a reviewer, or accept drafts for v1). Legal reviews the terms texts as a second pass after native review.
