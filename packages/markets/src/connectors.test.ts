@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { connector, MARKET_CONNECTORS, ProviderRefused, quarterEnd, rocToIso, SchemaChanged, updatedOn } from "./connectors/index.ts";
-import { c1Layout, c3Layout, fredLayout, o3Layout, s3Layout, s7Layout, treasuryLayout, twseLayout, worldBankLayout, x4Layout } from "./fixtures/layouts.ts";
-import { FIXTURE_TICKERS, FIXTURE_TODAY } from "./fixtures/series.ts";
+import { connector, marketConnectors, ProviderRefused, quarterEnd, rocToIso, SchemaChanged, updatedOn } from "./connectors/index.ts";
+import { fixtureProviders } from "./fixtures/fake-fetch.ts";
+import { c1Layout, c3Layout, fredLayout, o3Layout, treasuryLayout, twLayout, worldBankLayout, x4Layout } from "./fixtures/layouts.ts";
+import { FIXTURE_TODAY } from "./fixtures/series.ts";
 import type { FetchContext, MarketConnector, RawArtifact } from "./types.ts";
 
 const parseCtx = { now: `${FIXTURE_TODAY}T22:00:00Z`, windowStart: "2024-12-22" };
+const PROVIDERS = fixtureProviders();
+const MARKET_CONNECTORS = marketConnectors(PROVIDERS);
 const get = (id: string): MarketConnector => {
-  const c = connector(id);
+  const c = connector(id, PROVIDERS);
   if (!c) throw new Error(id);
   return c;
 };
@@ -15,14 +18,14 @@ const raw = (name: string, body: string): RawArtifact[] => [{ name, bytes: enc(b
 
 describe("market connectors: metadata (R14, R17)", () => {
   it("fetch only from their official hosts, and the licensed ones store only in connector-cache.db", () => {
-    for (const c of MARKET_CONNECTORS) {
-      for (const h of c.fetchHosts) expect(c.meta.officialHosts, c.meta.id).toContain(h);
-      if (c.meta.licence.startsWith("provider-") && c.meta.licence !== "provider-display-o3") {
-        expect(c.meta.storage, c.meta.id).toBe(c.meta.id === "crypto-o3-btc-height" ? "store" : "connector-cache");
-      }
-    }
-    expect(get("us-fred-cited").meta.storage).toBe("connector-cache");
+    for (const c of MARKET_CONNECTORS) for (const h of c.fetchHosts) expect(c.meta.officialHosts, c.meta.id).toContain(h);
+    for (const id of ["crypto-x4-ohlc", "crypto-c1", "crypto-c3-global", "us-fred-cited"]) expect(get(id).meta.storage, id).toBe("connector-cache");
     expect(get("us-fred-open").meta.storage).toBe("store");
+    expect(get("crypto-o3-btc-height").meta.storage).toBe("store");
+  });
+
+  it("builds no provider connector without the local provider file (H4)", () => {
+    expect(marketConnectors({}).map((c) => c.meta.id).sort()).toEqual(["intl-worldbank-pinksheet", "us-fred-open", "us-treasury-debt"]);
   });
 
   it("have a field map that fills every item they declare, and declare a purge scope", () => {
@@ -64,10 +67,10 @@ describe("official sources parse their measured layouts", () => {
     expect(() => c.parse(raw("DCOILBRENTEU.csv", "<html>"), parseCtx)).toThrow(SchemaChanged);
   });
 
-  it("TWSE: ROC dates and thousands separators", () => {
+  it("tw: ROC dates and thousands separators", () => {
     expect(rocToIso("1151118")).toBe("2026-11-18");
     expect(rocToIso("1151340")).toBeNull();
-    const obs = get("tw-twse-index").parse(twseLayout(), parseCtx).series[0]?.observations ?? [];
+    const obs = get("tw-broad-index").parse(twLayout(), parseCtx).series[0]?.observations ?? [];
     expect(obs.at(-1)?.date).toBe(FIXTURE_TODAY);
     expect(obs.every((o) => o.value > 1000)).toBe(true);
   });
@@ -84,37 +87,7 @@ describe("official sources parse their measured layouts", () => {
   });
 });
 
-describe("price connectors parse their documented or measured layouts", () => {
-  it("S7: one series per filled slot, with its symbol, from adjusted closes", () => {
-    const p = get("stocks-s7").parse(s7Layout(2), parseCtx);
-    expect(p.series.map((s) => [s.series.seriesKey, s.series.symbol])).toEqual([
-      ["s7:slot:M01.us_total", FIXTURE_TICKERS[0]],
-      ["s7:slot:M01.us_large", FIXTURE_TICKERS[1]],
-    ]);
-  });
-
-  it("S7: asks for nothing without a key, and never puts the key in an artifact name", async () => {
-    const calls: string[] = [];
-    const ctx: FetchContext = {
-      fetch: async (url) => (calls.push(url), { status: 200, headers: {}, bytes: enc("[]") }),
-      keys: {},
-      now: parseCtx.now,
-      windowStart: parseCtx.windowStart,
-      slots: [{ slot: "M02.europe", symbol: "ZZFX04" }],
-      mode: "daily",
-    };
-    expect(await get("stocks-s7").fetch(ctx)).toEqual([]);
-    const fetched = await get("stocks-s7").fetch({ ...ctx, keys: { MARKETS_S7_API_KEY: "fixture-key-000" } });
-    expect(calls).toHaveLength(1);
-    expect(fetched.map((a) => a.name)).toEqual(["M02.europe|ZZFX04.json"]);
-  });
-
-  it("S3: reads the data array, and treats an Information body as a rate limit, not data", () => {
-    const c = get("gold-s3");
-    expect(c.parse(s3Layout(), parseCtx).series[0]?.observations?.at(-1)?.date).toBe(FIXTURE_TODAY);
-    expect(() => c.parse(raw("gold.json", JSON.stringify({ Information: "limit" })), parseCtx)).toThrow(ProviderRefused);
-  });
-
+describe("provider connectors parse their measured layouts", () => {
   it("X4: daily candles by UTC day, and the latest quote with its time", () => {
     const c = get("crypto-x4-ohlc");
     const daily = c.parse(x4Layout("daily"), parseCtx);
@@ -129,10 +102,8 @@ describe("price connectors parse their documented or measured layouts", () => {
     const urls: string[] = [];
     const ctx: FetchContext = {
       fetch: async (url) => (urls.push(url), { status: 200, headers: {}, bytes: enc('{"data":{"ohlc":[]}}') }),
-      keys: {},
       now: "2026-11-18T00:00:00Z",
       windowStart: "2023-01-01",
-      slots: [],
       mode: "daily",
     };
     await get("crypto-x4-ohlc").fetch(ctx);
@@ -148,18 +119,16 @@ describe("price connectors parse their documented or measured layouts", () => {
     const ctx: FetchContext = {
       fetch: async (url) => {
         urls.push(url);
-        if (url.includes("publicnode")) throw new Error("down");
+        if (url.endsWith("/rpc")) throw new Error("down");
         if (url.endsWith("/tip/hash")) return { status: 200, headers: {}, bytes: enc("a".repeat(64)) };
         return { status: 200, headers: {}, bytes: enc(JSON.stringify({ height: 5, timestamp: 1_763_500_000 })) };
       },
-      keys: {},
       now: parseCtx.now,
       windowStart: parseCtx.windowStart,
-      slots: [],
       mode: "daily",
     };
     const fetched = await c.fetch(ctx);
-    expect(urls.some((u) => u.startsWith("https://mempool.space/api/block/"))).toBe(true);
+    expect(urls.some((u) => u.includes("/block/"))).toBe(true);
     expect(c.parse(fetched, parseCtx).series[0]?.latest?.value).toBe(300);
   });
 
@@ -169,21 +138,6 @@ describe("price connectors parse their documented or measured layouts", () => {
     expect(p.series.map((s) => s.series.seriesKey)).toEqual(["c1:total_cap", "c1:eth_supply"]);
     expect(p.series.every((s) => s.observations === undefined)).toBe(true);
     expect(() => c.parse(raw("global.json", JSON.stringify({ status: { error_code: 10005 } })), parseCtx)).toThrow(ProviderRefused);
-  });
-
-  it("C1: sends the optional demo key as a header, only when it is set", async () => {
-    const headers: (Record<string, string> | undefined)[] = [];
-    const ctx: FetchContext = {
-      fetch: async (_url, init) => (headers.push(init?.headers), { status: 200, headers: {}, bytes: enc("{}") }),
-      keys: {},
-      now: parseCtx.now,
-      windowStart: parseCtx.windowStart,
-      slots: [],
-      mode: "latest",
-    };
-    await get("crypto-c1").fetch(ctx);
-    await get("crypto-c1").fetch({ ...ctx, keys: { MARKETS_C1_DEMO_KEY: "fixture-demo" } });
-    expect(headers).toEqual([undefined, { "x-cg-demo-api-key": "fixture-demo" }]);
   });
 
   it("C3: the all-time high as the peak seed", () => {

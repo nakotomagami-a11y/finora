@@ -10,7 +10,7 @@ export type SeriesData = { observations: readonly StoredObs[]; latest: StoredLat
 /** A cited official figure that seeds a peak (seeds.ts); empty in v1 until legal clears one. */
 export type Seed = { seriesKey: string; date: string; value: number; citation: string; licence: string };
 
-export type RowState = "ok" | "stale" | "needs_key" | "needs_symbol" | "peak_unknown" | "error" | "loading";
+export type RowState = "ok" | "stale" | "not_configured" | "peak_unknown" | "error" | "loading";
 export type Cadence = MarketFrequency | "live";
 
 export type RowView = {
@@ -30,7 +30,6 @@ export type RowView = {
   valueLostUsd?: number;
   cadence: Cadence;
   delayed: boolean;
-  symbol?: string;
   /** The syncs of every value the row used, per series: its provenance. */
   inputs: { seriesKey: string; syncIds: number[] }[];
   /** M08 only: the estimate the client ticks forward from. */
@@ -40,10 +39,8 @@ export type RowView = {
 export type RowContext = {
   peakSince: string;
   now: string;
-  /** Symbol set for this row's fund slot, if any. */
-  symbol?: string;
-  /** False when a key the source requires is not set. */
-  keyPresent: boolean;
+  /** False when the row's provider is not in the user's local provider file (H4). */
+  configured: boolean;
   /** The source's last sync failed, and nothing usable is stored. */
   sourceFailed: boolean;
   seeds: readonly Seed[];
@@ -95,11 +92,7 @@ function syncIds(...values: ({ syncId?: number } | null | undefined)[]): number[
 /** One row of the Crash monitor from its stored series. */
 export function computeRow(row: TileRow, data: ReadonlyMap<string, SeriesData>, ctx: RowContext): RowView {
   const view: RowView = { rowKey: row.rowKey, tileId: row.tileId, itemId: row.itemId, labelKey: row.labelKey, state: "loading", unit: row.unit, cadence: row.frequency, delayed: row.delayed, inputs: [] };
-  if (row.slot) {
-    if (!ctx.symbol) return { ...view, state: "needs_symbol" };
-    view.symbol = ctx.symbol;
-  }
-  if (!ctx.keyPresent) return { ...view, state: "needs_key" };
+  if (!ctx.configured) return { ...view, state: "not_configured" };
 
   const own = data.get(row.seriesKey) ?? { observations: [], latest: null };
   const seed = ctx.seeds.find((s) => s.seriesKey === row.seriesKey);

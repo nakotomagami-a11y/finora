@@ -6,7 +6,6 @@ import { addDays } from "../settings.ts";
 export const FIXTURE_TODAY = "2026-11-18";
 export const FIXTURE_PEAK_DATE = "2025-07-15";
 export const FIXTURE_DRAWDOWN = -0.234;
-export const FIXTURE_TICKERS = Array.from({ length: 13 }, (_, i) => `ZZFX${String(i + 1).padStart(2, "0")}`);
 
 export type Calendar = "weekdays" | "all" | "month_end" | "quarter_end";
 

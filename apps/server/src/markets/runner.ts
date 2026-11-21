@@ -6,7 +6,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { DropReason } from "@finora/domain";
 import { ProviderRefused, SchemaChanged, type FetchContext, type MarketConnector, type RawArtifact } from "@finora/markets";
-import { checkSource, FetchError, politeFetch, type FieldMap, type PoliteFetch, type SourceMeta } from "@finora/sources";
+import { checkSource, FetchError, politeFetch, type FieldMap, type Licence, type PoliteFetch, type SourceMeta } from "@finora/sources";
 import {
   beginSync,
   countMarketObservations,
@@ -26,15 +26,15 @@ import {
 export type MarketRunOutcome =
   | { kind: "content" | "unchanged" | "stale_skipped" | "partial"; syncId: number }
   | { kind: "failed"; syncId: number; reason: MarketFailure }
-  | { kind: "skipped"; reason: "key_missing" | "no_slots" | "invalid_source" | "daily_limit" };
+  | { kind: "skipped"; reason: "invalid_source" | "daily_limit" };
 export type MarketFailure = "key_rejected" | "not_found" | "rate_limited" | "provider_error" | "schema_changed" | "as_of_missing" | "network";
 
 export type RunOptions = {
   mode: FetchContext["mode"];
   now: string;
   windowStart: string;
-  keys: Record<string, string>;
-  slots: FetchContext["slots"];
+  /** Licences registered from the user's local provider file (H4), checked with the built-in ones. */
+  licences: Readonly<Record<string, Licence>>;
   userAgent: string;
   /** Tests and the fixtures profile inject a fetch; otherwise the polite fetcher on the connector's hosts. */
   fetch?: PoliteFetch;
@@ -45,8 +45,8 @@ const WRITABLE = { store: "main", "connector-cache": "cc" } as const;
 const where = (c: MarketConnector) => WRITABLE[c.meta.storage as keyof typeof WRITABLE];
 
 /** The licence invariants of every source (R12, R13, R17): a connector that fails them never writes a row. */
-export function connectorProblems(c: MarketConnector): string[] {
-  return checkSource(c.meta as SourceMeta, c.fieldMap as FieldMap, c.fetchHosts);
+export function connectorProblems(c: MarketConnector, licences: Readonly<Record<string, Licence>> = {}): string[] {
+  return checkSource(c.meta as SourceMeta, c.fieldMap as FieldMap, c.fetchHosts, licences);
 }
 
 function contentHash(raw: readonly RawArtifact[], parserVersion: string): string {
@@ -67,9 +67,7 @@ function failureOf(error: unknown): MarketFailure {
 
 export async function runMarketSource(store: Store, c: MarketConnector, opts: RunOptions): Promise<MarketRunOutcome> {
   // A class other than store or connector-cache (agent-only, live-no-store) may hold no market row at all (S22 review M2).
-  if (connectorProblems(c).length || !(c.meta.storage in WRITABLE)) return { kind: "skipped", reason: "invalid_source" };
-  if (c.meta.requires.some((k) => !opts.keys[k])) return { kind: "skipped", reason: "key_missing" };
-  if (c.meta.id === "stocks-s7" && opts.slots.length === 0) return { kind: "skipped", reason: "no_slots" };
+  if (connectorProblems(c, opts.licences).length || !(c.meta.storage in WRITABLE)) return { kind: "skipped", reason: "invalid_source" };
   const { db } = store;
   const storage = c.meta.storage;
   upsertSource(db, { id: c.meta.id, storage, purgeScope: c.meta.purgeScope }, opts.now);
@@ -82,7 +80,7 @@ export async function runMarketSource(store: Store, c: MarketConnector, opts: Ru
   const fetch = opts.fetch ?? politeFetch({ officialHosts: c.meta.officialHosts, userAgent: opts.userAgent, requestsPerSecond: c.meta.limits.requestsPerSecond ?? 1, maxBytes: 32 * 1024 ** 2 });
   let raw: RawArtifact[];
   try {
-    raw = await c.fetch({ fetch, keys: opts.keys, now: opts.now, windowStart: opts.windowStart, slots: opts.slots, mode: opts.mode });
+    raw = await c.fetch({ fetch, now: opts.now, windowStart: opts.windowStart, mode: opts.mode });
   } catch (error) {
     return fail(failureOf(error));
   }

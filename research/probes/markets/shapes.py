@@ -13,7 +13,6 @@ import zipfile
 from common import as_json, get, iso_day, run, summarise
 
 PEAK_START = "2025-01-01"
-PEAK_START_EPOCH = 1735689600
 
 
 def treasury_full(probe_id):
@@ -49,17 +48,6 @@ def ecb(probe_id):
     return summarise(probe_id, "ecb EXR since 2025-01-01", status, body, hdrs, s, {"header": header, "rows_per_currency": per})
 
 
-def twse(path):
-    def probe(probe_id):
-        status, body, hdrs, s = get(probe_id, f"https://openapi.twse.com.tw/v1/{path}", strict_tls=False)
-        rows = as_json(body)
-        return summarise(probe_id, path, status, body, hdrs, s, {
-            "rows": len(rows), "keys": list(rows[0].keys()) if rows else None,
-            "date_example_shape": re.sub(r"\d", "9", rows[0].get("Date") or rows[0].get("日期") or "") if rows else None,
-        })
-    return probe
-
-
 def worldbank(probe_id):
     status, body, hdrs, s = get(probe_id, "https://www.worldbank.org/en/research/commodity-markets")
     link = re.search(r'https://[^"\']+CMO-Historical-Data-Monthly\.xlsx', body.decode("utf-8", "replace")).group(0)
@@ -82,41 +70,11 @@ def worldbank(probe_id):
     })
 
 
-def x4_paging(pair):
-    def probe(probe_id):
-        url = f"https://www.bitstamp.net/api/v2/ohlc/{pair}/?step=86400&limit=1000&start={PEAK_START_EPOCH}"
-        status, body, hdrs, s = get(probe_id, url)
-        rows = as_json(body)["data"]["ohlc"]
-        days = [iso_day(int(r["timestamp"])) for r in rows]
-        return summarise(probe_id, f"ohlc {pair} from {PEAK_START}", status, body, hdrs, s, {
-            "rows": len(rows), "first": min(days), "last": max(days), "keys": list(rows[0].keys()),
-            "reaches_peak_start": min(days) <= PEAK_START,
-        })
-    return probe
-
-
-def crypto_global(probe_id):
-    status, body, hdrs, s = get(probe_id, "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum")
-    rows = as_json(body)
-    return summarise(probe_id, "coins/markets btc,eth", status, body, hdrs, s, {"keys": sorted(rows[0].keys())})
-
-
-def paprika_global(probe_id):
-    status, body, hdrs, s = get(probe_id, "https://api.coinpaprika.com/v1/global")
-    return summarise(probe_id, "global", status, body, hdrs, s, {"keys": sorted(as_json(body).keys())})
-
-
 PROBES = [
     ("shape_treasury_full", treasury_full),
-    *[(f"shape_fred_{x}", fred_csv(x)) for x in ("DCOILBRENTEU", "NIKKEI225", "BOGZ1LM893064105Q", "DEXTAUS")],
+    *[(f"shape_fred_{x}", fred_csv(x)) for x in ("DCOILBRENTEU", "BOGZ1LM893064105Q", "DEXTAUS")],
     ("shape_ecb", ecb),
-    ("shape_twse_mi_index", twse("exchangeReport/MI_INDEX")),
-    ("shape_twse_taiex_month", twse("indicesReport/MI_5MINS_HIST")),
     ("shape_worldbank", worldbank),
-    ("shape_x4_btc", x4_paging("btcusd")),
-    ("shape_x4_eth", x4_paging("ethusd")),
-    ("shape_c1_markets", crypto_global),
-    ("shape_c3_global", paprika_global),
 ]
 
 if __name__ == "__main__":

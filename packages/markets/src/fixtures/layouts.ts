@@ -1,9 +1,8 @@
 // Each source's raw layout, filled with synthetic series (loaders/markets.md, Fixtures per source).
 // The shapes follow the responses measured in research/probes/markets/shapes.py; the values are made up.
-import { FUND_SLOTS } from "../settings.ts";
 import type { RawArtifact } from "../types.ts";
 import { writeZip } from "@finora/formats/testing";
-import { FIXTURE_TICKERS, FIXTURE_TODAY, plantedSeries } from "./series.ts";
+import { FIXTURE_TODAY, plantedSeries } from "./series.ts";
 
 const enc = new TextEncoder();
 const at = `${FIXTURE_TODAY}T22:00:00Z`;
@@ -28,11 +27,11 @@ export function fredLayout(ids: readonly string[], seed = 2): RawArtifact[] {
   });
 }
 
-export function twseLayout(seed = 3): RawArtifact[] {
+export function twLayout(seed = 3): RawArtifact[] {
   const s = plantedSeries({ seed, calendar: "weekdays", from: "2026-11-01", peak: 25000 });
   const roc = (d: string) => `${Number(d.slice(0, 4)) - 1911}${d.slice(5, 7)}${d.slice(8, 10)}`;
   const fmt = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return [a("MI_5MINS_HIST.json", JSON.stringify(s.map((o) => ({ Date: roc(o.date), OpeningIndex: fmt(o.value), HighestIndex: fmt(o.value), LowestIndex: fmt(o.value), ClosingIndex: fmt(o.value) }))))];
+  return [a("month.json", JSON.stringify(s.map((o) => ({ Date: roc(o.date), OpeningIndex: fmt(o.value), HighestIndex: fmt(o.value), LowestIndex: fmt(o.value), ClosingIndex: fmt(o.value) }))))];
 }
 
 /** A minimal workbook with the measured layout: the "Updated on" line in A4, names in row 5, units in row 6, months from row 7. */
@@ -59,18 +58,6 @@ export function worldBankLayout(seed = 4, options: { goldHeader?: string; goldUn
     ["xl/worksheets/sheet2.xml", enc.encode(`<worksheet><sheetData>${rows.join("")}</sheetData></worksheet>`)],
   ]);
   return [a("CMO-Historical-Data-Monthly.xlsx", writeZip([...files].map(([name, data]) => ({ name, data }))))];
-}
-
-export function s7Layout(slots: number = FUND_SLOTS.length, seed = 5): RawArtifact[] {
-  return FUND_SLOTS.slice(0, slots).map((slot, i) => {
-    const s = plantedSeries({ seed: seed + i, calendar: "weekdays", from: "2024-12-22", peak: 50 + i });
-    return a(`${slot}|${FIXTURE_TICKERS[i]}.json`, JSON.stringify(s.map((o) => ({ date: `${o.date}T00:00:00.000Z`, close: o.value, adjClose: o.value, volume: 1000 }))));
-  });
-}
-
-export function s3Layout(seed = 6): RawArtifact[] {
-  const s = plantedSeries({ seed, calendar: "all", from: "2024-12-22", peak: 2600 });
-  return [a("gold.json", JSON.stringify({ name: "Gold", data: s.reverse().map((o) => ({ date: o.date, value: String(o.value) })) }))];
 }
 
 export function x4Layout(mode: "daily" | "latest", seed = 7): RawArtifact[] {

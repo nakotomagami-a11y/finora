@@ -2,6 +2,8 @@
 
 > Phase 1 research by `data-markets`. Measured 2026-11-19 (UTC evening) with the probes in `research/probes/markets/`. Every count and date below comes from a probe run, not from a provider's marketing page. Raw responses stay in the gitignored `research/.cache/markets/`; nothing here contains a price.
 
+> **Rulings of 2026-11-21:** H5 (no keys) takes every key-gated source out of v1. H4 (no outside names in the tree) moves commercial providers' names, hosts and terms URLs to the maintainer's private notes, and index owners' FRED series appear here as F1-F5. The measurements below are unchanged.
+
 ## Verdict
 
 **Crash monitor can run with zero keys on official data, but only for about a third of what it shows today. Everything else needs the user's own key, and nothing that shows stock or crypto prices may be hosted publicly for free.**
@@ -18,7 +20,7 @@
 ## How to re-run the measurements
 
 ```bash
-python research/probes/markets/official.py        # Treasury, FRED, EIA, World Bank, TWSE, KRX, ECB, ESMA FIRDS
+python research/probes/markets/official.py        # Treasury, FRED, EIA, World Bank, ECB, ESMA FIRDS
 python research/probes/markets/prices_stocks.py   # commercial stock/index APIs (demo keys or none)
 python research/probes/markets/prices_crypto.py   # crypto aggregators and exchange public APIs
 python research/probes/markets/onchain.py         # bitcoin height, public RPC, oracle feeds
@@ -27,7 +29,7 @@ python research/probes/markets/onchain.py         # bitcoin height, public RPC, 
 - Python 3.12+ standard library only. Each script prints one line per probe and writes a summary (status, latency, row count, first and last date, rate-limit headers, no values) to `research/.cache/markets/<script>.json`.
 - Single-stock probes need `PROBE_STOCK_SYMBOL` (a US ticker, no default: the repo names no real company); without it they record "skipped".
 - Optional keys, read from the environment and never written: `FRED_API_KEY`, `EIA_API_KEY`, `SEC_USER_AGENT`, and one variable per commercial provider (named in each probe). Without a key, the probe records the provider's refusal.
-- Python 3.13+ rejects the TWSE certificate under its strict X.509 flag; the probe relaxes only that flag (chain still verified).
+- Python 3.13+ rejected the Taiwan exchange's certificate under its strict X.509 flag; relaxing only that flag kept chain verification.
 - **Two providers were measured once and then removed from the probes:** an unofficial keyless chart endpoint (S1), whose terms bar automated access, and a CSV download site (S2), which now sits behind a browser check. Their numbers below are from that single run.
 
 ## Naming
@@ -40,7 +42,7 @@ Tiles use the IDs in `docs/research/README.md`. "Peak" is the highest daily clos
 
 | Tile | Series | Market cap lost needs |
 |---|---|---|
-| M01 | US total market, S&P 500, Nasdaq-100 | a total-market cap figure on a known date |
+| M01 | US total market, US large-cap and tech indices | a total-market cap figure on a known date |
 | M02 | Europe broad index | an index-wide cap figure |
 | M03 | Japan, South Korea, Taiwan, Hong Kong, mainland China, India, Australia | one exchange cap figure per market, plus FX |
 | M04 | Canada, Brazil | same, plus FX |
@@ -77,16 +79,16 @@ Tiles use the IDs in `docs/research/README.md`. "Peak" is the highest daily clos
 
 | Series | What | Rows | First | Last seen | Lag | Licence class | Use |
 |---|---|---|---|---|---|---|---|
-| `SP500` | US large-cap index | 2,512 | 2016-11-21 | 2026-11-18 | 1 day | pre-approval | **no** (also capped at 10 years) |
-| `DJIA` | US blue-chip index | 2,512 | 2016-11-21 | 2026-11-18 | 1 day | pre-approval | **no** |
-| `NASDAQCOM` | US tech-heavy composite | 14,066 | 1971-02-05 | 2026-11-18 | 1 day | pre-approval | **no** |
-| `NASDAQ100` | Nasdaq-100 | 10,302 | 1986-01-02 | 2026-11-18 | 1 day | pre-approval | **no** |
-| `WILL5000INDFC` | US total market | - | - | removed 2024-06-03 | - | - | gone |
-| `NIKKEI225` | Japan large-cap index | 19,243 | 1949-05-16 | 2026-11-19 | same day | citation required | caveat: owner allows download "for research"; redistribution needs its permission |
-| `CBBTCUSD`, `CBETHUSD` | bitcoin, ether (one exchange) | 4,336 / 3,834 | 2014-12-01 / 2016-05-18 | 2026-11-18 | 1 day | citation required | **no**: notes say reproduction "prohibited except with the prior written permission" of the exchange |
+| F1 (id in private notes) | US large-cap index | 2,512 | 2016-11-21 | 2026-11-18 | 1 day | pre-approval | **no** (also capped at 10 years) |
+| F4 | US blue-chip average | 2,512 | 2016-11-21 | 2026-11-18 | 1 day | pre-approval | **no** |
+| F2 | US tech-heavy composite | 14,066 | 1971-02-05 | 2026-11-18 | 1 day | pre-approval | **no** |
+| F3 | US tech large-cap 100 | 10,302 | 1986-01-02 | 2026-11-18 | 1 day | pre-approval | **no** |
+| (a total-market index) | US total market | - | - | removed 2024-06-03 | - | - | gone |
+| F5 | Japan large-cap index | 19,243 | 1949-05-16 | 2026-11-19 | same day | citation required | caveat: owner allows download "for research"; redistribution needs its permission |
+| (two exchange-sourced series) | bitcoin, ether (one exchange) | 4,336 / 3,834 | 2014-12-01 / 2016-05-18 | 2026-11-18 | 1 day | citation required | **no**: notes say reproduction "prohibited except with the prior written permission" of the exchange |
 | `DCOILWTICO` | WTI spot (EIA) | 9,547 | 1986-01-02 | 2026-11-17 | 2 days | public domain | **yes** |
 | `DCOILBRENTEU` | Brent spot (EIA) | 9,132 | 1987-05-20 | 2026-11-17 | 2 days | public domain | **yes** |
-| `GOLDAMGBD228NLBM` | gold fixing | - | - | removed 2022-01-31 | - | - | gone |
+| (a gold fixing) | gold fixing | - | - | removed 2022-01-31 | - | - | gone |
 | `GFDEBTN` | federal debt, quarterly | 242 | 1966-01-01 | 2026-04-01 | ~7 months | public domain | backup for M08 |
 | `BOGZ1LM893064105Q` | all corporate equities, market value (Z.1) | 305 | 1945-10-01 | 2026-04-01 | ~10 weeks after quarter | public domain | **yes**, quarterly US cap |
 | `NCBEILQ027S` | non-financial corporate equities (Z.1) | 305 | 1945-10-01 | 2026-04-01 | same | public domain | alternative |
@@ -116,19 +118,19 @@ Tiles use the IDs in `docs/research/README.md`. "Peak" is the highest daily clos
 - Tested with: `official.py` probe `ecb_fx`.
 - Verdict: **use** for FX conversion of M03 and M04.
 
-#### TWSE OpenAPI (Taiwan Stock Exchange)
-- Access: `openapi.twse.com.tw/v1/...`, JSON, no key, 143 endpoints.
+#### Taiwan exchange open-data API (provider code `tw`)
+- Access: JSON, no key, 143 endpoints. The host lives in the private notes and the local provider file (H4).
 - Fields: `/exchangeReport/MI_INDEX`: date (ROC calendar), index name, closing level, direction, points change, % change; 267 indices per day, the broad index included. `/indicesReport/MI_5MINS_HIST`: broad-index daily OHLC, **current month only** (14 rows on 2026-11-19).
 - Freshness: latest trading day (2026-11-18 seen on 2026-11-19 UTC, before the next close).
 - History: no backfill through the OpenAPI. The peak must be accumulated from the first run or seeded once from a cited figure. The website's history pages are off-limits (its terms ban crawlers).
 - Market cap: no market-value endpoint found in the swagger.
 - Licence: Open Government Data License Taiwan 1.0, "compatible with CC BY 4.0"; attribution is a condition (https://data.gov.tw/license, linked from the swagger; verified 2026-11-19).
-- Tested with: `official.py` probes `twse_mi_index`, `twse_taiex_month`, `twse_swagger`.
+- Tested with: probes run 2026-11-19 and -20, since removed from the tree with the provider's name (H4).
 - Verdict: **use with caveat** (history starts on first run).
 
-#### KRX Open API (Korea Exchange)
+#### The Korean exchange's open API
 - Access: key required (401 "Unauthorized Key" without one); 10,000 calls/key/day; daily index data from 2010-01-04.
-- Licence: "API Users may only use the API Service for non-commercial purposes" and "may not provide the data provided by the KRX to any third parties" (https://openapi.krx.co.kr/contents/OPP/INFO/OPPINFO005.jsp, verified 2026-11-19).
+- Licence: "API Users may only use the API Service for non-commercial purposes" and "may not provide the data provided by [the exchange] to any third parties" (terms URL in the private notes, verified 2026-11-19).
 - Verdict: **deferred: key pending.** Fine for one user's own instance; never for a hosted build.
 
 #### Japanese and Hong Kong exchange operators (statistics only)
@@ -171,7 +173,7 @@ Measured 2026-11-19 with demo keys where offered, otherwise without a key. Terms
 | S3 | free key, 25/day; unlimited for verified open-source projects | demo key refused (demo is for samples only) | compact only; full is premium | EOD | no (premium) / commodity spot yes | not stated | personal, non-commercial | not stated | **deferred: key pending**; candidate for gold and oil spot |
 | S4 | free key, 8/min, 800/day | demo: 5,000 daily rows from 2007, 1-day lag; index refused | not stated | EOD | not on free | no caching beyond documented windows | free tier "internal non-display" | no | **skip** |
 | S5 | free key, 60/min | 401 without key | candles premium | live quote | not found | delete on plan end | personal use | no | **skip**: no history, so no peak |
-| S6 | free key, 5/min | 401 without key | 2 years | EOD | Nasdaq-100 yes, S&P 500 paid / US commodity and index futures yes | delete within 30 days of termination | personal, non-commercial apps allowed | no | **deferred: key pending**; candidate |
+| S6 | free key, 5/min | 401 without key | 2 years | EOD | the tech large-cap index yes, the large-cap index paid / US commodity and index futures yes | delete within 30 days of termination | personal, non-commercial apps allowed | no | **deferred: key pending**; candidate |
 | S7 | free key, 50/h, 1,000/day, 500 symbols/month | 403 without token | 30+ years | EOD (intraday for US) | no (stocks and ETFs only) / no | Starter persistent storage possibly restricted (unverified) | personal; **explicit programme for apps where each user supplies their own key**, attribution required | no | **deferred: key pending**; first candidate |
 | S8 | free key, 250/day | demo refused | 5 years | EOD | 9 US indices / 4 commodities | no copying without approval | personal; no multi-user platforms; may not name the provider as source | no | **skip**: terms block an app |
 | S9 | free key, 20/day | demo: 11,577 daily rows from 1980, 1-day lag; index 403 | 1 year | EOD | yes (EOD) | private, non-commercial | private only | no | **skip**: 1 year can't reach a 2025 peak, 20 calls/day |
@@ -240,9 +242,9 @@ What Crash monitor can show under each option. ✅ shown, 🟡 shown with a cave
 
 | Tile | A. Official only, no key | B. User keys, self-hosted | C. Delayed / end-of-day | D. Keyless non-official (on-chain, exchange, aggregator), self-hosted | E. Paid licence, hosted |
 |---|---|---|---|---|---|
-| M01 US stocks | 🟡 total US equity value, quarterly (Z.1); no daily index | ✅ daily via S7 (ETF proxies) or S6 (one index free, S&P 500 paid) | ❌ nothing free | ❌ | ✅ |
+| M01 US stocks | 🟡 total US equity value, quarterly (Z.1); no daily index | ✅ daily via S7 (ETF proxies) or S6 (one index free, the large-cap index paid) | ❌ nothing free | ❌ | ✅ |
 | M02 Europe | ❌ | 🟡 ETF proxy (S7) | ❌ | ❌ | ✅ |
-| M03 Asia | 🟡 Taiwan daily (history from first run); Japan daily via FRED with citation, self-hosted only | 🟡 country ETFs in USD (S7); Korea via KRX key | ❌ | ❌ | ✅ |
+| M03 Asia | 🟡 Taiwan daily (history from first run); Japan daily via FRED with citation, self-hosted only | 🟡 country ETFs in USD (S7); Korea via the exchange's key | ❌ | ❌ | ✅ |
 | M04 Americas ex-US | ❌ | 🟡 ETF proxies (S7) | ❌ | ❌ | ✅ |
 | M05 Gold | 🟡 monthly (World Bank, CC BY) | ✅ daily spot (S3) or futures (S6) | 🟡 same as A | 🟡 oracle XAU/USD, hourly, terms unverified | ✅ |
 | M06 Crypto | ❌ (FRED's crypto series need the exchange's permission) | ✅ | ❌ | ✅ bitcoin: price (oracle or X4) × computed supply; ether: price × aggregator supply; total market (C1) and its peak (C3) | ✅ |
@@ -261,8 +263,8 @@ Why C adds nothing: delayed exchange data is free of exchange fees, but every pr
 2. **One optional free key unlocks the stock tiles (B).** First candidate S7: its developer programme explicitly covers open-source software where each user brings their own key, with attribution. Second candidate S6, for index levels and futures. Each tile without a key shows an explicit "add your key" state naming the variable; never a fallback to a barred source.
 3. **Connectors, not data.** Prices live only in the user's local store, tagged with source id, licence id and fetched-at (the architecture's statement model). Where a provider restricts storage (C1: refresh within 24 h; S7: possibly no persistent storage on the free plan), the connector keeps an in-memory window and refetches history once a day instead of storing it.
 4. **A `public` deployment mode** (only if the human ever approves hosting) hides every tile whose source licence is not open. The licence id on each value makes that a filter, not a code fork.
-5. **Attribution in the tile footer**, from the source registry: e.g. "Source: U.S. Treasury, Fiscal Data", "FRED, Federal Reserve Bank of St. Louis" plus the required FRED API notice if the API is used, "U.S. EIA", "ECB", the TWSE open-data attribution, and each coded provider's required line.
-6. **Peak bookkeeping:** keep the running maximum and its date per series in the local store. Sources with short history (TWSE: current month only; X2: 720 days) are seeded once from a longer source or start "peak since first run", labelled as such.
+5. **Attribution in the tile footer**, from the source registry: e.g. "Source: U.S. Treasury, Fiscal Data", "FRED, Federal Reserve Bank of St. Louis" plus the required FRED API notice if the API is used, "U.S. EIA", "ECB", the Taiwan exchange's open-data attribution, and each coded provider's required line.
+6. **Peak bookkeeping:** keep the running maximum and its date per series in the local store. Sources with short history (the Taiwan index: current month only; X2: 720 days) are seeded once from a longer source or start "peak since first run", labelled as such.
 
 ## Request budget (cto ask 4)
 
@@ -273,7 +275,7 @@ Target refresh: crypto every 5 min, stocks hourly while their market is open, of
 | Treasury debt | 1 | 2 | 2 | none documented | yes |
 | FRED CSV (oil 2, FX 6, M09 2) | 10 | 1 | 10 | none documented (API: 120/min) | yes |
 | ECB FX | 1 | 1 | 1 | none documented | yes |
-| TWSE | 2 | 1 | 2 | none documented | yes |
+| tw | 2 | 1 | 2 | none documented | yes |
 | O3 RPC (height + 3 oracle reads) | 4 | 288 | 1,152 | unpublished; 429 when exceeded | probably; back off on 429 |
 | X4 daily candles (bitcoin, ether) | 2 | 24 | 48 | 10,000 per 10 min | yes |
 | C1 global (keyless or demo key) | 1 | 288 | 288 (8,640/month) | demo key 10k/month | yes, with ~14% headroom |
@@ -289,7 +291,7 @@ Target refresh: crypto every 5 min, stocks hourly while their market is open, of
 |---|---|---|---|---|---|---|
 | M01 | Z.1 `BOGZ1LM893064105Q`; user key: ETF or index symbols | quarterly (~10 weeks after quarter end); with key: end of day or hourly | Z.1 yes; S7 yes (30 years); S6 yes (2 years) | Z.1 yes; key data: user's local store only, deleted on key removal | "Board of Governors of the Federal Reserve System, via FRED"; provider line | quarterly total US equity value |
 | M02 | user key only | end of day | with key yes | local only | provider line | "Add your key" state |
-| M03 | TWSE `MI_INDEX` broad index; FRED `NIKKEI225`; KRX with key | daily (same or next day) | Japan yes; Taiwan **no** (current month only); Korea from 2010 with key | TWSE yes (OGDL); FRED Japan series: local only, no redistribution | TWSE open-data line; the index owner's citation via FRED; ECB for FX | Taiwan and Japan |
+| M03 | the Taiwan exchange's broad index (tw); FRED F5; the Korean exchange with a key | daily (same or next day) | Japan yes; Taiwan **no** (current month only); Korea from 2010 with key | Taiwan yes (OGDL); FRED Japan series: local only, no redistribution | the Taiwan exchange's open-data line; the index owner's citation via FRED; ECB for FX | Taiwan and Japan |
 | M04 | user key only | end of day | with key yes | local only | provider line | "Add your key" state |
 | M05 | World Bank Pink Sheet gold; oracle XAU/USD; user key | monthly; oracle ~hourly | World Bank yes (from 1960) | World Bank yes (CC BY) | "World Bank Commodity Price Data (CC BY 4.0)" | last month-end drawdown |
 | M06 | block height; oracle BTC/USD, ETH/USD; X4 `btcusd`, `ethusd`; C1 global; C3 global | minutes; oracle up to ~1 h | X4 yes (pages back); oracle per round only | X4 derived values yes; C1 refresh within 24 h; C3 personal only | X4 none required; C1 "Powered by" line; C3 attribution | bitcoin and ether price, drawdown, cap; total market |
@@ -297,7 +299,7 @@ Target refresh: crypto every 5 min, stocks hourly while their market is open, of
 | M08 | Fiscal Data `debt_to_penny.tot_pub_debt_out_amt` | 1 business day; ticker is an estimate | yes, from 1993 | yes | "U.S. Treasury, Fiscal Data" | full tile |
 | M09 | FRED `DGS10`, `UNRATE` (proposals) | 1 day / monthly | yes, from 1962 / 1948 | yes (both public domain) | FRED citation | full tile |
 
-Each value carries its own as-of date (observation date, or block time for on-chain). Stale thresholds per council clarification 1: daily 2 days, weekly 14, monthly 62, quarterly 184. Deep links: FRED series pages (`https://fred.stlouisfed.org/series/<ID>`), the Fiscal Data dataset page; no per-value links for on-chain reads. Labels are English everywhere except TWSE (Chinese field and index names; map the one index we use).
+Each value carries its own as-of date (observation date, or block time for on-chain). Stale thresholds per council clarification 1: daily 2 days, weekly 14, monthly 62, quarterly 184. Deep links: FRED series pages (`https://fred.stlouisfed.org/series/<ID>`), the Fiscal Data dataset page; no per-value links for on-chain reads. Labels are English everywhere except the Taiwan exchange (Chinese field and index names; map the one index we use).
 
 ## Company profiles (S14 Securities)
 
@@ -311,7 +313,7 @@ Each value carries its own as-of date (observation date, or block time for on-ch
 | FRED API | `FRED_API_KEY` | API instead of CSV: series metadata, licence notes per series, revision dates. Not required: the CSV route works keyless |
 | EIA API | `EIA_API_KEY` | oil spot directly from EIA, weekly release metadata. Not required |
 | SEC EDGAR | `SEC_USER_AGENT` | shares outstanding and public float for S14 |
-| KRX Open API | `KRX_API_KEY` | Korean broad index in M03 (self-hosted only) |
+| Korean exchange API | (a key) | Korean broad index in M03 (self-hosted only); off under H5 |
 | S7 | per probe | M01-M04 daily via ETFs, 30-year history: the main stock-tile unlock |
 | S6 | per probe | one index level and US futures (oil, gold, index futures for a premarket line) |
 | S3 | per probe | daily gold and oil spot |
@@ -333,10 +335,10 @@ Each value carries its own as-of date (observation date, or block time for on-ch
 | Section | Country | Sources | Grade | Fill rate | Notes |
 |---|---|---|---|---|---|
 | M01 | - | Fed Z.1 via FRED (quarterly) | B | 1/3 series | API/CSV; licence verified Y; quarterly only, includes non-listed equity |
-| M01 | - | S7 or S6 with user key | C | 3/3 series (estimated) | user key; licence verified Y; personal use; ETF proxies on S7, S&P 500 paid on S6 |
+| M01 | - | S7 or S6 with user key | C | 3/3 series (estimated) | user key; licence verified Y; personal use; ETF proxies on S7, the large-cap index paid on S6 |
 | M02 | - | S7 with user key | C | 1/1 (estimated) | user key; licence verified Y; ETF proxy |
-| M03 | - | TWSE OpenAPI, FRED `NIKKEI225`, ECB FX | B | 2/7 series | API; licence verified Y; Taiwan history from first run; Japan self-hosted only |
-| M03 | - | S7 with user key; KRX with key | C | 7/7 (estimated) | user key; licence verified Y; country ETFs in USD |
+| M03 | - | Taiwan exchange open data (tw), FRED F5, ECB FX | B | 2/7 series | API; licence verified Y; Taiwan history from first run; Japan self-hosted only |
+| M03 | - | S7 with user key; the Korean exchange with a key | C | 7/7 (estimated) | user key; licence verified Y; country ETFs in USD |
 | M04 | - | S7 with user key | C | 2/2 (estimated) | user key; licence verified Y; ETF proxies |
 | M05 | - | World Bank Pink Sheet | B | 1/1 | bulk XLSX; licence verified Y; monthly only |
 | M05 | - | O5 oracle via O3; S3 or S6 with user key | C | 1/1 | API (on-chain) / user key; licence verified N for the oracle |

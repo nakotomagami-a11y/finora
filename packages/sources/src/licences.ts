@@ -128,8 +128,8 @@ export const LICENCES: Readonly<Record<string, Licence>> = {
     redistribution: false,
     verifiedOn: { date: "2026-11-19", url: "https://www.bank.lv/" },
   },
-  // Crash monitor sources (docs/research/markets.md, loaders/markets.md §1.3). Licences of coded
-  // commercial providers allow display to the key holder only, so they never allow redistribution.
+  // Crash monitor sources (docs/research/markets.md, loaders/markets.md §1.3). Coded commercial
+  // providers' licences come from the user's local provider file at run time (H4), never from here.
   "us-gov-public-domain": {
     id: "us-gov-public-domain",
     name: "US Government work, public domain",
@@ -158,7 +158,7 @@ export const LICENCES: Readonly<Record<string, Licence>> = {
     shareAlike: false,
     nonCommercial: false,
     redistribution: false,
-    verifiedOn: { date: "2026-11-19", url: "https://fred.stlouisfed.org/series/NIKKEI225" },
+    verifiedOn: { date: "2026-11-19", url: "https://fred.stlouisfed.org/legal/" },
   },
   "ogdl-tw-1.0": {
     id: "ogdl-tw-1.0",
@@ -169,66 +169,6 @@ export const LICENCES: Readonly<Record<string, Licence>> = {
     nonCommercial: false,
     redistribution: true,
     verifiedOn: { date: "2026-11-19", url: "https://data.gov.tw/license" },
-  },
-  "provider-personal-s7": {
-    id: "provider-personal-s7",
-    name: "Provider S7 terms: personal use with your own key, attribution required",
-    url: "https://www.tiingo.com/documentation/appendix/developers",
-    attributionRequired: true,
-    shareAlike: false,
-    nonCommercial: true,
-    redistribution: false,
-    verifiedOn: { date: "2026-11-19", url: "https://www.tiingo.com/documentation/appendix/developers" },
-  },
-  "provider-personal-s3": {
-    id: "provider-personal-s3",
-    name: "Provider S3 terms: personal, non-commercial use with your own key",
-    url: "https://www.alphavantage.co/terms_of_service/",
-    attributionRequired: false,
-    shareAlike: false,
-    nonCommercial: true,
-    redistribution: false,
-    verifiedOn: { date: "2026-11-19", url: "https://www.alphavantage.co/support/" },
-  },
-  "provider-derived-x4": {
-    id: "provider-derived-x4",
-    name: "Exchange X4 market data: derived figures allowed; commercial use needs its data licence",
-    url: "https://www.bitstamp.net/api/",
-    attributionRequired: false,
-    shareAlike: false,
-    nonCommercial: false,
-    redistribution: false,
-    verifiedOn: { date: "2026-11-19", url: "https://www.bitstamp.net/api/" },
-  },
-  "provider-attribution-c1": {
-    id: "provider-attribution-c1",
-    name: "Aggregator C1 API terms: attribution, refresh cached data within 24 hours, no redistribution",
-    url: "https://www.coingecko.com/en/api_terms",
-    attributionRequired: true,
-    shareAlike: false,
-    nonCommercial: false,
-    redistribution: false,
-    verifiedOn: { date: "2026-11-19", url: "https://www.coingecko.com/en/api_terms" },
-  },
-  "provider-personal-c3": {
-    id: "provider-personal-c3",
-    name: "Aggregator C3 free plan: personal use only, attribution required",
-    url: "https://coinpaprika.com/api-terms-of-use/",
-    attributionRequired: true,
-    shareAlike: false,
-    nonCommercial: true,
-    redistribution: false,
-    verifiedOn: { date: "2026-11-19", url: "https://coinpaprika.com/api/pricing/" },
-  },
-  "rpc-display-o3": {
-    id: "rpc-display-o3",
-    name: "Public RPC O3 terms: blockchain data may be displayed; access may not be resold",
-    url: "https://www.publicnode.com/terms",
-    attributionRequired: false,
-    shareAlike: false,
-    nonCommercial: false,
-    redistribution: true,
-    verifiedOn: { date: "2026-11-19", url: "https://www.publicnode.com/terms" },
   },
 };
 
@@ -247,13 +187,15 @@ function host(url: string): string | null {
 
 /**
  * The invariants every source must hold; returns one message per problem. `fetchHosts` are the
- * hosts the loader fetches from, which must all be official.
+ * hosts the loader fetches from, which must all be official. `extraLicences` are licences registered at
+ * run time from the user's local provider file (H4).
  */
-export function checkSource(meta: SourceMeta, fieldMap: FieldMap, fetchHosts: readonly string[] = []): string[] {
+export function checkSource(meta: SourceMeta, fieldMap: FieldMap, fetchHosts: readonly string[] = [], extraLicences: Readonly<Record<string, Licence>> = {}): string[] {
   const problems: string[] = [];
   // The id names files and directories (raw cache, leases), so it is never a path (SEC-8).
   if (!SOURCE_ID.test(meta.id)) problems.push(`${meta.id}: a source id matches ${SOURCE_ID}`);
-  const licence = LICENCES[meta.licence];
+  // A licence registered at run time (a provider configured in the user's local file, H4) never replaces a built-in one.
+  const licence = LICENCES[meta.licence] ?? extraLicences[meta.licence];
   if (!licence) return [`${meta.id}: licence ${meta.licence} is not in LICENCES`];
   if (meta.storage === "store" && (licence.shareAlike || licence.nonCommercial || !licence.redistribution)) {
     problems.push(`${meta.id}: storage "store" needs a licence without share-alike or non-commercial terms that allows redistribution`);

@@ -101,4 +101,13 @@ describe("licence invariants (R12, R13, P1, P11)", () => {
     }
     expect(LOADERS.some((l) => l.meta.id === "un-sc")).toBe(false);
   });
+
+  it("accepts a licence registered at run time from the local provider file, and never lets one replace a built-in (H4)", () => {
+    const local = { ...LICENCES["cc0-1.0"]!, id: "local-terms", redistribution: false, nonCommercial: true };
+    expect(checkSource(meta({ licence: "local-terms", storage: "connector-cache" }), map, [], { "local-terms": local })).toEqual([]);
+    expect(checkSource(meta({ licence: "local-terms", storage: "store" }), map, [], { "local-terms": local }).join()).toMatch(/needs a licence without/);
+    expect(checkSource(meta({ licence: "local-terms" }), map).join()).toMatch(/not in LICENCES/);
+    const fake = { ...LICENCES["cc0-1.0"]!, redistribution: false };
+    expect(checkSource(meta(), map, ["data.example.lv"], { "cc0-1.0": fake })).toEqual([]);
+  });
 });

@@ -1,5 +1,6 @@
 // Official and open-licence sources (loaders/markets.md Part 2): US Treasury Fiscal Data, FRED's
-// CSV downloads (open and cited series), the TWSE OpenAPI and the World Bank's monthly prices.
+// CSV downloads (public-domain series) and the World Bank's monthly prices. FRED's third-party (cited)
+// series and the Taiwan exchange's open-data index are configured in the local provider file (configured.ts).
 import type { DropReason } from "@finora/domain";
 import { addDays } from "../settings.ts";
 import { TILE_ROWS } from "../tiles.ts";
@@ -85,7 +86,6 @@ const FRED_OPEN: FredSeries[] = [
   { id: "DCOILBRENTEU", itemId: "M07.X.01", unit: "usd_per_bbl", frequency: "daily_exchange", scale: 1 },
   { id: "DCOILWTICO", itemId: "M07.X.01", unit: "usd_per_bbl", frequency: "daily_exchange", scale: 1 },
 ];
-const FRED_CITED: FredSeries[] = [{ id: "NIKKEI225", itemId: "M03.X.01", unit: "index_points", frequency: "daily_exchange", scale: 1 }];
 
 /** FRED dates a quarter by its first day; the store keeps the period end (loaders/markets.md). */
 export function quarterEnd(start: string): string {
@@ -94,19 +94,16 @@ export function quarterEnd(start: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-function fredMeta(id: "us-fred-open" | "us-fred-cited", series: FredSeries[]): MarketMeta {
-  const cited = id === "us-fred-cited";
+function fredMeta(id: "us-fred-open", series: FredSeries[]): MarketMeta {
   return {
     id,
     country: "us",
     publisher: "Federal Reserve Bank of St. Louis (FRED)",
     homepage: "https://fred.stlouisfed.org/",
     officialHosts: ["fred.stlouisfed.org"],
-    licence: cited ? "fred-citation-required" : "fred-public-domain",
-    attribution: cited
-      ? "Source: FRED, Federal Reserve Bank of St. Louis; index data reprinted with the owner's permission, as FRED's series notes state"
-      : "Source: FRED, Federal Reserve Bank of St. Louis; original: Board of Governors of the Federal Reserve System (Z.1), U.S. Energy Information Administration (oil)",
-    storage: cited ? "connector-cache" : "store",
+    licence: "fred-public-domain",
+    attribution: "Source: FRED, Federal Reserve Bank of St. Louis; original: Board of Governors of the Federal Reserve System (Z.1), U.S. Energy Information Administration (oil)",
+    storage: "store",
     cadence: "daily",
     publishedAtUtc: null,
     asOf: ["max_date_in_data"],
@@ -120,7 +117,7 @@ function fredMeta(id: "us-fred-open" | "us-fred-cited", series: FredSeries[]): M
   };
 }
 
-function fredConnector(id: "us-fred-open" | "us-fred-cited", series: FredSeries[]): MarketConnector {
+function fredConnector(id: "us-fred-open", series: FredSeries[]): MarketConnector {
   const meta = fredMeta(id, series);
   const map = [concept("observation_date", "market.date", series[0]?.itemId ?? ""), ...series.map((s) => concept(s.id, "market.value", s.itemId))];
   return {
@@ -156,7 +153,7 @@ function fredConnector(id: "us-fred-open" | "us-fred-cited", series: FredSeries[
   };
 }
 
-function fredRows(raw: readonly RawArtifact[], s: FredSeries): { date: string; value: number | null; missing: boolean }[] {
+export function fredRows(raw: readonly RawArtifact[], s: Pick<FredSeries, "id">): { date: string; value: number | null; missing: boolean }[] {
   const lines = textOf(artifact(raw, `${s.id}.csv`)).trim().split(/\r?\n/);
   if (lines[0] !== `observation_date,${s.id}`) throw new SchemaChanged(`${s.id}: not a FRED CSV`);
   return lines.slice(1).flatMap((line) => {
@@ -169,72 +166,6 @@ function fredRows(raw: readonly RawArtifact[], s: FredSeries): { date: string; v
 }
 
 export const fredOpen = fredConnector("us-fred-open", FRED_OPEN);
-export const fredCited = fredConnector("us-fred-cited", FRED_CITED);
-
-// ---------------------------------------------------------------- TWSE OpenAPI
-
-/** TWSE dates are ROC calendar, 7 digits YYYMMDD; the Gregorian year is YYY + 1911. */
-export function rocToIso(roc: string): string | null {
-  if (!/^\d{7}$/.test(roc)) return null;
-  const y = Number(roc.slice(0, 3)) + 1911;
-  const iso = `${y}-${roc.slice(3, 5)}-${roc.slice(5, 7)}`;
-  return isoDay(iso) && new Date(`${iso}T00:00:00Z`).toISOString().slice(0, 10) === iso ? iso : null;
-}
-
-const twseItems = ["M03.X.01"];
-const twseMap = [concept("Date", "market.date", "M03.X.01"), concept("ClosingIndex", "market.value", "M03.X.01"), notRead("OpeningIndex"), notRead("HighestIndex"), notRead("LowestIndex")];
-
-export const twseIndex: MarketConnector = {
-  meta: {
-    id: "tw-twse-index",
-    country: "intl",
-    publisher: "Taiwan Stock Exchange (open data)",
-    homepage: "https://openapi.twse.com.tw/",
-    officialHosts: ["openapi.twse.com.tw"],
-    licence: "ogdl-tw-1.0",
-    attribution: "Taiwan Stock Exchange, TWSE OpenAPI (Open Government Data License, version 1.0)",
-    storage: "store",
-    cadence: "daily",
-    publishedAtUtc: "22:00",
-    asOf: ["max_date_in_data"],
-    maxPurgeShare: 0,
-    purgeScope: "none",
-    deepLink: "https://openapi.twse.com.tw/",
-    orderUrl: null,
-    requires: [],
-    limits: { requestsPerSecond: 1 },
-    items: twseItems,
-  },
-  parserVersion: parserVersion("tw-twse-index", 1, twseMap, twseItems, tilesOf("tw-twse-index")),
-  fieldMap: twseMap,
-  fetchHosts: ["openapi.twse.com.tw"],
-  async fetch(ctx) {
-    return [await get(ctx, "MI_5MINS_HIST.json", "https://openapi.twse.com.tw/v1/indicesReport/MI_5MINS_HIST")];
-  },
-  asOf(raw) {
-    return { max_date_in_data: maxOf(twseRows(raw).map((r) => rocToIso(String(r.Date ?? "")))) };
-  },
-  parse(raw) {
-    const dropped: MarketParse["dropped"] = [];
-    const observations: Observation[] = [];
-    for (const r of twseRows(raw)) {
-      const date = rocToIso(String(r.Date ?? ""));
-      const value = num(r.ClosingIndex);
-      if (!date || value === null || value <= 0) {
-        dropped.push({ reason: "market_invalid_value", field: "ClosingIndex" });
-        continue;
-      }
-      observations.push({ date, value });
-    }
-    return { series: [{ series: { seriesKey: "twse:taiex", itemId: "M03.X.01", unit: "index_points", frequency: "daily_exchange" }, observations }], dropped };
-  },
-};
-
-function twseRows(raw: readonly RawArtifact[]): Record<string, unknown>[] {
-  const body = jsonOf(artifact(raw, "MI_5MINS_HIST.json"));
-  if (!Array.isArray(body)) throw new SchemaChanged("MI_5MINS_HIST: not an array");
-  return body.filter(isRecord);
-}
 
 // ---------------------------------------------------------------- World Bank, monthly prices
 

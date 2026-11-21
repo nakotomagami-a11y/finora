@@ -1,5 +1,5 @@
 // The Crash monitor data layer's types (docs/plan/loaders/markets.md). This package depends on
-// `domain` only (architecture §2): connectors are metadata plus pure parsers, and the fetch they
+// `domain` and `formats` only (architecture §2): connectors are metadata plus pure parsers, and the fetch they
 // use is injected by the server, which owns the store writes.
 import type { DropReason } from "@finora/domain";
 
@@ -41,13 +41,9 @@ export type RawArtifact = { name: string; bytes: Uint8Array; headers?: Record<st
 
 export type FetchContext = {
   fetch: Fetch;
-  /** Values of `meta.requires` and optional keys, read by the server's env module. */
-  keys: Record<string, string>;
   now: string;
   /** Observations are wanted from this date (peakSince − 10 days). */
   windowStart: string;
-  /** Fund slots with a symbol (stocks only). */
-  slots: readonly { slot: string; symbol: string }[];
   /** "daily" pulls history; "latest" pulls only the current quote or snapshot. */
   mode: "daily" | "latest";
 };

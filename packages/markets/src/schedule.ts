@@ -1,7 +1,7 @@
 // When each Crash monitor source is fetched (loaders/markets.md §1.6, cto §7, council session 2 CFO
 // note: the total-crypto aggregator every 15 min). Pure: the server asks which jobs are due.
 
-export type JobId = "official" | "worldbank" | "x4-quotes" | "c1-quotes" | "crypto-daily" | "crypto-peak" | "stocks" | "gold" | "c1-expire";
+export type JobId = "official" | "worldbank" | "x4-quotes" | "c1-quotes" | "crypto-daily" | "crypto-peak" | "c1-expire";
 export type JobRun = { sourceId: string; mode: "daily" | "latest" };
 
 type Rule = { kind: "slots"; utc: readonly string[] } | { kind: "interval"; connectedMin: number; idleMin: number } | { kind: "new_york"; at: string; weekdaysOnly: boolean };
@@ -15,7 +15,7 @@ export const JOBS: readonly Job[] = [
       { sourceId: "us-treasury-debt", mode: "daily" },
       { sourceId: "us-fred-open", mode: "daily" },
       { sourceId: "us-fred-cited", mode: "daily" },
-      { sourceId: "tw-twse-index", mode: "daily" },
+      { sourceId: "tw-broad-index", mode: "daily" },
     ],
     rule: { kind: "slots", utc: ["01:00", "07:00", "13:00", "19:00"] },
   },
@@ -32,9 +32,6 @@ export const JOBS: readonly Job[] = [
     rule: { kind: "interval", connectedMin: 60, idleMin: 60 },
   },
   { id: "crypto-peak", runs: [{ sourceId: "crypto-c3-global", mode: "daily" }], rule: { kind: "slots", utc: ["00:30"] } },
-  // The intraday endpoint is pending the key round (loaders/markets.md, stocks-s7), so stocks run once after the close.
-  { id: "stocks", runs: [{ sourceId: "stocks-s7", mode: "daily" }], rule: { kind: "new_york", at: "16:30", weekdaysOnly: true } },
-  { id: "gold", runs: [{ sourceId: "gold-s3", mode: "daily" }], rule: { kind: "slots", utc: ["22:00"] } },
   // Not a fetch: deletes C1 snapshots older than 24 h (its terms), so it costs no request.
   { id: "c1-expire", runs: [], rule: { kind: "interval", connectedMin: 60, idleMin: 60 } },
 ];
@@ -99,14 +96,12 @@ export function dueJobs(now: string, lastRun: ReadonlyMap<JobId, string>, lastCl
 }
 
 /** Requests one run of a source costs (pagination and fund slots counted); the budget test uses it. */
-export function requestsPerRun(sourceId: string, mode: "daily" | "latest", slotsFilled: number): number {
+export function requestsPerRun(sourceId: string, mode: "daily" | "latest"): number {
   switch (sourceId) {
     case "us-fred-open":
       return 3;
     case "intl-worldbank-pinksheet":
       return 2;
-    case "stocks-s7":
-      return slotsFilled;
     case "crypto-x4-ohlc":
       return 2;
     case "crypto-o3-btc-height":
@@ -120,8 +115,6 @@ export function requestsPerRun(sourceId: string, mode: "daily" | "latest", slots
 
 /** The free limits the schedule must keep to (research/markets.md; "never faster than hourly" for S7). */
 export const FREE_LIMITS: Readonly<Record<string, { perDay?: number; perHour?: number; perMonth?: number }>> = {
-  "stocks-s7": { perDay: 1000, perHour: 50 },
-  "gold-s3": { perDay: 25 },
   "crypto-c1": { perMonth: 10_000 },
   "crypto-c3-global": { perMonth: 20_000 },
   "crypto-x4-ohlc": { perHour: 60_000 },

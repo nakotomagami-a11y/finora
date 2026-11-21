@@ -1,8 +1,12 @@
 # markets: the Crash monitor data layer
 
-> Loader spec by `data-markets`. It covers every M item in `docs/plan/council/01-data.md` Part G, cto's cadence (`01-data-cto.md` §7), the fund tickers in local settings (P12) and the Taiwan peak rule (cto amendment). Contract: `docs/architecture.md` §3-§4 and §8. Research and terms: `docs/research/markets.md`. Probes: `research/probes/markets/` (`official.py`, `prices_crypto.py`, `onchain.py`, `shapes.py`), last run 2026-11-20.
+> Loader spec by `data-markets`. It covers every M item in `docs/plan/council/01-data.md` Part G, cto's cadence (`01-data-cto.md` §7) and the Taiwan peak rule (cto amendment), under the human's rulings H4 (no outside names in the tree) and H5 (no keys). Contract: `docs/architecture.md` §3-§4 and §8. Research and terms: `docs/research/markets.md`. Probes: `research/probes/markets/` (`official.py`, `shapes.py`), last run 2026-11-20.
 >
-> Commercial providers keep their research codes (S7, S3, X4, C1, C3, O3) in prose. Their hosts appear only in the `SourceMeta` blocks, because the code must call them. Env var names are coded too.
+> Commercial providers appear only as codes (x4, c1, c3, o3, tw, and fred-cited for FRED's third-party series). Their hosts, URL templates, attribution lines and terms live in the user's local provider file (1.5), never in the tree. The code map is in the maintainer's private notes.
+
+> **H4 and H5 (2026-11-21):**
+> - No key-gated source remains. The fund slots (M01.X.02, M02.X.01, M03.X.02, M04.X.01) and daily gold (M05.X.02b) are off (`OFF_BY_H5` in `tiles.ts`), and the M02 and M04 tiles have no row. US stocks keep the quarterly official row; a keyless daily route waits on legal (council 7066864444, item 3).
+> - The crypto sources, the Taiwan exchange's open data and FRED's cited series are configured by the local provider file. Without it their rows show `not_configured`: no number, never 0%. `totalWiped` names an unconfigured counted row in `excludedItemIds`.
 
 > **Built in S22 (2026-11-21); where the build refined this spec:**
 > - `market_series.item_id` is the item id as text (the table is small, so it isn't interned). `cc` tables have no foreign key on `sync_id`, because SQLite can't reference another file; the main ones do.
@@ -23,23 +27,19 @@ This is a group spec: one shared part (series model, maths, scheduling, settings
 | item_id | Call | Tile row | Source(s) | Value lost? |
 |---|---|---|---|---|
 | `M01.X.01` | CAVEAT "Quarterly; includes non-listed equity" | US corporate equities, market value | `us-fred-open` (`BOGZ1LM893064105Q`) | yes: the series is a USD market value |
-| `M01.X.02` | CAVEAT fund text, KEY | US total market, US large caps, US tech (3 fund slots) | `stocks-s7` | no |
-| `M02.X.01` | CAVEAT fund text, KEY | Europe (1 slot) | `stocks-s7` | no |
-| `M03.X.01` | CAVEAT Taiwan peak rule | Japan (index), Taiwan (index) | `us-fred-cited` (`NIKKEI225`), `tw-twse-index` | no |
-| `M03.X.02` | CAVEAT fund text, KEY | Japan, South Korea, Taiwan, Hong Kong, mainland China, India, Australia (7 slots) | `stocks-s7` | no |
-| `M04.X.01` | CAVEAT fund text, KEY | Canada, Brazil (2 slots) | `stocks-s7` | no |
+| `M03.X.01` | CAVEAT Taiwan peak rule | Japan (broad index), Taiwan (broad index) | `us-fred-cited`, `tw-broad-index` (both from the provider file) | no |
 | `M05.X.01` | CAVEAT "Monthly average" | Gold, monthly | `intl-worldbank-pinksheet` | no |
-| `M05.X.02b` | CAVEAT "With your own key; personal use" | Gold, daily | `gold-s3` | no |
-| `M06.X.01b` | CAVEAT "Self-hosted, personal use" | Bitcoin, ether | `crypto-x4-ohlc` (price), `crypto-o3-btc-height` (bitcoin supply), `crypto-c1` (ether supply) | bitcoin: yes; ether: yes, citing C1 for supply; neither counted in the total |
-| `M06.X.02` | CAVEAT "Personal use; attribution" | Total crypto market | `crypto-c1` (now), `crypto-c3-global` (peak) | yes: both are USD caps |
+| `M06.X.01b` | CAVEAT "Self-hosted, personal use" | Bitcoin, ether | `crypto-x4-ohlc` (price), `crypto-o3-btc-height` (bitcoin supply), `crypto-c1` (ether supply); all from the provider file | bitcoin: yes; ether: yes, citing c1 for supply; neither counted in the total |
+| `M06.X.02` | CAVEAT "Personal use; attribution" | Total crypto market | `crypto-c1` (now), `crypto-c3-global` (peak); provider file | yes: both are USD caps |
 | `M07.X.01` | SHOW | Brent, WTI ($/barrel) | `us-fred-open` (`DCOILBRENTEU`, `DCOILWTICO`) | no: price only |
 | `M08.X.01` | SHOW, "Ticker is an estimate" | US national debt | `us-treasury-debt` | n/a |
+| `M01.X.02`, `M02.X.01`, `M03.X.02`, `M04.X.01`, `M05.X.02b` | off under H5 | none | none | - |
 
 **Not built (LATER, no connector, negative-tested):** `M05.X.02a` and `M06.X.01a` (the oracle route, O5), `M09.X.01` (macro tiles). No code may call an oracle contract or create an M09 tile; see `items.test.ts` in 1.9.
 
-**Value lost** is shown only where the row says yes (council: "only where the source's terms allow it and are quoted"). Fund rows, index rows and gold show drawdown only, until legal clears one cited cap figure per market (`markets.md` open question 1). The tile config carries `valueLost: "series" | "supply" | null` and `countInTotal: boolean` (1.4 step 8), and nothing else computes either.
+**Value lost** is shown only where the row says yes (council: "only where the source's terms allow it and are quoted"). Index rows and gold show drawdown only, until legal clears one cited cap figure per market (`markets.md` open question 1). The tile config carries `valueLost: "series" | "supply" | null` and `countInTotal: boolean` (1.4 step 8), and nothing else computes either.
 
-**Dropped from research, not needed in v1:** FX (ECB, Fed H.10). FX was only needed to turn Asian caps into USD, and v1 shows no Asian value lost. KRX (Korea) is also dropped: Korea comes through a fund slot. The second stock connector (S6) is also dropped: one connector (S7) fills every fund slot.
+**Dropped from research, not needed in v1:** FX (ECB, Fed H.10). FX was only needed to turn Asian caps into USD, and v1 shows no Asian value lost. The Korean exchange's API needs a key, so Korea is off (H5).
 
 ### 1.2 Data model (addition to architecture §3.8)
 
@@ -48,12 +48,12 @@ Market series are not entities. Writing a `records` row per daily observation wo
 ```sql
 market_series(
   id         INTEGER PRIMARY KEY,
-  series_key TEXT NOT NULL UNIQUE,   -- e.g. 'fred:DCOILBRENTEU', 'twse:taiex', 's7:slot:M03.japan'
+  series_key TEXT NOT NULL UNIQUE,   -- e.g. 'fred:DCOILBRENTEU', 'tw:broad_index', 'fred-cited:japan'
   source_id  INTEGER NOT NULL REFERENCES sources(id),
   item_id    INTEGER NOT NULL,       -- Part G item, via the items intern table
   unit       TEXT NOT NULL,          -- 'index_points' | 'usd' | 'usd_per_oz' | 'usd_per_bbl' | 'usd_cap' | 'coins'
   frequency  TEXT NOT NULL,          -- 'daily_exchange' | 'daily_7d' | 'monthly' | 'quarterly'
-  symbol     TEXT                    -- fund ticker for slot series, copied from settings at sync time; NULL otherwise
+  symbol     TEXT                    -- unused since H5 (was the fund ticker of a slot series); always NULL
 );
 market_obs(
   series_id INTEGER NOT NULL,
@@ -80,17 +80,12 @@ market_latest(
 |---|---|---|---|---|---|
 | `us-gov-public-domain` | false (citation requested) | false | false | true | 2026-11-19, Fiscal Data API docs; Fed disclaimer; EIA copyright page |
 | `fred-public-domain` | true (FRED citation) | false | false | true | 2026-11-19, https://fred.stlouisfed.org/legal/ |
-| `fred-citation-required` | true | false | false | **false** (owner permission needed to redistribute) | 2026-11-19, FRED legal page + series notes |
+| `fred-citation-required` | true | false | false | **false** (owner permission needed to redistribute) | 2026-11-19, https://fred.stlouisfed.org/legal/ |
 | `ogdl-tw-1.0` | true | false | false | true | 2026-11-19, https://data.gov.tw/license |
 | `cc-by-4.0` (World Bank) | true | false | false | true | 2026-11-19, https://datacatalog.worldbank.org/public-licenses#cc-by |
-| `provider-personal-s7` | true | false | true | false | 2026-11-19, https://www.tiingo.com/documentation/appendix/developers |
-| `provider-personal-s3` | true | false | true | false | 2026-11-19, https://www.alphavantage.co/support/ and https://www.alphavantage.co/terms_of_service/ |
-| `provider-derived-x4` | false | false | false | **false** (commercial use needs the exchange's data licence; legal: CAVEAT self-hosted, LATER hosted) | 2026-11-19, https://www.bitstamp.net/api/ |
-| `provider-attribution-c1` | true ("Powered by" line) | false | false | false | 2026-11-19, https://www.coingecko.com/en/api_terms |
-| `provider-personal-c3` | true | false | true | false | 2026-11-19, https://coinpaprika.com/api/pricing/ and https://coinpaprika.com/api-terms-of-use/ |
-| `rpc-display-o3` | false | false | false | true (chain data "is not Service Content") | 2026-11-19, https://www.publicnode.com/terms |
+| (provider file) | per entry | false | per entry | per entry | per entry: the date and terms URL the user records |
 
-Invariant 3 (§4.2) puts every `redistribution: false` source in `connector-cache`, which matches the storage column below. R17 reads "redistribution = false ⇒ connector-cache; a key is required only where `requires` lists one" (architect, accepted; legal: consistent with memo rule 5). So X4, C3 and the cited FRED series are keyless `connector-cache` sources, and C1's key is optional.
+Invariant 3 (§4.2) puts every `redistribution: false` source in `connector-cache`, which matches the storage column below. Each configured provider's licence comes from its provider-file entry (id, name, the three flags, verified date and terms URL). The server registers it for `checkSource` (`extraLicences`), and it can never replace a built-in licence. R17 reads "redistribution = false ⇒ connector-cache" (architect, accepted; legal: consistent with memo rule 5).
 
 ### 1.4 Maths (`packages/markets/src/calc.ts`, pure)
 
@@ -132,7 +127,7 @@ Inputs per series: observations `obs` (date ascending, within the window), the o
 | §8 field | From |
 |---|---|
 | `itemId`, `label` | the tile config row (`label` is an i18n key) |
-| `state` | `needs_symbol`, `needs_key`, `error` from the source; `peak_unknown` when `peakKnown` is false; `stale` per step 9; otherwise `ok` |
+| `state` | `not_configured` when the provider file doesn't configure the row's source (H4); `error` from the source; `loading` before its first sync; `peak_unknown` when `peakKnown` is false; `stale` per step 9; otherwise `ok` |
 | `value` | `current` (step 2) |
 | `unit` | `market_series.unit` |
 | `peak` | `{ value: peak, date: peakDate, basis: peakBasis }` (steps 3-4); absent when `peakKnown` is false |
@@ -142,23 +137,16 @@ Inputs per series: observations `obs` (date ascending, within the window), the o
 | `asOf` | `currentAt` (step 2) |
 | `sources` | the `SourceRef`s of the series used, plus `derived: true` and the input series for computed values |
 
-`CrashResponse.totalWiped.valueMicroUsd` is step 8, and `rowItemIds` and `oldestAsOf` are as defined there. It also needs **`excludedItemIds: ItemId[]`** (counted rows that had no value), listed with the four row fields below.
+`CrashResponse.totalWiped.valueUsd` is step 8, with `rowItemIds`, `excludedItemIds` (counted rows that had no value, including a row whose provider isn't configured) and `oldestAsOf`.
 
-**Four fields this spec needs that §8 doesn't have yet** (architect, for the S04b contract):
-
-| Field | Why |
-|---|---|
-| `rowKey: string` (e.g. `"M03.X.02:japan"`) | one item has up to 7 rows (`M03.X.02`); tests, the UI and polling need a stable key per row |
-| `trackingSince?: string` | the Taiwan empty state (Part G, verbatim) is "Peak not known yet: tracking since [date]"; the row must carry the date |
-| `dayChangePct?: number` | step 6; change since the previous close for daily series |
-| `symbol?: string` | the fund caveat reads "Via [your symbol], a US-listed fund"; present only for fund-slot rows |
+**Fields §8 added for this spec** (`91a002e`, `ceb20ec`): `rowKey` (e.g. `"M06.X.01b:bitcoin"`; one item can have several rows), `trackingSince` (the Taiwan empty state), `dayChangePct` (step 6) and `totalWiped.excludedItemIds`. The fund `symbol` field went with H5.
 
 Three fields from the frontend plan (frontend, 7029664310) are defined here so the UI never guesses:
 
 - **`cadence`** is `"live"` when `value` comes from a `market_latest` row inside its freshness limit (step 2). Otherwise it is the series' `frequency`.
 - **`delayed`** is a fixed property of the source: true when the source publishes its observation at least one day after the observation date.
-  - true: Treasury (1 business day), FRED oil (≈ 2 days), FRED Japan (next day), Z.1 (about 10 weeks), the World Bank (the next month), TWSE (the evening after the session), and S7 or S3 end-of-day closes
-  - false: X4, C1, O3, and S7 when its intraday endpoint is available
+  - true: Treasury (1 business day), FRED oil (≈ 2 days), FRED Japan (next day), Z.1 (about 10 weeks), the World Bank (the next month), the Taiwan index (the evening after the session), and the cited FRED series
+  - false: x4, c1, o3
 
   It sits in the tile config beside each series, and `items.test.ts` asserts every series has it.
 - **`peak.basis`:**
@@ -167,55 +155,37 @@ Three fields from the frontend plan (frontend, 7029664310) are defined here so t
   - `"seeded"`: the peak or the window start comes from `seeds.ts`, and the row cites the seed
   A row with `peakKnown: false` has no `peak`; it renders "tracking since [trackingSince]".
 
-### 1.5 Settings (P12)
+### 1.5 Settings and the local provider file (H4)
 
-The `settings` table (§3.8) holds:
+The `settings` table (§3.8) holds one market key, `markets.peakSince` (ISO date, default `2025-01-01`). The fund slots and the market keys are gone (H5).
 
-| Key | Value | Default |
-|---|---|---|
-| `markets.peakSince` | ISO date | `2025-01-01` |
-| `markets.fund.<slot>` | fund ticker, `^[A-Z0-9.\-]{1,10}$` | **none** |
-
-There are 13 slots:
-- `M01.us_total`, `M01.us_large`, `M01.us_tech`
-- `M02.europe`
-- `M03.japan`, `M03.korea`, `M03.taiwan`, `M03.hong_kong`, `M03.china`, `M03.india`, `M03.australia`
-- `M04.canada`, `M04.brazil`
-
-The rules:
-- No ticker ships in the repo, in defaults, fixtures, docs or tests. With no symbol, a slot's state is `needs_symbol` and the UI shows "Choose a fund in settings" with no number (Part G).
-- With a symbol but no key, the state is `needs_key`.
-- Changing a slot's symbol deletes that slot's series rows and refetches.
-- Keys are env vars, never settings (architecture §15, row "market connector keys", points here). The Settings page shows only whether each is set and what it unlocks:
-
-| Env var | Required by | Unlocks |
-|---|---|---|
-| `MARKETS_S7_API_KEY` | `stocks-s7` (`requires`) | the 13 fund slots: M01.X.02, M02.X.01, M03.X.02, M04.X.01 |
-| `MARKETS_S3_API_KEY` | `gold-s3` (`requires`) | M05.X.02b, daily gold |
-| `MARKETS_C1_DEMO_KEY` | optional for `crypto-c1` | a stable 10,000 calls/month quota instead of the shared keyless limit |
+**The provider file**, `<data dir>/providers.json` (or `FINORA_PROVIDERS_FILE`), is gitignored and read once at start. Schema (`packages/markets/src/providers.ts`; qa 7066883380):
+- `{"version": 1, "providers": {"<code>": entry}}`, where code is one of `x4`, `c1`, `c3`, `o3`, `fred-cited`, `tw`. The file is under 64 KB, strict, and refuses unknown keys.
+- Each entry has `hosts` (bare hostnames only: no scheme, IP literal, localhost or wildcard), `urls` (the named https templates the connector needs, each on one of the entry's hosts, with no credentials or port), `termsUrl` and `homepage` (on its hosts), `publisher`, `attribution` (a line or null), and `licence` (`id`, `name`, `redistribution`, `nonCommercial`, `attributionRequired`, `verifiedOn`).
+- `fred-cited` adds `series`: `{id, rowKey, attribution}`, where rowKey is a known row (`M03.X.01:japan`). Cited series are stored under `fred-cited:<row>`, never under an id that names the owner.
+- **Any problem configures nothing.** Problems are reported as paths only, never values. The file never reaches a backup, a log, an error or a response.
+- The polite fetcher's allowlist comes from the entry's hosts. Private-address refusal, redirect re-checks and the no-POST-redirect rule hold whatever the file says.
+- Tests use placeholder hosts under `.invalid`, built from parts (`fixtureProviders()`).
+- The maintainer's filled file lives in the main checkout's `.local/`, to copy into the data dir.
 
 ### 1.6 Scheduling (`packages/markets/src/schedule.ts`; cto §7)
 
 | Job | Sources | When |
 |---|---|---|
-| official daily | `us-treasury-debt`, `us-fred-open`, `us-fred-cited`, `tw-twse-index` | every 6 h at 01:00, 07:00, 13:00, 19:00 UTC; unchanged costs one sync row |
+| official daily | `us-treasury-debt`, `us-fred-open`, `us-fred-cited`, `tw-broad-index` | every 6 h at 01:00, 07:00, 13:00, 19:00 UTC; unchanged costs one sync row |
 | official monthly | `intl-worldbank-pinksheet` | daily at 12:00 UTC (the file changes about once a month) |
-| crypto quotes | `crypto-x4-ohlc` (latest), `crypto-c1` (global) | every 5 min **while a Crash monitor client is connected and for 30 min after**; otherwise hourly |
+| crypto quotes | `crypto-x4-ohlc` (latest) every 5 min, `crypto-c1` (global) every 15 min | **while a Crash monitor client is connected and for 30 min after**; otherwise hourly. Only when the provider file configures them |
 | crypto daily | `crypto-x4-ohlc` (daily candles), `crypto-c1` (ether supply), `crypto-o3-btc-height` | hourly |
 | crypto peak | `crypto-c3-global` | daily at 00:30 UTC |
-| stocks | `stocks-s7` | hourly between 09:30 and 16:00 America/New_York, Mon-Fri, plus one end-of-day run at 16:30 New York time; only for slots with a symbol and only if the key is set |
-| gold | `gold-s3` | daily at 22:00 UTC, only if the key is set |
 
-Request budget per day, all slots filled, client connected all day:
+Request budget per day, client connected all day:
 
 | Source | Calls/day | Free limit | Headroom |
 |---|---|---|---|
-| X4 | 288 + 48 | 10,000 per 10 min | large |
-| C1 | 288 + 24 | 10,000/month on the optional demo key (9,360/month used); keyless limit unpublished | ~6% on the demo key |
-| C3 | 1 | 20,000/month | large |
-| O3 | 24 | unpublished; 429 on excess | back off on 429 |
-| S7 | 13 × 7 + 13 = 104 | 50/h, 1,000/day, 500 symbols/month | large; **never faster than hourly** (13 calls every 15 min would break 50/h) |
-| S3 | 1 | 25/day | large |
+| x4 | 288 + 48 | 10,000 per 10 min | large |
+| c1 | 96 + 48 | keyless limit unpublished | back off on 429 |
+| c3 | 1 | 20,000/month | large |
+| o3 | 24 | unpublished; 429 on excess | back off on 429 |
 | official | ≤ 20 | none published | - |
 
 Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, backoff on 429 and 5xx (1 min, 5 min, 30 min), and no parallel requests to the same host.
@@ -225,7 +195,7 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 - **Change detection:** content hash per artifact plus `parserVersion` (§4.4 step 1, A1); both equal → one `unchanged` sync. Otherwise the loader upserts `market_obs` by (`series_id`, `date`): a changed value is overwritten (FRED and the World Bank revise history) and records the new `sync_id`.
 - **`parserVersion`** for a market source is the hash of its module under `packages/sources/src/<cc>/<id>/` (fetch and parse), its field map, the items list, and `packages/markets/src/tiles.ts` (a tile's `valueLost` rule or unit change must re-parse). `calc.ts` is not part of it: it runs at read time over stored observations.
 - **Record unit:** one observation, (`series_key`, `date`), sorted by `series_key` then `date` ascending. Its hash input is `[series_key, date, value]`, and the value is normalised to the source's stated decimals. Market sources write `market_obs` rows, not `records` rows (1.2). The pipeline's staging table holds `(series_key:date, hash)` pairs the same way.
-- **Removal:** for full-history sources (FRED, Treasury, World Bank), an observation inside the window that is absent from a complete pull is deleted. Incremental sources (X4, S7, S3, TWSE) and snapshot sources (C1, C3, O3) never delete in a sync; they only append or overwrite. This is `SourceMeta.purgeScope` (§4.2): `window` for the full-history pulls, so the purge only covers the pulled date range; `none` for the rest.
+- **Removal:** for full-history sources (FRED, Treasury, World Bank), an observation inside the window that is absent from a complete pull is deleted. Incremental sources (x4, tw) and snapshot sources (C1, C3, O3) never delete in a sync; they only append or overwrite. This is `SourceMeta.purgeScope` (§4.2): `window` for the full-history pulls, so the purge only covers the pulled date range; `none` for the rest.
 - **`maxPurgeShare`** = max(2%, 5 × the measured removal share per refresh period), per §4.4. The removal share measured over two pulls (2026-11-19 and -20) was 0 for every full-history source: rows only grew. So the value is **0.02**. Sources with `purgeScope: "none"` declare `0` and never delete in a sync. Settings-driven deletions (moving `peakSince` later, changing a fund symbol, removing a key) are explicit jobs outside the sync purge and are logged as such.
 - **`checkedAt`** (A5): every row shows "checked [time]" from the latest content or unchanged sync, beside its as-of. The stale rule (1.4 step 9) uses the observation date, never `checkedAt`.
 - **History events:** none. Market series emit no `finora.*` events.
@@ -234,10 +204,8 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 |---|---|---|---|---|
 | us-treasury-debt | observation, by date | `max_date_in_data` (`record_date`) | 0.02 | window |
 | us-fred-open, us-fred-cited | observation, by series then date | `max_date_in_data` (`observation_date`) | 0.02 | window |
-| tw-twse-index | observation, by date | `max_date_in_data` (`Date`, ROC) | 0 | none |
+| tw-broad-index | observation, by date | `max_date_in_data` (`Date`, ROC) | 0 | none |
 | intl-worldbank-pinksheet | observation, by month | `in_file_field` (sheet "Monthly Prices", A4 "Updated on …") | 0.02 | window |
-| stocks-s7 | observation, by slot then date | `max_date_in_data` (`date`), proven in the key round | 0 | none |
-| gold-s3 | observation, by date | `max_date_in_data`, proven in the key round | 0 | none |
 | crypto-x4-ohlc | observation, by pair then date | `max_date_in_data` (`timestamp`) | 0 | none |
 | crypto-o3-btc-height | one snapshot per UTC day | `in_file_field` (block header `time`) | 0 | none |
 | crypto-c1 | one snapshot per series | `in_file_field` (`updated_at`, `last_updated`) | 0 | none |
@@ -247,7 +215,7 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 
 - `packages/markets/src/fixtures/series.ts` generates every series from a seed. The walk is geometric with a planted peak on `2025-07-15` and a drawdown of −23.4% on the fixture "today" `2026-11-18`, so `calc.test.ts` asserts exact numbers.
 - Per-source layout writers (below) wrap the series in each source's raw format. Each committed layout fixture is under 50 KB.
-- **Fund tickers in fixtures:** `ZZFX01` to `ZZFX13`. A fixture ticker never matches a real listing: real US tickers have no digits. Hosts are real (the parsers need them); values are synthetic.
+- **Hosts in fixtures:** official hosts are real (the parsers need them); provider hosts are placeholders under `.invalid`, built from parts (`fixtureProviders()`). Every value is synthetic.
 - Fixture "today" is fixed by a fake clock in every test.
 
 ### 1.9 Tests (shared)
@@ -257,12 +225,13 @@ Every job uses the polite fetcher (§4.4): host allowlist from `officialHosts`, 
 | `packages/markets/src/calc.test.ts` | peak, peak date and drawdown on the planted series; the total-crypto peak uses only the C3 all-time high and the current C1 total (no stored C1 history); `peakKnown = false` gives `drawdownPct = null` and never 0; value lost only for `series`/`supply`; `totalWiped` sums only `countInTotal` rows (bitcoin and ether with value lost are not added on top of the total crypto market), lists them, and reports a counted row with no value as excluded; the stale thresholds per frequency, including a Monday after a Friday close (not stale) |
 | `packages/markets/src/debt.test.ts` | per-second rate and ticker from two fixture rows; label key present |
 | `packages/markets/src/items.test.ts` | one case per M item: every M SHOW/CAVEAT item in `items.generated.ts` has a tile row; `M05.X.02a`, `M06.X.01a` and `M09.X.01` have none, and no connector lists an oracle host (LATER negative tests) |
-| `packages/markets/src/settings.test.ts` | no slot has a default symbol; `needs_symbol` vs `needs_key`; a symbol change deletes the slot's rows |
+| `packages/markets/src/settings.test.ts` | the peak date's default and validation |
+| `packages/markets/src/providers.test.ts` | one case per provider-file refusal; a broken file configures nothing; problems never echo a value |
 | `packages/markets/src/schedule.test.ts` | with a fake clock, one full day of jobs stays within every limit in 1.6, and crypto drops to hourly 30 min after the last client leaves |
-| `packages/markets/src/connectors.test.ts` | connector-cache rows never appear in export, list endpoints or MCP bulk tools; removing a key deletes its rows; C1 rows older than 24 h are deleted |
+| `packages/markets/src/connectors.test.ts` | connector-cache rows never appear in export, list endpoints or MCP bulk tools; c1 rows older than 24 h are deleted |
 | `packages/markets/src/provenance.test.ts` | every `MarketRow` value carries a `SourceRef` with licence, retrieval time and as-of; derived values are flagged and cite their inputs |
-| `apps/server/src/routes/v1/markets/crash/route.contract.test.ts` | the response validates against `CrashResponse`; it is served from the server cache with no upstream call; with no keys, official rows are `ok` and fund rows `needs_symbol` |
-| `apps/web/e2e/crash-monitor.spec.ts` | zero keys: the official rows render with numbers, fund slots show "Choose a fund in settings", and Taiwan renders "Peak not known yet: tracking since [date]" with no % |
+| `apps/server/src/routes/v1/markets/crash/route.contract.test.ts` | the response validates against `CrashResponse`; it is served from the server cache with no upstream call; with no provider file, official rows are `ok` and provider rows `not_configured` |
+| `apps/web/e2e/crash-monitor.spec.ts` | no provider file: the official rows render with numbers, provider rows show "Not configured", and Taiwan renders "Peak not known yet: tracking since [date]" with no % |
 | guard (CI) | committed files hold no real ticker (denylist) |
 
 ### 1.10 Size and time budget
@@ -336,7 +305,6 @@ Two registry entries share one parser because their licences differ (one storage
 | `BOGZ1LM893064105Q` | us-fred-open | `fred:BOGZ1LM893064105Q` | `usd` (millions in the source, × 1e6 at parse) | quarterly | FRED dates quarters by their **start**; store the quarter **end** |
 | `DCOILBRENTEU` | us-fred-open | `fred:DCOILBRENTEU` | `usd_per_bbl` | daily_exchange | as is |
 | `DCOILWTICO` | us-fred-open | `fred:DCOILWTICO` | `usd_per_bbl` | daily_exchange | as is |
-| `NIKKEI225` | us-fred-cited | `fred:NIKKEI225` | `index_points` | daily_exchange | as is |
 
 **Items:** `M01.X.01` CAVEAT "Quarterly; includes non-listed equity" (NC); `M07.X.01` SHOW (NC). Legal: oil is SHOW on the official wording, with source and date on each figure. `M03.X.01` (Japan row) CAVEAT (NC).
 
@@ -347,38 +315,11 @@ Two registry entries share one parser because their licences differ (one storage
 **Failure modes:** HTTP error or an HTML page instead of CSV (first line not `observation_date,`) → `failed` with `not_csv`; keep rows; Stale per frequency.
 **Open questions:** none. The unit of `BOGZ1LM893064105Q` is "Millions of Dollars" on its series page; the parser asserts this against `fixtures/fred-units.json`, and a nightly `live` job re-reads the page.
 
-### tw-twse-index: Taiwan Stock Exchange OpenAPI
+### tw-broad-index: Taiwan broad index (provider file, code `tw`)
 
-**Source**
-```ts
-{ id: "tw-twse-index", country: "intl", publisher: "Taiwan Stock Exchange (open data)",
-  homepage: "https://openapi.twse.com.tw/", officialHosts: ["openapi.twse.com.tw"],
-  licence: "ogdl-tw-1.0", attribution: "Taiwan Stock Exchange, TWSE OpenAPI (Open Government Data License, version 1.0)",
-  storage: "store", cadence: "daily", publishedAtUtc: "22:00",
-  asOf: [{ strategy: "max_date_in_data", field: "[].Date", calendar: "roc" }], maxPurgeShare: 0,
-  deepLink: "https://openapi.twse.com.tw/", orderUrl: null,
-  requires: [], limits: { requestsPerSecond: 1 }, items: ["M03.X.01"], purgeScope: "none" }
-```
-- Endpoint: `GET https://openapi.twse.com.tw/v1/indicesReport/MI_5MINS_HIST`. It returns the broad index's daily OHLC for the **current month only** (14 rows measured on 2026-11-19). Fields: `Date`, `OpeningIndex`, `HighestIndex`, `LowestIndex`, `ClosingIndex`.
-- TLS: Python 3.13+ rejected the certificate under its strict X.509 flag. Node's default verification must be tested by `twse.live.test.ts` in the nightly `live` job. If Node also rejects it, the fetcher may relax only the strict flag for this host, never chain verification.
-- Dates are ROC calendar, 7 digits `YYYMMDD`: Gregorian year = `YYY + 1911`.
+The Taiwan exchange's open-data API, under Taiwan's Open Government Data License 1.0 (CC BY 4.0 compatible, attribution required). Its host, URL and attribution line live in the provider file (H4). The parser is fixed: daily closes for the current month only (`Date` in the ROC calendar, `YYYMMDD` with year + 1911, and `ClosingIndex` with thousands separators). It is stored in the main store when the entry's licence allows redistribution. The as-of is `max_date_in_data`. Series `tw:broad_index` (`index_points`, `daily_exchange`); `purgeScope: none`.
 
-**Items:** `M03.X.01` (Taiwan row) CAVEAT. Empty state, verbatim from Part G: "Peak not known yet: tracking since [date]" (no %, never 0%).
-
-**Taiwan peak rule:** history accumulates from the first sync (the OpenAPI has no backfill; the TWSE website's history pages are off-limits, its terms ban crawlers). `peakKnown` stays false until the first stored observation is within 7 days of `peakSince`, which with today's default never happens. So the row shows "tracking since" until a seed exists. A seed is one cited official figure (`packages/markets/src/seeds.ts`: `{ seriesKey, date, value, citation, licence }`, committed only after legal clears `markets.md` open question 1). **v1 ships `seeds.ts` empty.** `calc.ts` treats a seed as an observation for the peak and `peakKnown`, and the row cites it.
-
-**Field map**
-
-| Source field | Type | Target | item_id | Transform |
-|---|---|---|---|---|
-| `Date` | ROC `YYYMMDD` string | `market_obs.date` | M03.X.01 | ROC → ISO; reject if month or day is out of range |
-| `ClosingIndex` | decimal string, may contain `,` | series `twse:taiex` value (`index_points`) | M03.X.01 | strip `,`; reject non-finite |
-| `OpeningIndex`, `HighestIndex`, `LowestIndex` | - | dropped (not read) | - | - |
-
-**Refresh:** append or overwrite by date; `purgeScope: "none"`. A gap of more than 3 business days (the app was off) cannot be backfilled. The row keeps its observations and shows the gap in its history; the drawdown uses what exists.
-**Fixtures:** `fixtures/twse-mi5mins.json`, a JSON array in the measured shape with ROC dates and comma thousands separators. **Tests:** `packages/sources/src/intl/twse/twse.test.ts` (ROC conversion, commas, `peakKnown` false and "tracking since", a seed flips it).
-**Failure modes:** HTTP error → keep rows, Stale after 2 business days. Empty array (month start, before the first session) → `unchanged`.
-**Open questions:** none.
+**Taiwan peak rule:** history accumulates from the first sync (the open-data API has no backfill, and the exchange's website history pages are off-limits: its terms ban crawlers). `peakKnown` stays false until the first stored observation is within 7 days of `peakSince`, which with today's default never happens. So the row shows "tracking since" until a seed exists. A seed is one cited official figure (`packages/markets/src/seeds.ts`: `{ seriesKey, date, value, citation, licence }`, committed only after legal clears `markets.md` open question 1). **v1 ships `seeds.ts` empty.** `calc.ts` treats a seed as an observation for the peak and `peakKnown`, and the row cites it.
 
 ### intl-worldbank-pinksheet: World Bank commodity prices, monthly
 
@@ -413,162 +354,34 @@ Two registry entries share one parser because their licences differ (one storage
 
 **Open questions:** none.
 
-### stocks-s7: fund prices with the user's own key
+### Removed under H5: stocks-s7 and gold-s3
 
-**Source**
-```ts
-{ id: "stocks-s7", country: "intl", publisher: "<provider S7, from meta>",
-  homepage: "https://www.tiingo.com/", officialHosts: ["api.tiingo.com"],
-  licence: "provider-personal-s7", attribution: "<the provider's required attribution line, private terms notes S7>",
-  storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
-  asOf: [{ strategy: "max_date_in_data", field: "[].date" }], maxPurgeShare: 0,   // proven on real responses in the key round
-  deepLink: null, orderUrl: null,
-  requires: ["MARKETS_S7_API_KEY"], limits: { dailyRequests: 1000 },   // the 50/hour cap lives in schedule.ts budgets (1.6)
-  items: ["M01.X.02", "M02.X.01", "M03.X.02", "M04.X.01"], purgeScope: "none" }
-```
-- Terms: S7 runs a programme for open-source software where each user supplies their own key, with attribution required (research, private notes S7). The Settings page links to the provider's sign-up page from `meta.homepage`.
-- **Daily closes:** `GET https://api.tiingo.com/tiingo/daily/<symbol>/prices?startDate=<peakSince − 10 days>&token=<key>` (the endpoint the phase 1 probe called; with no key it returned 403). Reads `date` and `adjClose`. Use `adjClose`, not `close`: a fund split must never read as a crash. The drawdown then includes reinvested distributions, which the fund caveat already covers ("Not the index").
-- **Hourly latest:** the provider's intraday endpoint for US-listed symbols. Its availability on the free plan is **deferred: key pending**. The fallback, which is fully specified: if the key round shows no intraday access, the stocks job runs only the 16:30 end-of-day pass, and the row shows the last close with its date.
-- **Deferred: key pending.** Field names `date` and `adjClose` come from the provider's public docs. The key-testing round records one real response shape (no values) into `research/.cache/markets/` and confirms them. Until it does, the fixture follows the docs, and `s7.contract.test.ts` is marked `todo` with a link to the key-round task.
+The fund-price and daily-gold connectors needed the user's own key, so human ruling H5 removed them with their rows, settings and env vars. Monthly gold (`intl-worldbank-pinksheet`) stays.
 
-**Items:** M01.X.02, M02.X.01, M03.X.02, M04.X.01, all CAVEAT with the fund text: "Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index". Empty states: "Choose a fund in settings" (no symbol); KEY (no key).
+### Provider-file sources: x4, o3, c1, c3, fred-cited (and tw, above)
 
-**Field map**
+Each is built from its provider-file entry (1.5): `officialHosts` = the entry's hosts, `licence` = the entry's licence id, `attribution`, `homepage` and `publisher` from the entry. With no entry, the source has no connector, is never fetched, and its rows read `not_configured`. The parsers below are fixed in the tree; only the endpoints come from the file.
 
-| Source field | Type | Target | item_id | Transform |
-|---|---|---|---|---|
-| `date` | ISO datetime | `market_obs.date` | the slot's item | date part |
-| `adjClose` | number | series `s7:slot:<slot>` (`usd`) | the slot's item | reject non-finite or ≤ 0 |
-| all other fields | - | not read | - | - |
+| Source | Code and URL templates | Storage | asOf | Reads | Series |
+|---|---|---|---|---|---|
+| `crypto-x4-ohlc` | `x4`: `daily` (`{pair}`, `{limit}`, `{start}`), `latest` (`{pair}`) | connector-cache | `max_date_in_data` (`timestamp`) | `data.ohlc[].timestamp` (string epoch seconds), `close` | `x4:btcusd`, `x4:ethusd` (`usd`, `daily_7d`); a window over 1,000 days pages by `start` |
+| `crypto-o3-btc-height` | `o3`: `rpc` (JSON-RPC POST, idempotent: `getbestblockhash`, then `getblockheader`), `tip` and `block` (`{hash}`) as the GET fallback | store (chain data may be displayed) | `in_file_field` (header `time`, or the fallback block's `timestamp`) | `result.height`, `result.time` | `btc:supply` from `btcSupply(height)` (`coins`) |
+| `crypto-c1` | `c1`: `global`, `ethereum` | connector-cache, latest snapshot only, deleted after 24 h | `in_file_field` (`data.updated_at`) | `data.total_market_cap.usd`; `[0].circulating_supply`, `[0].last_updated` | `c1:total_cap`, `c1:eth_supply` |
+| `crypto-c3-global` | `c3`: `global` | connector-cache | `in_file_field` (`last_updated`) | `market_cap_ath_value`, `market_cap_ath_date` | `c3:total_cap_peak` |
+| `us-fred-cited` | `fred-cited`: `series` (`{id}`, `{from}`), with the series list | connector-cache (personal use; redistribution needs the owner's permission) | `max_date_in_data` (`observation_date`) | `observation_date`, the series value | `fred-cited:<row>` (`index_points`) |
 
-**Identity:** `series_key = "s7:slot:" + slot`; `market_series.symbol` records the ticker used, so a changed symbol is detected and the slot's rows are reset.
-**Refresh:** append or overwrite; `purgeScope: "none"` within a symbol.
-**Fixtures:** `fixtures/s7-daily.json` with symbols `ZZFX01`…`ZZFX13`. **Tests:** `packages/sources/src/intl/s7/s7.test.ts` (parse; adjClose used; key never logged: a mocked logger receives no key value); `packages/markets/src/settings.test.ts` (in 1.9).
-**Failure modes:**
-- 401 or 403 → state `needs_key` with "Key rejected"; nothing else is touched.
-- 404 for a symbol → that slot shows "Symbol not found: check settings".
-- 429 → backoff, keep rows.
-- In every case the rows go Stale after 2 business days.
-
-**Open questions:** none. The intraday endpoint and the response shape are deferred to the key round, with the fallback above.
-
-### gold-s3: daily gold price with the user's own key
-
-**Source**
-```ts
-{ id: "gold-s3", country: "intl", publisher: "<provider S3, from meta>",
-  homepage: "https://www.alphavantage.co/", officialHosts: ["www.alphavantage.co"],
-  licence: "provider-personal-s3", attribution: "<the provider's attribution, private terms notes S3>",
-  storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
-  asOf: [{ strategy: "max_date_in_data", field: "data[].date" }], maxPurgeShare: 0,   // proven in the key round
-  deepLink: null, orderUrl: null, requires: ["MARKETS_S3_API_KEY"], limits: { dailyRequests: 25 },
-  items: ["M05.X.02b"], purgeScope: "none" }
-```
-- Endpoint: the provider's daily gold history function. Its parameters and response shape are **deferred: key pending**; the demo key answers only for sample symbols. Fully specified fallback: if the key round shows the history is premium-only, `M05.X.02b` shows KEY with "Not available on the free plan" and the monthly row `M05.X.01` stays.
-- **Items:** `M05.X.02b` CAVEAT "With your own key; personal use"; empty state NC / KEY.
-- **Field map:** a date field → `market_obs.date`; the USD-per-ounce value → series `s3:gold` (`usd_per_oz`, `daily_7d`, because spot gold is quoted on weekdays only, treated as calendar days for staleness). Exact names come from the key round.
-- **Fixtures:** `fixtures/s3-gold.json` following the provider's documented envelope. **Tests:** `packages/sources/src/intl/s3/s3.test.ts`, with the contract test `todo` until the key round.
-- **Failure modes:** as stocks-s7. The provider answers rate limits with HTTP 200 and an `Information` or `Note` body, so the parser treats a body without the data array as `rate_limited`, not as data.
-- **Open questions:** none (deferred items have fallbacks).
-
-### crypto-x4-ohlc: bitcoin and ether daily candles and latest price
-
-**Source**
-```ts
-{ id: "crypto-x4-ohlc", country: "intl", publisher: "<exchange X4, from meta>",
-  homepage: "https://www.bitstamp.net/api/", officialHosts: ["www.bitstamp.net"],
-  licence: "provider-derived-x4", attribution: null,
-  storage: "connector-cache", cadence: "daily", publishedAtUtc: "00:05",
-  asOf: [{ strategy: "max_date_in_data", field: "data.ohlc[].timestamp", epoch: "s" }], maxPurgeShare: 0,
-  deepLink: null, orderUrl: null, requires: [], limits: { requestsPerSecond: 1 },
-  items: ["M06.X.01b"], purgeScope: "none" }
-```
-- **Daily:** `GET https://www.bitstamp.net/api/v2/ohlc/<pair>/?step=86400&limit=1000&start=<epoch of peakSince − 10 days>` for `btcusd` and `ethusd`. Measured: 689 rows from 2025-01-01 in one call. If the window ever exceeds 1,000 days, page by `start` in 1,000-day steps.
-- **Latest:** the same endpoint with `step=300&limit=1`. Its close and timestamp go to `market_latest`.
-- **Terms and legal position:** the exchange allows derived figures ("ratios, calculations, new original works, statistics"). Commercial users must sign a data licence. Legal: CAVEAT for a self-hosted instance (unverified reading of the trigger); LATER for any hosted build.
-
-**Items:** `M06.X.01b` CAVEAT "Self-hosted, personal use" (NC).
-
-**Field map**
-
-| Field | Type | Target | Transform |
-|---|---|---|---|
-| `data.ohlc[].timestamp` | string, epoch seconds | `market_obs.date` (UTC day) or `market_latest.observed_at` | integer seconds → ISO |
-| `data.ohlc[].close` | decimal string | series `x4:btcusd`, `x4:ethusd` (`usd`, `daily_7d`) | number, > 0 |
-| `open`, `high`, `low`, `volume` | - | not read | - |
-
-**Refresh:** append or overwrite; `purgeScope: "none"`. **Fixtures:** `fixtures/x4-ohlc-<pair>.json` in the envelope `{"data":{"pair":"BTC/USD","ohlc":[...]}}`, with timestamps as strings. **Tests:** `packages/sources/src/intl/x4/x4.test.ts` (string epochs; latest vs daily; the paging rule above 1,000 days).
-**Failure modes:** HTTP error → keep rows; a latest older than 10 min is ignored (1.4 step 2); daily Stale after 2 days.
-**Open questions:** none.
-
-### crypto-o3-btc-height: bitcoin supply from block height
-
-**Source**
-```ts
-{ id: "crypto-o3-btc-height", country: "intl", publisher: "<public RPC O3, from meta>",
-  homepage: "https://www.publicnode.com/", officialHosts: ["bitcoin-rpc.publicnode.com", "mempool.space"],
-  licence: "rpc-display-o3", attribution: null, storage: "store", cadence: "daily", publishedAtUtc: null,
-  asOf: [{ strategy: "in_file_field", field: "result.time", epoch: "s" }], maxPurgeShare: 0,
-  deepLink: null, orderUrl: null, requires: [],
-  limits: { requestsPerSecond: 1 }, items: ["M06.X.01b"], purgeScope: "none" }
-```
-- Requests: `POST https://bitcoin-rpc.publicnode.com` with `{"jsonrpc":"1.0","id":1,"method":"getbestblockhash","params":[]}`, then `{"jsonrpc":"1.0","id":2,"method":"getblockheader","params":["<hash>"]}`. Read `result.height` and `result.time` (epoch seconds) from the header. Measured 2026-11-20: height 976,676, header 0.3 h old; probe `publicnode_btc_height` in `onchain.py`.
-- Fallback host: O1, `GET https://mempool.space/api/blocks/tip/height`, plain-text integer. Only the two hosts in `officialHosts` are ever called; there is no user-configurable host (a user URL would bypass the allowlist, R14).
-- Supply: `btcSupply(height)` in `packages/markets/src/btc-supply.ts` sums each halving era: 210,000 blocks, subsidy starting at 50 BTC and halved by integer division in satoshis, from block 0 to `height` inclusive. Measured gap to an explorer's reported supply: 28 BTC of 20.1 M (unclaimed early subsidy), documented in the row's note.
-- `asOf` is the best block's header `time`. On the fallback host, the as-of is the tip block's `timestamp` from `GET https://mempool.space/api/block/<hash>` (proven in phase 1). Store one `market_obs` row per UTC day (the last fetch of the day) in series `btc:supply` (`coins`, `daily_7d`), plus a `market_latest` row.
-
-**Items:** `M06.X.01b` (bitcoin supply, used only for value lost). **Field map:** `result.height` → `btcSupply` → value; `result.time` → as-of. No other header field is read. **Tests:** `packages/markets/src/btc-supply.test.ts` (height 0 → 50; 209,999 → 10,500,000; 210,000 → 10,500,025; monotonic; never above 21,000,000), `packages/sources/src/intl/o3/o3.test.ts` (JSON-RPC envelope; fallback host on failure).
-**Fixtures:** a JSON-RPC response with a fixture height. **Failure modes:** both hosts down → the supply keeps its last value; the bitcoin value lost shows with the supply's as-of; after 2 days the value lost is hidden (null) and the drawdown stays.
-**Open questions:** none.
-
-### crypto-c1: total crypto market cap and ether supply
-
-**Source**
-```ts
-{ id: "crypto-c1", country: "intl", publisher: "<aggregator C1, from meta>",
-  homepage: "https://www.coingecko.com/en/api", officialHosts: ["api.coingecko.com"],
-  licence: "provider-attribution-c1", attribution: "<the 'Powered by' line required by C1's terms, private notes C1>",
-  storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
-  asOf: [{ strategy: "in_file_field", field: "data.updated_at", epoch: "s" }], maxPurgeShare: 0,
-  deepLink: null, orderUrl: null, requires: [],   // MARKETS_C1_DEMO_KEY is optional: see the key table in 1.5 (architecture §15 points here)
-  limits: { requestsPerSecond: 0.2 }, items: ["M06.X.02", "M06.X.01b"], purgeScope: "none" }
-```
-- **Global:** `GET https://api.coingecko.com/api/v3/global`; reads `data.total_market_cap.usd` and `data.updated_at`. Goes to `market_latest` for series `c1:total_cap` (`usd_cap`).
-- **Ether supply:** `GET https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=ethereum`; reads `[0].circulating_supply` and `[0].last_updated`. Goes to `market_latest` for series `c1:eth_supply` (`coins`).
-- With `MARKETS_C1_DEMO_KEY` set, the loader sends the header `x-cg-demo-api-key`; without it, requests are keyless (shared IP limit, unpublished).
-- **Storage rule from the terms** ("refresh the cache at least every 24 hours"): only the latest snapshot is kept, never history. A snapshot older than 24 h is deleted by the job `markets-c1-expire` (hourly), and the rows that use it show NC.
-
-**Items:** `M06.X.02` CAVEAT "Personal use; attribution"; `M06.X.01b` (ether supply for value lost).
-**Field map:** the four fields above; nothing else is read.
-**Fixtures:** `fixtures/c1-global.json`, `fixtures/c1-markets.json` in the measured key sets. **Tests:** `packages/sources/src/intl/c1/c1.test.ts` (parse; the demo-key header only when set; the 24 h expiry in `connectors.test.ts`).
-**Failure modes:** 429 → backoff to hourly; HTTP 200 with an `error` body (the keyless refusals seen in the probes) → `failed` with the provider's error code; rows expire after 24 h.
-**Open questions:** none.
-
-### crypto-c3-global: total crypto market peak
-
-**Source**
-```ts
-{ id: "crypto-c3-global", country: "intl", publisher: "<aggregator C3, from meta>",
-  homepage: "https://coinpaprika.com/api/", officialHosts: ["api.coinpaprika.com"],
-  licence: "provider-personal-c3", attribution: "<the 'Powered by' credit, private notes C3>",
-  storage: "connector-cache", cadence: "daily", publishedAtUtc: null,
-  asOf: [{ strategy: "in_file_field", field: "last_updated", epoch: "s" }], maxPurgeShare: 0,
-  deepLink: null, orderUrl: null, requires: [], limits: { requestsPerSecond: 1 },
-  items: ["M06.X.02"], purgeScope: "none" }
-```
-- `GET https://api.coinpaprika.com/v1/global`; reads `market_cap_ath_value` (USD) and `market_cap_ath_date` (ISO), stored as the single seed of series `c3:total_cap_peak`, plus `last_updated`.
-- The peak for `M06.X.02` = max(`market_cap_ath_value`, the **current** C1 total). No C1 history is kept or compared (C1's terms allow only a refreshed latest snapshot), so the current value is the only C1 figure used. If the current total is higher, the drawdown is 0 and the row shows "at its peak". `peakDate` follows whichever is larger: the C3 date, or the C1 `updated_at` date. `peakKnown` is true, because the all-time high is on or before any `peakSince`.
-- **Caveat on meaning:** this is the all-time high, not "the highest close since `peakSince`". If the all-time high falls before `peakSince`, the row's peak date shows it. The row's note states "all-time high" (designer to place).
-
-**Items:** `M06.X.02`. **Field map:** the three fields above. **Fixtures:** `fixtures/c3-global.json`. **Tests:** `packages/sources/src/intl/c3/c3.test.ts` (peak rule with a higher local snapshot). **Failure modes:** keep the last peak; it doesn't go stale (an all-time high only moves up, and local snapshots cover that).
-**Open questions:** none.
-
----
+- **x4:** the latest candle goes to `market_latest`, the daily candles to `market_obs`. On HTTP errors rows are kept, a latest older than 2 h is ignored, and daily rows go Stale after 2 days.
+- **o3:** supply follows the halving schedule; the gap to an explorer's figure is unclaimed early subsidy. If both routes fail the supply keeps its last value, and value lost hides after 2 days.
+- **c1:** a keyless refusal arrives as HTTP 200 with an `error` body and is failed, not stored. The view drops snapshots older than 24 h (`SNAPSHOT_MAX_AGE_HOURS`), and the job `c1-expire` deletes them.
+- **c3:** the total-crypto peak is max(the c3 all-time high, the current c1 total). No c1 history is kept.
+- **fred-cited:** the same CSV parser as `us-fred-open`; missing values (`.`) are dropped and counted.
+- **Tests:** `markets/src/connectors.test.ts` and `providers.test.ts` (one case per schema refusal); `server/src/markets/markets.test.ts` (no file → `not_configured`, never zero; a licence the file didn't register writes nothing).
 
 ## Part 3: what the builder must not do
 
 - No connector for the unofficial keyless chart endpoint measured in phase 1 (its terms bar automated access), and none for the CSV site behind a browser check.
 - No oracle contract reads (`M05.X.02a`, `M06.X.01a` are LATER).
-- No FX, KRX or second stock connector in v1 (1.1).
+- No FX connector, no Korean exchange connector and no key-gated connector in v1 (1.1, H5).
+- No commercial host, URL, attribution line or terms URL anywhere in the tree (H4): they belong in the local provider file.
 - No real ticker anywhere committed. No price value in any committed file: fixtures are generated.
 - No `connector-cache` row in an export, a list endpoint, an MCP bulk tool, a log line or an error message.

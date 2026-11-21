@@ -1,25 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { btcSupply } from "./btc-supply.ts";
 import { debtTicker, tickerValue } from "./debt.ts";
-import { FUND_SLOTS, PEAK_SINCE_DEFAULT, readMarketSettings, settingKey, validateSymbol, windowStart } from "./settings.ts";
+import { PEAK_SINCE_DEFAULT, readMarketSettings, settingKey, windowStart } from "./settings.ts";
 
-describe("market settings (P12)", () => {
-  it("ships no fund symbol: every slot is empty until the user sets it", () => {
-    expect(readMarketSettings(new Map())).toEqual({ peakSince: PEAK_SINCE_DEFAULT, funds: {} });
-    expect(FUND_SLOTS).toHaveLength(13);
-  });
-
-  it("reads valid symbols and dates, and ignores invalid ones rather than guessing", () => {
-    const s = readMarketSettings(
-      new Map([
-        [settingKey.fund("M02.europe"), "ZZFX04"],
-        [settingKey.fund("M04.brazil"), "not a ticker!"],
-        [settingKey.peakSince, "2025-02-30"],
-      ]),
-    );
-    expect(s).toEqual({ peakSince: PEAK_SINCE_DEFAULT, funds: { "M02.europe": "ZZFX04" } });
-    expect(validateSymbol(" zzfx01 ")).toEqual({ ok: true, symbol: "ZZFX01" });
-    expect(validateSymbol("A B")).toEqual({ ok: false, reason: "invalid_symbol" });
+describe("market settings", () => {
+  it("defaults the peak date, and ignores an invalid one rather than guessing", () => {
+    expect(readMarketSettings(new Map())).toEqual({ peakSince: PEAK_SINCE_DEFAULT });
+    expect(readMarketSettings(new Map([[settingKey.peakSince, "2025-02-30"]]))).toEqual({ peakSince: PEAK_SINCE_DEFAULT });
+    expect(readMarketSettings(new Map([[settingKey.peakSince, "2024-06-01"]]))).toEqual({ peakSince: "2024-06-01" });
   });
 
   it("keeps observations from 10 days before the peak date", () => {

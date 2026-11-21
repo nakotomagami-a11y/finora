@@ -1,8 +1,8 @@
 import "server-only";
 // Runs the Crash monitor jobs that are due (loaders/markets.md §1.6). Last runs and per-source daily
 // request counts live in main.jobs, so they survive a restart (council session 2, CFO note).
-import { connector, dueJobs, FREE_LIMITS, JOBS, requestsPerRun, windowStart, type JobId, type MarketSettings } from "@finora/markets";
-import type { PoliteFetch } from "@finora/sources";
+import { connector, dueJobs, FREE_LIMITS, JOBS, providerLicences, requestsPerRun, windowStart, type JobId, type MarketSettings, type Providers } from "@finora/markets";
+import type { Licence, PoliteFetch } from "@finora/sources";
 import { expireMarketLatest, type Store } from "@finora/store";
 import { runMarketSource, type MarketRunOutcome } from "./runner.ts";
 
@@ -10,7 +10,8 @@ export type MarketJobsDeps = {
   store: Store;
   now: () => string;
   settings: () => MarketSettings;
-  keys: Record<string, string>;
+  /** The user's local provider file, parsed (H4); empty when there is none. */
+  providers: Providers;
   userAgent: string;
   fetch?: PoliteFetch;
 };
@@ -45,16 +46,17 @@ export async function runDueMarketJobs(deps: MarketJobsDeps): Promise<{ job: Job
   const now = deps.now();
   const day = now.slice(0, 10);
   const settings = deps.settings();
-  const slots = Object.entries(settings.funds).map(([slot, symbol]) => ({ slot, symbol: symbol as string }));
+  const licences: Record<string, Licence> = Object.fromEntries(providerLicences(deps.providers).map((l) => [l.id, l]));
   const results: { job: JobId; sourceId: string; outcome: MarketRunOutcome }[] = [];
   for (const id of dueJobs(now, lastRuns(deps.store), lastClientPoll)) {
     const job = JOBS.find((j) => j.id === id);
     if (!job) continue;
     if (id === "c1-expire") expireMarketLatest(deps.store.db, "cc", "crypto-c1", new Date(Date.parse(now) - 24 * 3_600_000).toISOString());
     for (const run of job.runs) {
-      const c = connector(run.sourceId);
+      // A source whose provider the local file doesn't configure has no connector, so it is never fetched.
+      const c = connector(run.sourceId, deps.providers);
       if (!c) continue;
-      const cost = requestsPerRun(run.sourceId, run.mode, slots.length);
+      const cost = requestsPerRun(run.sourceId, run.mode);
       const limit = FREE_LIMITS[run.sourceId]?.perDay;
       if (limit !== undefined && callsToday(deps.store, run.sourceId, day) + cost > limit) {
         results.push({ job: id, sourceId: run.sourceId, outcome: { kind: "skipped", reason: "daily_limit" } });
@@ -64,8 +66,7 @@ export async function runDueMarketJobs(deps: MarketJobsDeps): Promise<{ job: Job
         mode: run.mode,
         now,
         windowStart: windowStart(settings.peakSince),
-        keys: deps.keys,
-        slots: run.sourceId === "stocks-s7" ? slots : [],
+        licences,
         userAgent: deps.userAgent,
         ...(deps.fetch ? { fetch: deps.fetch } : {}),
       });

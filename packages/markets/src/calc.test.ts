@@ -8,7 +8,7 @@ const row = (key: string): TileRow => {
   if (!r) throw new Error(key);
   return r;
 };
-const ctx = (over: Partial<RowContext> = {}): RowContext => ({ peakSince: "2025-01-01", now: `${FIXTURE_TODAY}T23:00:00Z`, keyPresent: true, sourceFailed: false, seeds: [], ...over });
+const ctx = (over: Partial<RowContext> = {}): RowContext => ({ peakSince: "2025-01-01", now: `${FIXTURE_TODAY}T23:00:00Z`, configured: true, sourceFailed: false, seeds: [], ...over });
 const data = (entries: [string, SeriesData][]) => new Map(entries);
 const daily = (peak: number, seed = 1) => plantedSeries({ seed, calendar: "weekdays", from: "2024-12-22", peak }).map((o) => ({ ...o, syncId: 7 }));
 
@@ -32,7 +32,7 @@ describe("Crash monitor maths (loaders/markets.md §1.4)", () => {
 
   it("never shows 0% when the peak is not known: Taiwan tracks from its first run", () => {
     const obs = plantedSeries({ seed: 3, calendar: "weekdays", from: "2026-11-02", peak: 25000 });
-    const v = computeRow(row("M03.X.01:taiwan"), data([["twse:taiex", { observations: obs, latest: null }]]), ctx());
+    const v = computeRow(row("M03.X.01:taiwan"), data([["tw:broad_index", { observations: obs, latest: null }]]), ctx());
     expect(v.state).toBe("peak_unknown");
     expect(v.trackingSince).toBe("2026-11-02");
     expect(v.drawdownPct).toBeUndefined();
@@ -42,8 +42,8 @@ describe("Crash monitor maths (loaders/markets.md §1.4)", () => {
 
   it("uses a cited seed as the peak and marks the basis as seeded", () => {
     const obs = plantedSeries({ seed: 3, calendar: "weekdays", from: "2026-11-02", peak: 25000 });
-    const seeds = [{ seriesKey: "twse:taiex", date: "2025-06-30", value: 30000, citation: "fixture", licence: "ogdl-tw-1.0" }];
-    const v = computeRow(row("M03.X.01:taiwan"), data([["twse:taiex", { observations: obs, latest: null }]]), ctx({ seeds }));
+    const seeds = [{ seriesKey: "tw:broad_index", date: "2025-06-30", value: 30000, citation: "fixture", licence: "ogdl-tw-1.0" }];
+    const v = computeRow(row("M03.X.01:taiwan"), data([["tw:broad_index", { observations: obs, latest: null }]]), ctx({ seeds }));
     expect(v.state).not.toBe("peak_unknown");
     expect(v.peak).toEqual({ value: 30000, date: "2025-06-30", basis: "seeded" });
   });
@@ -90,13 +90,11 @@ describe("Crash monitor maths (loaders/markets.md §1.4)", () => {
     expect(stale.cadence).toBe("daily_7d");
   });
 
-  it("shows no number for a fund slot without a symbol, and asks for the key when the symbol is set", () => {
-    const fund = row("M02.X.01:europe");
-    expect(computeRow(fund, data([]), ctx())).toMatchObject({ state: "needs_symbol" });
-    expect(computeRow(fund, data([]), ctx()).value).toBeUndefined();
-    const keyless = computeRow(fund, data([]), ctx({ symbol: "ZZFX04", keyPresent: false }));
-    expect(keyless).toMatchObject({ state: "needs_key", symbol: "ZZFX04" });
-    expect(keyless.value).toBeUndefined();
+  it("shows no number for a row whose provider is not configured, never 0% (H4)", () => {
+    const v = computeRow(row("M06.X.01b:bitcoin"), data([["x4:btcusd", { observations: daily(80), latest: null }]]), ctx({ configured: false }));
+    expect(v.state).toBe("not_configured");
+    expect(v.value).toBeUndefined();
+    expect(v.drawdownPct).toBeUndefined();
   });
 
   it("reports loading before the first sync, and error when the source failed with nothing stored", () => {
