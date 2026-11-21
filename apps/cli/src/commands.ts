@@ -64,6 +64,8 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     const r = outcome.report;
     io.out(`${loader.meta.id}: ${outcome.kind}${r ? `, read ${r.read}, written ${r.written}, unchanged ${r.unchanged}, deleted ${r.deleted}, dropped ${dropsLine(r.dropped)}` : ""}`);
   }
+  // P10 memory budget: the peak of this process, which ran every sync worker above (cto on S04i).
+  io.out(`peak RSS: ${(process.resourceUsage().maxRSS / 1024).toFixed(0)} MB`);
   return failed === 0 ? 0 : 1;
 }
 

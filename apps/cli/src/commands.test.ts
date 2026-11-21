@@ -23,10 +23,11 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 describe("finora-cli (S04f)", () => {
   it("data sync loads every fixture source, and a second run is unchanged", async () => {
     expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
-    expect(lines).toHaveLength(10);
-    for (const line of lines.filter((l) => !l.startsWith("fx-lt-arrears"))) expect(line).toMatch(/: unchanged/);
+    expect(lines).toHaveLength(11);
+    expect(lines.at(-1)).toMatch(/^peak RSS: \d+ MB$/);
+    for (const line of lines.filter((l) => l.startsWith("fx-") && !l.startsWith("fx-lt-arrears"))) expect(line).toMatch(/: unchanged/);
     expect(await dataSync(io(), { profile: "fixtures", source: "fx-hide" })).toBe(0);
-    expect(lines).toHaveLength(1);
+    expect(lines).toHaveLength(2);
     expect(await dataSync(io(), { profile: "nope" })).toBe(2);
   }, 120_000);
 

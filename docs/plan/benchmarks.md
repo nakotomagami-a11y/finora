@@ -20,6 +20,7 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 | Unchanged reload | one `syncs` row, 0 statement writes |
 | Raw cache | ≤ 1.5 GB (latest artifact per source, gzip; measured gzip ratios: LV register x4.7, LT legal entities x4.0, LV members x4.5; estimate ≈ 1.3 GB) |
 | Whole data dir | ≤ 12 GB, backups included |
+| Memory | a sync worker's peak RSS ≤ 1 GB on `dev-desktop-1`; each loader slice records its peak (`finora-cli data sync <source>` prints it) |
 | During a sync | `/api/v1/health` p95 < 100 ms; SSE heartbeats < 1 s late (recorded here; CI asserts only a 3 s heartbeat bound) |
 | Per source | records, bytes per record, statements, facts and events reported by each loader slice |
 

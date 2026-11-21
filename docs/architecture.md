@@ -483,6 +483,7 @@ Tests (S04i/S05 acceptance; names from the early review): `ingest/src/purge.test
 | Unchanged reload | one `syncs` row, 0 statement writes |
 | Raw cache | ≤ 1.5 GB (latest artifact per source, gzip) |
 | Whole data dir | ≤ 12 GB (store + share-alike store + user store + raw cache + connector cache + backups) |
+| Memory | a sync worker's peak RSS ≤ 1 GB on `dev-desktop-1` (cto on S04i), measured and recorded per loader slice (`finora-cli data sync <source>` prints the peak). A file too large to hold in memory (EE general data, 4.6 GB of JSON; the zipped annual-report and person files) is streamed from the download or the raw cache with bounded memory, never through an in-memory gunzip; the architect adds streamed artifacts to the loader contract before S13 |
 
   CI cannot hold absolute times, so CI checks relative regression budgets against a stored baseline on the fixture world (qa #23); the absolute numbers are recorded per release in `docs/plan/benchmarks.md`.
 

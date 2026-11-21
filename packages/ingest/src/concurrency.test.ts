@@ -47,4 +47,18 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     expect(store.db.prepare("SELECT kind, report_json FROM main.syncs").all()).toEqual([{ kind: "failed", report_json: JSON.stringify({ reason: "worker_hung" }) }]);
     store.close();
   }, 60_000);
+
+  it("a crashed worker closes its sync row and frees its lease, so the next sync can run (cto on S04i)", async () => {
+    const dir = tempDir();
+    dirs.push(dir);
+    openStore({ dataDir: dir.path }).close();
+    const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
+    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-crash", userAgent: "t", options: {} });
+    expect(outcome).toMatchObject({ kind: "failed", report: { reason: "worker_exit_3" } });
+    const store = openStore({ dataDir: dir.path });
+    expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
+    expect(store.db.prepare("SELECT kind FROM main.syncs").all()).toEqual([{ kind: "failed" }]);
+    store.close();
+    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", options: {} })).kind).toBe("content");
+  }, 60_000);
 });

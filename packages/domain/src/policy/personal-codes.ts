@@ -70,10 +70,12 @@ export const COMPANY_ID_PROPS: ReadonlySet<string> = new Set(["registrationNumbe
 export const PERSON_EID = /\bp-\d+-\d+\b/;
 
 /**
- * Whether free text holds a personal code: the LV hyphenated form and the US SSN everywhere, and
- * every 11-digit run that has the LV shape or passes the EE/LT check. Two exceptions keep LV
- * register codes out (about 6% fit the EE/LT check, lv-register.md): a run right after `lv-` is an
- * LV entity id, and in an LV context a run with a valid or fixture LV check digit is a register code.
+ * Whether a stored key (a record key, a line id) holds a personal code: the LV hyphenated form and
+ * the US SSN everywhere, and every 11-digit run that has the LV shape or passes the EE/LT check.
+ * Two exceptions keep LV register codes in keys (about 6% fit the EE/LT check, lv-register.md): a
+ * run right after `lv-` is an LV entity id, and in an LV context a run with a valid or fixture LV
+ * check digit is a register code. Free text never gets these exceptions: see
+ * `freeTextHoldsPersonalCode`.
  */
 export function textHoldsPersonalCode(text: string, country: string | null = null): boolean {
   if (findPersonalCodes(text).some((h) => h.kind !== "ee_lt_personal_code")) return true;
@@ -83,6 +85,20 @@ export function textHoldsPersonalCode(text: string, country: string | null = nul
     if (idIsPersonalCode("lv", run)) return true;
     const registerCode = country === "lv" && (isValidRegisterCode("lv", run) || isFixtureRegisterCode("lv", run));
     if (isBalticPersonalCode(run) && !registerCode) return true;
+  }
+  return false;
+}
+
+/**
+ * The free-text rule (legal on S04i): in a name, an address, a description or event data, any
+ * 11-digit run that fits the personal-code format of any Baltic country is refused, whatever the
+ * record's country, and so are the LV hyphenated form and the US SSN. No register-code exception
+ * applies: a company's own id sits in an id prop, never in free text.
+ */
+export function freeTextHoldsPersonalCode(text: string): boolean {
+  if (findPersonalCodes(text).some((h) => h.kind !== "ee_lt_personal_code")) return true;
+  for (const [run] of text.matchAll(/(?<!\d)\d{11}(?!\d)/g)) {
+    if (idIsPersonalCode("lv", run) || isBalticPersonalCode(run)) return true;
   }
   return false;
 }

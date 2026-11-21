@@ -39,6 +39,7 @@ export {
   idIsPersonalCode,
   isBalticPersonalCode,
   PERSON_EID,
+  freeTextHoldsPersonalCode,
   textHoldsPersonalCode,
   type PersonalCodeHit,
 } from "./policy/personal-codes.ts";

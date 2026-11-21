@@ -82,6 +82,24 @@ describe("SEC-1 + S9 across every field: one code, refused or counted wherever i
   });
 });
 
+describe("legal on S04i: free text refuses any Baltic personal-code format, whatever the record's country", () => {
+  it("an EE/LT-format code that also passes the LV register check is refused in an LV company's free text", async () => {
+    let code = "";
+    for (let i = 0; i < 1000 && !code; i++) {
+      const first10 = `3000101${String(i).padStart(3, "0")}`;
+      const candidate = `${first10}${balticCheckDigit(first10)}`;
+      if (isBalticPersonalCode(candidate) && isValidRegisterCode("lv", candidate)) code = candidate;
+    }
+    expect(code).not.toBe("");
+    const db = memoryDb();
+    const record = companyRecord(1, { extra: [{ prop: "notes", value: `Owner ${code}`, itemId: "S01.LV.01" }] });
+    record.events = [{ entityEid: "lv-00000000001", type: "register.note", date: "2026-10-01", itemId: "S09.LV.01", data: { note: code } }];
+    const outcome = await sync(db, fakeSource({}, { records: [record] }));
+    expect(outcome.report?.dropped).toEqual({ personal_code: 2 });
+    expect(scanStore(db, [code])).toEqual([]);
+  });
+});
+
 describe("fencing: the lease is renewed inside every write transaction", () => {
   it("a takeover between two batches stops the sync: nothing further written, nothing purged", async () => {
     const db = memoryDb();

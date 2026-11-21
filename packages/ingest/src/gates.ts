@@ -11,7 +11,7 @@ import {
   item,
   naturalPersonDrop,
   PERSON_EID,
-  textHoldsPersonalCode,
+  freeTextHoldsPersonalCode,
   type DropReason,
 } from "@finora/domain";
 import type { ParsedEntity, ParsedRecord, PartyRef } from "@finora/sources";
@@ -29,7 +29,7 @@ export type GateResult = {
 
 /** Properties that name another row of the store: a person's row id there is by design (§3.3). */
 const REFERENCE_PROPS = new Set(["organization", "director", "member", "owner", "asset", "holder", "parent", "subsidiary", "entity", "subject"]);
-const leaksPerson = (value: string) => findPersonalCodes(value).length > 0 || PERSON_EID.test(value);
+const leaksPerson = (value: string) => freeTextHoldsPersonalCode(value) || PERSON_EID.test(value);
 
 export type PartyLookup = (country: string, code: string) => { naturalPerson: boolean } | null;
 
@@ -86,7 +86,7 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
         // A company's free text is scanned too (legal on S04i, SEC-1 scope): a name, an address or
         // a description never carries a personal code. Its own ids and references to other rows are not.
         if (COMPANY_ID_PROPS.has(s.prop) || REFERENCE_PROPS.has(s.prop)) return true;
-        if (!textHoldsPersonalCode(s.value, entity.country) && !PERSON_EID.test(s.value)) return true;
+        if (!leaksPerson(s.value)) return true;
         drop("personal_code", s.prop);
         withheld.push({ entityEid: entity.eid, prop: s.prop, reason: "personal_code" });
         refused.push(s.value);
@@ -95,7 +95,7 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
       const byRule = naturalPersonDrop(s);
       if (byRule) return void drop(byRule as DropReason, s.prop), false;
       const ownId = entity.schema !== "Person" && COMPANY_ID_PROPS.has(s.prop);
-      const leaks = ownId ? idIsPersonalCode(entity.country, s.value) : findPersonalCodes(s.value).length > 0;
+      const leaks = ownId ? idIsPersonalCode(entity.country, s.value) : freeTextHoldsPersonalCode(s.value);
       if (leaks) {
         drop("personal_code", s.prop);
         refused.push(s.value);

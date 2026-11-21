@@ -13,4 +13,10 @@ hungSource.parse = function* () {
   }
 };
 
-await serveSyncWorker((sourceId) => [slowSource, liveSource, hungSource].find((l) => l.meta.id === sourceId));
+/** Ends its thread in the middle of a parse, as a crash would. */
+const crashSource = fakeSource({ id: "fake-crash" }, { records: companies(1, 3) });
+crashSource.parse = function* () {
+  process.exit(3);
+};
+
+await serveSyncWorker((sourceId) => [slowSource, liveSource, hungSource, crashSource].find((l) => l.meta.id === sourceId));
