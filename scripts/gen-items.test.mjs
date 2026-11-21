@@ -14,7 +14,7 @@ test("Part G gives 155 items with the council's counts", () => {
   const count = (call) => items.filter((i) => i.call === call).length;
   assert.deepEqual(
     { show: count("show"), caveat: count("caveat"), later: count("later"), hide: count("hide") },
-    { show: 41, caveat: 56, later: 53, hide: 5 },
+    { show: 40, caveat: 55, later: 55, hide: 5 },
   );
 });
 

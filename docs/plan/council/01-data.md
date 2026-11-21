@@ -306,7 +306,7 @@ Applied on top of Parts B-E after legal's review and cto's notes. Gate 1 decided
 
 ## Part G: the item table, one row per `item_id` (final, confirmed)
 
-Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and four new S15 ids, so 155 rows. No id is missing or unknown. Counts: SHOW 41, CAVEAT 56, LATER 53, HIDE 5. **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
+Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and four new S15 ids, so 155 rows. No id is missing or unknown. Counts: SHOW 40, CAVEAT 55, LATER 55, HIDE 5 (after the H5 amendments of 2026-11-21: S10.US.02 and S11.US.01 to LATER with MANUAL). **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
 
 **New ids:** `S15.LT.whois`, `S15.LV.whois`, `S15.EE.whois` and `S15.ALL.archive` (Part H, item 5 and the WHOIS ruling). **Split ids:** `S01.US.03a` (PA) and `S01.US.03b` (OR); `S08.EE.01a` (tax debtors) and `S08.EE.01b` (taxes paid); `M05.X.02a` (oracle) and `M05.X.02b` (user key); `M06.X.01a` (O5 oracle) and `M06.X.01b` (O3 supply + X4 candles).
 
@@ -382,7 +382,7 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S10.LV.01 | LATER | - | MANUAL ("Check manually at the official court-decision portal"), official link only; the court case numbers loaded with S09.LV.01 events link to the portal from those events |
 | S10.EE.01 | LATER | - | MANUAL ("Check manually at the official court-decision portal"), official link only |
 | S10.US.01 | CAVEAT | Possible match by name, needs review | AGENT |
-| S10.US.02 | CAVEAT | Possible match by name, needs review | AGENT |
+| S10.US.02 | LATER | - | MANUAL ("Search federal dockets manually"); H5: no key, so no docket search in v1 |
 | S11.LT.01 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN |
 | S11.LT.02 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN |
 | S11.LV.01 | SHOW | - | CN |
@@ -390,7 +390,7 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S11.LV.03 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN |
 | S11.EE.01 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN |
 | S11.EE.02 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN |
-| S11.US.01 | SHOW | - | CN |
+| S11.US.01 | LATER | - | MANUAL ("Check federal exclusions on SAM.gov"), official link only; H5: the keyed extract is off and no SAM.gov request is made |
 | S11.US.02 | SHOW | - | CN |
 | S11.US.03 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN |
 | S11.US.04 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN |
@@ -423,12 +423,12 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S14.US.03 | LATER | - | — |
 | S14.LTLVEE.01 | SHOW | - | — |
 | S14.LTLVEE.02 | LATER | - | — |
-| S15.LT.01 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
+| S15.LT.01 | CAVEAT | Checked from a known domain only; no web search in this version. Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
 | S15.LV.01 | LATER | - | — |
-| S15.LV.02 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
+| S15.LV.02 | CAVEAT | Checked from a known domain only; no web search in this version. Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
 | S15.EE.01 | SHOW | - | — |
-| S15.EE.02 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
-| S15.US.01 | CAVEAT | Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
+| S15.EE.02 | CAVEAT | Checked from a known domain only; no web search in this version. Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
+| S15.US.01 | CAVEAT | Checked from a known domain only; no web search in this version. Found by an agent from DNS, certificate logs and the homepage (US: plus the domain creation date); registrant details are never shown | AGENT |
 | S15.LT.whois | CAVEAT | Domain age, registrar and creation date from the .lt registry, read once per investigation at query time; the holder is never shown | AGENT |
 | S15.LV.whois | LATER | - | — |
 | S15.EE.whois | LATER | - | — |
@@ -436,7 +436,7 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S16.LV.01 | LATER | - | — |
 | S16.EE.01 | LATER | - | — |
 | S16.US.01 | LATER | - | — |
-| S16.ALL.01 | CAVEAT | Mentions the name; not confirmed to be this company | AGENT |
+| S16.ALL.01 | CAVEAT | Mentions the name; not confirmed to be this company. Checked from a known domain only; no web search in this version | AGENT |
 | S16.ALL.02 | LATER | - | — |
 | S16.ALL.03 | LATER | - | — |
 | S16.ALL.04 | HIDE | - | — |
