@@ -4,6 +4,7 @@
 // serves them (qa M1), and a hung or crashed worker ends as a failed sync, never a `running` row
 // (SEC-12). One worker runs a batch of sources in order, each under its own lease: starting and stopping many short-lived worker isolates
 // occasionally crashed V8 on Windows (a JIT page check), so a CLI run uses one worker.
+import { getHeapStatistics } from "node:v8";
 import { parentPort, Worker, workerData } from "node:worker_threads";
 import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
 import { politeFetch, type SourceLoader } from "@finora/sources";
@@ -20,7 +21,7 @@ type WorkerMessage =
   | { type: "started"; sourceId: string; syncId: number }
   | { type: "live"; sourceId: string; view: LiveView }
   | { type: "persons"; sourceId: string; list: PersonList }
-  | { type: "result"; sourceId: string; outcome: SyncOutcome }
+  | { type: "result"; sourceId: string; outcome: SyncOutcome; peakHeapMb?: number }
   | { type: "done" };
 
 const failed = (reason: string): SyncOutcome => ({
@@ -43,6 +44,9 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
         continue;
       }
       let outcome: SyncOutcome;
+      // This isolate's heap peak while this source ran: which source drives a lane's memory (P10).
+      let peak = getHeapStatistics().used_heap_size;
+      const sample = () => void (peak = Math.max(peak, getHeapStatistics().used_heap_size));
       try {
         const fetcher = politeFetch({
           officialHosts: loader.meta.officialHosts,
@@ -57,13 +61,17 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
           fetcher,
           onLiveView: (id, view) => post({ type: "live", sourceId: id, view }),
           onPersonList: (id, list) => post({ type: "persons", sourceId: id, list }),
-          onProgress: () => post({ type: "progress" }),
+          onProgress: () => {
+            sample();
+            post({ type: "progress" });
+          },
           onStart: (syncId) => post({ type: "started", sourceId, syncId }),
         });
       } catch (error) {
         outcome = failed(error instanceof Error ? error.name : "worker_error");
       }
-      post({ type: "result", sourceId, outcome });
+      sample();
+      post({ type: "result", sourceId, outcome, peakHeapMb: Math.ceil(peak / 1_048_576) });
     }
   } finally {
     // Closed before "done", so the caller may remove the data dir at once.
@@ -77,6 +85,8 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
  * are external memory, so P10's RSS budget per worker stays the real bound (architecture §4.5).
  */
 export const SYNC_WORKER_HEAP_MB = 768;
+/** A sync's outcome from a worker, with the worker heap's peak while that source ran. */
+export type WorkerOutcome = SyncOutcome & { peakHeapMb?: number };
 export type WorkerLimits = { timeoutMs?: number; startupMs?: number; maxHeapMb?: number };
 
 let started = 0;
@@ -105,7 +115,7 @@ export function lanesOf(loaders: readonly SourceLoader[]): Map<string, string[]>
  * and every source not yet run end `failed`, the row that worker opened is closed and its lease is
  * released by holder, never another process's (cto, qa on S04i).
  */
-export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: WorkerLimits = {}): Promise<SyncOutcome[]> {
+export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: WorkerLimits = {}): Promise<WorkerOutcome[]> {
   const holder = batch.options.holder ?? `worker-${process.pid}-${Math.random().toString(36).slice(2)}`;
   const ttl = batch.options.leaseTtlMs ?? 60_000;
   const data: WorkerBatch = {
@@ -119,7 +129,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
     // never the parent process (SEC-1 on S06, qa).
     const worker = new Worker(entry, { workerData: data, resourceLimits: { maxOldGenerationSizeMb: options.maxHeapMb ?? SYNC_WORKER_HEAP_MB } });
     started++;
-    const outcomes = new Map<string, SyncOutcome>();
+    const outcomes = new Map<string, WorkerOutcome>();
     let current: { sourceId: string; syncId: number } | null = null;
     let settled = false;
     const finish = () => resolve(batch.sourceIds.map((id) => outcomes.get(id) ?? failed("not_run")));
@@ -154,7 +164,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
       } else if (message.type === "live") setLiveView(message.sourceId, message.view);
       else if (message.type === "persons") setPersonList(message.sourceId, message.list);
       else if (message.type === "result") {
-        outcomes.set(message.sourceId, message.outcome);
+        outcomes.set(message.sourceId, message.peakHeapMb === undefined ? message.outcome : { ...message.outcome, peakHeapMb: message.peakHeapMb });
         if (current?.sourceId === message.sourceId) current = null;
         clearTimeout(watchdog);
         watchdog = setTimeout(() => settle("worker_hung"), Math.max(ttl, 30_000));

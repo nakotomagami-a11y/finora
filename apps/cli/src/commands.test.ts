@@ -41,6 +41,8 @@ describe("finora-cli (S04f)", () => {
       expect(lanes.size).toBeGreaterThanOrEqual(4);
       expect(await dataSync({ ...io(), env: { dataDir: fresh, secUserAgent: null, shareAlikeMode: "store" } }, { profile: "fixtures" })).toBe(0);
       expect(workerStartCount() - before).toBe(lanes.size);
+      // Each source's line names its worker heap peak, so a loader slice can see which source drives P10.
+      expect(lines.filter((l) => /^fx-lv-register: .*, heap peak \d+ MB$/.test(l))).toHaveLength(1);
       // Register first in each lane by `meta.order`, not by list position: it finishes before any
       // other source of its lane starts, so the country is searchable first (cto on S04i).
       const db = new DatabaseSync(join(fresh, "finora.db"), { readOnly: true });

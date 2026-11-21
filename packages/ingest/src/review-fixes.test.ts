@@ -177,16 +177,44 @@ describe("fencing: the lease is renewed inside every write transaction", () => {
 });
 
 describe("SEC-3, qa M2: the lease is kept for the whole sync, and a lost lease stops it", () => {
-  it("a fetch longer than the lease TTL keeps the lease: a second sync started meanwhile is refused", async () => {
+  it("a fetch longer than the lease TTL keeps the lease: a second sync started meanwhile is refused (fake clock)", async () => {
+    // The clock moves only when the test moves it, and only after the heartbeat has renewed the
+    // lease at the current time, so the rule is proven whatever the machine's load (cto, qa).
+    const db = memoryDb();
+    let at = Date.parse("2026-11-22T08:00:00.000Z");
+    const now = () => new Date(at);
+    let release!: () => void;
+    const fetched = new Promise<void>((r) => (release = r));
+    const loader = fakeSource({}, { records: companies(1, 5) });
+    const fetch = loader.fetch.bind(loader);
+    loader.fetch = async (ctx) => {
+      await fetched;
+      return fetch(ctx);
+    };
+    const ttl = 120;
+    const first = runSync(db, loader, { fetcher: noNetwork, leaseTtlMs: ttl, heartbeatMs: 10, holder: "a", now });
+    const expiresAt = () => (db.prepare("SELECT expires_at FROM main.leases WHERE resource = 'sync:fake-register'").get() as { expires_at: number } | undefined)?.expires_at ?? 0;
+    // Five TTLs of fake time pass while the download is pending, a third of the TTL at a step.
+    for (let step = 0; step < 15; step++) {
+      at += ttl / 3;
+      for (let i = 0; i < 5000 && expiresAt() < at + ttl; i++) await new Promise((r) => setTimeout(r, 2));
+      expect(expiresAt()).toBe(at + ttl);
+    }
+    expect((await runSync(db, fakeSource({}, { records: [] }), { fetcher: noNetwork, holder: "b", now })).kind).toBe("already_running");
+    release();
+    expect((await first).kind).toBe("content");
+  });
+
+  it("a fetch longer than the lease TTL keeps the lease in real time, with a TTL 15x the heartbeat", async () => {
     const db = memoryDb();
     const loader = fakeSource({}, { records: companies(1, 5) });
     const fetch = loader.fetch.bind(loader);
     loader.fetch = async (ctx) => {
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 2500));
       return fetch(ctx);
     };
-    const first = runSync(db, loader, { fetcher: noNetwork, leaseTtlMs: 120, holder: "a" });
-    await new Promise((r) => setTimeout(r, 250));
+    const first = runSync(db, loader, { fetcher: noNetwork, leaseTtlMs: 1500, heartbeatMs: 100, holder: "a" });
+    await new Promise((r) => setTimeout(r, 1800));
     expect((await runSync(db, fakeSource({}, { records: [] }), { fetcher: noNetwork, holder: "b" })).kind).toBe("already_running");
     expect((await first).kind).toBe("content");
   });

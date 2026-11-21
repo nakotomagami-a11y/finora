@@ -1,6 +1,6 @@
 // A worker entry for the ingest tests: it trusts the test sources only.
 import { serveSyncWorker } from "../worker.ts";
-import { companies, fakeSource } from "./fake-source.ts";
+import { companies, fakeSource, roleSetRecord } from "./fake-source.ts";
 import { LIVE_SENTINEL } from "./sentinels.ts";
 import { slowSource } from "./slow-source.ts";
 
@@ -37,8 +37,14 @@ oomSource.parse = function* () {
   for (;;) held.push(Array.from({ length: 1_000_000 }, (_, i) => i));
 };
 
-/** Yields records, so a write transaction is open, then runs out of memory inside it (legal on S06). */
-const oomMidSource = fakeSource({ id: "fake-oom-mid" }, { records: companies(1, 3) });
+/**
+ * Yields companies and their role sets (person lines), so a write transaction holding person rows
+ * is open, then runs out of memory inside it (legal on S06, qa).
+ */
+const oomMidSource = fakeSource(
+  { id: "fake-oom-mid" },
+  { records: [...companies(1, 3), ...[1, 2, 3].map((n) => roleSetRecord(n, [{ name: `Example Person ${n}`, role: "board_member", rowId: `${n}01` }]))] },
+);
 const parseRecords = oomMidSource.parse.bind(oomMidSource);
 oomMidSource.parse = async function* (artifacts, context) {
   yield* parseRecords(artifacts, context);

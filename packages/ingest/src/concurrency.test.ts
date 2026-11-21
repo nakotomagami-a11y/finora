@@ -82,7 +82,7 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     store.close();
   }, 60_000);
 
-  it("out of memory inside a write transaction leaves no row of that batch and no lock behind (legal on S06)", async () => {
+  it("out of memory inside a write transaction holding person lines leaves no row of that batch and no lock behind (legal on S06, qa)", async () => {
     const dir = tempDir();
     dirs.push(dir);
     openStore({ dataDir: dir.path }).close();
@@ -92,7 +92,11 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     const store = openStore({ dataDir: dir.path });
     expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.records").get()).toEqual({ n: 0 });
     expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.statements").get()).toEqual({ n: 0 });
+    expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.entities").get()).toEqual({ n: 0 });
     expect(store.db.prepare("SELECT kind FROM main.syncs").all()).toEqual([{ kind: "failed" }]);
+    // The parent takes the write lock at once: the dead worker left none behind.
+    store.db.exec("BEGIN IMMEDIATE");
+    store.db.exec("ROLLBACK");
     store.close();
     expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", options: {} })).kind).toBe("content");
   }, 60_000);

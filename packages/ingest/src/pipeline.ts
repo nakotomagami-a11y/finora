@@ -77,6 +77,8 @@ export type SyncOptions = {
   allowMassPurge?: boolean;
   holder?: string;
   leaseTtlMs?: number;
+  /** How often the lease is renewed; default a third of the TTL. */
+  heartbeatMs?: number;
   /** Records per transaction, and the time one transaction may hold the write lock. */
   batch?: { maxRecords?: number; maxMs?: number };
   signal?: AbortSignal;
@@ -151,7 +153,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     if (heartbeat(db, lease, ttl, now().getTime())) options.onProgress?.();
     else lost = true;
   };
-  const timer = setInterval(beat, Math.max(10, Math.floor(ttl / 3)));
+  const timer = setInterval(beat, Math.max(10, options.heartbeatMs ?? Math.floor(ttl / 3)));
   const assertLease = () => {
     if (lost || !holdsLease(db, resource, holder, now().getTime())) {
       lost = true;

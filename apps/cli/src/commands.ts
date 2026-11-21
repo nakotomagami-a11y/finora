@@ -74,7 +74,7 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     const outcome = byId.get(loader.meta.id)!;
     if (outcome.kind === "failed" || outcome.kind === "partial") failed++;
     const r = outcome.report;
-    io.out(`${loader.meta.id}: ${outcome.kind}${r ? `, read ${r.read}, written ${r.written}, unchanged ${r.unchanged}, deleted ${r.deleted}, dropped ${dropsLine(r.dropped)}` : ""}`);
+    io.out(`${loader.meta.id}: ${outcome.kind}${r ? `, read ${r.read}, written ${r.written}, unchanged ${r.unchanged}, deleted ${r.deleted}, dropped ${dropsLine(r.dropped)}` : ""}${outcome.peakHeapMb !== undefined ? `, heap peak ${outcome.peakHeapMb} MB` : ""}`);
   }
   // P10 memory budget: the peak of this process, which ran every sync worker above (cto on S04i).
   io.out(`peak RSS: ${(process.resourceUsage().maxRSS / 1024).toFixed(0)} MB`);
