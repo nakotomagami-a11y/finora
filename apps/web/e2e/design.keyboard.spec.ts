@@ -115,7 +115,10 @@ test.describe("keyboard", () => {
     const graph = page.getByRole("radio", { name: "Graph" });
     await graph.focus();
     await page.keyboard.press("ArrowRight");
+    // Radix moves the roving focus on the next tick; wait for it, as a person would, before choosing.
+    const list = page.getByRole("radio", { name: "List" });
+    await expect(list).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("radio", { name: "List" })).toBeChecked();
+    await expect(list).toBeChecked();
   });
 });

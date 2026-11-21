@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/run-next.mjs dev",
-    "build": "next build",
+    "build": "node scripts/run-next.mjs build",
     "start": "node scripts/run-next.mjs start",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "e2e": "playwright test --project=chromium --project=firefox --project=webkit",

@@ -3,6 +3,7 @@
 import {
   Badge,
   Button,
+  ButtonLink,
   Checkbox,
   Chip,
   Combobox,
@@ -91,7 +92,7 @@ function ButtonsGroup() {
         </Row>
         <Row label="status pills">
           <StatusPill icon="dot">Active</StatusPill>
-          <StatusPill tone="warn" icon="warn">
+          <StatusPill tone="warn" icon="bang">
             Points to check
           </StatusPill>
           <StatusPill tone="bad" icon="close">
@@ -100,7 +101,7 @@ function ButtonsGroup() {
           <StatusPill tone="good" icon="check">
             Recovered
           </StatusPill>
-          <StatusPill tone="muted" icon="dash">
+          <StatusPill tone="muted" icon="unknown">
             Not enough data
           </StatusPill>
         </Row>
@@ -155,7 +156,7 @@ function FormsGroup() {
       <Section title="Text fields">
         <Input label="Company name" placeholder="Example Company A SIA" />
         <Input label="Registry code" hint="Eleven digits for Latvia" defaultValue="40000FX0001" />
-        <Input label="Domain on the offer" error="Enter a domain without https://" defaultValue="https://shop.example" />
+        <Input label="Domain on the offer or invoice" error="Enter a domain without https://" defaultValue="https://shop.example" />
         <Input label="Read only" readOnly defaultValue="Read-only value" />
         <Input label="Disabled" disabled defaultValue="Disabled value" />
         <SearchInput label="Search companies" value={search} onValueChange={setSearch} resetLabel="Reset search" placeholder="Name, code or paste what you know" />
@@ -330,14 +331,19 @@ function DataGroup() {
       <Section title="Status lines">
         <StatusLine icon="check">Checked the debtor list as of 19 Nov 2026: none found</StatusLine>
         <StatusLine icon="dash">Not published in Lithuania</StatusLine>
-        <StatusLine icon="euro" action={<Button size="sm">Order from the register</Button>}>
+        <StatusLine
+          icon="euro"
+          action={
+            <ButtonLink href="https://register.example/order" external>
+              Order from the register
+            </ButtonLink>
+          }
+        >
           Available as a paid register extract
         </StatusLine>
         <StatusLine icon="lock">Not shown in Latvia: restricted by legal rule 1</StatusLine>
-        <StatusLine icon="clock" tone="warn">
-          Not evaluated: tracked since 16 Nov 2026
-        </StatusLine>
-        <StatusLine icon="warn" tone="bad">
+        <StatusLine icon="clock">Not evaluated: tracked since 16 Nov 2026</StatusLine>
+        <StatusLine icon="warn" tone="warn" action={<Button size="sm">Retry</Button>}>
           Not checked: the register did not answer
         </StatusLine>
       </Section>
@@ -349,7 +355,7 @@ function DataGroup() {
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-4 w-2/3" />
         </div>
-        <div className="flex items-center gap-2 text-small text-muted">
+        <div className="flex items-center gap-2 text-small font-medium text-accent">
           <span aria-hidden className="size-2 animate-pulse-dot rounded-full bg-accent" />
           RUNNING
         </div>

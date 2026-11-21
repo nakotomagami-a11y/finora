@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DESIGN = readFileSync(join(HERE, "../../../DESIGN.md"), "utf8");
-const TOKENS = readFileSync(join(HERE, "tokens.css"), "utf8");
+const TOKENS = readFileSync(join(HERE, "tokens.css"), "utf8").replace(/\r\n/gu, "\n");
 
 /** Colour tokens from the DESIGN.md table: `| \`--bg\` | \`#0f0e0d\` | \`#f6f4ef\` | ... |`. */
 function designColours(): Map<string, { dark: string; light: string }> {

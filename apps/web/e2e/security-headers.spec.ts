@@ -19,6 +19,21 @@ test.describe("security headers", () => {
     expect(new Set(scriptNonces)).toEqual(new Set([nonce]));
   });
 
+  test("the server runs the production policy, whatever NODE_ENV the shell handed down", async ({ request }) => {
+    const csp = (await request.get("/en")).headers()["content-security-policy"] ?? "";
+    expect(csp).not.toContain("unsafe-eval");
+    expect(csp).not.toMatch(/ws:/u);
+    const directives = csp.split("; ");
+    expect(directives.find((d) => d.startsWith("style-src "))).toMatch(/^style-src 'self' 'nonce-[^']+'$/u);
+    expect(directives.find((d) => d.startsWith("script-src "))).toContain("'strict-dynamic'");
+  });
+
+  test("a response also carries a permissions policy and no cross-origin opener policy", async ({ request }) => {
+    const headers = (await request.get("/en")).headers();
+    expect(headers["permissions-policy"]).toContain("camera=()");
+    expect(headers["cross-origin-opener-policy"]).toBeUndefined();
+  });
+
   test("each page request gets a fresh nonce", async ({ request }) => {
     const first = (await request.get("/en")).headers()["content-security-policy"];
     const second = (await request.get("/en")).headers()["content-security-policy"];
@@ -55,5 +70,14 @@ test.describe("local-only guard", () => {
   test("a same-origin POST is not refused by the guard", async ({ request, baseURL }) => {
     const response = await request.post("/api/v1/health", { headers: { Origin: baseURL ?? "" } });
     expect(response.status()).toBe(405);
+  });
+
+  test("a dotted path does not skip the guard or the headers", async ({ request }) => {
+    for (const path of ["/en/x.y", "/en/terms.rsc", "/api/v1/health.json", "/favicon.ico"]) {
+      const refused = await request.get(path, { headers: { Host: "evil.example" }, maxRedirects: 0 });
+      expect(refused.status(), `${path} with a foreign Host`).toBe(403);
+      const allowed = await request.get(path, { maxRedirects: 0 });
+      expect(allowed.headers()["content-security-policy"], `${path} with a normal Host`).toMatch(/'nonce-[^']+'/u);
+    }
   });
 });

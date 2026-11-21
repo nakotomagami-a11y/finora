@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { setRequestLocale } from "next-intl/server";
@@ -7,12 +8,15 @@ import { ThemeFromQuery } from "../../../../components/gallery/ThemeFromQuery.ts
 import { Link } from "../../../../i18n/navigation.ts";
 import { isDemoMode } from "../../../../lib/server-data.ts";
 
-export const metadata = { robots: { index: false } };
-
 type Props = {
   params: Promise<{ locale: string; group: string }>;
   searchParams: Promise<{ open?: string }>;
 };
+
+export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
+  const { group } = await params;
+  return { title: isGroup(group) ? GROUPS[group] : "Design system", robots: { index: false } };
+}
 
 export default async function DesignGroup({ params, searchParams }: Props) {
   if (!isDemoMode()) notFound();

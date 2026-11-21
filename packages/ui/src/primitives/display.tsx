@@ -32,7 +32,7 @@ export function Badge({ tone = "neutral", children }: { tone?: Tone; children: R
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-chip border border-line px-1.5 text-label font-medium tracking-[0.08em] uppercase",
+        "inline-flex items-center rounded-chip border border-line px-1.5 text-label font-medium",
         TONE_FILL[tone],
         TONE_TEXT[tone],
       )}
@@ -141,9 +141,10 @@ export function Sparkline({ values, title, summary, className }: SparklineProps)
 
 type StatusLineProps = {
   icon: IconName;
+  /** Colours the icon only. The sentence stays muted: a gap in the data must not read as a finding. */
   tone?: Tone;
   children: ReactNode;
-  /** A button or a link. */
+  /** A link or a button, shown right after the sentence. */
   action?: ReactNode;
 };
 
@@ -152,8 +153,10 @@ export function StatusLine({ icon, tone = "muted", children, action }: StatusLin
   return (
     <div className="flex items-start gap-2 text-small text-muted">
       <Icon name={icon} className={cn("mt-0.5", tone === "muted" ? "text-faint" : TONE_TEXT[tone])} />
-      <p className={cn("min-w-0 flex-1", tone !== "muted" && TONE_TEXT[tone])}>{children}</p>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="min-w-0">{children}</p>
+        {action}
+      </div>
     </div>
   );
 }

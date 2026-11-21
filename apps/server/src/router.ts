@@ -60,7 +60,7 @@ export async function handle(request: Request, table: readonly RouteEntry[] = RO
     const response = await handler(request, { params: Promise.resolve(match.params) });
     return requested === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
   } catch (error) {
-    console.error("API handler failed:", error instanceof Error ? error.message : "unknown error");
+    console.error("API handler failed:", error instanceof Error ? error.name : "unknown error");
     return errorResponse("internal_error", 500);
   }
 }

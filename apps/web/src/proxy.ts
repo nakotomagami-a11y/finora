@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEnv } from "@finora/server/env";
 import { guardRequest, securityHeaders } from "@finora/server/guard";
 import { routing } from "./i18n/routing.ts";
+import { isLocaleFree } from "./lib/paths.ts";
 
 const handleLocale = createMiddleware(routing);
 
@@ -12,8 +13,9 @@ function withHeaders(response: Response, headers: Record<string, string>): Respo
 }
 
 /**
- * Runs before every page and API request: refuses a request that does not name this machine,
- * gives each page a fresh CSP nonce, and sends the visitor to a locale-prefixed path.
+ * Runs before every page and API request except Next.js's static files. It refuses a request that does not name
+ * this machine, gives each response a fresh CSP nonce, and sends a page request to a locale-prefixed path. A path
+ * that is not a page still passes the guard and still gets the headers.
  */
 export function proxy(request: NextRequest): Response {
   const nonce = btoa(crypto.randomUUID());
@@ -22,14 +24,15 @@ export function proxy(request: NextRequest): Response {
   const refused = guardRequest(request);
   if (refused) return withHeaders(refused, headers);
 
-  if (request.nextUrl.pathname.startsWith("/api/")) return withHeaders(NextResponse.next(), headers);
-
   const forwarded = new Headers(request.headers);
   forwarded.set("content-security-policy", headers["Content-Security-Policy"] as string);
-  const response = handleLocale(new NextRequest(request, { headers: forwarded }));
-  return withHeaders(response, headers);
+
+  if (isLocaleFree(request.nextUrl.pathname)) {
+    return withHeaders(NextResponse.next({ request: { headers: forwarded } }), headers);
+  }
+  return withHeaders(handleLocale(new NextRequest(request, { headers: forwarded })), headers);
 }
 
-export const config = {
-  matcher: ["/((?!_next/|favicon.ico|.*\\..*).*)"],
-};
+// A literal, because Next.js reads it without running the file. Everything except `_next/static` and
+// `_next/image`: a dotted path must not skip the guard.
+export const config = { matcher: ["/((?!_next/static|_next/image).*)"] };

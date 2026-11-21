@@ -26,7 +26,7 @@ export function Table({ label, caption, children, className }: TableProps) {
 }
 
 export function Th({ className, scope = "col", ...rest }: ThHTMLAttributes<HTMLTableCellElement>) {
-  return <th scope={scope} className={cn("px-3 py-2 text-left text-label font-medium tracking-[0.08em] text-muted uppercase", className)} {...rest} />;
+  return <th scope={scope} className={cn("px-3 py-2 text-left text-mono font-medium text-muted", className)} {...rest} />;
 }
 
 export function Td({ className, numeric, ...rest }: TdHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean }) {

@@ -24,7 +24,7 @@ export default async function DesignIndex({ params }: { params: Promise<{ locale
       <ul className="mt-6 flex list-none flex-col gap-2 p-0">
         {Object.entries(GROUPS).map(([id, title]) => (
           <li key={id}>
-            <Link href={`/design/${id}`} className="text-body text-ink underline">
+            <Link href={`/design/${id}`} className="inline-flex min-h-8 items-center text-body text-ink underline">
               {title}
             </Link>
           </li>

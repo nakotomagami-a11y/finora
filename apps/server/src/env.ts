@@ -1,15 +1,17 @@
 import "server-only";
 import { z } from "zod";
+import pkg from "../package.json" with { type: "json" };
 
 /** Where the source code lives: shown in the footer and in `GET /api/v1/about` (R18, AGPL-3.0 section 13). */
-const DEFAULT_SOURCE_URL = "https://github.com/nakotomagami-a11y/finora";
+const DEFAULT_SOURCE_URL = pkg.repository.url;
 
 const EnvSchema = z.object({
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  // A missing value means production: the relaxed development policy must be asked for.
+  NODE_ENV: z.enum(["development", "production", "test"]).default("production"),
   FINORA_DATA_DIR: z.string().min(1).default("./.data"),
   FINORA_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   FINORA_DEMO: z.literal("1").optional(),
-  FINORA_SOURCE_URL: z.url().default(DEFAULT_SOURCE_URL),
+  FINORA_SOURCE_URL: z.url({ protocol: /^https?$/u }).default(DEFAULT_SOURCE_URL),
   FINORA_COMMIT: z.string().min(1).optional(),
 });
 

@@ -1,5 +1,6 @@
 export { cn } from "./cn.ts";
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./primitives/button.tsx";
+export { ButtonLink, type ButtonLinkProps } from "./primitives/button-link.tsx";
 export { Checkbox, SegmentedControl, Switch, type SegmentedOption } from "./primitives/toggles.tsx";
 export { Combobox, type ComboboxGroup, type ComboboxOption, type ComboboxProps } from "./primitives/combobox.tsx";
 export {

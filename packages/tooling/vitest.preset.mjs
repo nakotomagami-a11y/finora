@@ -14,6 +14,8 @@ export const finoraVitest = {
     include: ["{apps,packages}/*/{src,eslint}/**/*.test.{ts,tsx}"],
     exclude: ["**/node_modules/**", "**/.next/**", "**/e2e/**"],
     environment: "node",
+    // next-intl imports `next/server` without a file extension, which Node only resolves after Vite transforms it.
+    server: { deps: { inline: [/next-intl/u] } },
     env: { NODE_ENV: "test" },
     restoreMocks: true,
     // The whole suite runs in parallel; a loaded machine must not turn a slow test into a failure.

@@ -45,3 +45,15 @@ describe("loadEnv", () => {
     }
   });
 });
+
+describe("NODE_ENV and the source URL", () => {
+  it("defaults to production, so a missing value never serves the development policy", () => {
+    expect(loadEnv({}).NODE_ENV).toBe("production");
+  });
+
+  it("takes the source URL from package.json and accepts only http and https", () => {
+    expect(loadEnv({}).FINORA_SOURCE_URL).toMatch(/^https:\/\//u);
+    expect(() => loadEnv({ FINORA_SOURCE_URL: "javascript:alert(1)" })).toThrowError("FINORA_SOURCE_URL");
+    expect(() => loadEnv({ FINORA_SOURCE_URL: "ftp://example.test/x" })).toThrowError("FINORA_SOURCE_URL");
+  });
+});

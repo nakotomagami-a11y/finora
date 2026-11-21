@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const TOKENS = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "tokens.css"), "utf8");
+const TOKENS = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "tokens.css"), "utf8").replace(/\r\n/gu, "\n");
 
 function hexTokens(selector: string): Map<string, string> {
   const start = TOKENS.indexOf(`${selector} {`);

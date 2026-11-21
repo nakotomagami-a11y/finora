@@ -1,14 +1,8 @@
 import type { ErrorCode } from "@finora/domain";
 
-const ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+/** `localhost`, `127.0.0.1` or `[::1]`, with an optional numeric port. Anything else, including a junk port, is refused. */
+const LOCAL_HOST = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/iu;
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-
-function hostName(hostHeader: string): string {
-  const withoutPort = hostHeader.startsWith("[")
-    ? hostHeader.slice(0, hostHeader.indexOf("]") + 1)
-    : (hostHeader.split(":")[0] ?? "");
-  return withoutPort.toLowerCase();
-}
 
 export function errorResponse(code: ErrorCode, status: number, detail?: string): Response {
   return Response.json({ error: { code, ...(detail ? { detail } : {}) } }, { status });
@@ -22,8 +16,9 @@ export function errorResponse(code: ErrorCode, status: number, detail?: string):
  */
 export function guardRequest(request: Request): Response | null {
   const host = request.headers.get("host");
-  if (!host || !ALLOWED_HOSTS.has(hostName(host))) return errorResponse("host_not_allowed", 403);
+  if (!host || !LOCAL_HOST.test(host)) return errorResponse("host_not_allowed", 403);
   if (UNSAFE_METHODS.has(request.method.toUpperCase())) {
+    if (request.headers.get("sec-fetch-site") === "cross-site") return errorResponse("forbidden", 403);
     const origin = request.headers.get("origin");
     if (origin !== null) {
       let originHost: string;
@@ -50,6 +45,7 @@ export function securityHeaders({ nonce, development }: SecurityHeaderOptions): 
     "default-src 'self'",
     `script-src ${scripts.join(" ")}`,
     `style-src ${styles.join(" ")}`,
+    // React and Radix place popovers with `style` attributes; style elements still need the nonce.
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",
@@ -63,6 +59,6 @@ export function securityHeaders({ nonce, development }: SecurityHeaderOptions): 
     "Content-Security-Policy": csp,
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
-    "Cross-Origin-Opener-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   };
 }

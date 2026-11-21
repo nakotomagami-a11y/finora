@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
+import { DEFAULT_LOCALE, isLocale } from "@finora/i18n";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale: isLocale(locale) ? locale : DEFAULT_LOCALE, namespace: "crash" });
+  return { title: t("title") };
+}
 
 export default async function CrashMonitor({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

@@ -118,6 +118,8 @@
   --ease: cubic-bezier(0.2, 0, 0, 1);
 
   --rail-w: 72px;
+  --topbar-h: 68px;
+  --bottombar-h: 64px;
   --aside-w: 360px;
   --content-max: 1240px;
 }

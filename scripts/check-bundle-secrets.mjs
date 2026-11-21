@@ -2,7 +2,7 @@
 // Fails when a secret reaches the browser. CI builds the web app with sentinel values in the secret
 // environment variables, then this script looks for those values in the client bundle (architecture §12).
 //
-//   FINORA_SENTINELS=1 pnpm build && node scripts/check-bundle-secrets.mjs
+//   pnpm build && node scripts/check-bundle-secrets.mjs   (with every secret variable, and its NEXT_PUBLIC_ twin, set to its sentinel)
 //
 // The build must have been made with the sentinels: the script refuses to pass on a bundle it could not test.
 
@@ -11,7 +11,8 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const CLIENT_DIR = "apps/web/.next/static";
+// The client bundle, and the server-rendered pages, where Next.js inlines any NEXT_PUBLIC_ value it finds.
+const SCANNED_DIRS = ["apps/web/.next/static", "apps/web/.next/server/app"];
 
 /** Every environment variable that holds a secret or a personal contact string. */
 export const SECRET_NAMES = [
@@ -54,30 +55,32 @@ function* walk(dir) {
 }
 
 function main() {
-  const dir = join(ROOT, CLIENT_DIR);
-  if (!existsSync(dir)) {
-    console.error(`check-bundle-secrets: ${CLIENT_DIR} does not exist; run the web build first.`);
+  const missing = SCANNED_DIRS.filter((dir) => !existsSync(join(ROOT, dir)));
+  if (missing.length > 0) {
+    console.error(`check-bundle-secrets: ${missing.join(", ")} does not exist; run the web build first.`);
     process.exit(1);
   }
 
   const sentinels = {};
   for (const name of SECRET_NAMES) {
-    if (process.env[name] !== sentinelFor(name)) {
-      console.error(`check-bundle-secrets: ${name} was not the sentinel value at build time; the bundle cannot be tested.`);
-      process.exit(1);
+    for (const variable of [name, `NEXT_PUBLIC_${name}`]) {
+      if (process.env[variable] !== sentinelFor(name)) {
+        console.error(`check-bundle-secrets: ${variable} was not the sentinel value at build time; the bundle cannot be tested.`);
+        process.exit(1);
+      }
     }
     sentinels[name] = sentinelFor(name);
   }
 
-  const files = [...walk(dir)]
-    .filter((path) => /\.(?:js|css|html|json|map|txt)$/u.test(path))
+  const files = SCANNED_DIRS.flatMap((dir) => [...walk(join(ROOT, dir))])
+    .filter((path) => /\.(?:js|css|html|json|map|txt|rsc|body)$/u.test(path))
     .map((path) => ({ path: relative(ROOT, path).replaceAll("\\", "/"), text: readFileSync(path, "utf8") }));
   const leaks = findLeaks(files, sentinels);
   if (leaks.length > 0) {
     for (const leak of leaks) console.error(`check-bundle-secrets: ${leak}`);
     process.exit(1);
   }
-  console.log(`check-bundle-secrets: ${files.length} client files checked, no secret found.`);
+  console.log(`check-bundle-secrets: ${files.length} files checked, no secret found.`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main();

@@ -15,7 +15,7 @@ export function LocaleSwitcher() {
 
   return (
     <nav aria-label={t("language")}>
-      <ul className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0">
+      <ul className="m-0 flex list-none flex-wrap gap-x-1 p-0">
         {LOCALES.map((code) => (
           <li key={code}>
             <Link
@@ -24,7 +24,7 @@ export function LocaleSwitcher() {
               lang={code}
               hrefLang={code}
               aria-current={code === locale ? "true" : undefined}
-              className="text-small text-muted aria-[current=true]:text-ink aria-[current=true]:underline"
+              className="inline-flex min-h-8 items-center rounded-chip px-2 text-small text-muted aria-[current=true]:text-ink aria-[current=true]:underline"
             >
               {LOCALE_NAMES[code]}
             </Link>

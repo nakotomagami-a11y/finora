@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3100;
-const ENGINE_SPECS = /(smoke|csp|design\.keyboard|design\.overlays|theme|fonts)\.spec\.ts$/u;
+const ENGINE_SPECS = /(smoke|csp|titles|design\.keyboard|design\.overlays|design\.focus|theme|fonts)\.spec\.ts$/u;
 
 // The e2e run uses the production build (`pnpm build` first), the same server `pnpm finora` starts.
 /** @type {import("@playwright/test").PlaywrightTestConfig} */
@@ -29,7 +29,9 @@ const config = {
     url: `http://127.0.0.1:${PORT}/api/v1/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
-    env: { FINORA_PORT: String(PORT), FINORA_DEMO: "1" },
+    // The shell may hand down a development NODE_ENV and another app's Next.js internals. The run script must
+    // not let either reach the server: security-headers.spec.ts checks that the policy is the production one.
+    env: { FINORA_PORT: String(PORT), FINORA_DEMO: "1", NODE_ENV: "development", __NEXT_PRIVATE_TEST: "1" },
   },
 };
 

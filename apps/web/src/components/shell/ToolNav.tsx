@@ -67,8 +67,9 @@ export function ToolNav({ tools, variant }: Props) {
 
   return (
     <nav
+      data-bar
       aria-label={t("bottomBarLabel")}
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 h-[calc(var(--bottombar-h)+env(safe-area-inset-bottom))] border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <ul className="m-0 flex list-none justify-around gap-1 p-1">{[...main, ...bottom].map(renderItem)}</ul>
     </nav>

@@ -115,6 +115,12 @@ export function Combobox({
   const activeId = open && active >= 0 ? flat[active]?.domId : undefined;
   const showList = open && groups.length > 0;
 
+  // The list adds height below the input. Once it is laid out, keep the input itself clear of any fixed bar
+  // (the page's scroll-padding says how much room a bar takes).
+  useEffect(() => {
+    if (showList) inputRef.current?.scrollIntoView({ block: "nearest" });
+  }, [showList]);
+
   return (
     <div
       className={cn("relative", className)}

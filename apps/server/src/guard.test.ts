@@ -23,7 +23,7 @@ describe("guardRequest: Host", () => {
     },
   );
 
-  it.each(["evil.example", "evil.example:3000", "127.0.0.1.evil.example", "localhost.evil.example:80", "10.0.0.5"])(
+  it.each(["evil.example", "evil.example:3000", "127.0.0.1.evil.example", "localhost.evil.example:80", "10.0.0.5", "127.0.0.1:abc", "localhost:", "localhost:123456"])(
     "refuses %s with host_not_allowed",
     async (host) => {
       expect(await codeOf(guardRequest(req(host)))).toBe("host_not_allowed");
@@ -46,6 +46,11 @@ describe("guardRequest: Origin on unsafe methods", () => {
 
   it.each(["POST", "PUT", "PATCH", "DELETE"])("refuses a foreign Origin on %s with forbidden", async (method) => {
     expect(await codeOf(guardRequest(req("127.0.0.1:3000", { method, origin: "https://evil.example" })))).toBe("forbidden");
+  });
+
+  it("refuses a cross-site fetch that carries no Origin", async () => {
+    const request = new Request("http://127.0.0.1:3000/x", { method: "POST", headers: { host: "127.0.0.1:3000", "sec-fetch-site": "cross-site" } });
+    expect(await codeOf(guardRequest(request))).toBe("forbidden");
   });
 
   it("refuses an Origin that is not a URL", async () => {
