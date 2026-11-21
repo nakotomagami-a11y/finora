@@ -83,3 +83,8 @@ d7d775e3ad373efb7df2bc404f071ed0fa1f76c6e964e9a8685eabc6871f6e9c  apps/web/e2e/_
 527a5c561a8acc38cdbd3a21e5ab35663ebf2addb2ce4ff926548722ad9685dd  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-1280-light.png
 c9c12bb2ab37847ac39900f0c46d496d1a13195d731ad176a06184d02444a165  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-390-dark.png
 b91539a1ee831947b7a8a2a18a058524c231c2a6c5a2a99c124f2a0ec935028f  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-390-light.png
+36ab851966adbcfc10bac8c409a2fd2bcafdc65fdd9d0e0bf82e64949c160e4a  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-dialog-390-dark.png
+fb6c46388f8d42b1f4666badb9bfaec1b81ad1941dd72d8b07096614f65c7ae4  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-dialog-390-light.png
+95dbc8d3cf03f5e6d2969e435af8a9113b470e78386655730930237600ec3d62  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-dialog-1280-light.png
+20a6a57589c667201192535a7122e1072cb9dc07da11e1b1f4c0ea1e0929dcb3  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-390-dark.png
+11f7e21edafe04c10752ca9f0476ff6f5b0bf11fec6ac6c5294be1c60780e4a6  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-390-light.png
