@@ -403,7 +403,7 @@ Text over the limit is cut at the limit with "Read at source". Quotes are the on
 
 ### 5.9 Crash monitor tiles
 
-**Page anatomy** (`crash.html`): overline and serif H1 ("How far markets are from their peaks") with the "Updated 2 min ago" line and the cadence note; a `Banner` when some rows are `not_configured` ("Some markets are not configured on this install. How to set it up"); the **Distance from peak** strip beside the **US national debt** card; tiles M01 to M07; "How it's calculated" and the attribution lines at the end. The provider file and the daily US series stay on this machine, and the page says so.
+**Page anatomy** (`crash.html`): overline and serif H1 ("How far markets are from their peaks") with the "Updated 2 min ago" line and the cadence note; a footer line "Not covered in v1: Europe, the Americas outside the US and South Korea (no free source)"; a `not_configured` row carries its own "How to set it up"; the **Distance from peak** strip beside the **US national debt** card; tiles M01 to M07; "How it's calculated" and the attribution lines at the end. Personal-use market series stay on this machine, and the page says so.
 
 One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`MarketRow` in architecture §8, defined in `docs/plan/loaders/markets.md` §1.4): M03 holds up to seven markets, M01 three. Each row shows its name, the value and drawdown, a sparkline, the as-of time, the source and its attribution line, and has its own state. The row's DTO state (`ok | peak_unknown | not_configured | stale | error | loading`) maps to the display states below; `live`, `delayed` and `coarse` are `ok` rows told apart by the row's cadence and lag. State by row (the council's Part C):
 
@@ -539,7 +539,7 @@ The question announcement does not move focus. A shortcut and a link take the us
 - **Purpose required** (`428`): the section shows the purpose gate, not an error.
 - **Host or origin refused** (`403`): a plain page "This app only answers on the machine it runs on" (local mode).
 - **Offline**: the shell shows a banner "You are offline"; cached pages stay readable.
-- **No LLM key**: the explorer works fully. **Investigate** stays visible and opens the state its status shows (`agents-off`, `cli-missing` or `cli-signed-out`) with the one step to fix it. Never a disabled button with no reason.
+- **Agents off** (the default, `FINORA_AGENT_BACKEND=off`): the explorer works fully. **Investigate** stays visible and opens the agents-off sheet; with the backend on, it opens the state the status shows (`cli-missing`, `cli-signed-out`, `busy`, `unsafe`). Never a disabled button with no reason.
 - **No SEC contact setting**: US public profiles show `needs_source` rows ("needs the SEC contact setting") and promise nothing.
 - **Daily cap reached**: Investigate opens the spend and reset-time sheet. The instant profile keeps working.
 - **404 and 500**: `not-found.tsx` and `error.tsx` per tool, with the search box and a link home.
