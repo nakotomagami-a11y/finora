@@ -13,6 +13,12 @@
       "crash": "Turulangused",
       "sources": "Allikad",
       "settings": "Seaded"
+    },
+    "theme": {
+      "label": "Teema",
+      "system": "Süsteemi",
+      "dark": "Tume",
+      "light": "Hele"
     }
   },
   "footer": {

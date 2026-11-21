@@ -6,7 +6,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+// FINORA_CHECK_ROOT lets the test point the check at a scratch folder.
+const ROOT = process.env.FINORA_CHECK_ROOT ?? join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIRS = ["apps/web/src", "packages/ui/src"];
 const TOKENS = "packages/ui/src/tokens.css";
 const RAW_COLOUR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch)\(/;

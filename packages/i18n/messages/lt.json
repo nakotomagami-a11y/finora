@@ -13,6 +13,12 @@
       "crash": "Rinkų kritimai",
       "sources": "Šaltiniai",
       "settings": "Nustatymai"
+    },
+    "theme": {
+      "label": "Tema",
+      "system": "Sistemos",
+      "dark": "Tamsi",
+      "light": "Šviesi"
     }
   },
   "footer": {

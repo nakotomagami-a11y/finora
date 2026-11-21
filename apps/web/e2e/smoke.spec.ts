@@ -70,7 +70,9 @@ test.describe("shell", () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  test("the skip link is the first tab stop and moves focus to the main region", async ({ page }) => {
+  test("the skip link is the first tab stop and moves focus to the main region", async ({ page, browserName }) => {
+    // Safari's default is not to Tab onto links (a system setting turns it on), so this path is checked in the other engines.
+    test.skip(browserName === "webkit", "WebKit does not Tab to links by default");
     await page.goto("/en");
     await page.keyboard.press("Tab");
     const skip = page.getByRole("link", { name: "Skip to content" });

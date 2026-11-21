@@ -88,7 +88,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm --filter @finora/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @finora/web exec playwright install --with-deps chromium firefox webkit
       - run: pnpm e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
@@ -97,4 +97,29 @@ jobs:
           path: |
             apps/web/test-results
             apps/web/playwright-report
+          retention-days: 7
+
+  visual:
+    # Screenshot comparison runs in the pinned Playwright image (fonts differ by system), once baselines exist.
+    if: ${{ hashFiles('apps/web/e2e/__screenshots__/**') != '' }}
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
+    env:
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @finora/web e2e:visual
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-diffs
+          path: apps/web/test-results
           retention-days: 7

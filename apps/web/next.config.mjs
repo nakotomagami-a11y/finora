@@ -9,7 +9,7 @@ const nextConfig = {
   // Next.js writes an AGENTS.md of its own rules into the app folder; the repo has its own agent instructions.
   agentRules: false,
   // Workspace packages export TypeScript source, so Next compiles them.
-  transpilePackages: ["@finora/api-contract", "@finora/domain", "@finora/i18n", "@finora/server"],
+  transpilePackages: ["@finora/api-contract", "@finora/domain", "@finora/i18n", "@finora/server", "@finora/ui"],
 };
 
 export default withNextIntl(nextConfig);

@@ -7,3 +7,4 @@ listed here with its slice until a native reviewer has checked it. The banned-wo
 | Slice | Namespaces | Reviewed |
 |---|---|---|
 | S02 | `common`, `shell`, `footer`, `explorer`, `crash`, `terms`, `errors` | no |
+| S03 | `shell.theme` (theme toggle labels) | no |

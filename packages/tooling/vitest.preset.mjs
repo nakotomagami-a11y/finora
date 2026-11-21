@@ -11,5 +11,6 @@ export const finoraVitest = {
     exclude: ["**/node_modules/**", "**/.next/**", "**/e2e/**"],
     environment: "node",
     restoreMocks: true,
+    setupFiles: [fileURLToPath(new URL("./vitest.setup.mjs", import.meta.url))],
   },
 };

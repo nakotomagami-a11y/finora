@@ -67,6 +67,11 @@ describe("securityHeaders", () => {
     expect(headers["Content-Security-Policy"]).toContain("'nonce-abc'");
   });
 
+  it("lets only nonce-marked styles through in production", () => {
+    const directives = (headers["Content-Security-Policy"] ?? "").split("; ");
+    expect(directives.find((d) => d.startsWith("style-src "))).toBe("style-src 'self' 'nonce-abc'");
+  });
+
   it("allows no eval in production, and only in development", () => {
     expect(headers["Content-Security-Policy"]).not.toContain("unsafe-eval");
     expect(securityHeaders({ nonce: "abc", development: true })["Content-Security-Policy"]).toContain("'unsafe-eval'");

@@ -13,6 +13,12 @@
       "crash": "Crash monitor",
       "sources": "Sources",
       "settings": "Settings"
+    },
+    "theme": {
+      "label": "Theme",
+      "system": "System",
+      "dark": "Dark",
+      "light": "Light"
     }
   },
   "footer": {

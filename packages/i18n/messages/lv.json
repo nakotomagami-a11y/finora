@@ -13,6 +13,12 @@
       "crash": "Tirgus kritumi",
       "sources": "Avoti",
       "settings": "Iestatījumi"
+    },
+    "theme": {
+      "label": "Tēma",
+      "system": "Sistēmas",
+      "dark": "Tumša",
+      "light": "Gaiša"
     }
   },
   "footer": {

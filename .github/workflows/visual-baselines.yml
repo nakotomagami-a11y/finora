@@ -1,0 +1,32 @@
+name: visual-baselines
+
+# Makes the screenshot baselines in the same image the `visual` job compares in. Run it by hand, download the
+# artifact, open every image, record each one with `node scripts/guard/guard.mjs review <file>`, then commit them.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baselines:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
+    env:
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @finora/web exec playwright test --project=visual --update-snapshots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: apps/web/e2e/__screenshots__
+          retention-days: 3

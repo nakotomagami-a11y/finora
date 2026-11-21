@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
-import { getAbout } from "@finora/server/render";
 import { Link } from "../../i18n/navigation.ts";
+import { getAbout } from "../../lib/server-data.ts";
 import { LocaleSwitcher } from "./LocaleSwitcher.tsx";
 
 /** Every page carries the source-code link (R18, AGPL-3.0 section 13) and the terms link (P7). */

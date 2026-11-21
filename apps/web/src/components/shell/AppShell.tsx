@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 import { enabledTools } from "../../tools/index.ts";
 import { Footer } from "./Footer.tsx";
+import { TopBar } from "./TopBar.tsx";
 import { ToolNav } from "./ToolNav.tsx";
 
 /** The frame of every page: skip link, tool rail or bottom bar from the manifests, main region, footer. */
@@ -19,6 +20,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
       </a>
       <ToolNav tools={tools} variant="rail" />
       <div className="flex min-h-screen flex-col pb-[calc(64px+env(safe-area-inset-bottom))] md:ml-[var(--rail-w)] md:pb-0">
+        <TopBar />
         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[var(--content-max)] flex-1 px-6 pt-8 pb-18 outline-none">
           {children}
         </main>

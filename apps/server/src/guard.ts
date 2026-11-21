@@ -43,7 +43,8 @@ export type SecurityHeaderOptions = { nonce: string; development: boolean };
 /** The headers every response carries: a nonce-based CSP, no framing, no sniffing, no referrer. */
 export function securityHeaders({ nonce, development }: SecurityHeaderOptions): Record<string, string> {
   const scripts = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(development ? ["'unsafe-eval'"] : [])];
-  const styles = development ? ["'self'", "'unsafe-inline'"] : ["'self'"];
+  // The nonce also covers the one <style> element Radix adds to lock page scroll under an open dialog.
+  const styles = development ? ["'self'", "'unsafe-inline'"] : ["'self'", `'nonce-${nonce}'`];
   const connect = ["'self'", ...(development ? ["ws://127.0.0.1:*", "ws://localhost:*"] : [])];
   const csp = [
     "default-src 'self'",

@@ -9,17 +9,19 @@
     "build": "next build",
     "start": "node scripts/run-next.mjs start",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "e2e": "playwright test"
+    "e2e": "playwright test --project=chromium --project=firefox --project=webkit",
+    "e2e:visual": "playwright test --project=visual"
   },
   "dependencies": {
-    "@fontsource-variable/geist": "catalog:",
-    "@fontsource-variable/geist-mono": "catalog:",
-    "@fontsource/instrument-serif": "catalog:",
     "@finora/api-contract": "workspace:*",
     "@finora/domain": "workspace:*",
     "@finora/i18n": "workspace:*",
     "@finora/server": "workspace:*",
     "@finora/ui": "workspace:*",
+    "@fontsource-variable/geist": "catalog:",
+    "@fontsource-variable/geist-mono": "catalog:",
+    "@fontsource/instrument-serif": "catalog:",
+    "get-nonce": "catalog:",
     "lucide-react": "catalog:",
     "next": "catalog:",
     "next-intl": "catalog:",
@@ -37,6 +39,10 @@
     "postcss": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "jsdom": "catalog:"
   }
 }
