@@ -332,7 +332,8 @@ The frontend inventory (`docs/plan/ui-build-plan.md`) is the build list; these a
 - Scrollable tables are focusable regions named after their section.
 - The agent panel uses a polite live region, throttled to one announcement per lane step. Question cards are regions with an H2.
 - Sheets are modal dialogs with a label: focus moves to the primary action on open, Tab stays inside, Esc triggers the sheet's Cancel or Close. This is an acceptance test for the sheet component.
-- **Touch targets** under 768 px: primary buttons 40 px high, small buttons and chips at least 28 px, link buttons 32 px, filter and index pills 36 px (WCAG 2.2 target size minimum is 24 px).
+- **Touch targets** under 768 px: primary buttons 40 px high, small buttons, segmented controls, tabs, switches and chips at least 28 px, link buttons and text links in lists or the footer at least 32 px tall (padding, not font size), filter and index pills 36 px. Nothing interactive is under 24 × 24 (WCAG 2.2 target size minimum).
+- **Focus is never hidden by fixed bars** (WCAG 2.2, 2.4.11): `html` sets `scroll-padding-top` to the sticky header's height plus 8 px and, under 768 px, `scroll-padding-bottom` to the bottom bar's height plus 8 px, so a focused control scrolled into view always lands between the bars. Anchored sections use the same offset (`scroll-margin-top`).
 - Keyboard: `/` search; ↑ ↓ Enter in results; `j` / `k` between findings in a report; Enter opens a source chip; `?` opens a small dialog that lists these shortcuts.
 - The mockups pass axe (no violations) on the main states in both themes at 1280 and 390 px.
 
