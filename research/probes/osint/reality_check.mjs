@@ -103,7 +103,6 @@ const FIELDS = {
   "S15 archived in P8": (p) => (p.archive?.yearsCaptured ?? 0) > 0,
   "S15 homepage reachable": (p) => Boolean(p.homepage?.ok),
   "S15 homepage states register code": (p) => Boolean(p.homepage?.statesRegistryCode),
-  "S16 social profile linked from homepage": (p) => (p.homepage?.socialCount ?? 0) > 0,
   "S16 news articles (P4, 3 months)": (p) => (p.news?.articles ?? 0) > 0,
   "S16 news query answered": (p) => Boolean(p.news?.ok),
   "S11 sanctions exact name hit": (p) => p.sanctions.exact > 0,

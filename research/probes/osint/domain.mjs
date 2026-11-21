@@ -113,15 +113,6 @@ export async function archive(domain) {
   };
 }
 
-const SOCIAL = {
-  facebook: /facebook\.com\/(?!sharer|share|dialog|plugins|tr\b)[\w.\-]+/i,
-  linkedin: /linkedin\.com\/(company|in|school)\/[\w\-%.]+/i,
-  instagram: /instagram\.com\/[\w.\-]+/i,
-  x: /(twitter|x)\.com\/(?!intent|share|home)[\w]+/i,
-  youtube: /youtube\.com\/(channel|c|user|@)[\w\-@]*/i,
-  tiktok: /tiktok\.com\/@[\w.\-]+/i,
-};
-
 /** Fetch the homepage once (as a browser would) and look for the identifiers that tie it to the register. */
 export async function homepage(domain, { code, vat } = {}) {
   const r = await timedFetch(`https://${domain}/`, { timeoutMs: 20000, headers: { accept: "text/html" } });
@@ -129,14 +120,11 @@ export async function homepage(domain, { code, vat } = {}) {
   const html = r.text;
   const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
   const digits = text.replace(/[\s.\-]/g, "");
-  const social = Object.fromEntries(Object.entries(SOCIAL).map(([k, re]) => [k, re.test(html)]));
   return {
     ok: true, ms: r.ms, bytes: r.bytes, textChars: text.length,
     finalHost: new URL(r.url).hostname.replace(/^www\./, ""),
     title: Boolean(html.match(/<title[^>]*>([^<]{2,})/i)),
     statesRegistryCode: Boolean(code && digits.includes(String(code).replace(/^0+/, ""))),
     statesVat: Boolean(vat && digits.toUpperCase().includes(vat.toUpperCase())),
-    social,
-    socialCount: Object.values(social).filter(Boolean).length,
   };
 }
