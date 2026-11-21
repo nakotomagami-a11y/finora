@@ -469,3 +469,28 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | OUT.US.02 | LATER | - | — |
 | OUT.US.03 | LATER | - | — |
 | OUT.US.04 | LATER | - | — |
+
+## Superseded by the human's rulings H4 and H5 (2026-11-21)
+
+The human's rulings outrank this record. The council chair listed what they supersede (council 7066864444, 7066916684, 7066932465); the text above is kept as the record of what was decided at the time.
+
+- **Part C, Markets, "fund tiles with the user's own key":** off in v1 (H5). See the Part G amendments below.
+- **Commercial providers** are named only by code from now on (H4, C15).
+
+### Part G amendments under H5 (2026-11-21)
+
+Council 7066895040 and 7066900211, legal 7066878390, 7066884362 and 7066891816, data-markets 7066874021 and 7066887157, data-us `84797a3`. These amend the rows named; the rest of Part G stands.
+
+| Row | Was | Now (v1) |
+|---|---|---|
+| M01.X.02, M02.X.01, M03.X.02, M04.X.01 | fund proxies on S7 with the user's key | **off.** No keyless source; the S7 connector, the 13 fund slots and their settings go |
+| M01 daily US index rows (new) | none | **CAVEAT, Y for F1-F3** (FRED's third-party index series, fetched keyless by the user's own instance; F4 off). One daily drawdown row per series beside the quarterly official row, which keeps "value lost". Attribution: "Personal use; [owner]'s copyright, via FRED; 1-day lag", the owner's name read from the local provider file. Legal's six conditions: personal use only (also stated on the product and terms pages); kept in `connector-cache.db` only, never exported, served, backed up or put in MCP (R17); no copy in the repo or a fixture (the synthetic walk); derived drawdown only on screen, never the raw series in bulk; the owner's name only in the local provider file; dropped for any hosted or shared build. If the light is withdrawn, M01 falls back to the quarterly official row, labelled "quarterly, official", never 0% |
+| M02 Europe, M04 Americas excluding the US | fund slots only | **LATER, no tile.** Footer: "Not covered in v1: Europe, the Americas outside the US (no free source)". Trigger: a keyless official daily source |
+| M03 | Japan, Taiwan, Korea | Japan (F5, citation required, the connector-cache path) and Taiwan (E1, open-government licence) stay; **Korea (E2) LATER**, named in the same footer line |
+| M05.X.02b daily gold (S3) | user key | **off.** M05.X.01 monthly gold (World Bank) stays |
+| M06.X.02 total crypto (C1) | optional demo key | **keyless**, backs off on 429; the 24 h snapshot limit stays and only the latest snapshot is shown (legal) |
+| Commercial crypto rows (X4, C1, C3, O3, O1) | hosts in code | hosts, URL templates, attribution and terms URLs move to the gitignored local provider file under qa's six conditions; without it the row reads "Not configured", its own state, never 0 or clean, and `totalWiped` leaves it out, saying so |
+| S11.US.01 SAM.gov exclusions | SHOW, keyed Extracts API | **manual link** (`manual_lookup`, "Check federal exclusions on SAM.gov"); no keyless pull is allowed by the terms. The US private promise loses the stored exclusions check; the sanctions lists still run |
+| S10.US.02 federal dockets (P2) | CAVEAT, keyed API | **manual link**; `search_courts` runs on the keyless FJC civil index only |
+| US live states (NY, CO, CT, PA), FMCSA | optional state-portal token | no token; the shared pool with 429 backoff and "did not answer"; the six recorded state terms are still required before the live slice ships |
+| US public companies (SEC) | `SEC_USER_AGENT` | unchanged: an optional contact setting (C14); without it "needs the SEC contact setting" |

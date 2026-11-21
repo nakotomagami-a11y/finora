@@ -153,3 +153,12 @@ Each call holds its own `max_uses` × `SEARCH_RESULT_TOKENS_EST` × input price 
 - **designer:** items 7, 10, 11 and 13 in `46b1490` (DESIGN.md and mockups), plus most CMO and CPO non-blocking items (banned-word inflections, "10 of 11", Export removed, the "Added by this investigation" line, the US private pre-run note).
 - **Council (7049083544): the session 2 revision is complete and confirmed.** qa verifies each item at its gate. The architect's two alignments (per-call holds; role-level US restrictions) landed in `7f07f91` / `6f2a62c`; **qa verified both at the tip (7049284831). Every session 2 item is closed.** The council holds until the M1 demo (session 3).
 - **qa (7049100274):** the designer's `46b1490` (+ `3b0abdf`) and frontend's draft 6 verified. Every session 2 item has landed and been verified except the architect's two alignments. NIT: mark `docs/design/display-options.md` as superseded by DESIGN.md (designer).
+
+## Superseded by the human's rulings H4 and H5 (2026-11-21)
+
+The human's rulings outrank this record. The council chair listed what they supersede (council 7066864444, 7066916684, 7066932465); the text above is kept as the record of what was decided at the time.
+
+- **Item 3, the `ANTHROPIC_API_KEY` ask, and K2's "the measured run needs the key":** the measured run uses the local Claude Code CLI on the human's subscription, once the human answers H6 (legal's terms reading). The runtime sits behind `cli | local | fake`; CI and S09 run on the fake CLI (recorded transcripts written against the fixture world).
+- **Item 4, build spend "about $45, plan for $100":** about 15M st expected, planned at 33M st of the human's plan.
+- **The dollar caps and the +$0.50 extension** wherever they appear here: see `00-framing.md`'s superseded section (500k / 85k / 3.3M st, +170k st).
+- **Product requirements under H5** (council): Investigate has a no-CLI state with the one step to fix it, never a dead button; the plan's own usage limit pauses a run ("Usage limit reached: resumes after [time]"), never a verdict on partial evidence; usage shown as a share of Finora's cap; fixtures only in CI, and the nightly `live` job asserts zero agent calls. The unit is explained once in a popover; a one-time confirmed notice tells the user to keep paid extra usage off (Finora can't check it), repeated in Settings and `docs/running.md`; agent runs never load the user's own Claude setup, proven by an isolation test (gates S09a).

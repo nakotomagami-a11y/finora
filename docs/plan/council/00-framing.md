@@ -127,3 +127,12 @@ Levels: **No concerns found** / **Points to check** / **Serious concerns** / **N
 - **Guardrail 1:** the cost-cap extension is one-shot: at most one "allow $0.50 more" per run, never past the daily cap, and the daily cap can't be raised from inside a run.
 - **Guardrail 2:** "Not enough data" is a rule in the verdict rule table: it fires when the entity isn't pinned to a registry ID, or fewer than half the applicable checks ran. Session 1 sets the final threshold.
 - **Dissent:** none (designer's remit, granted in session 0). **What would change it:** the human reading "No concerns found" as a clean bill at the first session 3 demo; level 1 then becomes "Nothing found in N of M checks".
+
+## Superseded by the human's rulings H4 and H5 (2026-11-21)
+
+The human's rulings outrank this record. The council chair listed what they supersede (council 7066864444, 7066916684, 7066932465); the text above is kept as the record of what was decided at the time.
+
+- **Decision 3, the dollar caps** ($1.50 per investigation, $0.25 per follow-up, $10 per day) and the one-shot +$0.50 extension: replaced by cto's usage caps in standard tokens (st), at the same strength: 500k st per investigation, 85k st per follow-up, 3.3M st per day, and a one-shot +170k st extension clipped to the daily cap. 1 st is one Sonnet-class uncached input token; a run's st is the CLI's own `total_cost_usd` ÷ 3 x 10⁻⁶ plus 3,333 st per web search counted from tool calls (dropped if the measured run shows the fee is already included). The dollar figure is an internal meter only; no surface shows a currency.
+- **The designer guardrails in dollars:** the screen shows a share of Finora's own cap first ("Typically about 30% of this investigation's cap, at most about 60%"), with standard tokens, turns and raw tokens per model behind a disclosure. Never dollars, "spend", "cost" or "price", and never a share of the user's plan.
+- **The CFO cost kill criterion** reads in st: measured p95 above 500k st cuts agent depth before the cap is raised.
+- **Unchanged, restated in st:** the hard-cap rule (holds per call), the calibration definition (at least 90% of runs at or under `high`, median within ±30% of `typical`) and the milestone gate's `--budget` ledger.

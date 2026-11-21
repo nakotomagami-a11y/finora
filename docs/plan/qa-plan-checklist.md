@@ -21,5 +21,13 @@ Posted by the `qa` seat on the hub; committed by the coordinator. A slice plan g
 ## Phase 5
 For each slice, the builder sends qa the commit range. qa returns MUST-FIX / SHOULD-FIX / NIT with file:line. A MUST-FIX blocks the slice.
 
+**Outside names (H4, qa 7066865925; legal agrees), run before every slice is accepted:**
+1. `node scripts/guard/guard.mjs tree` is clean at the slice's head. Every real name a sweep finds goes into the private denylist (`.guard/`; the CI secret only in the fresh public repo, since this repo's history check would fail).
+2. The discovery sweep `scripts/check-outside-names.mjs` (architect, with tests) over the slice's changed files, and `--tree` for a full audit: hostnames, URLs and email domains not on the private allowlist; organisation-shaped phrases (capitalised words ending in a company-form token, with plainly fictional prefixes passing); ticker-shaped tokens in ticker contexts other than `ZZFX01`-`ZZFX99`; real-shaped ids (a real register check digit, an LEI passing mod 97, a CIK outside `99xxxxxxxx`, an ISIN with a valid check digit); brand words in a looser match. It reports file:line and a category only, never the matched text. Out of scope (C14): dependency names, the lockfile, licence files, generated directories.
+3. The allowlist is private (`.local/outside-names-allow.txt`, a CI secret in the fresh repo); each entry names its category (public body, official registry, open standard, tool). Every hit is renamed to a code, allowlisted with its category, or removed. Nothing is accepted with an unresolved hit.
+4. Committed images follow the reviewed-media rule; no other committed binary in fixtures (built at run time). The sweep fails on a new binary outside `__screenshots__`.
+5. Recorded agent transcripts are fixtures: written against the fixture world or recorded on the fixture profile with the web answered by a fake. No real name, page or hostname.
+6. qa writes one line in the slice's review record: "outside names: guard tree clean; sweep <range>: 0 unresolved; N allowlisted (by category)". Counts and categories only. Until the script exists, qa runs guard tree plus a manual pass of the classes over the slice's diff.
+
 ## Mockups (web-qa)
 web-qa tests at 390x844, 768x1024, 1280x800 and 1920x1080. Every mockup needs a state switcher or URL parameter for each state: empty, loading, streaming, partial, error, question to the human, report.
