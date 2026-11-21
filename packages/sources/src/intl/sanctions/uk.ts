@@ -134,7 +134,11 @@ function* entries(rows: Row[], ctx: ParseContext): Generator<ParsedRecord> {
   }
   for (const [id, group] of groups) {
     const head = group[0]!;
-    const kind = head["Designation Type"].toLowerCase();
+    // Fail closed (S06 security review, SEC-3; as eu-fsf): any Individual row sends the whole
+    // designation to the person index; rows that disagree otherwise are dropped, so a person's name
+    // can never be stored as an organisation's alias.
+    const kinds = new Set(group.map((r) => r["Designation Type"].toLowerCase()));
+    const kind = kinds.has("individual") ? "individual" : kinds.size === 1 ? head["Designation Type"].toLowerCase() : "mixed";
     const listDate = isoDate(head["Date Designated"]);
     const program = head["Regime Name"] || null;
     const primaryFirst = [...group].sort((a, b) => Number(b["Name type"].toLowerCase() === "primary name") - Number(a["Name type"].toLowerCase() === "primary name"));

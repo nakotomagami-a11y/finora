@@ -3,7 +3,7 @@
 // 111 MB file is never held as one string. Organisations are stored for screening; individuals go
 // to the in-memory person index only (§7a); vessels and aircraft are not loaded (no company
 // screening needs them, and the store has no schema for them).
-import { attr, decodeXml, elements, text } from "@finora/formats";
+import { attr, decodeXml, elements, text, withoutComments } from "@finora/formats";
 import { parserVersion } from "../../parser-version.ts";
 import type { FieldMap, ParseContext, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
 import { countryCode } from "./countries.ts";
@@ -68,7 +68,7 @@ function* entityBlocks(bytes: Uint8Array): Generator<string> {
   for (let at = buf.indexOf(ENTITY_OPEN); at >= 0; ) {
     const end = buf.indexOf(ENTITY_CLOSE, at);
     if (end < 0) throw new Truncated();
-    yield decoder.decode(buf.subarray(at, end + ENTITY_CLOSE.length)).replace(/<!--[\s\S]*?-->/g, "");
+    yield withoutComments(decoder.decode(buf.subarray(at, end + ENTITY_CLOSE.length)));
     last = end + ENTITY_CLOSE.length;
     at = buf.indexOf(ENTITY_OPEN, last);
   }
@@ -188,7 +188,7 @@ function ofacLoader(id: "us-ofac-sdn" | "us-ofac-cons", file: string): SourceLoa
   };
   return {
     meta,
-    parserVersion: parserVersion(id, 2, OFAC_FIELD_MAP, meta.items),
+    parserVersion: parserVersion(id, 3, OFAC_FIELD_MAP, meta.items),
     fieldMap: OFAC_FIELD_MAP,
     async fetch(ctx) {
       const res = await ctx.fetcher(`${EXPORTS}/${file}`);

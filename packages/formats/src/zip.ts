@@ -9,10 +9,12 @@ export class ArchiveError extends Error {
 }
 
 export type ZipLimits = { maxMemberBytes: number; maxTotalBytes: number };
+/** A running total shared by several reads of one archive, so the total limit holds across them. */
+export type ZipBudget = { used: number };
 
 const unsafePath = (name: string) => name.includes("\\") || name.startsWith("/") || /^[A-Za-z]:/.test(name) || name.split("/").includes("..");
 
-export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: ZipLimits): Map<string, Uint8Array> {
+export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: ZipLimits, budget: ZipBudget = { used: 0 }): Map<string, Uint8Array> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let eocd = -1;
   for (let p = bytes.length - 22; p >= Math.max(0, bytes.length - 65_557); p--) {
@@ -25,7 +27,7 @@ export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: Zi
   const count = view.getUint16(eocd + 10, true);
   let p = view.getUint32(eocd + 16, true);
   const out = new Map<string, Uint8Array>();
-  let total = 0;
+  let total = budget.used;
   const decoder = new TextDecoder();
   for (let k = 0; k < count; k++) {
     if (p + 46 > bytes.length || view.getUint32(p, true) !== 0x02014b50) throw new ArchiveError("bad central directory");
@@ -39,6 +41,8 @@ export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: Zi
     p += 46 + nameLength + view.getUint16(p + 30, true) + view.getUint16(p + 32, true);
     if (unsafePath(name)) throw new ArchiveError("unsafe member path");
     if (!wanted.includes(name)) continue;
+    // Two members with one wanted name: the last would win silently (SEC-10).
+    if (out.has(name)) throw new ArchiveError("duplicate member");
     if (size > limits.maxMemberBytes || total + size > limits.maxTotalBytes) throw new ArchiveError("member too large");
     if (local + 30 > bytes.length || view.getUint32(local, true) !== 0x04034b50) throw new ArchiveError("bad local header");
     const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
@@ -59,5 +63,6 @@ export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: Zi
     if (member.length > limits.maxMemberBytes || total > limits.maxTotalBytes) throw new ArchiveError("archive too large");
     out.set(name, member);
   }
+  budget.used = total;
   return out;
 }

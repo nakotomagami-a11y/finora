@@ -49,6 +49,22 @@ describe("uk-sanctions-list (sanctions.md §3)", () => {
     expect(JSON.stringify(records)).not.toMatch(/SENTINELDOC|Sentinel|IMO99/);
   });
 
+  it("fails closed on a designation whose rows disagree, in either order (security review, SEC-3)", async () => {
+    const text = new TextDecoder().decode(raw[0]!.bytes);
+    const lines = text.split("\n");
+    const person = lines.find((l) => l.includes(",FX0002,") && l.includes("Sentinel"))!;
+    for (const order of ["entity-first", "individual-first"]) {
+      // The individual's row joins the entity FX0001, before or after its rows.
+      const moved = person.replace(",FX0002,", ",FX0001,");
+      const rest = lines.filter((l) => l !== person && l !== "");
+      const body = order === "entity-first" ? [...rest, moved] : [rest[0]!, rest[1]!, moved, ...rest.slice(2)];
+      const { records, persons } = await parseAll(ukSanctionsList, [{ ...raw[0]!, bytes: new TextEncoder().encode(body.join("\n") + "\n") }]);
+      expect(records.map((r) => r.recordKey), order).toEqual(["FX0004", "FX0005"]);
+      expect(persons.map((p) => p.entryId).sort(), order).toEqual(["FX0001", "FX0002"]);
+      expect(JSON.stringify(records), order).not.toMatch(/Sentinel|Test Bakery/);
+    }
+  });
+
   it("fails on a missing report date line", async () => {
     const text = new TextDecoder().decode(raw[0]!.bytes).replace(/^﻿?Report Date: [^\n]*\n/, "");
     await expect(parseAll(ukSanctionsList, [{ ...raw[0]!, bytes: new TextEncoder().encode(text) }])).rejects.toThrow();
