@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -172,6 +172,20 @@ describe("finora-cli (S04f)", () => {
       "suppressions",
     ]);
     copy.close();
+  });
+
+  it("never puts the local provider map in a backup (C17, qa condition 5)", () => {
+    const sentinel = ["provider", "map", "sentinel", "c1"].join("-");
+    writeFileSync(join(dir, "providers.json"), JSON.stringify({ c1: { hosts: [`${sentinel}.invalid`] } }));
+    try {
+      expect(backup({ ...io(), now: () => new Date(Date.UTC(2026, 10, 22, 9)) })).toBe(0);
+      for (const file of readdirSync(join(dir, "backups"))) {
+        expect(file).not.toContain("providers");
+        expect(readFileSync(join(dir, "backups", file)).includes(sentinel)).toBe(false);
+      }
+    } finally {
+      rmSync(join(dir, "providers.json"), { force: true });
+    }
   });
 
   it("resolves FINORA_DATA_DIR against the repository root, not the working directory", () => {

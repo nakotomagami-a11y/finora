@@ -431,11 +431,11 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Scope:** `docs/plan/loaders/markets.md`: the series tables, every source in Part 2, the maths, the schedule and request budget, the Taiwan peak rule, `GET /markets/crash` from the server cache. Under H5 and C17: no keys and no fund slots; coded providers read their hosts, URL templates, licence id, attribution and terms URL from the local provider map (`<data dir>/providers.json`, architecture §15) under qa's six conditions (7066883380) and legal's.
 - **Acceptance:** the spec's Tests; every M SHOW/CAVEAT item has its `markets/src/items.test.ts` case; licensed series only in `connector-cache.db` and never exported (R17); a simulated day never exceeds any source's free limit; the endpoint answers from cache within its relative budget.
 - **Tests:** the spec's named tests, `markets/src/calc.test.ts`, `markets/src/connectors.test.ts`, `markets/src/schedule.test.ts`, `markets/src/settings.test.ts`, `markets/src/items.test.ts`, `server/src/routes/v1/markets/crash/route.contract.test.ts`.
-- **Demo:** `curl http://127.0.0.1:3000/api/v1/markets/crash` with no provider map (official rows filled, coded rows `needs_source`, never 0%), then with the map in place.
+- **Demo:** `curl http://127.0.0.1:3000/api/v1/markets/crash` with no provider map (official rows filled, coded rows `not_configured`, never 0%), then with the map in place.
 
 ### S23 Crash monitor UI (U9)
 - **Owner:** frontend · **with:** designer, data-markets · **Depends on:** S03, S04u, S22 · **web-qa**
-- **Scope:** `ui-build-plan.md` U9: tiles with several rows each, every row state (`ok`, `stale`, `needs_source`, `peak_unknown`, `error`), cadence and delay labels, `peakBasis` labels, `totalWiped` above the grid, the 60 s poll without layout shift.
+- **Scope:** `ui-build-plan.md` U9: tiles with several rows each, every row state (`ok`, `stale`, `not_configured`, `peak_unknown`, `error`), cadence and delay labels, `peakBasis` labels, `totalWiped` above the grid, the 60 s poll without layout shift.
 - **Acceptance:** U9; every state matches its mockup at four viewports; localised; axe clean.
 - **Tests:** `web/e2e/crash.spec.ts`, `web/e2e/crash.visual.spec.ts`, `web/e2e/crash.a11y.spec.ts`.
 - **Demo:** open `/en/crash`, watch a crypto row update; without the provider map, see its rows read "Not configured", never 0%.
