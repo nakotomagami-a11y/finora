@@ -21,8 +21,8 @@ This document is for the people and agents who build Finora. It says where code 
           packages/agents ──► packages/agent-tools ──► packages/domain services
                 │                                         │          │
                 ▼                                         ▼          ▼
-           LLM provider                        packages/store   packages/markets ──► market connectors (user keys)
-           (user's key)                         (SQLite file)
+     Claude Code CLI (local)                   packages/store   packages/markets ──► market connectors (keyless)
+     (the user's own sign-in)                   (SQLite file)
                                                   ▲
           packages/sources (loaders) ─────────────┘ ◄── official bulk files and APIs
 ```
@@ -31,7 +31,7 @@ This document is for the people and agents who build Finora. It says where code 
 - **Sync work never runs on the main thread** (cto B2). `node:sqlite` is synchronous, so a parse or a 5,000-record write batch on the main thread would freeze SSE streams, heartbeats and page renders. The job runner runs every source sync in a worker thread with its own database connection (the CLI runs it in its own process); the main thread serves requests and does only the small investigation writes. Test: `server/src/jobs.main-thread.test.ts` (during a fixture sync sized to run ≥ 10 s, an investigation event is written and broadcast with no `SQLITE_BUSY`, and no SSE heartbeat gap exceeds 3 s on CI runners; the absolute targets, `/api/v1/health` p95 under 100 ms and heartbeats under 1 s late, are recorded on `dev-desktop-1` in `benchmarks.md`, as qa #23 settled for timing).
 - **One holder per resource, across processes** (cto B1). The job runner in the app, a CLI `data sync`, `next dev` restarting its instrumentation, and boot-time recovery can all overlap. A `leases` table (resource, holder = pid + boot id, heartbeat, expiry), taken inside `BEGIN IMMEDIATE`, decides: every sync takes `sync:<source>`, the job runner takes `runner`, investigation recovery takes `recover`. A second taker ends `already_running` (CLI, exit code 3) or skips the tick (scheduler); a lease whose holder missed its heartbeats past expiry is taken over. Tests: `store/src/leases.test.ts` (two concurrent syncs of one fixture source: one runs, the other ends `already_running`, no rows lost; two `boot()` calls start one runner; a killed holder's lease is taken over after expiry), `agents/src/recovery.test.ts` (a dead process's runs resume exactly once).
 - **The same server runs standalone** (`pnpm server`) for hosting or for an MCP-over-HTTP client with the UI closed.
-- **One SQLite file** (`<data dir>/finora.db`) holds registry data, investigations and settings. A second file (`<data dir>/connector-cache.db`) holds data we may not redistribute (market prices fetched with the user's key); it is never exported and never served to anyone but its owner.
+- **One SQLite file** (`<data dir>/finora.db`) holds registry data, investigations and settings. A second file (`<data dir>/connector-cache.db`) holds data we may not redistribute (market series from coded providers, fetched keyless); it is never exported and never served to anyone but its owner.
 - **One tool definition, three surfaces.** A capability such as "search companies" or "get a company's officers" is defined once in `packages/agent-tools` and exposed to the research agents, the MCP server and (through domain services) the HTTP API. They cannot drift.
 
 ### Why these choices
@@ -41,7 +41,7 @@ This document is for the people and agents who build Finora. It says where code 
 | Language | TypeScript everywhere (Node 24 LTS) | Python loaders: two toolchains for one maintainer, and the useful Python libraries (register parsers, entity resolution) are small enough to port or not needed for v1 |
 | Store | SQLite through Node's built-in `node:sqlite` (FTS5 with the `trigram` and `unicode61 remove_diacritics` tokenizers verified on Node 24) | Postgres: a server to install for a local, single-user app. DuckDB: great for analytics, weaker for many small transactional writes from agents. A native SQLite addon: a C++ toolchain on Windows when no prebuild matches |
 | Entity model | A FollowTheMoney subset (schema and property names), stored as **statements** with provenance | A bespoke relational schema per country: every new source would mean a migration, and per-value provenance and licence would be bolted on |
-| Agent loop | Our own loop on the Messages API, behind an `LlmProvider` interface | A hosted agent service: beta, investigation history (which contains personal data) would live off the user's machine, our tools read a local SQLite file anyway, and an open-source app should not require one vendor's hosted runtime. A batteries-included coding-agent SDK: built around file and shell tools we must not give a research agent |
+| Agent loop | The local Claude Code CLI (`claude -p`, stream-json), one process per run, on the user's own subscription sign-in, behind an `AgentBackend` interface (`cli`, `local`); Finora's tools reach it over a per-run MCP endpoint (the human, H5; C18) | The Messages API with a user key: no keys at all in v1 (H5). A hosted agent service: investigation history (which contains personal data) would live off the user's machine. Finora's own loop on a local open-weights model: kept as the `local` backend, built only if the human chooses it (H6) |
 | Web framework | Next.js App Router | Separate SPA + API server: two deployables. The API stays a plain web-standard `handle(Request): Response`, so it is not tied to Next |
 | Styling | Tailwind CSS v4 with design tokens as CSS variables; accessible behaviour from unstyled primitives (Radix) | CSS-in-JS runtime: slower server rendering. A component kit with its own look: the design is ours |
 
@@ -63,7 +63,7 @@ packages/
   sources/        Loaders (one module per source: meta, fetch, parse, field map), licence registry, polite fetcher
   ingest/         The sync pipeline: change detection, gates, writes, purge, history events, linking, sync reports
   resolve/        Entity resolution: official-ID linking, name normalisation, candidate scoring, judgements
-  agents/         Agent runtime: orchestrator, LLM providers, budget ledger, event bus, citation verifier
+  agents/         Agent runtime: orchestrator, agent backends (the CLI, the fake CLI), usage ledger, event bus, citation verifier
   agent-tools/    Tool definitions shared by agents and MCP
   markets/        Crash monitor: connectors, peak/drawdown maths, tile assembly
   api-contract/   Zod schemas, API_ROUTES, error codes, OpenAPI generation
@@ -290,7 +290,7 @@ Every source's registry entry (§4.2) has exactly one storage class. The class d
 | `live-cached` | `finora.db`, rows with a cache marker | US state registries (NY, CO, CT, PA) | written only for an entity the user opens; re-fetched on view when older than `LIVE_CACHE_REFETCH_HOURS` (24); purged when not viewed for `PERSON_DATA_TTL_DAYS` (30). A re-fetch that returns the company replaces its lines, and a withdrawn or corrected record is removed (CT terms). **An empty response is not proof of removal** (cto, data-us, legal): on the first miss (HTTP 200, empty, while the portal answers other queries) nothing is deleted, the cached values are withheld from every surface, and the profile reads "[State] registry did not return this company on [date]", naming no principal and implying no status; a second miss at least 24 h later deletes the rows, withdrawn principals included. 5xx, timeouts and 429 never count as a miss. **The miss rule applies per dataset query** (the master record, principals, UCC filings each count their own misses), so an empty answer from one dataset never deletes that dataset's rows or emits `role_ended` on its own (qa 16, legal). Tests: `ingest/src/live-cache.test.ts` (fake clock: day 29 survives, day 30 deleted; 24 h re-fetch; CT withdrawal; an empty re-fetch withholds and keeps the rows; a second miss 24 h later deletes them; a 5xx is not a miss) |
 | `agent-only` | investigation `documents` only | web checks, live national sanctions lists, UN list, news, US enforcement feeds, and the LT social-insurance files (S07.LT.01, S08.LT.02, S18.LT.02: read live by the money agent's `read_live_source` tool (`agents.md` §4.4b), never stored; council and legal, `LAW-SODRA-LICENCE`; the instant profile shows "Social-insurance data: checked when you investigate") | fetched by agents at query time, cited, kept only as investigation documents under the R11 TTL |
 | `store`, agent-read only | `finora.db` `court_index` | the FJC civil court index (1.56 M organisation-party rows, ≈ 0.2 GB, measured) | stored, read only by the legal agent's court tool, never rendered without an accepted agent finding |
-| `connector-cache` | `connector-cache.db` | licensed market series (user keys) | never exported, never served to another user (R17) |
+| `connector-cache` | `connector-cache.db` | licensed market series (keyless; coded providers configured in the local provider map, §15) | never exported, never served to another user (R17) |
 
 **One declared exception to "exactly one class": a person view.** A source whose file mixes companies and natural persons may declare, besides its class for company rows, an in-memory `live-no-store` person view of the same download (today only the EU, OFAC and UK sanctions lists: `resolve/src/person-index.ts`, officer screening behind the purpose gate, `LAW-SANCTIONS-PERSONS`). The person rows are dropped at parse from the stored path (`person_entry`), the source sets `rawCache: false`, and the view obeys every `live-no-store` guarantee above. Test: `resolve/src/person-index.test.ts`.
 
@@ -515,7 +515,7 @@ One web-standard handler, `handle(request: Request): Promise<Response>`, plus `b
 - **Errors are machine codes** (`snake_case`, listed once in `packages/domain/src/config/errors.ts`), never sentences: `{ "error": { "code": "entity_not_found", "detail"?: "..." } }`. The UI maps codes to localised text.
 - **Services return tagged results** (`{ ok: true, value } | { ok: false, code, status }`); routes map them to HTTP.
 - **Versioned:** `/api/v1/...`. A breaking change adds `/api/v2` routes.
-- **Money** is integer micro-USD in every DTO. Dates are ISO 8601 strings; times are UTC.
+- **Usage** is an integer count of standard tokens (`st`, C16) in every DTO; no DTO carries a currency. Dates are ISO 8601 strings; times are UTC.
 
 **Endpoints (v1).** Every schema lives in `packages/api-contract/src/<area>.ts` and lands in slice S04b, before the routes, so the UI builds against the real contract from day one.
 
@@ -532,18 +532,19 @@ One web-standard handler, `handle(request: Request): Promise<Response>`, plus `b
 | `POST /api/v1/purpose` | The UI's purpose session: `{ purposeId }` → an HTTP-only session cookie valid `PURPOSE_SESSION_HOURS` (12) or until restart (P2). The cookie is the only purpose store for the UI (never `sessionStorage`), so the server-component profile can read it. Blocked purposes do not exist in the list; a blocked id is `400 purpose_blocked` (P7) | `purpose.ts` |
 | `POST /api/v1/disputes` | Report a problem with a value or section: `{ companyEid, itemId, kind: "correction" \| "objection", note }`; the target is pinned by content hash (§3.3) | `disputes.ts` |
 | `GET /api/v1/sources` | Source registry: licence, attribution, storage class, freshness, last sync report | `sources.ts` |
-| `POST /api/v1/investigations/estimate` | `{ subject, roles[] }` → `{ low, typical, high, basis, drivers[], typicalSeconds: Record<Role, number>, capMicroUsd, dailyLeftMicroUsd, dailyResetsAt }` (`agents.md` §8.3) | `investigations.ts` |
-| `POST /api/v1/investigations` | Start: `{ subject: { eid, offerDomain? } \| { text, offerDomain? }, purposeId, locale, capMicroUsd? }`. `offerDomain` is the domain on the offer or invoice the user received (council session 2, item 7): the web agent checks it against the register (DNS, certificates, homepage, the RDAP or .lt creation date) as well as the register-listed domain | `investigations.ts` |
-| `GET /api/v1/investigations` | Library: subject, country, eid, level, coverage, cost, status, started, finished | `investigations.ts` |
-| `GET /api/v1/investigations/:id` | Snapshot: plan, runs, tasks, findings, questions, verdict, spend, and `lastEventId` | `investigations.ts` |
+| `POST /api/v1/investigations/estimate` | `{ subject, roles[] }` → `{ low, typical, high, basis, drivers[], typicalSeconds: Record<Role, number>, capSt, dailyLeftSt, dailyResetsAt }` in st` (`agents.md` §8.3) | `investigations.ts` |
+| `POST /api/v1/investigations` | Start: `{ subject: { eid, offerDomain? } \| { text, offerDomain? }, purposeId, locale }`. A second start while an investigation runs answers `409 investigation_running` (C18); with the backend `off` or no signed-in CLI it answers `agents_unavailable`. `offerDomain` is the domain on the offer or invoice the user received (council session 2, item 7): the web agent checks it against the register (DNS, certificates, homepage, the RDAP or .lt creation date) as well as the register-listed domain | `investigations.ts` |
+| `GET /api/v1/investigations` | Library: subject, country, eid, level, coverage, usage (st), status, started, finished | `investigations.ts` |
+| `GET /api/v1/investigations/:id` | Snapshot: plan, runs, tasks, findings, questions, verdict, usage, and `lastEventId` | `investigations.ts` |
 | `GET /api/v1/investigations/:id/events` | SSE stream (§7.5). Resumes from the `Last-Event-ID` header, or `?lastEventId=` (the UI's fetch-stream client sends the header; the query parameter is the fallback) | `events.ts` |
 | `POST /api/v1/investigations/:id/questions/:qid/answer` | Answer a question; validated against its kind | `investigations.ts` |
+| `POST /api/v1/investigations/:id/resume` | Resume an investigation paused at the plan's limit; a user action only, never automatic (C18) | `investigations.ts` |
 | `POST /api/v1/investigations/:id/stop` | Stop; keeps partial results | `investigations.ts` |
 | `POST /api/v1/investigations/:id/runs/:runId/rerun` | Re-run one finished or failed specialist; held against the investigation's cap; offered per `agents.md` §2.7 | `investigations.ts` |
-| `POST /api/v1/investigations/:id/follow-ups` | A follow-up question answered from the stored findings and documents (cap `AGENT_FOLLOWUP_CAP_USD`) | `investigations.ts` |
+| `POST /api/v1/investigations/:id/follow-ups` | A follow-up question answered from the stored findings and documents (cap `AGENT_FOLLOWUP_CAP_ST`) | `investigations.ts` |
 | `DELETE /api/v1/investigations/:id` | Delete an investigation with its documents (R11 lets the user delete earlier than the TTL) | `investigations.ts` |
 | `GET /api/v1/markets/crash` | Crash monitor rows and tiles from the server cache (§8) | `markets.ts` |
-| `GET /api/v1/settings/status` | Presence of each key and of the SEC contact setting, never values; data status; `SHARE_ALIKE_MODE`; the LAWYER switches in force | `settings.ts` |
+| `GET /api/v1/settings/status` | The agent backend and the CLI's state (`off`, not installed, not signed in, ready), the SEC contact setting's presence (never its value), which coded market providers the local provider map configures (codes only); data status; `SHARE_ALIKE_MODE`; the LAWYER switches in force | `settings.ts` |
 | `GET`/`PUT /api/v1/settings/startup` | The opt-in start at login (council item 15): `{ enabled }`; `PUT` creates or removes the per-user Task Scheduler entry on Windows (other systems: `not_supported` until built) and never enables it without the user's action | `settings.ts` |
 | `PUT /api/v1/settings/fund-slots` | The 13 fund-symbol slots (P12), validated `^[A-Z0-9.\-]{1,10}$` | `settings.ts` |
 
@@ -591,7 +592,7 @@ app/
         investigations/[id]/page.tsx             free-text runs only, until the lead pins an id; then router.replace to the company route
       crash/page.tsx                             Crash monitor
     sources/page.tsx                             sources, licences, attribution, freshness
-    settings/page.tsx                            keys and connectors, fund slots, data status, LAWYER switches (read-only)
+    settings/page.tsx                            connections (CLI status, SEC contact setting), usage, data status, LAWYER switches (read-only)
     design/page.tsx                              the state gallery (ui-build-plan §12); every state reachable by URL
   api/[...path]/route.ts                         mounts apps/server handle()
   mcp/route.ts                                   mounts the MCP HTTP handler
@@ -637,7 +638,8 @@ type SectionResult<T> =
 type NotCheckedReason =
   | { reason: "later" } | { reason: "error"; code: ErrorCode } | { reason: "skipped" }
   | { reason: "paid_only"; orderUrl: string | null }        // official register page only (§4.2)
-  | { reason: "needs_key"; key: EnvKey }
+  | { reason: "needs_key"; key: "SEC_USER_AGENT" }           // the one optional setting left (H5, C14)
+  | { reason: "needs_source" }                                // a coded source with no entry in the local provider map (C15)
   | { reason: "needs_purpose"; purposes: PurposeId[] }
   | { reason: "restricted"; basis: LegalBasisKey }          // LOCK: decided by country and legal form only (§3.6)
   | { reason: "agent_only"; agentId: Role }                 // AGENT: "checked when you investigate", with an Investigate action
@@ -702,16 +704,18 @@ Investigation (subject, purpose, locale, cap, status)
   │    ├─ steps (model tool calls), documents (everything fetched), signals (typed, from tools only)
   │    └─ findings (signal | context, each pinned to an entity, ≥ 1 verified citation)
   ├─ verdict: level + fired rules + coverage from the rule table (code), then the explanation (model)
-  └─ follow-ups (≤ $0.25 each), reruns of one specialist
+  └─ follow-ups (≤ 85k st each), reruns of one specialist
 ```
 
-Tables (all in `finora-user.db`, §16, written **before** anything is broadcast): `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `cost_ledger`, `verdicts`. A browser refresh, a crash or a restart loses nothing; on boot, runs that were `running` in a dead process resume from their last persisted model turn, exactly once, under the `recover` lease (`agents/src/recovery.test.ts`).
+Tables (all in `finora-user.db`, §16, written **before** anything is broadcast): `investigations`, `agent_runs`, `run_tasks`, `run_events`, `questions`, `signals`, `findings`, `citations`, `documents`, `usage_ledger`, `verdicts`. A browser refresh, a crash or a restart loses nothing that was accepted: the CLI keeps no session (`--no-session-persistence`), so on boot a run that was `running` in a dead process settles at its hold and restarts once, under the `recover` lease, with its accepted findings, answered questions and task results in its first message (`agents/src/recovery.test.ts`).
 
 ### 7.2 Types the rest of the system relies on
 
 ```ts
 type RunStatus = "queued" | "running" | "waiting" | "done" | "failed" | "stopped" | "budget_exceeded";
-// "waiting" carries waitingOn: "question" | "cap"; at a cap hit every run waits, and the header says "paused at cap".
+// "waiting" carries waitingOn: "question" | "cap" | "cli_retry" | "plan_limit". At a cap hit every run waits ("paused at cap").
+// "cli_retry": the CLI is retrying on its own; the lane reads "Waiting: Claude is busy", never failed or done (C18).
+// "plan_limit": the investigation is paused at the plan's limit until the user resumes it (C18).
 
 type Finding = {
   id: string; investigationId: string; runId: string;
@@ -750,7 +754,7 @@ type Check = { checkId: CheckId;
 - **Check 5, labelled "Accounts filed"** (council accepted the designer's label: "on time" would claim a deadline we only estimate) compares the latest annual report in the register with the end of its fiscal year against Finora's estimate of the usual filing window (`domain/config/filing-windows.ts`: LV 7 months, EE 6, LT 5, each plus 30 days of grace for register processing). It reads "Annual report for [year] not in the register, [N] months after the year ended", with the window labelled "Finora's estimate of the usual filing window". It never says "late", "overdue" or "deadline" (enforced by `domain/src/checks/filing-window.test.ts` and the banned-terms catalogue test).
 - **The LT 180-day arrears age** is evaluated from day one from the arrears list's own entry date ("On the arrears list since [date]", a lower bound for the debt's age); cto verified the date does not reset while a debt continues, so P14 does not apply to it. Tests: `domain/src/verdict/lt-arrears-age.test.ts` (cto's two fixtures: a change-feed patch never moves the entry date; a delete then insert resets it; plus a sole trader, whose lines are never loaded).
 - **Check 7 in LT** runs on the tax-authority arrears (S08.LT.01); the social-insurance debts (S08.LT.02) join it only in an investigation.
-- **Check 10 ("Court cases") is not possible in LT, LV and EE in v1** (council, after `agents.md` §4.5a: EE's court portal disallows automated access in `robots.txt`, and the LT and LV portals have no readable terms and no legal light; `LAW-COURTS-LT`, `LAW-COURTS-LV`). S10.LT.01, S10.LV.01 and S10.EE.01 are LATER with a MANUAL link to the official portal; the coverage line reads "Court cases: check manually at [portal]", never "none found". LV case numbers already loaded with S09 events link to the portal but do not count as running check 10. Check 10 runs in the US only (FJC index; CourtListener with a token).
+- **Check 10 ("Court cases") is not possible in LT, LV and EE in v1** (council, after `agents.md` §4.5a: EE's court portal disallows automated access in `robots.txt`, and the LT and LV portals have no readable terms and no legal light; `LAW-COURTS-LT`, `LAW-COURTS-LV`). S10.LT.01, S10.LV.01 and S10.EE.01 are LATER with a MANUAL link to the official portal; the coverage line reads "Court cases: check manually at [portal]", never "none found". LV case numbers already loaded with S09 events link to the portal but do not count as running check 10. Check 10 runs in the US only, on the FJC civil index; the federal docket search is a manual link in v1 (H5).
 
 The same `computeChecks(entity)` (`packages/domain/src/checks/`) serves the instant profile's 11-check list (S18) and the investigation. The instant profile shows the checks and the coverage line but no verdict level: the level is produced only by an investigation, after checks 10 and 11 had their chance to run (O1, confirmed by council session 2). The checks panel carries a fixed line: "No verdict yet. These checks use official data only; the rest run when you investigate. Missing does not mean clean." A check whose data is past its cycle shows a clock, not a check mark (council item 13). **Every user-visible coverage string reads "of 11"**, including screen-reader announcements, the library and MCP (item 8; test `domain/src/checks/coverage-copy.test.ts`).
 
@@ -760,26 +764,38 @@ The same `computeChecks(entity)` (`packages/domain/src/checks/`) serves the inst
 - **Tools first, model second** (`agents.md` §1.1, §3.2): each role's deterministic pre-run tasks run in parallel, then the model reads their compact results. Signals come from tools only; the model cannot create, upgrade or remove one.
 - The verdict waits for all four runs to end; a failed or stopped run counts its checks as not run.
 - **Natural persons and sole traders get no agents** (R5, P6): the lead refuses with `subject_is_natural_person`, and the UI shows the facts-only report.
-- Global per-host rate limiters live in `packages/agent-tools/src/limits.ts` (GDELT, SEC, DOJ, TED, certificate logs, WHOIS, any fetched host); a tool that would wait over 60 s returns `rate_limited`.
+- Global per-host rate limiters live in `packages/agent-tools/src/limits.ts` (the news source, SEC, DOJ, TED, certificate logs, WHOIS, any fetched host); a tool that would wait over 60 s returns `rate_limited`.
 
-### 7.4 LLM providers
+### 7.4 Agent backends (H5, C18)
 
 ```ts
-interface LlmProvider {
-  id: "anthropic" | "fake";
-  call(req: ModelRequest, signal: AbortSignal): AsyncIterable<ModelEvent>; // streamed
-  price(model: string): ModelPrice | null;                                 // null => unknown => refuse to start
+interface AgentBackend {
+  id: "cli" | "local";
+  start(run: RunSpec, signal: AbortSignal): RunProcess;  // one process per run
+}
+interface RunProcess {
+  events: AsyncIterable<CliEvent>;   // init, assistant, user, permission_denied, api_retry, result
+  send(message: string): void;       // the next stream-json user message
+  interrupt(): Promise<void>;        // stream-json interrupt, then SIGINT, then kill after 5 s
+  close(): Promise<void>;
 }
 ```
 
-- `anthropic`: the official TypeScript SDK on the Messages API with the user's key (`ANTHROPIC_API_KEY`), our own loop (the loop must park on `ask_human` and hold cost per call, which a generic runner does not do). Model and effort per role from `agents.md` §2 and §15 (`AGENT_MODEL_*`, `AGENT_EFFORT_*`, set explicitly). Prompt caching on the stable prefix (tool definitions + system prompt). The provider's web search tool is declared for the web role only, with `max_uses` (`AGENT_WEB_SEARCH_MAX`).
-- `fake`: replays the scripted scenarios in `fixtures/agents/*.json` (`agents.md` §13). Every test, CI, `FINORA_DEMO=1` and `pnpm finora --demo` use it: the full flow runs with **no key and no spend**.
-- Without a key, the explorer works fully and Investigate opens the "add your key" sheet.
-- Prices: `packages/agents/src/prices.ts`, pinned by a test.
+- **`FINORA_AGENT_BACKEND`** is `cli`, `local` or `off`; **the default is `off`** until the human's H6 decision is recorded in `docs/plan/README.md`. With `off`, Investigate shows its not-enabled state, and the instant profile works as before.
+- **`cli`** spawns `FINORA_CLAUDE_BIN` (default `claude` on the PATH) once per run (lead, each specialist, the verdict explanation, each follow-up) with the flags of `agents.md` §3.4: stream-json in and out, the role's system prompt from a file, **`--tools ""`** (no CLI built-in tool in any investigation, C18), `--allowedTools mcp__finora__*` only, `--strict-mcp-config` with Finora's endpoint only, `--setting-sources ""`, `--restricted`, `--disable-slash-commands`, `--no-session-persistence`, `--max-turns`, and `--max-budget-usd` at the run's allocation minus one response (C16).
+- **The sign-in stays the CLI's.** Finora never reads, stores, forwards or asks for a credential. The child's environment is an **allowlist** built like `run-next.mjs`: the path, home and profile variables, the temp dirs, the locale, `CLAUDE_CONFIG_DIR` only if the user set it, and the values Finora sets (`CLAUDE_CODE_MAX_OUTPUT_TOKENS=4096`, `CLAUDE_CODE_MAX_TURNS`, `CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS=1`, `DISABLE_AUTOUPDATER=1`). Nothing else passes, so no key or provider switch in the user's shell can reach the child (test: a sentinel in the server's environment is absent in the child's).
+- **The run dir** is a fresh `mkdtemp` in the OS temp dir, never under the repo or the data dir (the default data dir sits inside the repo, whose instruction files a CLI would find in the parent chain). It is owner-only (mode 0700 on POSIX; an explicit owner-only ACL on Windows, tested), holds only the system prompt and the MCP config with the run's token, is removed at run end, and leftovers are swept at boot without logging their path.
+- **Fail closed on start.** The first `system/init` must show `apiKeySource: "none"`; tools exactly the role's `mcp__finora__*` tools and no built-in; MCP servers exactly `finora`, connected; no plugin beyond the built-ins; no skills, slash commands or agents; and `cwd` the run dir. Anything else kills the process before the first message and ends the run `failed: runtime_unsafe` (`agents/src/cli.init.test.ts`, one case per field).
+- **Finora's tools over MCP.** The server opens a Streamable HTTP endpoint per run on `127.0.0.1` at a random port, closed when the run ends. Its token is 256-bit random, single-run, compared in constant time, and lives only in the owner-only MCP config file: never on a command line, in a log, a transcript, a finding or a backup. It refuses a request with any `Origin` header and any `Host` other than `127.0.0.1:<port>`, and serves Finora's read and investigation tools only; person data comes back only inside the run's purpose context (the same path as `readPurposeSection`). Tests: no token 401, a browser Origin 403, a foreign Host 403, refused after the run, the bind address, a person section without purpose `needs_purpose`, and a canary scan for the token.
+- **`local`** (H6 option 3): Finora's own tool loop against a local model endpoint, behind the same interface, with the same tools, caps, citation verifier and fixtures. In v1 it is the interface and its config only; it is built only if the human chooses it, and the model's licence is recorded like a dataset licence (legal).
+- **The fake CLI** (`fixtures/agents/fake-claude.mjs`, `agents.md` §13) is a binary that speaks the same stream-json protocol, replays a transcript and calls the real per-run MCP tools. Every test, CI, `FINORA_DEMO=1` and `pnpm finora --demo` run the `cli` backend against it (`FINORA_CLAUDE_BIN` points at it), so the spawn line, the environment, the init check, the caps, stop and pause are exercised with no subscription use. It asserts its own argv, environment and cwd before replaying. No test starts the real CLI.
+- **Transcripts are fixtures:** hand-written against the fixture world, or recorded on the fixture profile with every web read answered by a fake. A test fails on any hostname in a committed transcript outside the reserved test domains and the official allowlist; the H4 check covers them.
+- **The isolation proof** (C18 (7), council): `scripts/agents-isolation-proof.mjs`, run once by the human at S09a's acceptance against the real CLI in a throwaway `CLAUDE_CONFIG_DIR` with one sign-in, never the real config. It plants canary instruction files, a hook, a skill and an MCP server at user level and in the run dir's parent chain, and passes when no canary reaches the transcript, no hook runs and the init lists only Finora's tools. It records counts and the CLI version only and checks the dir's deletion; a CLI version change re-opens it, and `doctor` warns.
+- `doctor` and `pnpm finora` report whether the CLI is installed and signed in, never starting the core load on that probe.
 
 ### 7.5 Questions back to the human
 
-`ask_human` writes a `questions` row and a `question` event, sets the run to `waiting`, and ends the run's turn without a tool result; the loop parks. `POST .../answer` validates the answer against the kind, writes it and requeues the run; the runner appends the answer as the pending tool result and continues.
+`ask_human` writes a `questions` row and a `question` event, sets the run to `waiting`, and tells the model to end its turn; the turn's `result` ends it, and the CLI process stays alive on its open stream-json input. `POST .../answer` validates the answer against the kind and writes it; the runner sends the answer as the next user message, which runs as a new turn of the same process.
 
 | Kind | Default and timeout |
 |---|---|
@@ -802,7 +818,7 @@ type Envelope<T extends string, D> = { id: number; at: string; investigationId: 
 
 | Type | Data |
 |---|---|
-| `investigation.status` | `status` (`planning`, `running`, `waiting`, `synthesising`, `done`, `stopped`, `budget_exceeded`, `failed`), `code?` |
+| `investigation.status` | `status` (`planning`, `running`, `waiting`, `paused`, `synthesising`, `done`, `stopped`, `budget_exceeded`, `failed`), `code?` (`plan_limit` with `resetsAt?` when paused) |
 | `plan` | runs with role ids, `dependsOn: []` |
 | `run.status` | `runId`, `RunStatus`, `waitingOn?`, `code?` |
 | `run.task` | `runId`, `taskId`, `labelKey`, `params`, `sourceId?`, `status` (`queued`, `running`, `done`, `failed`, `skipped`), `startedAt?`, `endedAt?`, `sourcesRead` |
@@ -810,20 +826,22 @@ type Envelope<T extends string, D> = { id: number; at: string; investigationId: 
 | `run.source` | `runId`, `documentId`, `domain`, `title`, `kind`, `sourcesRead` |
 | `finding` | the `Finding` |
 | `question`, `question.answered` | the question with options, `defaultOptionId`, `timeoutAt`, `blocks`, `cap?`; the answer with `by: "human" \| "default"` |
-| `cost` | `runId \| null`, `spentMicroUsd`, `heldMicroUsd`, `capMicroUsd` |
+| `usage` | `runId \| null`, `usedSt`, `heldSt`, `capSt` (standard tokens; never a currency) |
 | `verdict` | the `Verdict` |
 | `error` | a machine code, `runId?` |
 
 The `labelKey` and `stepKey` catalogues live in `packages/i18n/messages/<locale>.json` under `agents.*` and are listed in `agents.md` §11. Tests: `server/src/sse.resume.test.ts` (resume from any id with no gap or duplicate), `agents/src/events.test.ts` (per-run order holds under parallelism).
 
-### 7.7 Cost caps
+### 7.7 Usage caps (C16)
 
-- Every model call **holds** its worst case on the investigation ledger, the daily ledger and, for follow-ups, the follow-up ledger, before it is made: input estimate × input price + `max_tokens` × output price, plus, for a web-search call, `call_max_uses` × ($0.01 per search + `SEARCH_RESULT_TOKENS_EST` × input price × 1.25), because search results come back as input tokens (council session 2, item 6). **Holds are per call:** `call_max_uses = min(the run's uses left, AGENT_WEB_SEARCH_PER_CALL = 2)` is the `max_uses` declared on that call; a run's remaining searches are never held at once, so the four specialists never queue on the ledger (`agents.md` §8.1; test `agents/src/budget.parallel.test.ts`). `SEARCH_RESULT_TOKENS_EST` is 25k by default, then the measured p95. After the call it **settles** from the usage block and releases the hold. Each retry attempt settles on its own and takes a new hold (qa N2). Holding the worst case is what stops parallel runs from all passing the check at once. A call that settles above its hold logs `hold_underestimate`; after it, no new specialist call starts, and the verdict still runs from its reserve (test `agents/src/budget.test.ts`). **"Calibrated"** (S09a, S10 acceptance) means at least 90% of the measured run and the M2 gate runs settle at or under the estimate's `high`, with the median within ±30% of `typical`.
-- Caps (`agents.md` §8.2): $1.50 per investigation (max $5.00), a one-time $0.50 extension, $0.25 per follow-up, $10.00 per day. The verdict's reserve (`SYNTH_RESERVE`, 15%) is never held by specialists.
-- **Cap flow:** the first time held + settled spend reaches the cap, every run goes to `waiting` (`waitingOn: "cap"`) and one `cap_reached` question offers "Stop and write the report" (default) or "Allow up to $0.50 more", clipped to what is left of the daily cap. It is offered **once per investigation**, held on the investigation ledger. A second hit ends the investigation `budget_exceeded` with no question. The daily cap cannot be raised from inside a run; when it is reached, Investigate opens the spend and reset sheet and the instant profile keeps working.
-- An unknown price refuses to start (`price_unknown`).
-- **The runtime slice is not accepted until data-osint's measured run** (`agents.md` §12, needs the key) replaces the modelled defaults and the estimate is calibrated on it (cto, `01-data-cto.md` §6).
-- Tests: `agents/src/budget.test.ts` (six runs at the cap together produce one question and at most +$0.50; two investigations started together cannot jointly pass the daily cap), `agents/src/runner.retry.test.ts`, `agents/src/estimate.test.ts`.
+- **The unit is the standard token (st):** one Sonnet-class uncached input token. A run's usage in st is the CLI's own `total_cost_usd` divided by 3 x 10⁻⁶, plus 3,333 st per web search counted from `tool_use` blocks unless the measured run shows the fee is already counted (no investigation has web search in v1). The dollar figure is an internal meter only, in a private field that no DTO schema carries: no UI, API, MCP or log string shows a currency (test: one scan over the DOM, API, MCP and log output).
+- **Hold, then settle, per run.** Before a run's process starts, its allocation (the role's `high` from `agents.md` §8, clipped to the caps) is held on the investigation ledger, the daily ledger and, for follow-ups, the follow-up ledger; a run that would push held plus settled past any cap does not start. The CLI's `--max-budget-usd` is the hard stop inside a run, at the allocation **minus H** (one response, about 25k st at `CLAUDE_CODE_MAX_OUTPUT_TOKENS=4096`, later the measured p95), never above it. Finora's backstops read the stream: at the role's turn cap, or when the per-step input and cache tokens alone pass the allocation, it interrupts the run. The run settles from the CLI's `total_cost_usd`; a zeroed or missing result (a crash) settles at the hold and logs `settled_at_hold`. A run that settles above its hold logs `hold_underestimate`; after it no new specialist run starts, and the verdict still runs from its reserve. The global daily hold stays, so parallel runs cannot jointly pass a cap. The ledger holds counts and st only: never prompts, responses or the account's identity (legal).
+- **Caps** (`agents.md` §8.2, C16): 500k st per investigation, 85k st per follow-up, 3.3M st per day (`AGENT_CAP_ST`, `AGENT_FOLLOWUP_CAP_ST`, `AGENT_DAILY_CAP_ST`). The verdict's reserve (`SYNTH_RESERVE`, 15%) is never held by specialists. **"Calibrated"** means at least 90% of the measured run and the M2 gate runs settle at or under the estimate's `high`, with the median within ±30% of `typical`.
+- **Cap flow:** the first time held plus settled usage reaches the cap, every run goes to `waiting` (`waitingOn: "cap"`) and one `cap_reached` question offers "Stop and write the report" (default) or "Allow up to a third more of the cap" (`AGENT_EXTENSION_ST`, 170k st), clipped to what is left of the daily cap. It is offered once per investigation; the extension raises the allocation, and so the backstop, only of runs started after it is granted. A second hit ends the investigation `budget_exceeded`. The daily cap cannot be raised from inside a run.
+- **The plan's own limit** is invisible to Finora until the CLI reports it. A limit result, a `rate_limit` retry at its last attempt, or a retry delay over 60 s **pauses the whole investigation** (`paused`, `plan_limit`, with the reset time if the stream gives one): every running process of it is interrupted, accepted findings stay, and resume is a user action that restarts the runs as boot recovery does. Short of that, the CLI's own retry runs and the lane reads "Waiting: Claude is busy". Finora retries nothing, and starts no new process while the CLI waits or to get round a limit (C18, legal). Stop writes the report with the unrun checks counted as not run.
+- **One investigation at a time** (legal): an `investigation` lease; follow-ups only on a user action; no scheduled or unattended agent work exists.
+- **The runtime slice is not accepted until data-osint's measured run** (`agents.md` §12, on the CLI backend after the human's H6 decision) replaces the modelled defaults and the estimate is calibrated on it.
+- Tests: `agents/src/budget.test.ts` and `budget.parallel.test.ts` on fake-CLI transcripts (st from `total_cost_usd`; a zeroed crash result settles at the hold; the spawn carries the backstop at allocation minus H, the output and turn caps and no built-in tool; a meter that undercounts still settles at or under the allocation; six runs at the cap produce one question and at most the extension; two investigations cannot jointly pass the daily cap), `agents/src/plan-limit.test.ts` (a limit result pauses; a short CLI retry shows waiting and starts nothing; resume restarts), `agents/src/estimate.test.ts`.
 
 ### 7.8 Limits, timeouts, retries and stop
 
@@ -832,13 +850,13 @@ Per-role limits and timeouts are in `agents.md` §3.3; the architecture adds two
 | Event | Rule | Test |
 |---|---|---|
 | Turn or tool-call limit | run ends `done` with `turn_limit` / `tool_limit` | `agents/src/runner.limits.test.ts` |
-| Model call timeout (`AGENT_CALL_TIMEOUT`, 120 s, kept alive by streaming) | retryable | `agents/src/runner.timeout.test.ts` |
-| Retryable error (429, 5xx, overloaded, network, timeout) | up to 3 retries, exponential backoff with jitter, honouring `retry-after`; each attempt settles on its own, each retry takes a new hold | `agents/src/runner.retry.test.ts` (a retry after a partial stream records both attempts) |
-| Non-retryable error (400, 401, 403, 404, refusal) | run `failed` with `model_bad_request`, `model_auth`, `model_refused`, ...; its hold released; other runs continue | `agents/src/runner.errors.test.ts` |
+| The CLI retrying (`system/api_retry`) | the CLI's own retries only; the run is `waiting` (`cli_retry`); no new process starts meanwhile; a plan limit pauses the investigation (§7.7) | `agents/src/runner.retry.test.ts` |
+| An error result, a CLI that exits without a result, or a failed init check | run `failed` with `model_error`, `cli_exited` or `runtime_unsafe`; it settles (at the hold if the result is missing); other runs continue | `agents/src/runner.errors.test.ts`, `agents/src/cli.init.test.ts` |
+| No CLI, or not signed in | the investigation does not start: `agents_unavailable`, and Investigate shows the sign-in state | `agents/src/backends/cli.test.ts` |
 | Tool error | returned as an `is_error` tool result, never dropped; 3 consecutive tool errors end the run `failed` | `agents/src/tools.errors.test.ts` |
 | Run wall clock (`AGENT_RUN_TIMEOUT`, 6 min, web 8 min), **time spent `waiting` excluded** (qa 2) | `failed: run_timeout` | `agents/src/runner.timeout.test.ts` (a run waiting 30 min on `sanctions_match` reaches its default and continues) |
 | Investigation wall clock (`INVESTIGATION_TIMEOUT`, 20 min, question waits excluded) | open runs stop; the verdict runs on what exists | `agents/src/orchestrator.timeout.test.ts` |
-| Stop | every in-flight request aborted through its `AbortSignal` within 5 s; runs end `stopped`; in-flight calls settle at their held worst case; the verdict is offered, not automatic | `agents/src/orchestrator.stop.test.ts` |
+| Stop | every run process gets the stream-json interrupt, then SIGINT, then is killed after 5 s; runs end `stopped` and settle from their result, or at the hold without one; the verdict is offered, not automatic | `agents/src/orchestrator.stop.test.ts` |
 
 ### 7.9 Citations, the verdict and banned words
 
@@ -848,10 +866,11 @@ Per-role limits and timeouts are in `agents.md` §3.3; the architecture adds two
 
 ### 7.10 Untrusted content and the agent path for HIDE (P8)
 
-- Web pages and documents are data, not instructions: tool results wrap fetched text in a delimited block and the system prompt says so (`agents.md` §10.3). Agents have **no tool with a side effect** outside Finora's own store: no email, posting, file system or shell.
-- Fetching (`fetch_page`, `homepage_facts`, `check_live_list`): `http(s)` only; candidate hosts only from the register, the search results of this run or the user's input; DNS resolved once and the connection pinned to that address; public addresses only (no loopback, private, link-local, CGNAT, unique-local, `0.0.0.0`, `::` or IPv4-mapped IPv6), re-checked on every redirect; size and time caps; per-host limits; fetched text escaped so it cannot close the untrusted-content delimiter (`agents.md` §4.6, §10.3). Test: `agent-tools/src/web-fetch.ssrf.test.ts`.
+- Web pages and documents are data, not instructions: tool results wrap fetched text in a delimited block and the system prompt says so (`agents.md` §10.3). Agents have **no tool with a side effect** outside Finora's own store and **no CLI built-in tool at all** (`--tools ""`): no email, posting, file system, shell, web search or web fetch of the CLI's own.
+- **No general web search in v1** (legal's P8 ruling, the council, 80890a0): no model may read search snippets before Finora's filter, and no keyless search backend exists. Check 11 runs on a known domain only (the user's input or the register), plus route 1's verified candidate hosts if it passes the council's bar (`agents.md`, S10).
+- Fetching (`cite_page`, `homepage_facts`, `check_live_list`): `https` only; candidate hosts only from the register, the user's input or route 1's generator; DNS resolved once and the connection pinned to that address; public addresses only (no loopback, private, link-local, CGNAT, unique-local, `0.0.0.0`, `::` or IPv4-mapped IPv6), re-checked on every redirect; size and time caps; per-host limits; fetched text escaped so it cannot close the untrusted-content delimiter (`agents.md` §4.6, §10.3). Test: `agent-tools/src/web-fetch.ssrf.test.ts`.
 - **P8, four points** (`agents.md` §9): tool outputs pass `agent-tools/src/output-filter.ts` **before** a `documents` row is written, and quotes are verified against the filtered text, so no masked content is ever stored, even briefly (qa 4, legal); `record_finding` rejects HIDE/LATER items and canary patterns; documents are never exported and live under the person-data TTL; the report DTO is assembled only from accepted findings. Canary test: `agents/src/p8.canary.test.ts` iterates every HIDE id in `items.generated.ts` and every Part H category, over fake pages and court decisions that "reveal" each one plus a personal code, a birth date and a natural-person party; none reaches a tool result, a `documents` row, a finding, a follow-up answer, an SSE event, the API, MCP or the export (qa 6).
-- **Follow-ups follow the same rules as findings** (qa 5, legal): every sentence cites a finding or a stored document; quotes pass the §7.9 span and verification rules; the banned-term check and regenerate-once apply; the P8 filter applies; the cap is `AGENT_FOLLOWUP_CAP_USD`. Tests: `agents/src/followup.test.ts` (uncited sentence dropped, quote not found rejected, banned term regenerated then fallback, cap enforced), and follow-up scenarios in `fixtures/agents/`.
+- **Follow-ups follow the same rules as findings** (qa 5, legal): every sentence cites a finding or a stored document; quotes pass the §7.9 span and verification rules; the banned-term check and regenerate-once apply; the P8 filter applies; the cap is `AGENT_FOLLOWUP_CAP_ST`. Tests: `agents/src/followup.test.ts` (uncited sentence dropped, quote not found rejected, banned term regenerated then fallback, cap enforced), and follow-up scenarios in `fixtures/agents/`.
 
 ---
 
@@ -1007,7 +1026,7 @@ No hosted build while any publication-related LAWYER item is open (council Part 
 
 | Threat | Control |
 |---|---|
-| A web page calling the local API (DNS rebinding, CSRF) to spend the user's key | Host allowlist (`localhost`, `127.0.0.1`, `[::1]`) on every request, pages and API; on unsafe methods a present `Origin` must match `Host`; every launch script binds `127.0.0.1`. Tests: `server/src/guard.test.ts`, `web/e2e/security-headers.spec.ts` |
+| A web page calling the local API (DNS rebinding, CSRF) to start investigations on the user's plan | Host allowlist (`localhost`, `127.0.0.1`, `[::1]`) on every request, pages and API; on unsafe methods a present `Origin` must match `Host`; every launch script binds `127.0.0.1`. Tests: `server/src/guard.test.ts`, `web/e2e/security-headers.spec.ts` |
 | Prompt injection from fetched pages | §7.10: no side-effect tools, delimited untrusted content, citations verified against stored text, caps on cost and turns |
 | SSRF through agent fetches or loaders | public-address check after DNS (and after each redirect); per-source host allowlists |
 | Secrets leaking | keys only from the environment (`.env.local`, gitignored; `.env.example` documents names); never logged or returned; `import "server-only"` in `env.ts` and every seam file; CI builds with sentinel key values and `scripts/check-bundle-secrets.mjs` fails if one appears in `.next/static` (`scripts/check-bundle-secrets.test.mjs`); the guard blocks committed secrets |
@@ -1032,7 +1051,7 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 | Store | Vitest | migrations from zero and every prior version; FTS diacritics; suppressions; disputes; purpose log; canary | `packages/store` |
 | API contract | Vitest | every route on the fixture world validates against its schema; error codes; OpenAPI current; field registry; HIDE negatives | `apps/server` |
 | MCP contract | Vitest + MCP SDK client, in-memory transport | tool list snapshot; each tool on fixtures; purpose; canary; HIDE negatives | `apps/mcp` |
-| Agent runtime | Vitest + `fake` provider | the twelve scenarios of `agents.md` §13; parallelism; questions; caps; retries; limits; stop; recovery; citations; P8 | `packages/agents` |
+| Agent runtime | Vitest + the fake CLI | the twelve scenarios of `agents.md` §13; parallelism; questions; caps; retries; limits; stop; recovery; citations; P8 | `packages/agents` |
 | E2E | Playwright (Chromium) + axe | the real app on the `fixtures` profile with `FINORA_DEMO=1`: search → profile → purpose → investigate → answer → verdict → follow-up → library; network; Crash monitor; settings; locale switch; security headers; HIDE; canary | `apps/web/e2e/` |
 | Visual | Playwright `toHaveScreenshot` | every DESIGN.md state at the four viewports in the default theme; key screens in the second theme | Linux CI only (fonts differ by OS) |
 | Benchmarks | cto's probes | P10 budgets on the named profile | `docs/plan/benchmarks.md` |
@@ -1046,10 +1065,10 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 
 **Milestone gate** (council sessions 0 and 2; qa checklist 13). `scripts/milestone-gate.mjs` runs locally through the running app's API:
 - **Input:** the regression set at `research/.cache/regression/set.json` in the main checkout (country, registry id; never committed), built and owned by the coordinator before S12.
-- **What it runs:** investigations on the regression set only, with question cards answered by script (`agents.md` §12); profile-only checks (fill rate, $0) on a fresh random sample of 10 companies per country.
+- **What it runs:** investigations on the regression set only, with question cards answered by script (`agents.md` §12); profile-only checks (fill rate, no agent usage) on a fresh random sample of 10 companies per country.
 - **Wrong-company finding:** a citation or anchor that resolves to an eid other than the subject or an entity linked to it by a `same_as` row.
-- **Spend:** `--budget-usd` keeps its own ledger and never starts an investigation whose estimate `high` exceeds what is left; spend is printed in the totals, and gate runs feed the estimate history.
-- **Output:** a fixed table of aggregates only (wrong-company findings, must be 0; cited verdict claims, must be 100%; fill rate per country against the reality check, within 10 points; spend), exit 0 on pass and 1 on fail. It is pasted into each `docs/plan/council/03-*.md`.
+- **Usage:** `--budget-st` keeps its own ledger and never starts an investigation whose estimate `high` exceeds what is left; usage in st is printed in the totals, and gate runs feed the estimate history.
+- **Output:** a fixed table of aggregates only (wrong-company findings, must be 0; cited verdict claims, must be 100%; fill rate per country against the reality check, within 10 points; usage in st), exit 0 on pass and 1 on fail. It is pasted into each `docs/plan/council/03-*.md`.
 - Test: `scripts/milestone-gate.test.mjs` on a synthetic set: the fixed table, the exit codes, the budget ledger, and that no entity name, code or id is printed.
 
 ---
@@ -1081,11 +1100,11 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 |---|---|---|
 | `FINORA_DATA_DIR` | `./.data` (gitignored), resolved against the repository root, not the working directory | SQLite files, raw cache, install key |
 | `FINORA_PORT` | `3000` | port, bound to 127.0.0.1 |
-| `FINORA_DEMO` | unset | `1` = `fake` provider and fixture data |
-| `SEC_USER_AGENT` | none | required for SEC sources ("app name contact-email", SEC policy) |
-| `SOCRATA_APP_TOKEN`, `COURTLISTENER_TOKEN`, `CERTSPOTTER_API_KEY` | none | optional source keys (`docs/plan/loaders/`, `agents.md` §15) |
-| `ANTHROPIC_API_KEY` | none | the user's key for investigations |
-| `AGENT_*` | `agents.md` §15 | models, effort, concurrency, caps, timeouts, web search uses |
+| `FINORA_DEMO` | unset | `1` = the fake CLI and fixture data |
+| `FINORA_AGENT_BACKEND` | `off` | `cli`, `local` or `off`; `off` until the human's H6 decision is recorded (C18) |
+| `FINORA_CLAUDE_BIN` | `claude` on the PATH | the CLI binary; tests and the demo point it at the fake CLI |
+| `SEC_USER_AGENT` | none | the SEC contact header ("app name contact-email", SEC policy); a contact setting, not a key (C14), and the only optional setting in v1 (H5) |
+| `AGENT_*` | `agents.md` §15 | models, effort, concurrency, turn caps, timeouts; the usage caps `AGENT_CAP_ST` (500000), `AGENT_FOLLOWUP_CAP_ST` (85000), `AGENT_DAILY_CAP_ST` (3300000), `AGENT_EXTENSION_ST` (170000) |
 | `QUESTION_TIMEOUT` | `30m` (`cap_reached` 10 min) | §7.5 |
 | `SHARE_ALIKE_MODE` | `store` | `store` or `live-no-store` (P1) |
 | `PERSON_ROWS`, `LV_PERSON_ROWS` | `names_no_id` | §3.3; LAWYER rows |
@@ -1096,7 +1115,7 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 | `DISPUTE_SUPPRESS_AFTER` | `0` (immediately) | R10 (LAWYER) |
 | `HISTORY_MAX_GB` | `1` | P9, warns only |
 | `CRASH_PEAK_SINCE` | `2025-01-01` | start date for "peak" |
-| market connector keys | none | `docs/plan/loaders/markets.md` |
+| the provider map | `<data dir>/providers.json`, absent | not a variable: the local file that gives coded market sources their hosts, URL templates, licence id, attribution and terms URL (C15, C17). Schema in `packages/markets` (strict), parsed once at boot; a broken or missing file leaves those rows `needs_source` and fetches nothing. Never backed up, logged or served |
 
 ---
 
@@ -1147,6 +1166,6 @@ The CLI (`apps/cli`) runs as `pnpm finora-cli <command>`: `data sync [source|--p
 | O1 | Whether the instant profile shows a verdict level (today: checks and coverage only) | council session 2 |
 | O2 | The rule-table entries `agents.md` marks "proposed" | council session 2 |
 | O3 | The LAWYER rows of §10.2 | a lawyer; interim values ship |
-| O4 | data-osint's measured run, which calibrates costs and accepts the runtime slice | the key-testing round |
-| O5 | `SEC_USER_AGENT`, before the US slices start | the human |
+| O4 | data-osint's measured run, which calibrates usage and accepts the runtime slice | the runtime slice, on the CLI backend after the human's H6 decision |
+| O5 | `SEC_USER_AGENT` (the contact setting), before the US slices start | the human |
 | O6 | Token values and the final component inventory | `DESIGN.md`, the mockups, `ui-build-plan.md` draft 2 |
