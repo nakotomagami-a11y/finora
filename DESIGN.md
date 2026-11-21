@@ -50,7 +50,7 @@ Source of truth: `docs/design/mockups/assets/tokens.css`. The build copies these
 | `--on-accent` | `#1a1410` | `#ffffff` | text on accent fills |
 | `--good` | `#7cc98f` | `#1a6c34` | recoveries and "Current" health only; never "None found" or "No concerns found" |
 | `--warn` | `#e5b45a` | `#8a5a00` | Points to check, waiting on you, stale dates |
-| `--bad` | `#f2806f` | `#b3261e` | Serious concerns, losses, errors |
+| `--bad` | `#f2806f` | `#b3261e` | Serious concerns, losses, form validation errors, failure banners. Never the text of a data row: a "Not checked" row uses a `--warn` icon on `--muted` text (§5), so missing data never reads as a finding |
 | `--info` | `#8db4e6` | `#2559a8` | agent findings, AI-written tag, derived values |
 
 Each status colour has a `-tint` (10% over `--surface`) for backgrounds, plus `--accent-tint`.
@@ -154,7 +154,7 @@ A small badge before the chip. Names, not percentages.
 Summary; routes and the tool manifest are in `docs/design/IA.md`.
 
 - **Tool rail** (left, 72 px, icon plus label; a bottom bar under 768 px): Explorer, Library, Crash monitor; Sources and Settings at the bottom. Built from tool manifests.
-- **Top bar:** the command bar (`/` or Ctrl+K anywhere, or the top-bar field; `?cmd=open`): a modal palette: the input is a `combobox` controlling a `listbox` of grouped `option`s (companies with their distinguishing facts, investigations, tools and pages), filtered as you type, ↑ ↓ move the selection (`aria-activedescendant`, `aria-selected`), Enter opens it, Esc closes and returns focus to whatever opened it. On the search page `/` focuses the search box instead. Then today's spend against the daily cap, the theme toggle. The language switch (EN, LT, LV, ET) lives in Settings, not the top bar.
+- **Top bar:** the command bar (`/` or Ctrl+K anywhere, or the top-bar field; `?cmd=open`): a modal palette: the input is a `combobox` controlling a `listbox` of grouped `option`s (companies with their distinguishing facts, investigations, tools and pages), filtered as you type, ↑ ↓ move the selection (`aria-activedescendant`, `aria-selected`), Enter opens it, Esc closes and returns focus to whatever opened it. On the search page `/` focuses the search box instead. Then today's spend against the daily cap, the theme control: a three-way System / Dark / Light switch (S03; System follows the OS). The language switch (EN, LT, LV, ET) lives in the footer on every page and in Settings, never in the top bar.
 - **The main flow is one page.** Search → company page with official data at once → Investigate → the same page gains the agent panel, findings land in their sections → the verdict appears on top and a chat docks in the aside. The URL becomes stable when the run starts (`.../runs/[id]`), so the run can be shared, reopened and re-run.
 
 ## 8. Screens and states
