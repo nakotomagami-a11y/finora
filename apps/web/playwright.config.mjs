@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { SECRET_NAMES, sentinelFor } from "../../scripts/check-bundle-secrets.mjs";
 
 const PORT = 3100;
 const ENGINE_SPECS = /(smoke|csp|titles|design\.keyboard|design\.overlays|design\.focus|theme|fonts)\.spec\.ts$/u;
@@ -31,7 +32,14 @@ const config = {
     timeout: 60_000,
     // The shell may hand down a development NODE_ENV and another app's Next.js internals. The run script must
     // not let either reach the server: security-headers.spec.ts checks that the policy is the production one.
-    env: { FINORA_PORT: String(PORT), FINORA_DEMO: "1", NODE_ENV: "development", __NEXT_PRIVATE_TEST: "1" },
+    // The secrets hold sentinel values, so secrets.spec.ts can look for them in what the running server sends.
+    env: {
+      FINORA_PORT: String(PORT),
+      FINORA_DEMO: "1",
+      NODE_ENV: "development",
+      __NEXT_PRIVATE_TEST: "1",
+      ...Object.fromEntries(SECRET_NAMES.map((name) => [name, sentinelFor(name)])),
+    },
   },
 };
 

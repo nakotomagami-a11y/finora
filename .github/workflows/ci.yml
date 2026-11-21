@@ -112,7 +112,7 @@ jobs:
     # with the new design, download the `visual-actual` artifact, open each image, `guard review` it and commit it.
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.65.1-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579
     env:
       HOME: /root
     steps:

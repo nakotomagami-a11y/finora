@@ -18,6 +18,7 @@ export function ButtonLink({ variant = "secondary", size = "sm", external = fals
   return (
     <a
       ref={ref}
+      data-button-link=""
       className={cn(buttonClasses.base, buttonClasses.size[size], buttonClasses.variant[variant], className)}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       {...rest}

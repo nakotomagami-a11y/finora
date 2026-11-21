@@ -7,7 +7,7 @@ import { childArgs, childEnv } from "../scripts/run-next.mjs";
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "run-next.mjs");
 
 describe("childEnv", () => {
-  const inherited = { NODE_ENV: "development", __NEXT_PRIVATE_TEST: "1", __NEXT_PRIVATE_ORIGIN: "http://elsewhere", PATH: "/bin", FINORA_PORT: "3100" };
+  const inherited = { NODE_ENV: "development", __NEXT_PRIVATE_TEST: "1", PATH: "/bin", FINORA_PORT: "3100" };
 
   it("sets NODE_ENV per command and replaces the inherited value", () => {
     expect(childEnv("start", inherited).NODE_ENV).toBe("production");
@@ -15,11 +15,38 @@ describe("childEnv", () => {
     expect(childEnv("dev", { ...inherited, NODE_ENV: "production" }).NODE_ENV).toBe("development");
   });
 
-  it("removes every inherited __NEXT_PRIVATE_* variable and keeps the rest", () => {
-    const env = childEnv("start", inherited);
-    expect(Object.keys(env).filter((name) => name.startsWith("__NEXT_PRIVATE_"))).toEqual([]);
-    expect(env.PATH).toBe("/bin");
-    expect(env.FINORA_PORT).toBe("3100");
+  it("leaves behind every variable that is not on the list, whatever its case", () => {
+    const hostile = {
+      __NEXT_PRIVATE_TEST: "1",
+      __next_private_origin: "http://elsewhere",
+      NEXT_RUNTIME: "edge",
+      next_deployment_id: "x",
+      NEXT_DEPLOYMENT_ID: "x",
+      TURBOPACK: "1",
+      PORT: "9999",
+      HOSTNAME: "other",
+      SOME_OTHER_APP_TOKEN: "t",
+    };
+    const env = childEnv("start", { ...hostile, PATH: "/bin" });
+    expect(Object.keys(env).sort()).toEqual(["NODE_ENV", "PATH"]);
+  });
+
+  it("keeps what Finora and the system need", () => {
+    const wanted = {
+      PATH: "/bin",
+      Path: "bin-dir",
+      SystemRoot: "system-root",
+      USERPROFILE: "profile-dir",
+      FINORA_PORT: "3100",
+      FINORA_DATA_DIR: "./.data",
+      ANTHROPIC_API_KEY: "k",
+      NEXT_PUBLIC_ANTHROPIC_API_KEY: "k",
+      NODE_OPTIONS: "--max-old-space-size=4096",
+      LANG: "en_GB.UTF-8",
+    };
+    const env = childEnv("build", { ...wanted, NODE_ENV: "development" });
+    for (const [name, value] of Object.entries(wanted)) expect(env[name], name).toBe(value);
+    expect(env.NODE_ENV).toBe("production");
   });
 
   it("does not change the environment it was given", () => {

@@ -33,6 +33,6 @@ export function proxy(request: NextRequest): Response {
   return withHeaders(handleLocale(new NextRequest(request, { headers: forwarded })), headers);
 }
 
-// A literal, because Next.js reads it without running the file. Everything except `_next/static` and
-// `_next/image`: a dotted path must not skip the guard.
-export const config = { matcher: ["/((?!_next/static|_next/image).*)"] };
+// A literal, because Next.js reads it without running the file. Everything except `_next/static` (public build
+// files): a dotted path must not skip the guard.
+export const config = { matcher: ["/((?!_next/static).*)"] };

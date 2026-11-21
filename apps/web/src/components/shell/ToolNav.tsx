@@ -54,7 +54,7 @@ export function ToolNav({ tools, variant }: Props) {
         <Link
           href="/"
           aria-label={common("appName")}
-          className="mb-4 font-serif text-[28px] leading-none text-accent no-underline"
+          className="mb-3 flex h-8 w-10 items-start justify-center font-serif text-[28px] leading-none text-accent no-underline"
         >
           F
         </Link>

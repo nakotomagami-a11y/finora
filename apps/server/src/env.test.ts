@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EnvError, loadEnv } from "./env.ts";
+import pkg from "../package.json" with { type: "json" };
 
 describe("loadEnv", () => {
   it("fills the defaults", () => {
@@ -55,5 +56,12 @@ describe("NODE_ENV and the source URL", () => {
     expect(loadEnv({}).FINORA_SOURCE_URL).toMatch(/^https:\/\//u);
     expect(() => loadEnv({ FINORA_SOURCE_URL: "javascript:alert(1)" })).toThrowError("FINORA_SOURCE_URL");
     expect(() => loadEnv({ FINORA_SOURCE_URL: "ftp://example.test/x" })).toThrowError("FINORA_SOURCE_URL");
+  });
+});
+
+describe("the repository URL in package.json", () => {
+  it("is accepted by the source-URL schema, so the default can never be one the schema would refuse", () => {
+    expect(loadEnv({ FINORA_SOURCE_URL: pkg.repository.url }).FINORA_SOURCE_URL).toBe(pkg.repository.url);
+    expect(loadEnv({}).FINORA_SOURCE_URL).toBe(pkg.repository.url);
   });
 });

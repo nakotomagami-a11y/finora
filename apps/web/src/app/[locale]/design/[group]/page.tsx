@@ -31,7 +31,7 @@ export default async function DesignGroup({ params, searchParams }: Props) {
         <ThemeFromQuery />
       </Suspense>
       <p className="text-small text-muted">
-        <Link href="/design" className="underline">
+        <Link href="/design" className="-my-1.5 inline-flex min-h-8 items-center underline">
           Design system
         </Link>
       </p>

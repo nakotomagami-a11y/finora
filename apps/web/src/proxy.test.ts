@@ -11,14 +11,14 @@ function request(path: string, host = "127.0.0.1:3000", method = "GET"): NextReq
 const MATCHED = new RegExp(`^${config.matcher[0]}$`, "u");
 
 describe("the proxy matcher", () => {
-  it.each(["/", "/en", "/en/terms", "/en/x.y", "/en/terms.rsc", "/api/v1/health", "/api/v1/health.json", "/favicon.ico", "/robots.txt"])(
+  it.each(["/", "/en", "/en/terms", "/en/x.y", "/en/terms.rsc", "/api/v1/health", "/api/v1/health.json", "/favicon.ico", "/robots.txt", "/_next/image", "/_next/data/x.json"])(
     "runs on %s",
     (path) => {
       expect(MATCHED.test(path)).toBe(true);
     },
   );
 
-  it.each(["/_next/static/chunks/a.js", "/_next/static/css/b.css", "/_next/image"])("skips %s", (path) => {
+  it.each(["/_next/static/chunks/a.js", "/_next/static/css/b.css"])("skips %s", (path) => {
     expect(MATCHED.test(path)).toBe(false);
   });
 });

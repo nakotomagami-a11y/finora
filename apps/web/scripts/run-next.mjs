@@ -12,14 +12,34 @@ import { pathToFileURL } from "node:url";
 const NODE_ENV_FOR = { dev: "development", build: "production", start: "production" };
 
 /**
+ * What the Next.js child may inherit. A list of what is wanted, not of what is feared: a shell can carry the
+ * internals of another app (`__NEXT_PRIVATE_*`, `NEXT_RUNTIME`, `NEXT_DEPLOYMENT_ID`, `PORT`, `HOSTNAME`,
+ * `TURBOPACK`) that point Next.js at that app's folders, and a denylist would need a new entry for each. Names
+ * are matched ignoring case, because Windows does. Finora's own settings and the keys the server reads pass.
+ */
+const INHERITED = [
+  // Finora's settings, the keys and contact string the server reads, and the public prefix Next.js inlines.
+  /^FINORA_/iu,
+  /^NEXT_PUBLIC_/iu,
+  /^(?:ANTHROPIC_API_KEY|SEC_USER_AGENT|SOCRATA_APP_TOKEN|COURTLISTENER_TOKEN|CERTSPOTTER_API_KEY|SAM_GOV_API_KEY)$/iu,
+  /^NEXT_TELEMETRY_DISABLED$/iu,
+  // What a process needs to run and to find things, on Windows, macOS and Linux.
+  /^(?:PATH|PATHEXT|HOME|HOMEDRIVE|HOMEPATH|USER|USERNAME|USERDOMAIN|USERPROFILE|LOGNAME|SHELL|TMP|TEMP|TMPDIR)$/iu,
+  /^(?:SYSTEMROOT|SYSTEMDRIVE|WINDIR|COMSPEC|OS|COMPUTERNAME|NUMBER_OF_PROCESSORS|PROCESSOR_\w+)$/iu,
+  /^(?:APPDATA|LOCALAPPDATA|PROGRAMDATA|PROGRAMFILES|PROGRAMFILES\(X86\)|PROGRAMW6432|COMMONPROGRAMFILES|COMMONPROGRAMFILES\(X86\))$/iu,
+  /^(?:LANG|LANGUAGE|LC_\w+|TZ|TERM|COLORTERM|NO_COLOR|FORCE_COLOR|CI)$/iu,
+  // Node.js and the network.
+  /^(?:NODE_OPTIONS|NODE_EXTRA_CA_CERTS|SSL_CERT_FILE|SSL_CERT_DIR|HTTP_PROXY|HTTPS_PROXY|NO_PROXY)$/iu,
+];
+
+/**
  * The environment Next.js runs in. `NODE_ENV` is set per command and replaces whatever the shell had: an inherited
  * `development` would serve the relaxed development policy from a production server, and an inherited
- * `production` would break `dev`. Next.js internals another app leaked into the shell (`__NEXT_PRIVATE_*`) are
- * removed, because they point Next.js at that other app's folders.
+ * `production` would break `dev`. Everything the list above does not name is left behind.
  */
 export function childEnv(command, env) {
-  const clean = Object.fromEntries(Object.entries(env).filter(([name]) => !name.startsWith("__NEXT_PRIVATE_")));
-  return { ...clean, NODE_ENV: NODE_ENV_FOR[command] };
+  const kept = Object.fromEntries(Object.entries(env).filter(([name]) => name !== "NODE_ENV" && INHERITED.some((pattern) => pattern.test(name))));
+  return { ...kept, NODE_ENV: NODE_ENV_FOR[command] };
 }
 
 /** The arguments after the Next.js command: the local address for `dev` and `start`, none for `build`. */
