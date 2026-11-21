@@ -1,0 +1,89 @@
+import { rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { beginSync, openStore, upsertSource } from "@finora/store";
+import { afterEach, describe, expect, it } from "vitest";
+import { tempDir } from "./test-helpers.ts";
+import { runSyncInWorker } from "./worker.ts";
+
+const dirs: { remove(): void }[] = [];
+afterEach(() => dirs.splice(0).forEach((d) => d.remove()));
+
+describe("S04i acceptance 5: two concurrent syncs of one source", () => {
+  it("one runs in its worker, the other ends already_running, and no rows are lost", async () => {
+    const dir = tempDir();
+    dirs.push(dir);
+    const watcher = openStore({ dataDir: dir.path });
+    const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
+    const job = { dataDir: dir.path, sourceId: "fake-slow", userAgent: "Finora test", options: {} };
+    const hold = join(dir.path, "hold");
+    writeFileSync(hold, "");
+    const first = runSyncInWorker(entry, job);
+    // Start the second sync only once the first holds the source's lease.
+    const leased = () => (watcher.db.prepare("SELECT COUNT(*) AS n FROM main.leases WHERE resource = 'sync:fake-slow'").get() as { n: number }).n === 1;
+    for (let i = 0; i < 3000 && !leased(); i++) await new Promise((r) => setTimeout(r, 10));
+    expect(leased()).toBe(true);
+    const second = await runSyncInWorker(entry, job);
+    rmSync(hold);
+    const outcomes = [await first, second];
+    expect(outcomes.map((o) => o.kind)).toEqual(["content", "already_running"]);
+
+    expect(watcher.db.prepare("SELECT COUNT(*) AS n FROM main.records WHERE source_id = 'fake-slow'").get()).toEqual({ n: 40 });
+    expect(watcher.db.prepare("SELECT kind FROM main.syncs").all()).toEqual([{ kind: "content" }]);
+    expect(watcher.db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
+    watcher.close();
+  }, 60_000);
+
+  it("a hung worker is terminated, its lease released and its sync closed as failed (cto on S04i)", async () => {
+    const dir = tempDir();
+    dirs.push(dir);
+    openStore({ dataDir: dir.path }).close();
+    const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
+    const started = Date.now();
+    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-hung", userAgent: "t", options: { leaseTtlMs: 600 } }, { startupMs: 20_000 });
+    expect(outcome).toMatchObject({ kind: "failed", report: { reason: "worker_hung" } });
+    expect(Date.now() - started).toBeLessThan(15_000);
+    const store = openStore({ dataDir: dir.path });
+    expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
+    expect(store.db.prepare("SELECT kind, report_json FROM main.syncs").all()).toEqual([{ kind: "failed", report_json: JSON.stringify({ reason: "worker_hung" }) }]);
+    store.close();
+  }, 60_000);
+
+  it("a crashed worker closes its sync row and frees its lease, so the next sync can run (cto on S04i)", async () => {
+    const dir = tempDir();
+    dirs.push(dir);
+    openStore({ dataDir: dir.path }).close();
+    const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
+    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-crash", userAgent: "t", options: {} });
+    expect(outcome).toMatchObject({ kind: "failed", report: { reason: "worker_exit_3" } });
+    const store = openStore({ dataDir: dir.path });
+    expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
+    expect(store.db.prepare("SELECT kind FROM main.syncs").all()).toEqual([{ kind: "failed" }]);
+    store.close();
+    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", options: {} })).kind).toBe("content");
+  }, 60_000);
+
+  it("a timed-out worker closes only the sync it opened and releases its own lease (qa on S04i)", async () => {
+    const dir = tempDir();
+    dirs.push(dir);
+    const store = openStore({ dataDir: dir.path });
+    upsertSource(store.db, { id: "other-source", storage: "store" }, "2026-11-21T00:00:00.000Z");
+    const other = beginSync(store.db, { sourceId: "other-source", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-21T00:00:00.000Z" });
+    // cto: a sync of the same source that another process took over must not be marked failed either.
+    upsertSource(store.db, { id: "fake-stuck", storage: "store" }, "2026-11-21T00:00:00.000Z");
+    const takeover = beginSync(store.db, { sourceId: "fake-stuck", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-21T00:00:00.000Z" });
+    store.close();
+    const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
+    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-stuck", userAgent: "t", options: {} }, { timeoutMs: 3000, startupMs: 20_000 });
+    expect(outcome).toMatchObject({ kind: "failed", report: { reason: "worker_timeout" } });
+    const after = openStore({ dataDir: dir.path });
+    expect(after.db.prepare("SELECT source_id, kind FROM main.syncs ORDER BY id").all()).toEqual([
+      { source_id: "other-source", kind: "running" },
+      { source_id: "fake-stuck", kind: "running" },
+      { source_id: "fake-stuck", kind: "failed" },
+    ]);
+    expect(after.db.prepare("SELECT kind FROM main.syncs WHERE id = ?").get(other)).toEqual({ kind: "running" });
+    expect(after.db.prepare("SELECT kind FROM main.syncs WHERE id = ?").get(takeover)).toEqual({ kind: "running" });
+    expect(after.db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
+    after.close();
+  }, 60_000);
+});

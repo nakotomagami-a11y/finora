@@ -1,0 +1,104 @@
+/* Exposes the design tokens to Tailwind v4 as theme values (bg-surface, text-ink, rounded-card, text-body ...).
+   Apps import Tailwind's preflight and utilities, not its default theme, so only Finora's tokens exist.
+   Colours use `inline` so they follow the CSS variables, and a theme switch needs no rebuild. */
+
+@theme {
+  --spacing: 4px;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 120rem;
+
+  --animate-pulse-dot: pulse-dot var(--dur-pulse) ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  --animate-fade-in: fade-in var(--dur-base) var(--ease) both;
+  --animate-slide-in-right: slide-in-right var(--dur-base) var(--ease) both;
+  --animate-slide-in-bottom: slide-in-bottom var(--dur-base) var(--ease) both;
+
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes shimmer {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+  @keyframes slide-in-bottom {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+  --color-good-tint: var(--good-tint);
+  --color-warn-tint: var(--warn-tint);
+  --color-bad-tint: var(--bad-tint);
+  --color-info-tint: var(--info-tint);
+  --color-accent-tint: var(--accent-tint);
+
+  --font-sans: var(--ff-sans);
+  --font-serif: var(--ff-serif);
+  --font-mono: var(--ff-mono);
+
+  --text-display: var(--fs-display);
+  --text-display--line-height: var(--lh-display);
+  --text-h1: var(--fs-h1);
+  --text-h1--line-height: var(--lh-h1);
+  --text-h2: var(--fs-h2);
+  --text-h2--line-height: var(--lh-h2);
+  --text-h3: var(--fs-h3);
+  --text-h3--line-height: var(--lh-h3);
+  --text-body: var(--fs-body);
+  --text-body--line-height: var(--lh-body);
+  --text-small: var(--fs-small);
+  --text-small--line-height: var(--lh-small);
+  --text-label: var(--fs-label);
+  --text-label--line-height: var(--lh-label);
+  --text-mono: var(--fs-mono);
+  --text-mono--line-height: var(--lh-mono);
+
+  --radius-chip: var(--r-chip);
+  --radius-btn: var(--r-btn);
+  --radius-card: var(--r-card);
+  --radius-verdict: var(--r-verdict);
+
+  --shadow-pop: var(--shadow-pop-value);
+}

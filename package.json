@@ -1,0 +1,31 @@
+{
+  "name": "finora",
+  "description": "Free, open-source, agentic company intelligence.",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@11.0.9",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @finora/web dev",
+    "start": "pnpm --filter @finora/web start",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "node --test \"scripts/*.test.mjs\" \"scripts/guard/*.test.mjs\" && vitest run",
+    "build": "pnpm -r --if-present build",
+    "e2e": "pnpm -r --if-present e2e",
+    "gen:items": "node scripts/gen-items.mjs",
+    "fixtures:gen": "pnpm --filter @finora/fixtures gen",
+    "finora-cli": "node apps/cli/src/main.ts",
+    "check": "node scripts/check-deps.mjs && node scripts/check-tokens.mjs && node scripts/check-lawyer-register.mjs && node scripts/gen-items.mjs --check"
+  },
+  "devDependencies": {
+    "@finora/tooling": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

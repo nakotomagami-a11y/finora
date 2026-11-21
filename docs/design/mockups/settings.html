@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Settings · Finora mockup</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  const { esc, param, icon } = Finora;
+  const state = param("state", "full");
+
+  const keyRow = (label, env, status, unlocks) => {
+    const S = {
+      set: `<span class="pill pill-good"><span class="dot"></span>Set</span>`,
+      missing: `<span class="pill"><span class="dot" style="color:var(--faint)"></span>Not set</span>`,
+      invalid: `<span class="pill pill-bad">${icon("x", "icon icon-sm")}Rejected by the provider</span>`,
+      optional: `<span class="pill"><span class="dot" style="color:var(--faint)"></span>Optional, not set</span>`,
+    }[status];
+    return `<div class="row"><span class="row-label">${esc(label)}</span><span class="row-value"><span class="row-main"><span class="mono">${esc(env)}</span></span><span class="small muted">${esc(unlocks)}</span>${status === "invalid" ? `<span class="state-line error">${icon("warn", "icon icon-sm")}<span>The provider answered 401 at 09:31. Check the key in <span class="mono">.env.local</span>, then restart.</span></span>` : ""}</span><span class="row-end">${S}</span></div>`;
+  };
+
+  function render() {
+    const missing = state === "keys-missing";
+    const invalid = state === "key-invalid";
+    const ai = invalid ? "invalid" : missing ? "missing" : "set";
+    const keys = `<section class="section" aria-labelledby="k-h"><div class="section-head"><h2 id="k-h">Keys and connectors</h2></div>
+      <p class="small muted" style="margin-bottom:8px">Keys are read from <span class="mono">.env.local</span> on this machine and never shown, logged or sent anywhere except the provider they belong to.</p>
+      <div class="rows">
+        ${keyRow("AI model", "ANTHROPIC_API_KEY", ai, "Runs the agents, the verdict write-up and follow-up questions. Without it, profiles and Crash monitor still work.")}
+        ${keyRow("SEC contact", "SEC_USER_AGENT", missing ? "missing" : "set", "A contact string the SEC requires. Unlocks US public companies: filings, officers, financials, insider trades.")}
+        ${keyRow("Stock data", "STOCK_DATA_KEY", missing ? "missing" : "set", "Your own free key. Fills Europe, the Americas, daily US stocks and South Korea in Crash monitor.")}
+        ${keyRow("Crypto quota", "CRYPTO_DEMO_KEY", "optional", "A steadier quota for the total crypto market tile.")}
+        ${keyRow("Court search", "COURTLISTENER_TOKEN", "optional", "US federal court dockets for the legal agent, 125 searches a day.")}
+      </div></section>`;
+    const funds = `<section class="section" aria-labelledby="f-h"><div class="section-head"><h2 id="f-h">Crash monitor funds</h2></div>
+      <p class="small muted" style="margin-bottom:8px">Choose the US-listed fund that stands in for each region. Symbols stay on this machine.</p>
+      <div class="rows">
+        ${[["US stocks, daily (M01)", "XMPL1"], ["Europe (M02)", "XMPL2"], ["Other Asia and Pacific (M03)", ""], ["Americas excluding the US (M04)", ""]].map(([l, v]) => `<div class="row"><label class="row-label" for="f-${l.length}">${l}</label><span class="row-value"><input class="input" id="f-${l.length}" style="max-width:200px" value="${v}" placeholder="Fund symbol"></span><span class="row-end small muted">${v ? "set" : "tile shows “Choose a fund in settings”"}</span></div>`).join("")}
+      </div></section>`;
+    const spend = `<section class="section" aria-labelledby="s-h"><div class="section-head"><h2 id="s-h">Spending</h2></div><div class="rows">
+      <div class="row"><span class="row-label">Cap per investigation</span><span class="row-value"><span class="num">$1.50</span><span class="small muted">One extension of up to $0.50 can be allowed once per run, from the run's question card.</span></span><span class="row-end"><button class="btn btn-sm" type="button">Change</button></span></div>
+      <div class="row"><span class="row-label">Cap per follow-up question</span><span class="row-value num">$0.25</span><span class="row-end"><button class="btn btn-sm" type="button">Change</button></span></div>
+      <div class="row"><span class="row-label">Daily cap</span><span class="row-value"><span class="num">$10.00 · $1.84 spent today</span><div class="meter" style="max-width:320px"><i style="width:18%"></i></div><span class="small muted">Resets at 00:00 local time. It can't be raised from inside a run.</span></span><span class="row-end"><button class="btn btn-sm" type="button">Change</button></span></div>
+      </div></section>`;
+    const purpose = `<section class="section" aria-labelledby="p-h"><div class="section-head"><h2 id="p-h">Purpose for people data</h2></div><div class="rows">
+      <div class="row"><span class="row-label">Current purpose</span><span class="row-value"><span>Checking a company I may do business with</span><span class="small muted">Stated 09:12 today; asked again after 12 hours or a restart. Every company whose people you open is logged with the purpose in force.</span></span><span class="row-end"><button class="btn btn-sm" type="button">Change</button><button class="btn btn-sm btn-quiet" type="button">View the log</button></span></div>
+      </div></section>`;
+    const data = `<section class="section" aria-labelledby="d-h"><div class="section-head"><h2 id="d-h">Data</h2></div>
+      ${state === "history-warning" ? `<div class="banner banner-warn" role="status" style="margin-bottom:8px">${icon("warn")}<span><strong>Change history is at 0.97 GB of its 1 GB limit.</strong> Nothing is deleted automatically, because deleted history would make “renamed recently” read as clean. Raise <span class="mono">HISTORY_MAX_GB</span> or free disk space.</span></div>` : ""}
+      <div class="rows">
+        ${[["Latvia", "19 Nov 06:10", "2.1 GB of 2.5 GB", "ok"], ["Estonia", "19 Nov 06:24", "2.8 GB of 3.25 GB", "ok"], ["Lithuania", "19 Nov 05:58", "1.6 GB of 2 GB", "ok"], ["Sanctions lists", "19 Nov 06:31", "50 MB", "ok"], ["Change history (our snapshots)", "since 16 Nov 2026", state === "history-warning" ? "0.97 GB of 1 GB" : "0.04 GB of 1 GB", state === "history-warning" ? "warn" : "ok"]].map(([n, w, sz, st]) => `<div class="row"><span class="row-label">${n}</span><span class="row-value"><span class="num">Last sync ${w}</span><span class="small muted num">${sz}</span></span><span class="row-end">${st === "warn" ? `<span class="pill pill-warn">${icon("warn", "icon icon-sm")}Near its limit</span>` : `<span class="pill"><span class="dot" style="color:var(--good)"></span>Current</span>`}</span></div>`).join("")}
+      </div>
+      <p class="small muted" style="margin-top:8px">Share-alike data (Estonian tax data) lives in its own store and is left out of exports. Mode: <span class="mono">SHARE_ALIKE_MODE=store</span>.</p></section>`;
+    const prefs = `<section class="section" aria-labelledby="pr-h"><div class="section-head"><h2 id="pr-h">Preferences</h2></div><div class="rows">
+      <div class="row"><span class="row-label">Theme</span><span class="row-value"><div class="seg" role="group" aria-label="Theme"><button type="button" aria-pressed="true">Dark</button><button type="button" aria-pressed="false">Light</button><button type="button" aria-pressed="false">System</button></div></span></div>
+      <div class="row"><span class="row-label">Language</span><span class="row-value"><div class="seg" role="group" aria-label="Language"><button type="button" aria-pressed="true">EN</button><button type="button" aria-pressed="false">LT</button><button type="button" aria-pressed="false">LV</button><button type="button" aria-pressed="false">ET</button></div></span></div>
+      </div></section>`;
+    const banner = missing ? `<div class="banner banner-info" role="note">${icon("key")}<span><strong>Two keys are missing.</strong> Company profiles work now. Add <span class="mono">ANTHROPIC_API_KEY</span> to run agents and <span class="mono">SEC_USER_AGENT</span> for US public companies.</span></div>` : invalid ? `<div class="banner banner-bad" role="alert">${icon("warn")}<span><strong>The AI model key was rejected.</strong> Investigations can't start until it is fixed. Profiles and Crash monitor still work.</span></div>` : "";
+    return `<div class="page" style="max-width:960px">
+      <div class="co-head"><span class="label">Settings</span><h1 class="co-title">Settings</h1></div>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:8px">${banner}${keys}${spend}${purpose}${funds}${data}${prefs}</div>
+    </div>`;
+  }
+
+  Finora.mount("settings", render, [
+    { key: "state", label: "Settings state", options: [["full", "All keys set"], ["keys-missing", "Keys missing"], ["key-invalid", "AI key rejected"], ["history-warning", "History near its limit"]] },
+  ]);
+})();
+</script>
+</body>
+</html>

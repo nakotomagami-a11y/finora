@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Network · Finora mockup</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+<script src="assets/fixtures.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  const { esc, param, icon, chip, conf } = Finora;
+  const { S } = FX;
+  const state = param("state", "graph");
+  const narrow = matchMedia("(max-width: 767px)").matches;
+  const view = param("view", narrow ? "list" : "graph");
+
+  const NODES = [
+    { id: "s", name: "Paraugs Timber SIA", code: "40000FX0017", x: 50, y: 50, subject: true, status: "Active" },
+    { id: "p", name: "Example Holding SIA", code: "40000FX0099", x: 50, y: 14, status: "Active", rel: "Company member of the subject · 60% since 2014", kind: "member" },
+    { id: "c1", name: "Paraugs Pellets SIA", code: "40000FX0102", x: 18, y: 78, status: "Active", rel: "The subject is a company member · 100% since 2019", kind: "member" },
+    { id: "c2", name: "Sample Kilns SIA", code: "40000FX0117", x: 82, y: 80, status: "Liquidated 2023", rel: "The subject was a company member · 40%; company liquidated 2023", kind: "member", tone: "muted" },
+    { id: "a", name: "Parauga iela 1, Rīga", x: 84, y: 40, address: true, rel: "Registered office shared by 4 companies" },
+    { id: "o1", name: "Demo Accounting SIA", code: "40000FX0131", x: 96, y: 22, status: "Active", rel: "Same registered office", kind: "address" },
+    { id: "o2", name: "Fictional Freight SIA", code: "40000FX0144", x: 96, y: 60, status: "Active", rel: "Same registered office", kind: "address" },
+  ];
+  const EDGES = [["p", "s", "member", "60%"], ["s", "c1", "member", "100%"], ["s", "c2", "member", "40%"], ["s", "a", "address"], ["a", "o1", "address"], ["a", "o2", "address"]];
+  const sel = NODES.find((n) => n.id === param("node", "p")) || NODES[1];
+
+  function graph() {
+    if (state === "loading") return `<div class="net-canvas" aria-busy="true"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px" class="muted"><span class="spinner"></span>Building the network from the register…</div></div>`;
+    const W = 1000, H = 600, px = (n) => (n.x / 100) * (W - 160) + 80, py = (n) => (n.y / 100) * (H - 100) + 50;
+    const by = Object.fromEntries(NODES.map((n) => [n.id, n]));
+    const edges = EDGES.map(([a, b, k, lbl]) => {
+      const A = by[a], B = by[b];
+      return `<g><line x1="${px(A)}" y1="${py(A)}" x2="${px(B)}" y2="${py(B)}" stroke="var(--line-strong)" stroke-width="${k === "member" ? 2 : 1.5}" ${k === "address" ? 'stroke-dasharray="5 5"' : ""}/>
+        ${lbl ? `<text x="${(px(A) + px(B)) / 2 + 8}" y="${(py(A) + py(B)) / 2 - 6}" fill="var(--muted)" font-family="var(--font-mono)" font-size="13">${lbl}</text>` : ""}</g>`;
+    }).join("");
+    const nodes = NODES.map((n) => {
+      const x = px(n), y = py(n), isSel = n.id === sel.id;
+      if (n.address) return `<g><title>${esc(n.name)}: ${esc(n.rel)}</title><rect x="${x - 14}" y="${y - 14}" width="28" height="28" rx="6" fill="var(--surface-2)" stroke="var(--line-strong)"/><text x="${x}" y="${y + 5}" text-anchor="middle" fill="var(--ink-2)" font-size="13" font-family="var(--font-mono)">4</text><text x="${x}" y="${y + 36}" text-anchor="middle" fill="var(--muted)" font-size="13">${esc(n.name)}</text></g>`;
+      const r = n.subject ? 26 : 16;
+      return `<g tabindex="0" role="button" aria-label="${esc(n.name)} ${esc(n.code)}${n.rel ? ": " + esc(n.rel) : ""}" onclick="location.search='node=${n.id}'" style="cursor:pointer">
+        ${isSel ? `<circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="var(--accent)" stroke-width="2"/>` : ""}
+        <circle cx="${x}" cy="${y}" r="${r}" fill="${n.subject ? "var(--accent)" : "var(--surface)"}" stroke="${n.tone === "muted" ? "var(--faint)" : "var(--ink-2)"}" stroke-width="1.5" ${n.tone === "muted" ? 'stroke-dasharray="3 3"' : ""}/>
+        <text x="${x}" y="${y + r + 20}" text-anchor="middle" fill="${n.tone === "muted" ? "var(--muted)" : "var(--ink)"}" font-size="${n.subject ? 15 : 13.5}" font-weight="${n.subject ? 600 : 400}">${esc(n.name)}</text>
+        <text x="${x}" y="${y + r + 37}" text-anchor="middle" fill="var(--muted)" font-size="12" font-family="var(--font-mono)">${esc(n.code)}</text>
+      </g>`;
+    }).join("");
+    return `<div class="net-canvas"><svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Network graph of Paraugs Timber SIA. The list view has the same data.">${edges}${nodes}</svg>
+      <div style="position:absolute;left:12px;bottom:12px;display:flex;gap:6px"><button class="btn btn-sm" type="button" aria-label="Zoom in">+</button><button class="btn btn-sm" type="button" aria-label="Zoom out">−</button><button class="btn btn-sm" type="button">Fit</button></div></div>`;
+  }
+
+  function list() {
+    const g = (title, items) => `<section class="card" style="padding:16px"><h2 class="label" style="margin-bottom:8px">${esc(title)}</h2><div class="rows">${items}</div></section>`;
+    const row = (n) => `<div class="row"><span class="row-value"><span class="row-main"><a href="company.html?country=lv">${esc(n.name)}</a><span class="muted small num">${esc(n.code)} · ${esc(n.status)}</span></span><span class="small ink2">${esc(n.rel)}</span></span><span class="row-end">${chip(n.kind === "member" ? S.urMembers : S.derivedAddr)}</span></div>`;
+    return `<div style="display:flex;flex-direction:column;gap:12px;flex:1;min-width:0">
+      ${g("Company members of Paraugs Timber SIA · 1", row(NODES[1]))}
+      ${g("Companies where Paraugs Timber SIA is a member · 2", row(NODES[2]) + row(NODES[3]))}
+      ${g("Same registered office, Parauga iela 1, Rīga · 2", row(NODES[5]) + row(NODES[6]))}
+    </div>`;
+  }
+
+  function side() {
+    return `<aside class="net-side" aria-label="Selected company and legend">
+      ${view === "graph" ? `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px">
+        <span class="label">Selected</span><h2 class="serif" style="font-size:24px;line-height:28px">${esc(sel.name)}</h2>
+        ${sel.code ? `<span class="small muted num">Registration no. ${esc(sel.code)} · ${esc(sel.status)}</span>` : ""}
+        <span class="small ink2">${esc(sel.rel || "The subject of this network")}</span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${sel.address ? conf("derived") + chip(S.derivedAddr) : conf("official") + chip(S.urMembers)}</span>
+        ${sel.subject ? "" : `<span style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-sm" href="company.html?country=lv">Open company</a><a class="btn btn-sm btn-quiet" href="network.html?node=s">Centre here</a></span>`}
+      </section>` : ""}
+      <section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+        <span class="label">Legend</span>
+        <div class="legend">
+          <div class="legend-row"><svg viewBox="0 0 36 10"><line x1="0" y1="5" x2="36" y2="5" stroke="currentColor" stroke-width="2"/></svg>Company member (from the register, with share)</div>
+          <div class="legend-row"><svg viewBox="0 0 36 10"><line x1="0" y1="5" x2="36" y2="5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4"/></svg>Same registered office (derived by Finora)</div>
+          <div class="legend-row"><svg viewBox="0 0 36 10"><circle cx="18" cy="5" r="4" fill="none" stroke="currentColor" stroke-dasharray="2 2"/></svg>Company no longer active</div>
+        </div>
+        <span class="caveat">${icon("info", "icon icon-sm")}<span>Company-to-company links only: shared registered offices and company members. A shared address can be an office building or a registered-agent address. Addresses shared with a sole trader or private individual are not shown, and links between people are not shown in this version.</span></span>
+        <span class="small muted">Browsing the network never starts agents and costs nothing.</span>
+      </section>
+    </aside>`;
+  }
+
+  function render() {
+    const head = `<div class="co-head" style="margin-bottom:16px"><span class="label">Network · one hop</span><h1 class="co-title">Paraugs Timber SIA</h1>
+      <div class="co-meta"><span>5 linked companies · 1 shared registered office</span><span class="sep">/</span><a href="company.html?country=lv">Back to the company</a></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><div class="seg" role="group" aria-label="View"><button type="button" aria-pressed="${view === "graph"}" onclick="location.search='view=graph'">Graph</button><button type="button" aria-pressed="${view === "list"}" onclick="location.search='view=list'">List</button></div><span class="small muted">The list has the same data as the graph and is the default on small screens.</span></div></div>`;
+    if (state === "empty") return `<div class="page">${head.replace("5 linked companies · 1 shared registered office", "No links")}<div class="empty-state"><h2>No company links found</h2><p class="ink2">The register lists no company members for this company, it is not a member of another company, and no other company shares its registered office.</p><p class="small muted">Checked the Enterprise Register of Latvia as of 19 Nov 2026. Links between people are not shown in this version.</p></div></div>`;
+    if (state === "error") return `<div class="page">${head}<div class="banner banner-bad" role="alert">${icon("warn")}<span><strong>The network couldn't be built.</strong> The local store didn't answer. <button class="link-btn" type="button">Retry</button></span></div></div>`;
+    if (state === "large") return `<div class="page">${head.replace("5 linked companies · 1 shared registered office", "This address hosts 412 companies")}
+      <div class="banner banner-info" role="status">${icon("info")}<span><strong>Parauga iela 1, Rīga is the registered office of 412 companies.</strong> That usually means an office building or a registered-agent address, not a business connection. The graph shows the first 20; the list has all of them.</span></div>
+      <div style="height:12px"></div><div class="net-wrap">${view === "graph" ? graph() : list()}${side()}</div></div>`;
+    return `<div class="page">${head}<div class="net-wrap">${view === "graph" ? graph() : list()}${side()}</div></div>`;
+  }
+
+  Finora.mount("explorer", render, [
+    { key: "state", label: "Network state", options: [["graph", "Links found"], ["loading", "Loading"], ["empty", "No links"], ["large", "Address hosts 412 companies"], ["error", "Error"]] },
+    { key: "view", label: "View", options: [[narrow ? "list" : "graph", narrow ? "List (default here)" : "Graph (default here)"], [narrow ? "graph" : "list", narrow ? "Graph" : "List"]] },
+  ]);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sanctionsData xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xsi:schemaLocation="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML.xsd" xmlns="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML">
+  <publicationInfo>
+    <dataAsOf>2026-11-20T00:00:00-05:00</dataAsOf>
+    <filters>
+      <sanctionsLists>
+        <sanctionsList refId="1550">SDN List</sanctionsList>
+      </sanctionsLists>
+    </filters>
+  </publicationInfo>
+  <referenceValues>
+    <referenceValue refId="1400">
+      <type>ALIAS TYPE</type>
+      <value>A.K.A.</value>
+    </referenceValue>
+    <referenceValue refId="1401">
+      <type>ALIAS TYPE</type>
+      <value>F.K.A.</value>
+    </referenceValue>
+  </referenceValues>
+  <entities>
+    <entity id="90000001">
+      <generalInfo>
+        <identityId>90000001</identityId>
+        <entityType refId="601">Entity</entityType>
+      </generalInfo>
+      <sanctionsLists>
+        <sanctionsList refId="1550" id="90000001" datePublished="2026-04-01">SDN List</sanctionsList>
+      </sanctionsLists>
+      <sanctionsPrograms>
+        <sanctionsProgram refId="99001" id="90000101">FIXTURE-EO</sanctionsProgram>
+      </sanctionsPrograms>
+      <names>
+        <name id="90000201">
+          <isPrimary>true</isPrimary>
+          <isLowQuality>false</isLowQuality>
+          <translations>
+            <translation id="90000301">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <formattedFullName>TEST ENERGY 7 SIA</formattedFullName>
+            </translation>
+          </translations>
+        </name>
+        <name id="90000202">
+          <isPrimary>false</isPrimary>
+          <aliasType refId="1401">F.K.A.</aliasType>
+          <isLowQuality>false</isLowQuality>
+          <translations>
+            <translation id="90000302">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <formattedFullName>TEST POWER 7 SIA</formattedFullName>
+            </translation>
+          </translations>
+        </name>
+      </names>
+      <addresses>
+        <address id="90000401">
+          <country refId="11131">Latvia</country>
+          <translations>
+            <translation id="90000501">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <addressParts>
+                <addressPart id="90000601">
+                  <type refId="1454">CITY</type>
+                  <value>Fixture Town</value>
+                </addressPart>
+              </addressParts>
+            </translation>
+          </translations>
+        </address>
+      </addresses>
+      <features>
+        <feature id="90000701">
+          <type featureTypeId="646">Organization Established Date</type>
+          <value>2009</value>
+          <valueDate id="90000801">
+            <fromDateBegin>2009-01-01</fromDateBegin>
+            <fromDateEnd>2009-01-01</fromDateEnd>
+          </valueDate>
+          <isPrimary>true</isPrimary>
+        </feature>
+      </features>
+      <identityDocuments>
+        <identityDocument id="90000901">
+          <type refId="1626">Registration Number</type>
+          <name nameId="90000201" nameTranslationId="90000301">TEST ENERGY 7 SIA</name>
+          <documentNumber>50003000024</documentNumber>
+          <isValid>true</isValid>
+          <issuingCountry refId="11131">Latvia</issuingCountry>
+        </identityDocument>
+      </identityDocuments>
+    </entity>
+    <entity id="90000002">
+      <generalInfo>
+        <identityId>90000002</identityId>
+        <entityType refId="601">Entity</entityType>
+      </generalInfo>
+      <sanctionsLists>
+        <sanctionsList refId="1550" id="90000002" datePublished="2026-05-15">SDN List</sanctionsList>
+      </sanctionsLists>
+      <sanctionsPrograms>
+        <sanctionsProgram refId="99001" id="90000102">FIXTURE-EO</sanctionsProgram>
+      </sanctionsPrograms>
+      <names>
+        <name id="90000203">
+          <isPrimary>true</isPrimary>
+          <isLowQuality>false</isLowQuality>
+          <translations>
+            <translation id="90000303">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <formattedFullName>SAMPLE WEB TRADERS &amp; PARTNERS</formattedFullName>
+            </translation>
+          </translations>
+        </name>
+      </names>
+      <features>
+        <feature id="90000702">
+          <type featureTypeId="14">Website</type>
+          <value>www.sample-web-traders.example</value>
+          <isPrimary>true</isPrimary>
+        </feature>
+      </features>
+      <identityDocuments>
+        <identityDocument id="90000902">
+          <type refId="91700">Legal Entity Number</type>
+          <documentNumber>FX000000000000001499</documentNumber>
+          <isValid>true</isValid>
+        </identityDocument>
+      </identityDocuments>
+    </entity>
+    <entity id="90000003">
+      <generalInfo>
+        <identityId>90000003</identityId>
+        <entityType refId="600">Individual</entityType>
+      </generalInfo>
+      <sanctionsLists>
+        <sanctionsList refId="1550" id="90000003" datePublished="2026-06-01">SDN List</sanctionsList>
+      </sanctionsLists>
+      <sanctionsPrograms>
+        <sanctionsProgram refId="99001" id="90000103">FIXTURE-EO</sanctionsProgram>
+      </sanctionsPrograms>
+      <names>
+        <name id="90000204">
+          <isPrimary>true</isPrimary>
+          <isLowQuality>false</isLowQuality>
+          <translations>
+            <translation id="90000304">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <formattedFullName>PERSONFOUR, Sentinel Delta</formattedFullName>
+            </translation>
+          </translations>
+        </name>
+      </names>
+      <features>
+        <feature id="90000703">
+          <type featureTypeId="8">Birthdate</type>
+          <value>08 Jul 1966</value>
+          <valueDate id="90000803">
+            <fromDateBegin>1966-07-08</fromDateBegin>
+            <fromDateEnd>1966-07-08</fromDateEnd>
+          </valueDate>
+          <isPrimary>true</isPrimary>
+        </feature>
+        <feature id="90000704">
+          <type featureTypeId="10">Nationality Country</type>
+          <value>Latvia</value>
+          <isPrimary>true</isPrimary>
+        </feature>
+      </features>
+      <identityDocuments>
+        <identityDocument id="90000903">
+          <type refId="1571">Passport</type>
+          <documentNumber>SENTINELDOC4</documentNumber>
+          <isValid>true</isValid>
+          <issuingCountry refId="11131">Latvia</issuingCountry>
+        </identityDocument>
+      </identityDocuments>
+    </entity>
+    <entity id="90000004">
+      <generalInfo>
+        <identityId>90000004</identityId>
+        <entityType refId="602">Vessel</entityType>
+      </generalInfo>
+      <sanctionsLists>
+        <sanctionsList refId="1550" id="90000004" datePublished="2026-06-01">SDN List</sanctionsList>
+      </sanctionsLists>
+      <names>
+        <name id="90000205">
+          <isPrimary>true</isPrimary>
+          <isLowQuality>false</isLowQuality>
+          <translations>
+            <translation id="90000305">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <formattedFullName>FIXTURE VESSEL TEN</formattedFullName>
+            </translation>
+          </translations>
+        </name>
+      </names>
+    </entity>
+    <entity id="90000005">
+      <generalInfo>
+        <identityId>90000005</identityId>
+        <entityType refId="601">Entity</entityType>
+      </generalInfo>
+      <sanctionsLists>
+        <sanctionsList refId="1550" id="90000005" datePublished="2026-07-01">SDN List</sanctionsList>
+      </sanctionsLists>
+      <sanctionsPrograms>
+        <sanctionsProgram refId="99002" id="90000104">FIXTURE-TWO</sanctionsProgram>
+      </sanctionsPrograms>
+      <names>
+        <name id="90000206">
+          <isPrimary>true</isPrimary>
+          <isLowQuality>false</isLowQuality>
+          <translations>
+            <translation id="90000306">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <formattedFullName>MOCK HARBOR WORKS</formattedFullName>
+            </translation>
+            <translation id="90000307">
+              <isPrimary>false</isPrimary>
+              <script refId="20123">Cyrillic</script>
+              <formattedFullName>МОК ХАРБОР ВОРКС</formattedFullName>
+            </translation>
+          </translations>
+        </name>
+        <name id="90000207">
+          <isPrimary>false</isPrimary>
+          <aliasType refId="1400">A.K.A.</aliasType>
+          <isLowQuality>true</isLowQuality>
+          <translations>
+            <translation id="90000308">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <formattedFullName>MHW</formattedFullName>
+            </translation>
+          </translations>
+        </name>
+      </names>
+      <identityDocuments>
+        <identityDocument id="90000904">
+          <type refId="1626">Registration Number</type>
+          <documentNumber>10000031</documentNumber>
+          <isValid>true</isValid>
+        </identityDocument>
+      </identityDocuments>
+    </entity>
+  </entities>
+</sanctionsData>

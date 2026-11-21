@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Company · Finora mockup</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+<script src="assets/fixtures.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  const { esc, param, icon, chip, conf, aiTag, ruleTag, agentTag, sev, fieldRow, notChecked, section, sparkline, sheet } = Finora;
+  const { S } = FX;
+
+  const countryKey = param("country", "lv");
+  const subj = FX.SUBJECTS[countryKey] || FX.LV;
+  const rawState = param("state", "full");
+  // Agents never run on a natural person or sole trader (architecture §7, R5, P6): only profile states exist.
+  const state = subj.natural && !["full", "loading", "error"].includes(rawState) ? "full" : rawState;
+  const q = param("q", "entity");
+  const purposeSet = param("purpose", "set") === "set";
+  const newInstall = param("install", "established") === "new";
+  const secMissing = subj.key === "us-public" && param("sec", "set") === "missing";
+  const longName = param("name", "normal") === "long" && subj.longName;
+  const lvRoleCounts = subj.key === "lv" && param("lvpeople", "names") === "role_counts";
+  const reconnecting = state === "reconnecting";
+  const stopped = state === "report" && param("stopped", "no") === "yes";
+  const phase = ["streaming", "question", "reconnecting"].includes(state) ? "run" : ["report", "partial"].includes(state) ? "report" : "profile";
+  const natural = !!subj.natural;
+  const name = longName ? subj.longName : subj.name;
+
+  const defaultLevel = { lv: "points", ee: "points", lt: "points", "us-private": "insufficient", "us-public": "none" }[subj.key];
+  const offer = param("offer", "none");
+  const level = param("verdict", "auto") === "auto" ? defaultLevel : param("verdict");
+  if (newInstall && subj.checks) subj.checks = subj.checks.map((c, i) => (i === 1 && c[1] !== "notrun" ? [c[0], "noteval", "Active · rename rule not evaluated: tracked since 16 Nov 2026"] : c));
+  if (lvRoleCounts) {
+    subj.checks = subj.checks.map((c, i) => (i === 2 ? [c[0], "ok", "2 board members on record (names pending a legal review)"] : i === 8 ? [c[0], "ok", "Company screened, 5 lists; officers not screened: names not loaded"] : c));
+    subj.coverage = { ...subj.coverage, notOpen: subj.coverage.notOpen + ", officer names (pending a legal review)" };
+  }
+
+  /* ---------- Header ---------- */
+  function header() {
+    if (state === "loading") {
+      return `<div class="co-head" aria-busy="true"><h1 class="sr-only">Loading the company</h1><span class="sk" style="width:120px;height:10px"></span><span class="sk" style="width:62%;height:36px;border-radius:8px"></span><span class="sk" style="width:48%"></span><span class="sk" style="width:100%;height:56px;border-radius:10px"></span></div>`;
+    }
+    const pillTone = { good: "", warn: "pill-warn", bad: "pill-bad" }[subj.status[2]] || "";
+    const runStats = phase === "run"
+      ? `<div class="run-head" aria-live="polite">
+           <span class="run-stats num">${icon("agent", "icon icon-sm")} ${reconnecting ? "Reconnecting · last update 09:43:12" : "Investigating"} · 4 agents · 23 tasks · 31 sources · $0.27 of $1.50</span>
+           <div class="meter" role="progressbar" aria-label="Investigation progress" aria-valuenow="58" aria-valuemin="0" aria-valuemax="100"><i style="width:58%"></i></div>
+         </div>`
+      : "";
+    const actions = phase === "profile"
+      ? `${natural ? "" : `<a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate</a>`}
+         ${natural ? "" : `<a class="btn" href="network.html?country=${subj.key}">${icon("network", "icon icon-sm")} Network</a>`}
+         <button class="link-btn" type="button" data-problem="${esc(name)}">Report a problem</button>`
+      : phase === "run"
+        ? `<a class="btn" href="?${qs({ state: "report", stopped: "yes" })}">${icon("stop", "icon icon-sm")} Stop and write the report</a><a class="btn btn-quiet" href="?${qs({ state: "report" })}">Skip to report</a>`
+        : `<a class="btn" href="network.html?country=${subj.key}">${icon("network", "icon icon-sm")} Network</a>
+           <button class="btn" type="button">Re-run</button>
+           <button class="link-btn" type="button" data-problem="${esc(name)}">Report a problem</button>`;
+    return `<div class="co-head">
+      <span class="label">${phase === "report" ? "Investigation report · 20 Nov 2026 09:46" : phase === "run" ? "Investigation running" : `Company · ${esc(subj.country)}`}</span>
+      <h1 class="co-title" title="${esc(name)}">${esc(name)}</h1>
+      <div class="co-meta">
+        <span class="pill ${pillTone}"><span class="dot"></span>${esc(subj.status[0])}${subj.status[1] ? `<span class="gloss">· ${esc(subj.status[1])}</span>` : ""}</span>
+        <span>${esc(subj.form[0])} · ${esc(subj.form[1])}</span><span class="sep">/</span>
+        <span class="num">${esc(subj.codeLabel)} ${esc(subj.code)}</span><span class="sep">/</span>
+        <span>${esc(subj.address)}</span>
+      </div>
+      ${runStats}
+      <div class="co-actions">${actions}</div>
+      ${natural ? `<div class="disclaimer" role="note">${icon("info")}<span><strong>Not a credit report.</strong> Not for credit, employment, tenancy or insurance decisions. This is a sole trader, so Finora shows the official facts only: no verdict, no scored checks and no agent investigation.</span></div>` : ""}
+      <div class="coverage" role="note" aria-label="What this country's official data covers">
+        <span><strong>${esc(subj.country === "the United States" ? "The United States'" : subj.country + "'s")} official data:</strong> ${esc(subj.coverage.official)}.</span>
+        <span><strong>Not in open data:</strong> ${esc(subj.coverage.notOpen)}.</span>
+      </div>
+    </div>`;
+  }
+  function qs(over) {
+    const u = new URLSearchParams(location.search);
+    Object.entries(over).forEach(([k, v]) => u.set(k, v));
+    return u.toString();
+  }
+
+  /* ---------- Agent findings (inside sections) ---------- */
+  function finding({ text, sev: s, conf: c, src, agent, landing }) {
+    return `<div class="finding ${landing ? "landing" : ""}">
+      <div class="finding-head">${agentTag(agent)}${sev(s)}<span class="muted small">${aiTag()}</span></div>
+      <p>${esc(text)}</p>
+      <div class="finding-meta">${conf(c)}${chip(src)}</div>
+    </div>`;
+  }
+  const running = (agent, step) => `<div class="state-line" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span>The ${esc(agent)} agent is checking this now: <span class="mono">${esc(step)}</span></span></div>`;
+
+  /* ---------- Sections per subject ---------- */
+  const R = (label, r) => fieldRow(label, r);
+  function purposeGate() {
+    return `<form class="gate" onsubmit="event.preventDefault();location.search='${qs({ purpose: "set" })}'">
+      <fieldset><legend>Why are you looking at the people in this company?</legend>
+        <label class="radio"><input type="radio" name="p" checked> <span>Checking a company I may do business with</span></label>
+        <label class="radio"><input type="radio" name="p"> <span>Checking a company that contacted me or sent an invoice</span></label>
+        <label class="radio"><input type="radio" name="p"> <span>Compliance check: sanctions or anti-money-laundering</span></label>
+        <label class="radio"><input type="radio" name="p"> <span>Research or journalism</span></label>
+      </fieldset>
+      <span class="small muted">Asked once and kept for 12 hours. Each company you open is logged with this purpose. Not available for credit, employment, tenancy or insurance decisions about a person.</span>
+      <span><button class="btn btn-primary btn-sm" type="submit">Show people</button></span>
+    </form>`;
+  }
+  const personDisclaimer = () => `<div class="purpose-line">${icon("info", "icon icon-sm")}<span>Not a credit report. Not for credit, employment, tenancy or insurance decisions.</span></div>`;
+  const purposeLine = () => `<div class="purpose-line">${icon("info", "icon icon-sm")}<span>Purpose: checking a company I may do business with · <a href="?${qs({ purpose: "unset" })}">change</a></span></div>`;
+
+  function peopleSection() {
+    let body;
+    if (state === "loading") body = `<div class="rows">${R("Board", { state: "loading", w: 50 })}${R("", { state: "loading", w: 40 })}</div>`;
+    else if (!purposeSet) body = `<div class="rows">${R("Officers", { state: "not_checked", reason: "needs_purpose" })}</div>${purposeGate()}`;
+    else if (lvRoleCounts) body = `${purposeLine()}<div class="rows">
+      ${R("Board", { state: "data", value: "2 board members: chair since 12 Mar 2014, member since 1 Feb 2021", src: S.urOfficers, conf: "official" })}
+      ${R("Names", { state: "not_checked", reason: "restricted", text: "Officer names: pending a legal review" })}
+      </div><span class="caveat">${icon("info", "icon icon-sm")}<span>Role counts and start dates only while a lawyer reviews whether Latvian officer data stays public. Officers are not screened against sanctions lists: names not loaded.</span></span>`;
+    else if (subj.key === "lv") body = `${purposeLine()}
+      <div class="tbl-scroll"><table class="tbl"><thead><tr><th>Role</th><th>Name</th><th>Since</th><th class="r">Source</th></tr></thead><tbody>
+        <tr><td>Board member (chair)</td><td>Jānis Paraugs</td><td class="num">12 Mar 2014</td><td class="r">${chip(S.urOfficers)}</td></tr>
+        <tr><td>Board member</td><td>Anna Example</td><td class="num">1 Feb 2021</td><td class="r">${chip(S.urOfficers)}</td></tr>
+      </tbody></table></div>
+      <span class="caveat">${icon("info", "icon icon-sm")}<span>Current roles only; past roles are not published. People appear only in this company's context.</span></span>${personDisclaimer()}`;
+    else if (subj.key === "ee") body = `${purposeLine()}
+      <div class="tbl-scroll"><table class="tbl"><thead><tr><th>Role</th><th>Name</th><th>Since</th><th class="r">Source</th></tr></thead><tbody>
+        <tr><td>Management board member</td><td>Mari Näidis</td><td class="num">4 Jun 2019</td><td class="r">${chip(S.rik)}</td></tr>
+      </tbody></table></div>
+      <span class="caveat">${icon("info", "icon icon-sm")}<span>Current roles only; past roles are not published. People appear only in this company's context.</span></span>${personDisclaimer()}`;
+    else if (subj.key === "lt" || subj.key === "sole-trader") body = `${purposeLine()}<div class="rows">
+      ${R("Manager", { state: "data", value: "Has a manager since 21 Jan 2011", src: S.jar, conf: "official" })}
+      ${R("Board", { state: "data", value: "No board", src: S.jar, conf: "official" })}
+      ${R("Names", { state: "not_checked", reason: "paid_only", text: "Names are not in Lithuania's open data. Available as a paid register extract", orderUrl: true })}
+      </div><span class="caveat">${icon("info", "icon icon-sm")}<span>Role facts only; names are not in Lithuania's open data.</span></span>`;
+    else if (subj.key === "us-private") body = `<div class="rows">${R("Officers", { state: "not_published", text: "Not published by Colorado" })}</div>`;
+    else body = secMissing ? `<div class="rows">${R("Officers and directors", { state: "not_checked", reason: "needs_key", text: "Set the SEC contact (user agent) to load filings" })}</div>`
+      : `${purposeLine()}<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Role</th><th>Name</th><th>Since</th><th class="r">Source</th></tr></thead><tbody>
+        <tr><td>Chief executive officer, director</td><td>Jordan Sample</td><td class="num">2016</td><td class="r">${chip(S.sec345)}</td></tr>
+        <tr><td>Chief financial officer</td><td>Casey Example</td><td class="num">2021</td><td class="r">${chip(S.sec345)}</td></tr>
+        <tr><td colspan="4"><button class="link-btn" type="button">Show all 9</button></td></tr>
+      </tbody></table></div>
+      <span class="caveat">${icon("info", "icon icon-sm")}<span>Current roles only; past roles are not published. People appear only in this company's context.</span></span>${personDisclaimer()}`;
+    return section({ id: "people", sid: "S03", title: "People", body });
+  }
+
+  function ownersSection() {
+    let rows = "";
+    if (state === "loading") rows = R("Members", { state: "loading", w: 45 });
+    else if (subj.key === "lv") rows = `
+      ${R("Company members", { state: "data", html: `<a href="company.html?country=lv">Example Holding SIA</a> <span class="muted num">· 40000FX0099 · 60% since 2014</span>`, src: S.urMembers, conf: "official" })}
+      ${R("Members who are private individuals", { state: "not_checked", reason: "restricted", country: "Latvia", basis: "legal rule 1 (court rulings on shareholder data)" })}
+      ${R("Beneficial owners", { state: "not_checked", reason: "restricted", country: "Latvia", basis: "legal rule 1 (CJEU C-37/20)" })}`;
+    else if (subj.key === "ee") rows = `
+      ${R("Company members", { state: "not_published", text: "No company member on record" })}
+      ${R("Members who are private individuals", { state: "not_checked", reason: "restricted", country: "Estonia", basis: "legal rule 1 (court rulings on shareholder data)" })}
+      ${R("Beneficial owners", { state: "not_checked", reason: "restricted", country: "Estonia", basis: "legal rule 1 (CJEU C-37/20)" })}`;
+    else if (subj.key === "lt" || subj.key === "sole-trader") rows = R("Owners", { state: "not_checked", reason: "paid_only", text: "Owner names are not in Lithuania's open data. Available as a paid register extract", orderUrl: true });
+    else if (subj.key === "us-private") rows = R("Owners", { state: "not_published", text: "No US source publishes owners of private companies" });
+    else rows = secMissing ? R("Large holders", { state: "not_checked", reason: "needs_key", text: "Set the SEC contact (user agent) to load filings" })
+      : !purposeSet ? R("Large holders", { state: "not_checked", reason: "needs_purpose" }) + purposeGate()
+      : `${R("Holders above 5% (13D/G)", { state: "data", value: "3 filers: 2 funds, 1 private individual", src: S.sec, conf: "official", caveat: "Large holders as filed with the SEC; people appear only in this company's context." })}`;
+    const caveat = subj.key === "lv" || subj.key === "ee" ? `<span class="caveat">${icon("info", "icon icon-sm")}<span>Company members only; members who are private individuals are not shown (rule 1).</span></span>` : "";
+    return section({ id: "owners", sid: "S04", title: "Owners", body: `<div class="rows">${rows}</div>${caveat}` });
+  }
+
+  function statusSection() {
+    if (state === "loading") return section({ id: "status", sid: "S02", title: "Status and history", body: `<div class="rows">${R("Status", { state: "loading", w: 30 })}${R("History", { state: "loading", w: 70 })}</div>` });
+    const snap = newInstall
+      ? `<span class="partial-mark">4 days of history, tracked since 16 Nov 2026</span>`
+      : `<span class="state-line checked">${icon("check", "icon icon-sm")}<span>No address or legal-form change since tracking started</span></span>`;
+    const events = {
+      lv: [["3 Sep 2026", `Renamed from <em>Paraugs Wood SIA</em>`, S.urNames, "point"], ["12 Mar 2014", "Registered in the commercial register", S.urLV]],
+      ee: [["4 Jun 2019", "Entered in the register", S.rik]],
+      lt: [["21 Jan 2011", "Registered", S.jar]],
+      "sole-trader": [["15 May 2017", "Registered", S.jar]],
+      "us-private": [["2 Jul 2026", "Periodic report filed", S.coSos], ["8 Jul 2019", "Articles of organization filed", S.coSos]],
+      "us-public": [["6 Nov 2026", "10-Q filed", S.sec], ["14 Feb 2026", "Officer change (8-K item 5.02)", S.sec, "point"]],
+    }[subj.key];
+    const body = `<div class="events">
+      ${events.map(([d, t, s, f]) => `<div class="event"><span class="event-date num">${d}</span><span class="event-body"><span>${t} ${f ? sev("point_to_check") : ""}</span><span>${chip(s)}</span></span></div>`).join("")}
+      </div>
+      <div class="rows" style="margin-top:8px">
+        ${R("Changes in the last 6 months", { state: "data", html: snap, partial: newInstall ? "Too short for the 6-month rename rule, so check 2 reads “not evaluated” until the history covers it." : "" })}
+      </div>
+      <span class="caveat">${icon("clock", "icon icon-sm")}<span>Address and legal-form history: tracked by Finora since 16 Nov 2026${subj.key === "lv" ? ". Name history comes from the register (last updated 2 Apr 2025)." : "."}</span></span>`;
+    return section({ id: "status", sid: "S02", title: "Status and history", body });
+  }
+
+  function financialsSection() {
+    if (state === "loading") return section({ id: "financials", sid: "S06", title: "Financials", body: `<div class="rows">${R("Revenue", { state: "loading", w: 80 })}${R("Profit", { state: "loading", w: 70 })}${R("Equity", { state: "loading", w: 75 })}</div>` });
+    if (subj.key === "us-private") return section({ id: "financials", sid: "S06", title: "Financials", body: `<div class="collapsed-line">${icon("dash", "icon icon-sm")}No US source publishes accounts of private companies.</div>` });
+    if (secMissing) return section({ id: "financials", sid: "S06", title: "Financials", body: `<div class="rows">${R("Key figures", { state: "not_checked", reason: "needs_key", text: "Set the SEC contact (user agent) to load XBRL financials" })}</div>` });
+    if (natural && !purposeSet) return section({ id: "financials", sid: "S06", title: "Financials", body: `<div class="rows">${R("Key figures", { state: "not_checked", reason: "needs_purpose" })}</div><span class="caveat">${icon("info", "icon icon-sm")}<span>A sole trader's business figures are shown after a stated purpose, as facts only, and never feed a verdict.</span></span>` });
+    const cur = subj.cc === "US" ? "USD m" : "EUR k";
+    const years = subj.cc === "US" ? ["FY to Sep 2025", "FY to Sep 2024", "FY to Sep 2023", "FY to Sep 2022", "FY to Sep 2021"] : ["2025", "2024", "2023", "2022", "2021"];
+    const data = {
+      lv: { Revenue: [2410, 2185, 1960, null, 1720], "Net result": [142, 118, 96, null, 61], Equity: [905, 763, 645, null, 549], "Total assets": [1830, 1702, 1544, null, 1310], Employees: [18, 17, 16, null, 14] },
+      ee: { Revenue: [1260, 1310, 1105, 980, 870], "Net result": [-12, 34, 41, 22, 18], Equity: [214, 226, 192, 151, 129], "Total assets": [690, 712, 655, 588, 501], Employees: [11, 12, 10, 9, 9] },
+      lt: { Revenue: [3120, 2980, 2740, 2510, 2260], "Net result": [88, 102, 91, 74, 66], Equity: [640, 552, 450, 359, 285], "Total assets": [1410, 1355, 1220, 1104, 990], Employees: [null, null, null, null, null] },
+      "sole-trader": { Revenue: [96, 88, 81, 74, 70], "Net result": [21, 19, 17, 15, 14], Equity: [null, null, null, null, null], "Total assets": [null, null, null, null, null], Employees: [null, null, null, null, null] },
+      "us-public": { Revenue: [842, 801, 776, 712, 655], "Net income": [61, 58, 49, 41, 37], Equity: [512, 468, 433, 401, 377], "Total assets": [1220, 1170, 1102, 1050, 990], Employees: [2140, 2080, 2010, 1950, 1870] },
+    }[subj.key];
+    const fmt = (v) => (v == null ? `<span class="muted">—</span>` : v.toLocaleString("en-US"));
+    const rows = Object.entries(data).map(([k, vals]) => {
+      if (vals.every((v) => v == null)) return "";
+      const d = vals[0] != null && vals[1] != null ? vals[0] - vals[1] : null;
+      const delta = d == null ? "" : `<span class="${d >= 0 ? "delta-up" : "delta-down"} small num">${icon(d >= 0 ? "arrowUp" : "arrowDown", "icon icon-sm")}${d >= 0 ? "+" : "−"}${Math.abs(Math.round((d / Math.abs(vals[1])) * 100))}%</span>`;
+      return `<tr><th scope="row" style="font-weight:400;color:var(--ink-2)">${k}</th>${vals.map((v) => `<td class="r num">${fmt(v)}</td>`).join("")}<td class="r">${sparkline([...vals].reverse())}</td><td class="r">${delta}</td></tr>`;
+    }).join("");
+    const gap = subj.key === "lv" ? `<span class="caveat">${icon("info", "icon icon-sm")}<span class="partial-mark">2022 not filed</span><span>· the column is empty, not zero.</span></span>` : "";
+    const srcChip = { lv: S.fsLV, ee: S.rikFs, lt: S.jarFs, "sole-trader": S.jarFs, "us-public": S.secFacts }[subj.key];
+    const body = `${natural ? purposeLine() : ""}<div class="tbl-scroll"><table class="tbl"><caption class="sr-only">Key figures by year, ${cur}</caption><thead><tr><th>${cur}</th>${years.map((y) => `<th class="r">${y}</th>`).join("")}<th class="r">5 years</th><th class="r">Last year</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px">${gap}<span style="margin-left:auto;display:flex;gap:8px;align-items:center">${conf("official")}${chip(srcChip)}</span></div>`;
+    return section({ id: "financials", sid: "S06", title: "Financials", body, end: `<button class="link-btn" type="button">All line items</button>` });
+  }
+
+  function workforceSection() {
+    if (state === "loading") return "";
+    let rows;
+    if (subj.key === "lv") rows = R("Employees", { state: "data", html: `<span class="num">18</span> <span class="muted">· 30 Sep 2026</span> ${sparkline([14, 15, 15, 16, 16, 17, 17, 18], 96, 20)}`, src: S.vid, conf: "official", caveat: "Employees from tax filings, quarterly; covers 54-58% of active companies." });
+    else if (subj.key === "ee") rows = R("Employees", { state: "data", value: "No employee count from the tax board for Q3 2026", src: S.emtaTax, conf: "official", caveat: "Quarterly, from the tax board (CC BY-SA); board members are not counted." });
+    else if (subj.key === "lt") rows = phase === "report"
+      ? R("Insured employees", { state: "data", value: "27 on 20 Nov 2026", src: S.sodra, conf: "official", caveat: "Read live from Sodra by the money and tax agent and never stored, while the licence question is open." })
+      : R("Social-insurance data", { state: "not_checked", reason: "agent_only", agent: "money and tax" });
+    else if (subj.key === "us-public") rows = secMissing ? R("Employees", { state: "not_checked", reason: "needs_key", text: "Set the SEC contact (user agent)" }) : R("Employees", { state: "data", value: "2,140 (FY 2025)", src: S.secFacts, conf: "official", caveat: "From the annual report (self-reported)." });
+    else return "";
+    return section({ id: "workforce", sid: "S07", title: "Workforce", body: `<div class="rows">${rows}</div>` });
+  }
+
+  function taxSection() {
+    if (state === "loading") return "";
+    if (natural) return section({ id: "tax", sid: "S08", title: "Taxes and arrears", body: `<div class="rows">${["Tax arrears", "Social-insurance debt", "Taxes paid"].map((l) => R(l, { state: "not_checked", reason: "restricted", text: "Not shown for a sole trader: restricted by legal rule 5" })).join("")}</div><span class="caveat">${icon("info", "icon icon-sm")}<span>The same for every sole trader: Finora doesn't load these lines for a private individual, so their absence says nothing about the person.</span></span>` });
+    if (subj.cc === "US") return section({ id: "tax", sid: "S08", title: "Taxes and arrears", body: `<div class="collapsed-line">${icon("dash", "icon icon-sm")}The US publishes no tax payment or tax debt data.</div>` });
+    let rows;
+    if (subj.key === "lv") rows = `
+      ${R("Tax authority's rating", { state: "data", html: `<strong>A</strong> <span class="muted">· "Compliant taxpayer" in the authority's own words</span>`, src: S.vidRating, conf: "official" })}
+      ${R("Tax debt amount", { state: "not_checked", reason: "manual_lookup", site: "the State Revenue Service's public debtor search" })}
+      ${R("Taxes paid", { state: "data", html: `<span class="num">€212k in 2025 · €188k in 2024</span>`, src: S.vid, conf: "official", caveat: "Taxes paid for 56% of active companies; debt amounts are not open data." })}`;
+    else if (subj.key === "ee") rows = `
+      ${R("Tax debt", { state: "checked_none", sourceName: "the Tax and Customs Board's debtor list", asOf: "19 Nov 2026", src: S.emtaDebt })}
+      ${R("Taxes paid", { state: "data", html: `<span class="num">€96k in 2025</span> <span class="tag tag-sa">CC BY-SA</span>`, src: S.emtaTax, conf: "official", caveat: "Taxes paid for 39.1% of active companies; share-alike licence. Left out of exports." })}`;
+    else rows = `
+      ${R("Tax arrears", { state: "data", html: `<span class="num">€3,420</span> on the list since 2 Sep 2026 (79 days) ${sev("point_to_check")}`, src: S.vmiArrears, conf: "official" })}
+      ${phase === "report" ? R("Social-insurance debt", { state: "checked_none", sourceName: "Sodra's debtor list (read live, not stored)", asOf: "20 Nov 2026", src: S.sodra }) : R("Social-insurance debt", { state: "not_checked", reason: "agent_only", agent: "money and tax" })}
+      ${R("Taxes paid", { state: "data", html: `<span class="num">€318k in 2025</span>`, src: S.vmiTax, conf: "official" })}`;
+    return section({ id: "tax", sid: "S08", title: "Taxes and arrears", body: `<div class="rows">${rows}</div>` });
+  }
+
+  function insolvencySection() {
+    if (state === "loading") return "";
+    let rows;
+    if (subj.key === "lv") rows = `
+      ${R("Insolvency proceedings", { state: "checked_none", sourceName: "the insolvency register", asOf: "19 Nov 2026", src: S.insLV })}
+      ${R("Securing measures", { state: "data", html: `1 open: prohibition on registering changes, since 2 Oct 2026 ${sev("point_to_check")} <span class="small muted num">· case no. FX-C12-0451-26 · <a href="#" onclick="return false">court portal ${icon("ext", "icon icon-sm")}</a></span>`, src: S.insLV, conf: "official" })}
+      ${R("Liquidation", { state: "checked_none", sourceName: "the Enterprise Register", asOf: "19 Nov 2026", src: S.urLV })}
+      ${R("Activity suspensions", { state: "checked_none", sourceName: "the State Revenue Service", asOf: "19 Nov 2026", src: S.vid })}`;
+    else if (subj.key === "ee") rows = `
+      ${R("Bankruptcy or liquidation", { state: "checked_none", sourceName: "the e-Business Register status", asOf: "19 Nov 2026", src: S.rik })}
+      ${R("Commercial pledges", { state: "data", html: `1 pledge registered 12 Mar 2024, €150,000 ${sev("point_to_check")}`, src: S.rik, conf: "official" })}`;
+    else if (natural) rows = ["Bankruptcy and insolvency", "Securing measures", "Activity suspensions"].map((l) => R(l, { state: "not_checked", reason: "restricted", text: "Not shown for a sole trader: restricted by legal rule 5" })).join("");
+    else if (subj.key === "lt") rows = R("Bankruptcy", { state: "data", html: `<span class="stale-date">${icon("clock", "icon icon-sm")} Checked bankruptcy reports as of Oct 2025: none found</span>`, src: S.jar, stale: true, caveat: "Bankruptcy reports published up to Oct 2025, older than their usual cycle. Missing does not mean clean." });
+    else if (subj.key === "us-private") rows = R("UCC filings", { state: "checked_none", sourceName: "UCC filings in Colorado", asOf: "18 Nov 2026", src: S.coUcc, caveat: "Checked UCC filings in Colorado and Connecticut only; other states not checked. Missing does not mean clean." });
+    else rows = R("Bankruptcy", { state: "checked_none", sourceName: "EDGAR filings", asOf: "18 Nov 2026", src: S.sec });
+    return section({ id: "insolvency", sid: "S09", title: "Insolvency, pledges and notices", body: `<div class="rows">${rows}</div>` });
+  }
+
+  function courtsSection() {
+    if (state === "loading" || natural) return "";
+    let body;
+    if (subj.cc !== "US") {
+      // Council (Baltic court rows): MANUAL in v1 for LT, LV and EE; check 10 counts as not possible.
+      return section({ id: "courts", sid: "S10", title: "Courts", body: `<div class="rows">${R("Court cases", { state: "not_checked", reason: "manual_lookup", site: "the official court-decision portal" })}</div>
+        <span class="caveat" style="margin-top:8px">${icon("info", "icon icon-sm")}<span>Agents don't search ${esc(subj.country)}'s court portal in this version, so check 10 counts as not possible here. A partial court search would read as complete, which it isn't.${subj.key === "lv" ? " Case numbers on insolvency and securing-measure events link to the portal (S09)." : ""}</span></span>` });
+    }
+    if (phase === "profile") body = `<div class="rows">${R("Court cases", { state: "not_checked", reason: "agent_only", agent: "legal, insolvency and sanctions" })}</div>`;
+    else if (state === "streaming" || state === "question") body = running("legal, insolvency and sanctions", "searching the court rulings portal");
+    else if (subj.key === "us-public") body = finding({ text: "One federal civil case names a party with the same name. The court record has no company identifier, so this is a possible match by name and needs your review.", sev: "point_to_check", conf: "single", src: S.court, agent: "Legal" });
+    else body = finding({ text: "One anonymised ruling from 2023 matches the company's registration number: a payment dispute where the company was the claimant and won.", sev: "none_found", conf: "official", src: S.court, agent: "Legal" });
+    return section({ id: "courts", sid: "S10", title: "Courts", body: body + `<span class="caveat" style="margin-top:8px">${icon("info", "icon icon-sm")}<span>Searched by the legal agent at query time; possible matches need review. Private individuals in court records are shown as "a private individual".</span></span>` });
+  }
+
+  function sanctionsSection() {
+    if (state === "loading") return "";
+    const lists = {
+      lv: [["EU consolidated list", S.eu], ["OFAC lists", S.ofac], ["UK Sanctions List", S.uk], ["Latvia: FIU frozen-assets list", S.fiuLV], ["ESMA crypto warnings", S.esma]],
+      ee: [["EU consolidated list", S.eu], ["OFAC lists", S.ofac], ["UK Sanctions List", S.uk], ["ESMA crypto warnings", S.esma]],
+      lt: [["EU consolidated list", S.eu], ["OFAC lists", S.ofac], ["UK Sanctions List", S.uk], ["ESMA crypto warnings", S.esma]],
+      "sole-trader": [["EU consolidated list", S.eu], ["OFAC lists", S.ofac], ["UK Sanctions List", S.uk]],
+      "us-private": [["OFAC lists", S.ofac], ["SAM.gov exclusions", S.samEx], ["EU consolidated list", S.eu], ["UK Sanctions List", S.uk]],
+      "us-public": [["OFAC lists", S.ofac], ["SAM.gov exclusions", S.samEx], ["EU consolidated list", S.eu], ["UK Sanctions List", S.uk]],
+    }[subj.key];
+    const live = { lv: "UN list and the central bank's warnings", ee: "UN list, national list and the financial supervisor's alerts", lt: "UN list and the national list of controlled entities", "sole-trader": "UN list", "us-private": "UN list and federal enforcement feeds", "us-public": "UN list, FINRA and federal enforcement feeds" }[subj.key];
+    let liveRow;
+    if (natural) liveRow = "";
+    else if (phase === "profile") liveRow = R("Live lists", { state: "not_checked", reason: "agent_only", agent: "legal, insolvency and sanctions" });
+    else if (state === "streaming") liveRow = `<div class="row"><span class="row-label">Live lists</span><span class="row-value">${running("legal, insolvency and sanctions", "checking the UN list")}</span></div>`;
+    else if (state === "question" && q === "sanctions") liveRow = `<div class="row"><span class="row-label">UK Sanctions List</span><span class="row-value"><span class="state-line" style="color:var(--warn)">${icon("q", "icon icon-sm")}<span>Possible match, needs review · <a href="#question">answer the question above</a></span></span></span></div>`;
+    else liveRow = R("Live lists", { state: "checked_none", sourceName: live, asOf: "20 Nov 2026", caveat: "Checked live at query time; a match needs a second identifier and your review." });
+    return section({ id: "sanctions", sid: "S11", title: "Sanctions and watchlists", body: `<div class="rows">
+      ${lists.map(([n, s]) => R(n, { state: "checked_none", sourceName: s.short.replace(/ LV$/, ""), asOf: s.asOfLong, src: s })).join("")}
+      ${liveRow}</div>` });
+  }
+
+  function filingsSection() {
+    if (state === "loading" || natural) return "";
+    let rows;
+    if (secMissing) rows = R("Filings", { state: "not_checked", reason: "needs_key", text: "Set the SEC contact (user agent) to load filings" });
+    else if (subj.key === "us-public") rows = `${R("Accounts filed", { state: "data", value: "10-K for FY 2025 filed 20 Nov 2025", src: S.sec, conf: "official" })}${R("Material events", { state: "data", value: "Officer change (8-K item 5.02), 14 Feb 2026", src: S.sec, conf: "official" })}`;
+    else if (subj.key === "us-private") rows = R("Filing history", { state: "data", value: "Periodic report filed 2 Jul 2026", src: S.coSos, conf: "official", caveat: "State filing history, where the state publishes it (40% of samples)." });
+    else rows = R("Accounts filed", { state: "data", value: `Annual report for 2025 in the register since ${subj.key === "ee" ? "30 Jun 2026" : subj.key === "lt" ? "12 May 2026" : "28 Apr 2026"}`, src: { lv: S.fsLV, ee: S.rik, lt: S.jar }[subj.key], conf: "official" });
+    return section({ id: "filings", sid: "S13", title: "Filings and events", body: `<div class="rows">${rows}</div>` });
+  }
+
+  function securitiesSection() {
+    if (subj.key !== "us-public" || state === "loading") return "";
+    const body = secMissing ? `<div class="rows">${R("Insider trades", { state: "not_checked", reason: "needs_key", text: "Set the SEC contact (user agent)" })}</div>`
+      : !purposeSet ? `<div class="rows">${R("Ticker", { state: "data", value: subj.ticker, src: S.sec, conf: "official" })}${R("Insider trades", { state: "not_checked", reason: "needs_purpose" })}</div>`
+      : `<div class="rows">${R("Ticker", { state: "data", value: subj.ticker, src: S.sec, conf: "official" })}
+         ${R("Insider trades, net per quarter", { state: "data", html: `<span class="num">Q3 2026: net sold 41,200 shares · Q2: net bought 6,000 · Q1: net sold 12,500</span>`, src: S.sec345, conf: "official", caveat: "Insider transactions as filed; people appear only in this company's context." })}</div>`;
+    return section({ id: "securities", sid: "S14", title: "Securities", body });
+  }
+
+  function webSection() {
+    if (state === "loading" || natural) return "";
+    let body;
+    if (phase === "profile") body = `<div class="rows">${R("Website and domain", { state: "not_checked", reason: "agent_only", agent: "web, domain and news" })}${R("News", { state: "not_checked", reason: "agent_only", agent: "web, domain and news" })}</div>`;
+    else if (state === "streaming" || state === "question") body = `${finding({ text: "The website names the same registration number in its footer, and certificate logs show the domain in use since 2014, the year the company was registered.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web", landing: true })}
+      <div style="margin-top:10px">${running("web, domain and news", "reading the news index (query 2 of 4)")}</div>`;
+    else if (state === "partial") body = `<div class="rows">${R("Website and domain", { state: "not_checked", reason: "error", text: "the company's website did not answer, so the web agent did not finish" })}</div>`;
+    else if (offer === "mismatch" || offer === "other" || offer === "unresolvable") body = `${finding({ text: { mismatch: "paraugs-timber-pay.example is not linked to Paraugs Timber SIA in the register or on its own website: its homepage shows no registration number. Certificates seen since 29 Oct 2026.", other: "paraugs-timber-pay.example belongs to another company: its homepage states registration no. 40000FX0093, not this company's.", unresolvable: "paraugs-timber-pay.example does not resolve: no DNS record answers for it." }[offer], sev: "point_to_check", conf: "corroborated", src: S.webCt, agent: "Web" })}
+      <div style="height:10px"></div>
+      ${finding({ text: "The website named in the register, paraugs-timber.example, shows the same registration number in its footer.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web" })}`;
+    else if (offer === "match") body = `${finding({ text: "The offer's domain paraugs-timber.example is the company's website: it shows the same registration number in its footer. Certificates seen since 2014.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web" })}`;
+    else body = `${finding({ text: "The website names the same registration number in its footer, and certificate logs show the domain in use since 2014, the year the company was registered.", sev: "none_found", conf: "corroborated", src: S.webHome, agent: "Web" })}
+      <div style="height:10px"></div>
+      ${finding({ text: "One regional news item mentions the name. Not confirmed to be this company: the article gives no registration number or website.", sev: "none_found", conf: "single", src: S.news, agent: "News" })}`;
+    return section({ id: "web", sid: "S15 · S16", title: "Web presence and news", body: body + `<span class="caveat" style="margin-top:8px">${icon("info", "icon icon-sm")}<span>Found by an agent from DNS, certificate logs and the homepage; registrant details are never shown. Certificate dates read "seen since" and never prove how old a domain is; only a registry creation date (US, .lt) can. News items that are not tied to the code or domain read "Mentions the name; not confirmed to be this company".</span></span>`, cls: state === "streaming" ? "landed" : "" });
+  }
+
+  function networkSection() {
+    if (state === "loading" || subj.cc === "US" || natural) return "";
+    const n = { lv: "4 linked companies: 1 company member (Example Holding SIA) and 3 companies at the same registered office", ee: "2 linked companies at the same registered office", lt: "This address hosts 31 companies (an office building)" }[subj.key];
+    return section({ id: "network", sid: "S17", title: "Network", body: `<div class="rows">${R("Linked companies", { state: "data", value: n, src: S.derivedAddr, conf: "derived", caveat: "Company-to-company links only: shared registered offices and company members. A shared address can be an office building or a registered-agent address." })}</div>
+      <div style="margin-top:12px"><a class="btn btn-sm" href="network.html?country=${subj.key}">${icon("network", "icon icon-sm")} Open the network explorer</a></div>` });
+  }
+
+  /* ---------- Checks card (profile) and verdict (report) ---------- */
+  const CHECK_IC = { stale: ["", "clock", "Data older than its usual cycle"], noteval: ["notrun", "clock", "Not evaluated yet"], ok: ["", "check", "None found or on record"], soft: ["flag-soft", "bang", "Point to check"], hard: ["flag-hard", "x", "Concern"], notrun: ["notrun", "dash", "Not run"], pending: ["notrun", "agent", "Runs when you investigate"] };
+  function checksList(checks, opts = {}) {
+    return `<div class="checks" role="list">${checks.map(([t, s, why], i) => {
+      let st = s;
+      const pendingRow = opts.instant && i >= 9 && s !== "notrun";
+      if (pendingRow) st = "pending";
+      const [cls, ic, lbl] = CHECK_IC[st];
+      return `<div class="check" role="listitem" ${opts.ids ? `id="check-${i + 1}"` : ""}><span class="check-ic ${cls}" title="${lbl}">${icon(ic, "", lbl)}</span><span class="check-body"><span class="check-title">${i + 1}. ${esc(t)}</span><span class="check-why">${pendingRow ? "Runs when you investigate" : esc(why)}</span></span></div>`;
+    }).join("")}</div>`;
+  }
+
+  function verdictChecks() {
+    const c = subj.checks.map((x) => [...x]);
+    if (level === "none") c.forEach((x) => { if (x[1] === "soft") { x[1] = "ok"; x[2] = "None found"; } });
+    if (level === "serious") { c[7] = [c[7][0], "hard", "Insolvency proceedings started 14 Nov 2026"]; }
+    if (state === "partial") c[10] = [c[10][0], "notrun", "Web agent did not finish (the website did not answer)"];
+    if (stopped) c[10] = [c[10][0], "notrun", "Stopped by you before the web agent finished"];
+    if (offer === "mismatch") c[10] = [c[10][0], "soft", "paraugs-timber-pay.example is not linked to Paraugs Timber SIA in the register or on its own website"];
+    if (offer === "other") c[10] = [c[10][0], "soft", "paraugs-timber-pay.example belongs to another company: its homepage states registration no. 40000FX0093", "first"];
+    if (offer === "unresolvable") c[10] = [c[10][0], "soft", "paraugs-timber-pay.example does not resolve"];
+    return c;
+  }
+
+  function verdictBlock() {
+    if (natural) {
+      return `<div class="facts-only" role="region" aria-label="Facts only">
+        <span class="label">Facts only</span>
+        <p class="serif" style="font-size:30px;line-height:36px">No verdict is given on a private individual.</p>
+        <p class="small muted">Finora lists the official facts and their sources, never rates a person and runs no agents on one.</p>
+        <span class="coverage-line">official facts from 3 sources · 19 Nov 2026</span>
+      </div>`;
+    }
+    const checks = verdictChecks();
+    const ran = checks.filter((c) => c[1] !== "notrun").length;
+    const notPossible = checks.filter((c) => c[1] === "notrun").length;
+    const L = {
+      none: ["No concerns found", "dot", "lvl-none"],
+      points: ["Points to check", "bang", "lvl-points"],
+      serious: ["Serious concerns", "x", "lvl-serious"],
+      insufficient: ["Not enough data", "q", "lvl-insufficient"],
+    }[level];
+    const fired = checks.map((c, i) => [c, i]).filter(([c]) => c[1] === "soft" || c[1] === "hard");
+    const why = level === "insufficient"
+      ? [ran < 6 ? `Only ${ran} of 11 checks ran; the rule needs at least 6.` : "", checks[5][1] === "notrun" && checks[6][1] === "notrun" ? "Neither money check ran (6, financial position; 7, tax and social-insurance arrears)." : "", !checks[0] || checks[0][1] === "notrun" ? "The company is not pinned to a registry record." : ""].filter(Boolean).map((t) => `<div class="why-item">${icon("dash", "icon icon-sm")}<span>${t} Any flag would still show here.</span></div>`).join("")
+      : fired.length ? fired.map(([c, i]) => `<div class="why-item">${icon(c[1] === "hard" ? "x" : "bang", "icon icon-sm")}<span><a href="#check-${i + 1}">Check ${i + 1}</a>: ${esc(c[2])} <span class="muted">(${c[1] === "hard" ? "hard flag" : "soft flag"})</span></span></div>`).join("")
+      : `<div class="why-item">${icon("dash", "icon icon-sm")}<span>No hard or soft flag in the checks that ran.</span></div>`;
+    const explain = {
+      lv: "The company is active, its annual reports are in the register and it has grown revenue for three years. Two things are worth a look before you pay a deposit: it changed its name in September, and an open securing measure since October stops it from registering changes. Ask what the measure relates to and whether it is close to being lifted.",
+      ee: "The company is registered, its 2025 annual report is in the register and it is not on the tax debtor list. It made a small loss in 2025, and a commercial pledge registered in 2024 means a lender holds security over its assets.",
+      lt: "The company is active and profitable, but it is on the tax arrears list for €3,420 since September. Ask whether a payment plan is in place.",
+      "us-private": "The company is registered and in good standing in Colorado, with no UCC filings, exclusions or sanctions hits. US public sources don't publish its owners, accounts or taxes.",
+      "us-public": "The company's annual filings are in and it is profitable. A federal civil case names a party with the same name, but the record has no identifier, so it is listed as a fact, not a finding about this company.",
+    }[subj.key];
+    return `<section class="verdict ${L[2]}" aria-labelledby="verdict-h">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="label">Verdict</span>${ruleTag()}</div>
+      <h2 class="verdict-level" id="verdict-h"><span class="lvl-ic">${icon(L[1], "", L[0])}</span>${L[0]}</h2>
+      <p class="coverage-line num">${ran} of 11 checks ran${notPossible ? ` · ${notPossible} not possible in ${esc(subj.country === "the United States" ? "the US" : subj.country)}` : ""} · 38 sources · 20 Nov 2026</p>
+      <p class="small ink2">Added by this investigation: ${subj.cc === "US" ? "3" : "4"} findings from live sources (${subj.cc === "US" ? "federal courts, the website, news" : "the UN list, the central bank's warnings, the website, news"}). ${ruleTag()}</p>
+      <div class="why"><span class="label">Why this level</span>${why}</div>
+      <div class="explain"><div style="display:flex;gap:8px;align-items:center">${aiTag()}<span class="small muted">Written from the findings below; every sentence links to its evidence.</span></div><p>${esc(explain)}</p></div>
+      <div class="keyf"><span style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><span class="label">Key findings</span>${ruleTag()}<span class="small muted">concerns first, then points to check, by check number</span></span>
+        ${keyFindings(checks).length ? keyFindings(checks).map((k, i) => `<div class="keyf-item"><span class="keyf-n">0${i + 1}</span><span style="display:flex;flex-direction:column;gap:4px"><span>${k.hard ? sev("concern") : sev("point_to_check")} Check ${k.n}: ${esc(k.text)}</span><a class="small" href="#${k.anchor}">See the evidence</a></span></div>`).join("")
+          : `<p class="small muted" style="padding-top:8px">No check raised a point or a concern, so there are no key findings.</p>`}
+      </div>
+    </section>
+    <section class="section" aria-labelledby="checks-h"><div class="section-head"><h2 id="checks-h">The 11 checks</h2><span class="sid">S18</span></div>${checksList(checks, { ids: true })}</section>`;
+  }
+  // Council item 10: key findings are the fired checks only, concerns first, then points to check, then by
+  // check number; never inferred, name-only or context findings; fewer than three when fewer qualify.
+  function keyFindings(checks) {
+    const ANCHOR = ["status", "status", "people", "owners", "filings", "financials", "tax", "insolvency", "sanctions", "courts", "web"];
+    return checks.map((c, i) => ({ n: i + 1, text: c[2], hard: c[1] === "hard", first: c[3] === "first", fired: c[1] === "hard" || c[1] === "soft", anchor: ANCHOR[i] }))
+      .filter((k) => k.fired)
+      .sort((a, b) => (b.hard - a.hard) || (b.first - a.first) || a.n - b.n)
+      .slice(0, 3);
+  }
+
+  /* ---------- Aside: checks card, agent panel, chat ---------- */
+  function lanes() {
+    const L = [
+      { n: "Lead: resolve and plan", st: "done", meta: "14 s · $0.02", step: "Pinned to registration no. 40000FX0017" },
+      { n: "Registry and people", st: "done", meta: "22 s · $0.05", tasks: [["done", "register file", "1"], ["done", "officers", "1"], ["done", "company members", "1"], ["done", "name history", "1"], ["done", "our snapshots", "1"]] },
+      { n: "Money and tax", st: "done", meta: "28 s · $0.06", tasks: [["done", "annual reports", "1"], ["done", "quarterly taxes", "1"], ["done", "tax rating", "1"], ["skipped", "tax debt amount: manual lookup only", "0"]] },
+      { n: "Legal, insolvency and sanctions", st: q === "sanctions" && state === "question" ? "waiting" : state === "partial" ? "done" : "running", meta: "31 s · usually under 1 min · $0.05", tasks: [["done", "insolvency register", "1"], ["done", "securing measures", "1"], ["done", "EU consolidated list", "1"], ["done", "OFAC lists", "1"], ["done", "UK Sanctions List", "1"], ["done", "FIU frozen-assets list", "1"], ["running", "UN list (live)", "0"], ["skipped", "court portals: manual in the Baltics", "0"], ["queued", "central bank warnings", "0"]] },
+      { n: "Web, domain and news", st: state === "partial" ? "failed" : "running", meta: "48 s · usually 1-2 min · $0.09", step: state === "partial" ? "stopped: the website did not answer" : "reading the news index (query 2 of 4)", tasks: [["done", "find the website", "3"], ["done", "DNS", "1"], ["done", "certificate logs", "1"], [state === "partial" ? "failed" : "done", "homepage", "1"], ["running", "news index", "2"], ["queued", "web search 3 of 4", "0"], ["queued", "web search 4 of 4", "0"]] },
+      { n: "Verdict", st: "queued", meta: "usually 15-30 s", step: "" },
+    ];
+    if (state === "question" && q === "entity") L.forEach((l, i) => { if (i === 0) { l.st = "waiting"; l.step = "waiting for you: which company is it?"; l.meta = "12 s · $0.02"; } else { l.st = "queued"; l.tasks = undefined; l.step = ""; l.meta = "waits for the lead"; } });
+    if (reconnecting) L.forEach((l) => { if (l.st === "running") l.meta = l.meta + " · last update 12 s ago"; });
+    if (stopped) L.forEach((l) => { if (l.st === "running" || l.st === "queued") { l.st = l.n === "Verdict" ? "done" : "stopped"; l.step = l.n === "Verdict" ? "written from the findings so far" : "stopped by you at 09:44:05"; } });
+    if (state === "question" && (q === "cap" || q === "cap-used")) L.forEach((l) => { if (l.st === "running") { l.st = "waiting"; l.step = "paused at the cost cap"; } });
+    const TI = { done: "check", running: null, queued: "clock", failed: "x", skipped: "skip" };
+    const lane = (l) => `<div class="lane ${l.st}">
+      <div class="lane-head"><span class="status ${l.st}"><span class="dot"></span>${l.st}</span><span class="lane-name">${esc(l.n)}</span></div>
+      <span class="lane-meta num" style="margin-left:0">${esc(l.meta)}</span>
+      ${l.step ? `<span class="lane-step">${esc(l.step)}</span>` : ""}
+      ${l.st === "failed" ? `<span><button class="btn btn-sm" type="button">Retry this agent</button></span>` : ""}
+      ${l.tasks ? `<div class="tasks">${l.tasks.map(([s, t, n]) => `<div class="task ${s}"><span class="t-ic">${TI[s] ? icon(TI[s], "icon icon-sm") : '<span class="spinner"></span>'}</span><span class="t-label">${esc(t)}</span><span class="t-end num">${s === "queued" ? "queued" : s === "skipped" ? "skipped" : `${n} src`}</span></div>`).join("")}</div>` : ""}
+    </div>`;
+    return `<section class="card" id="agents" tabindex="-1" style="padding:16px;display:flex;flex-direction:column;gap:12px;scroll-margin-top:120px" aria-label="Agents">
+      <div style="display:flex;align-items:baseline;gap:8px"><h2 class="serif" style="font-size:22px">Agents</h2><span class="muted small num" style="margin-left:auto">$0.27 of $1.50</span></div>
+      <div class="meter ${q.startsWith("cap") && state === "question" ? "cap" : ""}" role="progressbar" aria-label="Spend against the cap" aria-valuenow="${q.startsWith("cap") && state === "question" ? 100 : 18}" aria-valuemin="0" aria-valuemax="100"><i style="width:${q.startsWith("cap") && state === "question" ? 100 : 18}%"></i></div>
+      <div class="lanes">${L.map(lane).join("")}</div>
+      <p class="small muted">Lanes run in parallel. Findings land in their section as each check finishes.</p>
+    </section>`;
+  }
+
+  function checksCard() {
+    if (natural) return `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px"><h2 class="serif" style="font-size:22px">Facts only</h2><p class="small muted">No checks are scored and no agents run for a sole trader, because a sole trader is a private individual (legal rule 5). The page lists the official facts with their sources.</p></section>`;
+    if (state === "loading") return `<section class="card" style="padding:16px"><span class="sk" style="width:50%;height:18px"></span><div style="height:12px"></div>${Array.from({ length: 6 }, () => '<span class="sk" style="margin:10px 0"></span>').join("")}</section>`;
+    return `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px" aria-labelledby="ic-h">
+      <h2 id="ic-h" class="serif" style="font-size:22px">Checks from official data</h2>
+      <p class="small" style="padding:8px 10px;border-radius:8px;background:var(--surface-2)"><strong>No verdict yet.</strong> These checks use official data only; the rest run when you investigate. Missing does not mean clean.</p>
+      <p class="small muted">The instant profile runs checks 1 to 9 from loaded registers. Agents run check 11${subj.cc === "US" ? " and check 10" : ""}; ${subj.cc === "US" ? "" : "court cases are a manual check in this country, so check 10 is not possible."}</p>
+      ${checksList(subj.checks, { instant: true })}
+      <a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate · typically $0.46</a>
+    </section>`;
+  }
+
+  function chatDock() {
+    return `<section class="card chat" aria-label="Ask about this report">
+      <div class="chat-head"><h2 style="font-size:15px;font-weight:600">Ask about this report</h2><span class="small muted">Answers cite the findings; $0.25 cap per question</span></div>
+      <div class="chat-body">
+        <button class="suggest" type="button">What does the securing measure stop the company from doing?</button>
+        <button class="suggest" type="button">Summarise this for a colleague in three lines</button>
+        <div class="bubble-q small">Is the rename a problem on its own?</div>
+        <div class="bubble-a"><span>${aiTag()}</span><span>On its own, no: the new name keeps the same registration number <a class="cite" href="#status">S02</a>. Together with the securing measure from October <a class="cite" href="#insolvency">S09</a>, ask the company why both happened this autumn.</span></div>
+      </div>
+      <form class="chat-input" onsubmit="event.preventDefault()"><label class="sr-only" for="ask">Ask a follow-up</label><input id="ask" class="input" placeholder="Ask a follow-up"><button class="btn btn-primary btn-sm" type="submit">Ask</button></form>
+    </section>`;
+  }
+
+  /* ---------- Question cards ---------- */
+  function questionCard() {
+    const foot = (waiting, dflt) => `<div class="q-foot"><span>${icon("clock", "icon icon-sm")} Waiting on you: ${esc(waiting)}</span><span>${esc(dflt)}</span></div>`;
+    const card = (who, title, inner, f) => `<section class="question" id="question" aria-labelledby="q-h" role="region">
+      <div class="q-who"><span class="status waiting"><span class="dot"></span>Needs you</span><span class="small ink2">${esc(who)}</span>${who === "Cost cap" ? ruleTag() : aiTag()}</div>
+      <h2 id="q-h">${title}</h2>${inner}${f}</section>`;
+    if (q === "entity") return card("Lead agent", "Three registered companies match “the timber people from Rīga”. Which one is it?",
+      `<div class="q-options">
+        <button class="q-option" type="button"><span class="q-title">Paraugs Timber SIA</span><span class="q-sub num">Registration no. 40000FX0017 · SIA · Active · Rīga · registered 2014</span></button>
+        <button class="q-option" type="button"><span class="q-title">Paraugs Timber Trading SIA</span><span class="q-sub num">Registration no. 40000FX0021 · SIA · Liquidated 2019 · Rīga · registered 2012</span></button>
+        <button class="q-option" type="button"><span class="q-title">Paraugs Timber SIA</span><span class="q-sub num">Registration no. 40000FX0058 · SIA · Active · Valmiera · registered 2022</span></button>
+        <button class="q-option" type="button"><span class="q-title">None of these</span><span class="q-sub">Stop, and keep what you typed so you can add a code or website</span></button>
+      </div>`, foot("all agents wait until the company is confirmed", "No default: if you don't answer, the run stops with “Not enough data: company not confirmed”."));
+    if (q === "sanctions") return card("Legal, insolvency and sanctions agent", "Possible match on the UK Sanctions List. Is this the same company?",
+      `<div class="tbl-scroll"><table class="compare"><thead><tr><th>Field</th><th>This company</th><th>List entry</th><th>Compared</th></tr></thead><tbody>
+        <tr><td>Registration number</td><td class="num">40000FX0017</td><td class="muted">not on the list</td><td><span class="cmp na">not on list</span></td></tr>
+        <tr><td>Name</td><td>Paraugs Timber SIA</td><td>PARAUGS TIMBER LTD</td><td><span class="cmp same">similar</span></td></tr>
+        <tr><td>Country</td><td>Latvia</td><td>Another country</td><td><span class="cmp diff">differs</span></td></tr>
+        <tr><td>Address</td><td>Parauga iela 1, Rīga</td><td>an address outside the EU</td><td><span class="cmp diff">differs</span></td></tr>
+        <tr><td>Listed</td><td class="muted">—</td><td class="num">8 Mar 2024, a trade-sanctions regime</td><td><span class="cmp na">list only</span></td></tr>
+      </tbody></table></div>
+      <div class="q-options" style="flex-direction:row;flex-wrap:wrap">
+        <button class="btn" type="button">Same company</button><button class="btn" type="button">Different company</button><button class="btn" type="button">Not sure</button>
+      </div>
+      <p class="small muted">Only an identical registration number or LEI confirms a match automatically. "Not sure" becomes a point to check. The word "sanctioned" is only used for a confirmed entry.</p>`,
+      foot("Legal agent and the verdict", "If unanswered in 30 minutes: recorded as “possible match, needs review” (answered by default)."));
+    if (q === "scope") return card("Web, domain and news agent", "Is paraugs-timber.example this company's website?",
+      `<div class="kv"><div><span class="k">Found by</span><span>a web search for the company name and city</span></div><div><span class="k">On the site</span><span>“Paraugs Timber”, Rīga, no registration number shown</span></div><div><span class="k">Domain in use since</span><span class="num">2014 (certificate logs)</span></div></div>
+      <div class="q-options" style="flex-direction:row;flex-wrap:wrap">
+        <button class="btn" type="button">Yes, it's theirs</button><button class="btn" type="button">No</button><button class="btn" type="button">Not sure</button>
+      </div>
+      <p class="small muted">Until it is confirmed, findings from this site are marked "name only" and can't raise more than a point to check.</p>`, foot("Web, domain and news", "If unanswered in 30 minutes: “Not sure” (answered by default)."));
+    if (q === "cap") return card("Cost cap", "This investigation reached its $1.50 cap.",
+      `<div class="kv"><div><span class="k">Spent on this investigation</span><span class="num">$1.50 of $1.50</span></div><div><span class="k">Left today</span><span class="num">$8.16 of $10.00</span></div><div><span class="k">Still running</span><span>Web, domain and news (2 searches left)</span></div></div>
+      <div class="q-options">
+        <button class="q-option default" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Uses the findings so far · default</span></button>
+        <button class="q-option" type="button"><span class="q-title">Allow up to $0.50 more</span><span class="q-sub">Offered once per investigation; never past today's cap</span></button>
+      </div>`, foot("Web, domain and news; the verdict", "If unanswered in 10 minutes: stop and write the report."));
+    return card("Cost cap", "This investigation reached its cap again.",
+      `<p class="small ink2">The extension is already used for this investigation, so it can only stop now. Findings so far are kept.</p>
+      <div class="q-options"><button class="q-option default" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Extension already used for this investigation</span></button></div>`,
+      foot("the verdict", "The report is written automatically in 30 seconds."));
+  }
+
+  /* ---------- Sheets ---------- */
+  function sheetFor() {
+    if (state === "estimate") return sheet({ title: "Start an investigation", body: `
+      <p class="ink2">Four agents check ${esc(name)} in parallel against registers, courts, sanctions lists and the open web, then a rule-based verdict is written up with sources.</p>
+      <div class="kv">
+        <div><span class="k">Typical cost</span><span class="num"><strong>$0.46</strong>, at most $0.92</span></div>
+        <div><span class="k">Cap for this run</span><span class="num">$1.50</span></div>
+        <div><span class="k">Left today</span><span class="num">$8.16 of $10.00</span></div>
+        <div><span class="k">Typical time</span><span>1 to 2 minutes</span></div>
+        <div><span class="k">Purpose</span><span>Checking a company I may do business with · <a href="?${qs({ state: "full", purpose: "unset" })}#people">change</a></span></div>
+      </div>
+      <label class="small" for="offer-domain" style="display:flex;flex-direction:column;gap:6px"><span><strong>Domain on the offer or invoice</strong> <span class="muted">(optional)</span></span>
+        <input id="offer-domain" class="input" inputmode="url" autocomplete="off" placeholder="for example invoices.example" value="${offer === "none" ? "" : offer === "match" ? "paraugs-timber.example" : "paraugs-timber-pay.example"}">
+        <span class="muted">The web agent checks it against the register: DNS, certificates, the homepage and, where the registry publishes one, the domain's creation date. Use it when an unknown company sent you an offer or an invoice.</span></label>
+      ${subj.key === "us-private" ? `<p class="small banner banner-info">For a US private company the verdict will normally be “Not enough data”: US sources don't publish owners, accounts or taxes.</p>` : ""}
+      <details><summary class="small">Cost per agent</summary><div class="kv small" style="margin-top:8px">
+        <div><span class="k">Lead</span><span class="num">$0.02</span></div><div><span class="k">Registry and people</span><span class="num">$0.06</span></div><div><span class="k">Money and tax</span><span class="num">$0.06</span></div><div><span class="k">Legal, insolvency and sanctions</span><span class="num">$0.07</span></div><div><span class="k">Web, domain and news</span><span class="num">$0.20</span></div><div><span class="k">Verdict</span><span class="num">$0.05</span></div>
+      </div></details>
+      <p class="small muted">Estimate from default per-agent costs until this install has 10 finished investigations. Your own key pays; the cap is enforced in code.</p>`,
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Cancel</a><a class="btn btn-primary" href="?${qs({ state: "streaming" })}">Start investigation</a>` });
+    if (state === "nokey") return sheet({ title: "Add your key to run agents", body: `
+      <p class="ink2">The company profile works without a key. Agents need an AI model key of your own; Finora never pays for or stores usage elsewhere.</p>
+      <ol class="small ink2" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Open <span class="mono">.env.local</span> in the Finora folder.</li><li>Set <span class="mono">ANTHROPIC_API_KEY</span>.</li><li>Restart Finora with <span class="mono">pnpm finora</span>.</li></ol>`,
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn btn-primary" href="settings.html?state=keys-missing">Open settings</a>` });
+    if (state === "daily-cap") return sheet({ title: "Today's agent budget is used", body: `
+      <div class="kv"><div><span class="k">Spent today</span><span class="num">$10.00 of $10.00</span></div><div><span class="k">Resets</span><span class="num">at 00:00, in 6 h 12 min</span></div></div>
+      <p class="ink2">The company profile and the checks from official data keep working, because they cost nothing. The daily cap is set in Settings and can't be raised from inside a run.</p>`,
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn" href="settings.html">Settings</a>` });
+    return "";
+  }
+
+  /* ---------- Page ---------- */
+  function render() {
+    if (state === "error") {
+      return `<div class="page"><div class="empty-state" role="alert"><span class="label">Company · ${esc(subj.country)}</span><h1 class="serif" style="font-size:26px;line-height:32px">This company couldn't be loaded</h1>
+        <p class="ink2">The local data store didn't answer. Nothing was changed. Search still works for countries that finished loading.</p>
+        <span class="mono muted">error: store_unavailable · request 7f3a</span>
+        <span style="display:flex;gap:8px"><a class="btn btn-primary" href="?${qs({ state: "full" })}">Retry</a><a class="btn" href="search.html">Back to search</a></span></div></div>`;
+    }
+    if (state === "question" && q === "entity") {
+      return `<div class="page"><div class="cols"><div class="primary">
+        <div class="co-head"><span class="label">Investigation running · subject not confirmed</span><h1 class="co-title">“the timber people from Rīga, quote for 40 m³”</h1>
+        <div class="run-head"><span class="run-stats num">${icon("agent", "icon icon-sm")} Waiting for you · lead agent · 3 candidates · $0.02 of $1.50</span><div class="meter"><i style="width:6%"></i></div></div></div>
+        ${questionCard()}
+        <p class="small muted">Nothing is shown until the company is confirmed, so no finding can attach to the wrong company.</p>
+        </div><aside class="aside" tabindex="0" aria-label="Agents">${lanes()}</aside></div></div>`;
+    }
+    const top = phase === "report" || (natural && state === "full") ? verdictBlock() : "";
+    const t = subj.checks || [];
+    const tally = phase === "profile" && !natural && state === "full" ? `<div class="checks-tally" role="note"><span><strong>No verdict yet.</strong> Official checks: ${t.filter((c, i) => i < 9 && c[1] === "ok").length} on record · ${t.filter((c) => c[1] === "soft" || c[1] === "hard").length} to check · ${t.filter((c) => c[1] === "notrun").length} not possible · ${t.filter((c) => c[1] === "stale").length} past their cycle</span><a href="#ic-h">See the checks</a></div>` : "";
+    const banner = stopped ? `<div class="banner banner-info" role="status">${icon("stop")}<span><strong>You stopped this investigation at 09:44:05.</strong> Findings so far are kept, the verdict is written from them, and checks that had not finished count as not run. <a href="?${qs({ state: "streaming", stopped: "no" })}">Re-run</a></span></div>` : state === "partial" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One agent did not finish.</strong> The web agent stopped when the company's website did not answer, so check 11 counts as not run. Other findings are complete. <button class="link-btn" type="button">Re-run the web agent</button></span></div>` : "";
+    const lanesInline = phase === "run" && !(state === "question" && q === "entity") ? `<section class="lanes-inline" aria-label="Agents, compact">
+      ${[["done", "Registry and people", "5 of 5 tasks", "22 s · $0.05"], ["done", "Money and tax", "3 of 4 tasks, 1 skipped", "28 s · $0.06"], [q === "sanctions" && state === "question" ? "waiting" : "running", "Legal, insolvency and sanctions", q === "sanctions" && state === "question" ? "waiting for you: possible sanctions match" : "checking the UN list", "31 s · $0.05"], ["running", "Web, domain and news", "reading the news index (query 2 of 4)", "48 s · $0.09"], ["queued", "Verdict", "waits for the four agents", ""]].map(([st, n, step, meta]) => `<div class="li-row"><span class="status ${st}"><span class="dot"></span>${st}</span><span class="li-name">${n}</span><span class="li-meta num">${meta}</span><span class="li-step">${st === "done" ? "✓ " : "› "}${step}</span></div>`).join("")}
+      <a class="small" href="#agents" style="min-height:32px;display:inline-flex;align-items:center" onclick="setTimeout(() => document.getElementById('agents').focus(), 0)">All tasks and sources</a></section>` : "";
+    const runBar = phase === "run" ? `<div class="run-bar" role="status"><span>${reconnecting ? "Reconnecting" : state === "question" ? "Needs you" : "4 agents · 2 running"} · $0.27 of $1.50</span><a href="#agents" onclick="setTimeout(() => document.getElementById('agents').focus(), 0)">Show agents</a></div>` : "";
+    const qcard = state === "question" ? questionCard() : reconnecting ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Connection lost at 09:43:12. Reconnecting (attempt 2)…</strong> The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost. <button class="link-btn" type="button">Retry now</button></span></div>` : "";
+    const sections = [statusSection(), peopleSection(), ownersSection(), financialsSection(), workforceSection(), taxSection(), insolvencySection(), courtsSection(), sanctionsSection(), filingsSection(), securitiesSection(), webSection(), networkSection()].join("");
+    const index = phase !== "run" && state !== "loading" ? `<nav class="sec-index" aria-label="Sections">${[["status", "Status"], ["people", "People"], ["owners", "Owners"], ["financials", "Financials"], ["tax", "Taxes"], ["insolvency", "Insolvency"], ["courts", "Courts"], ["sanctions", "Sanctions"], ["web", "Web"]].filter(([a]) => sections.includes(`id="${a}"`)).map(([a, l]) => `<a href="#${a}">${l}</a>`).join("")}</nav>` : "";
+    const aside = phase === "run" ? lanes() : phase === "report" ? chatDock() + (state === "partial" || stopped ? lanes() : "") : checksCard();
+    const footer = `<footer class="small muted" style="padding-top:12px;display:flex;flex-direction:column;gap:4px">
+      <span>Sources: ${subj.cc === "LV" ? "Register of Enterprises of the Republic of Latvia; State Revenue Service (CC0 1.0)" : subj.cc === "EE" ? "e-Business Register (CC BY 4.0); Tax and Customs Board (CC BY-SA 3.0, kept in its own store and left out of exports)" : subj.cc === "LT" ? (natural ? "Registrų centras, Register of Legal Entities (open data), CC BY 4.0" : "Registrų centras, Register of Legal Entities (open data), CC BY 4.0; State Tax Inspectorate (VMI), CC BY 4.0; Sodra, public insurer data") : "SEC EDGAR and state registers (US government works)"}. © European Union (EU sanctions list). Contains public sector information licensed under the Open Government Licence v3.0 (UK list).</span>
+      <span>${natural ? "Not a credit report. Not for credit, employment, tenancy or insurance decisions. " : ""}AI-written text is labelled. <a href="#">Report an error or object</a></span>
+    </footer>`;
+    return `<div class="page"><div class="cols">
+      <div class="primary">${header()}${tally}${runBar}${banner}${qcard}${lanesInline}${top}${index}${sections}${footer}</div>
+      <aside class="aside" tabindex="0" aria-label="${phase === "run" ? "Agents" : phase === "report" ? "Follow-up questions" : "Checks"}">${aside}</aside>
+    </div></div>${sheetFor()}`;
+  }
+
+  Finora.mount("explorer", render, [
+    { key: "country", label: "Subject", options: [["lv", "Latvia · SIA (full)"], ["ee", "Estonia · OÜ"], ["lt", "Lithuania · UAB"], ["us-private", "US private · Colorado LLC"], ["us-public", "US public · SEC filer"], ["sole-trader", "Sole trader · facts only (LT)"]] },
+    { key: "state", label: "Page state", options: [["full", "Profile: official data"], ["loading", "Profile: loading"], ["error", "Profile: error"], ["estimate", "Investigate: cost estimate sheet"], ["nokey", "Investigate: no AI key"], ["daily-cap", "Investigate: daily cap reached"], ["streaming", "Investigation streaming"], ["reconnecting", "Investigation: reconnecting"], ["question", "Agent asks you"], ["report", "Report"], ["partial", "Report: one agent failed"]] },
+    { key: "q", label: "Question (with Agent asks you)", options: [["entity", "Which company is it?"], ["sanctions", "Possible sanctions match"], ["scope", "Is this website theirs?"], ["cap", "Cost cap reached"], ["cap-used", "Cap reached, extension used"]] },
+    { key: "verdict", label: "Verdict level (with Report)", options: [["auto", "As the data says"], ["none", "No concerns found"], ["points", "Points to check"], ["serious", "Serious concerns"], ["insufficient", "Not enough data"]] },
+    { key: "purpose", label: "Purpose gate", options: [["set", "Purpose stated"], ["unset", "No purpose yet"]] },
+    { key: "install", label: "Snapshot history", options: [["established", "Covers 6 months"], ["new", "New install: not evaluated yet"]] },
+    { key: "sec", label: "SEC contact (US public)", options: [["set", "Set"], ["missing", "Missing: needs key"]] },
+    { key: "name", label: "Name length", options: [["normal", "Normal"], ["long", "Very long (Latvia)"]] },
+    { key: "offer", label: "Offer domain (report, Latvia)", options: [["none", "Not given"], ["match", "Tied to the company"], ["mismatch", "Not tied to the company"], ["other", "Belongs to another company"], ["unresolvable", "Does not resolve"]] },
+    { key: "lvpeople", label: "Latvian officer names", options: [["names", "Names (v1 default)"], ["role_counts", "Role counts only (legal fallback)"]] },
+  ]);
+})();
+</script>
+</body>
+</html>

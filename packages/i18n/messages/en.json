@@ -1,0 +1,64 @@
+{
+  "common": {
+    "appName": "Finora",
+    "skipToContent": "Skip to content",
+    "loading": "Loading"
+  },
+  "shell": {
+    "railLabel": "Tools",
+    "bottomBarLabel": "Tools",
+    "tools": {
+      "explorer": "Explorer",
+      "library": "Library",
+      "crash": "Crash monitor",
+      "sources": "Sources",
+      "settings": "Settings"
+    },
+    "theme": {
+      "label": "Theme",
+      "system": "System",
+      "dark": "Dark",
+      "light": "Light"
+    }
+  },
+  "footer": {
+    "label": "Site information",
+    "sourceCode": "Source code",
+    "terms": "Terms",
+    "licence": "Licensed under AGPL-3.0-or-later",
+    "language": "Language"
+  },
+  "explorer": {
+    "title": "Who are we looking into?",
+    "placeholder": "Company search opens here in the next build step."
+  },
+  "crash": {
+    "title": "Crash monitor",
+    "placeholder": "Market tiles open here in a later build step."
+  },
+  "terms": {
+    "title": "Terms of use",
+    "intro": "Finora shows what public registers publish and what research agents find on the open web, with the source of every value. It is a research tool, not a credit report.",
+    "blockedHeading": "Not for these uses",
+    "blockedCredit": "Credit decisions about a private individual or sole trader",
+    "blockedEmployment": "Employment decisions about a private individual or sole trader",
+    "blockedInsurance": "Insurance decisions about a private individual or sole trader",
+    "blockedTenancy": "Tenancy decisions about a private individual or sole trader",
+    "blockedLicensing": "Licensing decisions about a private individual or sole trader",
+    "blockedServicing": "Servicing or collecting credit about a private individual or sole trader",
+    "purposeLine": "Before details about the people of a company are shown, a purpose is asked for. The purpose is logged for each company opened.",
+    "objectionLine": "To object to a record about you, or to ask for it to be corrected or removed, use the report-a-problem form on that page.",
+    "disclaimer": "Not a credit report. Not for credit, employment, tenancy or insurance decisions.",
+    "draft": "These terms are a draft until a lawyer has reviewed them."
+  },
+  "errors": {
+    "bad_request": "The request was not valid.",
+    "forbidden": "This request was refused.",
+    "host_not_allowed": "Finora only answers on the machine it runs on.",
+    "internal_error": "Something went wrong on our side.",
+    "method_not_allowed": "This request type is not allowed here.",
+    "not_found": "Nothing was found at this address.",
+    "notFoundTitle": "Page not found",
+    "notFoundAction": "Go to the start page"
+  }
+}

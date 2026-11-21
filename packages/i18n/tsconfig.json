@@ -1,0 +1,4 @@
+{
+  "extends": "@finora/tooling/tsconfig.base.json",
+  "include": ["src", "messages"]
+}

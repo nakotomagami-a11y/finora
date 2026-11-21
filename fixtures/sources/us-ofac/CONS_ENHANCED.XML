@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sanctionsData xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xsi:schemaLocation="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML.xsd" xmlns="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML">
+  <publicationInfo>
+    <dataAsOf>2026-11-20T00:00:00-05:00</dataAsOf>
+    <filters>
+      <sanctionsLists>
+        <sanctionsList refId="1555">Non-SDN Menu-Based Sanctions List (NS-MBS List)</sanctionsList>
+      </sanctionsLists>
+    </filters>
+  </publicationInfo>
+  <referenceValues>
+    <referenceValue refId="1400">
+      <type>ALIAS TYPE</type>
+      <value>A.K.A.</value>
+    </referenceValue>
+    <referenceValue refId="1401">
+      <type>ALIAS TYPE</type>
+      <value>F.K.A.</value>
+    </referenceValue>
+  </referenceValues>
+  <entities>
+    <entity id="90000050">
+      <generalInfo>
+        <identityId>90000050</identityId>
+        <entityType refId="601">Entity</entityType>
+      </generalInfo>
+      <sanctionsLists>
+        <sanctionsList refId="1555" id="90000050" datePublished="2026-08-01">Non-SDN Menu-Based Sanctions List (NS-MBS List)</sanctionsList>
+      </sanctionsLists>
+      <sanctionsPrograms>
+        <sanctionsProgram refId="99003" id="90000150">FIXTURE-NS</sanctionsProgram>
+      </sanctionsPrograms>
+      <names>
+        <name id="90000250">
+          <isPrimary>true</isPrimary>
+          <isLowQuality>false</isLowQuality>
+          <translations>
+            <translation id="90000350">
+              <isPrimary>true</isPrimary>
+              <script refId="20122">Latin</script>
+              <formattedFullName>PLACEHOLDER MERIDIAN FINANCE</formattedFullName>
+            </translation>
+          </translations>
+        </name>
+      </names>
+    </entity>
+  </entities>
+</sanctionsData>

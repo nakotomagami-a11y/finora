@@ -1,0 +1,35 @@
+{
+  "name": "@finora/server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nakotomagami-a11y/finora"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./render": "./src/render.ts",
+    "./guard": "./src/guard.ts",
+    "./env": "./src/env.ts"
+  },
+  "scripts": {
+    "routes": "node scripts/gen-route-table.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@finora/api-contract": "workspace:*",
+    "@finora/domain": "workspace:*",
+    "@finora/markets": "workspace:*",
+    "@finora/sources": "workspace:*",
+    "@finora/store": "workspace:*",
+    "server-only": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@finora/tooling": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
