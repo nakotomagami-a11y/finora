@@ -108,7 +108,7 @@ None for the builder.
 - `maxPurgeShare`: 0.02 (SDN, measured: two pulls a day apart, 19,595 entries, 0 removed; the non-SDN list is **interim** at the same value and the 5-record floor). `purgeScope`: `full`.
 
 ### Record unit and parsing
-- Streamed with a SAX parser (a dependency such as `saxes`; the file does not fit a DOM comfortably). Namespace `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML`.
+- Streamed with a SAX parser (a dependency such as `saxes`; the file does not fit a DOM comfortably). The response is capped at 300 MB on the wire (`limits`) and parsed as a stream; entity and alias text is scanned for personal-code patterns like any person property before an entity row is written (SEC-1). Namespace `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML`.
 - `referenceValues` are read first and kept as an id → value map (for `type refId` lookups).
 - **Record unit: one `<entity id>`** element. `recordKey`: the `id` attribute. Order: file order; no sort assumption.
 - `hashInput`: the mapped fields of the entity, de-duplicated and sorted lexicographically (as §1), so a reordering inside the XML is not a change.
@@ -217,6 +217,7 @@ As §1. None.
 - `maxPurgeShare`: 0.05 **interim** (a 185-row list: one delisting is 0.5%; the guard's floor of 5 records, architecture §4.4, also applies; removals over two pulls not yet measured: re-measured in the loader slice). `purgeScope`: `full`.
 
 ### Record unit and parsing
+- **Archive limits** (S04i security review, loader-contract note): an XLSX is a zip, so the parser reads only `xl/sharedStrings.xml`, `xl/worksheets/sheet1.xml` and `sheet2.xml`; it refuses member paths with `/..`, `\` or absolute paths, caps each member's decompressed size at 20 MB and the total at 40 MB (`maxOutputLength`), and ends `failed archive_unexpected` otherwise. Drops are built field by field as `{reason, prop, rowRef}` from enums, never by spreading a row.
 - XLSX, sheet 1; the header row is the first row with at least 3 non-empty cells (as the probe); columns are matched by their leading number ("1.", "2.", ... "10."), not by full header text, so a reworded header does not break the parser.
 - **Record unit: one row.** The list has no row id. `recordKey` = sha256 (truncated to 16 hex) of the normalised column 1 (subject) + column 2 (birth date or registration number) + column 6 (listed person). Documented derivation; it changes only if those fields change, which is a re-listing. `hashInput`: the mapped columns (2-5, 7-10) in column order. `parserVersion`: as §1.
 
