@@ -84,10 +84,10 @@ Re-total of data-baltics' per-source counts (`baltics.md`, "Load volume") under 
 **Call: adopt data-us's live proposal for NY, CO, OR, CT, PA and WA. FL bulk is LATER.**
 - Search fans out to the six portals in parallel, 3 s timeout each. Baltic and cached results render first. A portal that fails shows "Not checked: [state] registry did not answer", never an empty list.
 - Each entity the user opens is cached as statements with its sync (live query, state licence).
-- `SOCRATA_APP_TOKEN` (free) is recommended on the keys list; without it, queries share the anonymous throttle.
+- The state-portal app token (platform P3, free) is recommended on the keys list; without it, queries share the anonymous throttle.
 - FL is LATER: its licence is unverified (gate 2), and it is an L loader for one state (SFTP, fixed-width records, daily deltas). Trigger: licence verified and the council wants FL officers.
 - S17 US state networks: LATER (they need bulk data).
-- Effort M: one Socrata client plus six field maps.
+- Effort M: one state-portal (P3) client plus six field maps.
 
 ## 6. Agent cost
 
@@ -116,7 +116,7 @@ A technical option for legal and the council: drop the LV masked code and the EE
 | GLEIF (country filter, daily delta) | S01.ALL, S05.ALL.01 | S | none |
 | TED, Kohesio | S12 | S | none |
 | SEC (submissions, company facts, Forms 3/4/5 quarterly sets, 8-K items) | S01, S03, S04, S06, S13, S14, S17 US | L | `SEC_USER_AGENT` with a real email. Without it, US public companies have no profile, and the "US companies" done criterion fails |
-| US states, live | S01-S03 US | M | `SOCRATA_APP_TOKEN` recommended |
+| US states, live | S01-S03 US | M | state-portal app token recommended |
 | Markets | M01-M09 | M | user keys for the M01-M04 price tiles |
 | Agent runtime + 4 specialists | query-time rows in S10, S11, S15, S16 | L | `ANTHROPIC_API_KEY` for the measured run |
 

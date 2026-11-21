@@ -95,7 +95,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S10.LV.01 | S10 | LV | Anonymised court rulings (metadata); case numbers from insolvency and securing measures | C | 0% joinable | bulk; licence verified Y; no party IDs; agent full-text later | baltics |  |  |
 | S10.EE.01 | S10 | EE | register rulings | D | 0% | bulk; licence verified Y; the 2.9 M rulings are registration decisions, not court cases; court cases not covered by these sources | baltics |  |  |
 | S10.US.01 | S10 | US | FJC civil IDB | B | 20% public (1/5), 0% private | bulk, about quarterly; licence verified partial; party names only, agent must confirm | us |  |  |
-| S10.US.02 | S10 | US | CourtListener dockets (bulk) and API | B | not run | bulk quarterly, free; API needs `COURTLISTENER_TOKEN`, 125 calls a day; licence verified Y (bulk) | us |  |  |
+| S10.US.02 | S10 | US | P2 court-data service: dockets (bulk) and API | B | not run | bulk quarterly, free; API needs the P2 token, 125 calls a day; licence verified Y (bulk) | us |  |  |
 | S11.LT.01 | S11 | LT | FNTT list of entities owned or controlled by sanctioned subjects | C | 16 entities, all with a company code | per-query (HTML page); licence verified N (none stated); agents fetch and cite at query time | baltics |  |  |
 | S11.LT.02 | S11 | LT | Bank of Lithuania illegal websites; gambling regulator domains | B | 100% checked; 0% hits | bulk; licence verified Y (gambling list: none stated); domain and name match | osint |  |  |
 | S11.LV.01 | S11 | LV | Enterprise Register sanctions links | B | <0.1% | bulk; licence verified Y; 63 rows; EU and UN screening via cross-border lists | baltics |  |  |
@@ -136,16 +136,16 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S14.US.03 | S14 | US | SEC XBRL `dei` facts; price with user key | B | deferred | API; licence verified Y; key pending (`SEC_USER_AGENT`) | markets |  |  |
 | S14.LTLVEE.01 | S14 | LT, LV, EE | ESMA FIRDS | A | 67/67 LEI and ISIN (corrected 2026-11-20: 73 counted superseded record versions) | API; licence verified Y; reference data only, no prices; "listed since" = earliest admission date across versions | markets |  |  |
 | S14.LTLVEE.02 | S14 | LT, LV, EE | prices | D | 0 | no free reusable source found | markets |  |  |
-| S15.LT.01 | S15 | LT | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code | osint |  |  |
+| S15.LT.01 | S15 | LT | web search → DNS, WHOIS, CT, web archive (P8), homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code | osint |  |  |
 | S15.LV.01 | S15 | LV | Applicant website in EU funds; winner websiteURI in procurement | C | <3% | bulk; licence verified Y; incidental only, the web agent fills it | baltics |  |  |
-| S15.LV.02 | S15 | LV | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates | osint |  |  |
+| S15.LV.02 | S15 | LV | web search → DNS, WHOIS, CT, web archive (P8), homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates | osint |  |  |
 | S15.EE.01 | S15 | EE | register contacts (WWW) | C | 6.3% of active business-form companies (5.6% of all active entities, as in osint.md) | bulk; licence verified Y; register website field only; web data is the osint area | baltics |  |  |
-| S15.EE.02 | S15 | EE | register website field → DNS, WHOIS, CT, Wayback, homepage | B | website 100% of sample (by selection); resolves 67% | per-query; licence verified Y (WHOIS: query time only); population share: see §2 | osint |  |  |
-| S15.US.01 | S15 | US | SAM.gov URL or web search → DNS, RDAP, CT, Wayback, homepage | B | website 100% of sample; RDAP date 100%; registrant 0% | per-query; licence verified Y | osint |  |  |
+| S15.EE.02 | S15 | EE | register website field → DNS, WHOIS, CT, web archive (P8), homepage | B | website 100% of sample (by selection); resolves 67% | per-query; licence verified Y (WHOIS: query time only); population share: see §2 | osint |  |  |
+| S15.US.01 | S15 | US | SAM.gov URL or web search → DNS, RDAP, CT, web archive (P8), homepage | B | website 100% of sample; RDAP date 100%; registrant 0% | per-query; licence verified Y | osint |  |  |
 | S16.LV.01 | S16 | LV | (none) | D | 0% | n/a; osint area | baltics |  |  |
 | S16.EE.01 | S16 | EE | none in this area | - | - | osint area | baltics |  |  |
 | S16.US.01 | S16 | US | SEC / DOJ / FTC press releases | A | not measured on the sample | bulk; licence verified Y (public) | osint |  |  |
-| S16.ALL.01 | S16 | all | GDELT DOC 2.0 (news, last 3 months) | C | 16% raw hits; 41% of queries answered | API; licence verified Y; 1 request per 5 s per IP; titles + links only | osint |  |  |
+| S16.ALL.01 | S16 | all | P4 news dataset (last 3 months) | C | 16% raw hits; 41% of queries answered | API; licence verified Y; 1 request per 5 s per IP; titles + links only | osint |  |  |
 | S16.ALL.02 | S16 | all | social profiles linked from the company's own website | C | 41% | per-query; licence verified Y (own site); links only, no platform data | osint |  |  |
 | S16.ALL.03 | S16 | all | review platforms | D | - | paid or AI-restricted; licence verified Y; LATER | osint |  |  |
 | S16.ALL.04 | S16 | all | social platform APIs | X | - | terms ban investigating, background checks and eligibility uses (§1.4) | osint |  |  |
@@ -160,10 +160,10 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S18.EE.01 | S18 | EE | derived from S02, S06-S09 | B | - | bulk; licence verified Y; status, key figures, tax debt, taxes paid, pledges, insolvency notices are all machine-readable | baltics |  |  |
 | S18.US.01 | S18 | US | Status, UCC, exclusions, revocations, court cases, PPP charge-off | C | see sections | derived; the US has no tax-debt or payment-default data | us |  |  |
 | M01.X.01 | M01 | - | Fed Z.1 via FRED (quarterly) | B | 1/3 series | API/CSV; licence verified Y; quarterly only, includes non-listed equity | markets |  |  |
-| M01.X.02 | M01 | - | S7 or S6 with user key | C | 3/3 series (estimated) | user key; licence verified Y; personal use; ETF proxies on S7, S&P 500 paid on S6 | markets |  |  |
+| M01.X.02 | M01 | - | S7 or S6 with user key | C | 3/3 series (estimated) | user key; licence verified Y; personal use; ETF proxies on S7, the I1 index paid on S6 | markets |  |  |
 | M02.X.01 | M02 | - | S7 with user key | C | 1/1 (estimated) | user key; licence verified Y; ETF proxy | markets |  |  |
-| M03.X.01 | M03 | - | TWSE OpenAPI, FRED `NIKKEI225`, ECB FX | B | 2/7 series | API; licence verified Y; Taiwan history from first run; Japan self-hosted only | markets |  |  |
-| M03.X.02 | M03 | - | S7 with user key; KRX with key | C | 7/7 (estimated) | user key; licence verified Y; country ETFs in USD | markets |  |  |
+| M03.X.01 | M03 | - | E1 open API, FRED's Japan index series (I4), ECB FX | B | 2/7 series | API; licence verified Y; Taiwan history from first run; Japan self-hosted only | markets |  |  |
+| M03.X.02 | M03 | - | S7 with user key; E2 with key | C | 7/7 (estimated) | user key; licence verified Y; country ETFs in USD | markets |  |  |
 | M04.X.01 | M04 | - | S7 with user key | C | 2/2 (estimated) | user key; licence verified Y; ETF proxies | markets |  |  |
 | M05.X.01 | M05 | - | World Bank Pink Sheet | B | 1/1 | bulk XLSX; licence verified Y; monthly only | markets |  |  |
 | M05.X.02 | M05 | - | O5 oracle via O3; S3 or S6 with user key | C | 1/1 | API (on-chain) / user key; licence verified N for the oracle | markets |  |  |

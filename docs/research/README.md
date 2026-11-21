@@ -50,7 +50,7 @@ The company report is built from these sections. Use the IDs everywhere.
 
 | ID | Tile |
 |---|---|
-| M01 | US stocks: total market, S&P 500, Nasdaq-100 (level, drawdown from peak, market cap lost) |
+| M01 | US stocks: total market, the I1 and I3 large-cap indices (level, drawdown from peak, market cap lost) |
 | M02 | Europe: broad index |
 | M03 | Asia and Pacific indices |
 | M04 | Americas excluding the US |

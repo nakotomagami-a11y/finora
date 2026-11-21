@@ -116,8 +116,8 @@ Population fill rates for active companies (Baltics, from `baltics.md`, "Coverag
 | S08 | US | small private business | 5 | 0 | 0% | not published in the US |
 | S09 | US | public company | 5 | 0 | 0% | UCC checked in CO and CT: none found; bankruptcy files carry no debtor names |
 | S09 | US | small private business | 5 | 0 | 0% | UCC checked in CO and CT: none found; bankruptcy files carry no debtor names |
-| S10 | US | public company | 5 | 1 | 20% | FJC civil name match (needs agent confirmation); CourtListener not run |
-| S10 | US | small private business | 5 | 0 | 0% | FJC civil name match (needs agent confirmation); CourtListener not run |
+| S10 | US | public company | 5 | 1 | 20% | FJC civil name match (needs agent confirmation); P2 court-data service not run |
+| S10 | US | small private business | 5 | 0 | 0% | FJC civil name match (needs agent confirmation); P2 court-data service not run |
 | S11 | US | public company | 5 | 0 | 0% | SAM exclusions checked for all: none found; OFAC by data-osint |
 | S11 | US | small private business | 5 | 0 | 0% | SAM exclusions checked for all: none found; OFAC by data-osint |
 | S12 | US | public company | 5 | 1 | 20% | USAspending, PPP |
@@ -141,11 +141,11 @@ Population fill rates for active companies (Baltics, from `baltics.md`, "Coverag
 | S15 registrant code = register code | LV | sites known | 2 | 1 | 50% | .lv WHOIS `RegNr` |
 | S15 certificates in CT logs | all | sites known | 21 | 14 | 67% | 4 US queries failed (rate limit, HTTP 502/404); 3 dead EE domains have none |
 | S15 MX / SPF / DMARC | all | sites known | 21 | 17 / 15 / 12 | 81% / 71% / 57% | |
-| S15 archived in Wayback | all | sites known | 21 | 20 | 95% | |
+| S15 archived in the web archive (P8) | all | sites known | 21 | 20 | 95% | |
 | S15 homepage reachable | all | sites known | 21 | 17 | 81% | |
 | S15 homepage states register code | all | sites known | 21 | 3 | 14% | LT 2/2, EE 1/9, LV 0/2 |
 | S16 social profile linked from own site | all | all | 32 | 13 | 41% | EE 5/9, US 4/8, LT 2/7, LV 2/8 |
-| S16 news articles, last 3 months (GDELT) | all | all | 32 | 5 | 16% | only 13 of 32 queries answered (41%): rate limits and connection timeouts despite 12 s spacing and 3 retries. Of the 5 hit sets, 3 are in languages with no tie to the company's country: name collisions |
+| S16 news articles, last 3 months (P4 news dataset) | all | all | 32 | 5 | 16% | only 13 of 32 queries answered (41%): rate limits and connection timeouts despite 12 s spacing and 3 retries. Of the 5 hit sets, 3 are in languages with no tie to the company's country: name collisions |
 | S11 sanctions exact name hit | all | all | 32 | 0 | 0% | expected; see false-positive rates |
 | S11 regulator red-flag list hit | all | all | 32 | 0 | 0% | expected |
 | S12 EU-wide award notice won (TED) | EE | all sizes | 9 | 4 | 44% | live lookup by register code |
