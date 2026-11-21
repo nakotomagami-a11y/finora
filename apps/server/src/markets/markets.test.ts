@@ -1,12 +1,13 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { CrashResponse } from "@finora/api-contract";
+import { describe, expect, it, vi } from "vitest";
 import { connector, marketConnectors, providerLicences, readMarketSettings, type MarketConnector, type Providers } from "@finora/markets";
-import { fakeMarketFetch, fixtureProviders, fixtureProvidersJson, FIXTURE_TODAY } from "@finora/markets/fixtures";
+import { fakeMarketFetch, fixtureHost, fixtureProviders, fixtureProvidersJson, FIXTURE_TODAY } from "@finora/markets/fixtures";
 import { FetchError, type Licence, type PoliteFetch } from "@finora/sources";
-import { openStore, readMarketSeries, type Store } from "@finora/store";
-import { runDueMarketJobs } from "./jobs.ts";
+import { openStore, readMarketSeries, writeBackup, type Store } from "@finora/store";
+import { markClientPoll, runDueMarketJobs } from "./jobs.ts";
 import { connectorProblems, runMarketSource } from "./runner.ts";
 import { buildCrashView } from "./view.ts";
 import { loadProviders } from "../services/markets.ts";
@@ -104,6 +105,37 @@ describe("the market runner (loaders/markets.md §1.7)", () => {
     expect(readMarketSeries(store.db).find((s) => s.seriesKey === "fred:DCOILBRENTEU")?.observations.length).toBe(before);
   });
 
+  it("fails a sync whose as-of, close or snapshot time is more than a day ahead, and stores nothing (SEC-5)", async () => {
+    const store = openStore({ dataDir: null });
+    const debtOn = (date: string) => politeOf(fakeMarketFetch([{ match: /fiscaldata/, respond: () => ({ status: 200, headers: {}, bytes: new TextEncoder().encode(JSON.stringify({ data: [{ record_date: date, tot_pub_debt_out_amt: "1.00" }] })) }) }]));
+    const ahead = new Date(Date.parse(NOW) + 2 * 86_400_000).toISOString().slice(0, 10);
+    expect(await run(store, get("us-treasury-debt"), { fetch: debtOn(ahead) })).toMatchObject({ kind: "failed", reason: "future_date" });
+    const snapshot: MarketConnector = { ...get("crypto-c3-global"), parse: () => ({ series: [{ series: { seriesKey: "c3:total_cap_peak", itemId: "M06.X.02", unit: "usd_cap", frequency: "daily_7d" }, latest: { value: 1, observedAt: `${ahead}T00:00:00Z` } }], dropped: [] }) };
+    expect(await run(store, snapshot)).toMatchObject({ kind: "failed", reason: "future_date" });
+    expect(readMarketSeries(store.db)).toEqual([]);
+    // A day of slack: a close dated tomorrow in UTC still loads.
+    const tomorrow = new Date(Date.parse(NOW) + 86_400_000).toISOString().slice(0, 10);
+    expect((await run(openStore({ dataDir: null }), get("us-treasury-debt"), { fetch: debtOn(tomorrow) })).kind).toBe("content");
+  });
+
+  it("closes the sync as failed on an unforeseen error, and logs the error class only (SEC-7)", async () => {
+    const store = openStore({ dataDir: null });
+    const broken: MarketConnector = { ...get("us-fred-open"), parse: () => ({ series: [{ series: { seriesKey: "fred:DCOILBRENTEU", itemId: "M07.X.01", unit: "usd_per_bbl", frequency: "daily_exchange" }, observations: [{ date: "2026-11-18", value: { raw: "upstream-text" } as unknown as number }] }], dropped: [] }) };
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      expect(await run(store, broken)).toMatchObject({ kind: "failed", reason: "internal" });
+      const sync = store.db.prepare("SELECT kind, report_json FROM main.syncs").get() as { kind: string; report_json: string };
+      expect(sync.kind).toBe("failed");
+      expect(JSON.parse(sync.report_json)).toMatchObject({ reason: "internal" });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(String(spy.mock.calls[0]?.[0])).toMatch(/^markets: us-fred-open sync \d+ failed \(\w+\)$/);
+      expect(JSON.stringify(spy.mock.calls)).not.toContain("upstream-text");
+    } finally {
+      spy.mockRestore();
+    }
+    expect(readMarketSeries(store.db).flatMap((s) => s.observations)).toEqual([]);
+  });
+
   it("names a refusal, stores no value from the failed sync, and the row then shows an error", async () => {
     const store = openStore({ dataDir: null });
     const refused = politeOf(fakeMarketFetch([{ match: /x4\.provider/, respond: () => ({ status: 403, headers: {}, bytes: new Uint8Array() }) }]));
@@ -157,6 +189,45 @@ describe("the Crash monitor view (architecture §8)", () => {
     expect(by("M06.X.01b:bitcoin")?.sources.some((s) => s.derived)).toBe(true);
   });
 
+  it("shows the daily US rows with their personal-use attribution, kept in connector-cache.db only (legal 7066891816)", async () => {
+    const store = openStore({ dataDir: null });
+    await jobs(store);
+    const daily = rows(store).filter((r) => r.itemId === "M01.X.03");
+    expect(daily.map((r) => r.rowKey)).toEqual(["M01.X.03:us_large", "M01.X.03:us_broad", "M01.X.03:us_tech"]);
+    for (const r of daily) {
+      expect(r.state, r.rowKey).toBe("ok");
+      expect(r.attribution, r.rowKey).toMatch(/personal use/i);
+      expect(r.valueLostUsd, r.rowKey).toBeUndefined();
+    }
+    expect(readMarketSeries(store.db).filter((s) => s.seriesKey.startsWith("fred-cited:us_")).map((s) => s.where)).toEqual(["cc", "cc", "cc"]);
+    expect(CrashResponse.safeParse(view(store)).success).toBe(true);
+  });
+
+  it("shows a daily US row as not configured when the provider file lists no series for it, while Japan still loads", async () => {
+    const store = openStore({ dataDir: null });
+    const cited = PROVIDERS["fred-cited"];
+    if (!cited?.series) throw new Error("fixture providers have no cited series");
+    const japanOnly: Providers = { ...PROVIDERS, "fred-cited": { ...cited, series: cited.series.filter((s) => s.rowKey.startsWith("M03.")) } };
+    await jobs(store, japanOnly);
+    const all = rows(store, japanOnly);
+    expect(all.filter((r) => r.itemId === "M01.X.03").map((r) => [r.state, r.value, r.attribution])).toEqual([
+      ["not_configured", undefined, undefined],
+      ["not_configured", undefined, undefined],
+      ["not_configured", undefined, undefined],
+    ]);
+    expect(all.find((r) => r.rowKey === "M03.X.01:japan")?.state).toBe("ok");
+  });
+
+  it("refuses a daily US row with a value but no personal-use attribution in the response contract", async () => {
+    const store = openStore({ dataDir: null });
+    await jobs(store);
+    const v = view(store);
+    const row = v.tiles.flatMap((t) => t.rows).find((r) => r.rowKey === "M01.X.03:us_large");
+    expect(row?.value).toBeDefined();
+    if (row) row.attribution = "via the fixture provider";
+    expect(CrashResponse.safeParse(v).success).toBe(false);
+  });
+
   it("leaves out a total-crypto snapshot older than 24 h even before the expiry job runs (S22 review S1)", async () => {
     const store = openStore({ dataDir: null });
     await run(store, get("crypto-c1"), { mode: "latest" });
@@ -182,14 +253,43 @@ describe("the Crash monitor view (architecture §8)", () => {
   });
 });
 
+describe("the client poll that speeds up quote runs (SEC-8)", () => {
+  it("counts the app's own page and header-less clients, never a cross-site request", () => {
+    expect(markClientPoll(NOW, "cross-site")).toBe(false);
+    expect(markClientPoll(NOW, "same-site")).toBe(false);
+    expect(markClientPoll(NOW, "same-origin")).toBe(true);
+    expect(markClientPoll(NOW, "none")).toBe(true);
+    expect(markClientPoll(NOW, null)).toBe(true);
+  });
+});
+
 describe("loading the provider file (H4)", () => {
+  it("is user configuration: a backup never copies it, nor any host it names (architect 7067106700)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "finora-providers-backup-"));
+    const store = openStore({ dataDir: dir });
+    try {
+      writeFileSync(join(dir, "providers.json"), fixtureProvidersJson());
+      await jobs(store);
+      const out = join(dir, "backups");
+      const { path } = writeBackup(store.db, out, new Date(NOW));
+      expect(readdirSync(out)).toEqual([path.slice(out.length + 1)]);
+      const bytes = readFileSync(path).toString("latin1");
+      for (const code of ["x4", "c1", "c3", "o3", "e1", "fredcited"]) expect(bytes, code).not.toContain(fixtureHost(code));
+      expect(bytes).not.toContain("Personal use");
+    } finally {
+      store.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+
   it("reads a valid file, treats a missing one as empty, and a broken one as configuring nothing", () => {
     const dir = mkdtempSync(join(tmpdir(), "finora-providers-"));
     try {
       const path = join(dir, "providers.json");
       expect(loadProviders(path)).toEqual({ providers: {}, problems: [] });
       writeFileSync(path, fixtureProvidersJson());
-      expect(Object.keys(loadProviders(path).providers).sort()).toEqual(["c1", "c3", "fred-cited", "o3", "tw", "x4"]);
+      expect(Object.keys(loadProviders(path).providers).sort()).toEqual(["c1", "c3", "e1", "fred-cited", "o3", "x4"]);
       writeFileSync(path, "{ broken");
       expect(loadProviders(path)).toEqual({ providers: {}, problems: ["file: not JSON"] });
     } finally {

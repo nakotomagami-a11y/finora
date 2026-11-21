@@ -2,16 +2,32 @@ import "server-only";
 // Builds the Crash monitor rows from the stored series (loaders/markets.md §1.4, architecture §8).
 // Every value carries the SourceRef of the sync that wrote it; computed values are flagged derived.
 import type { SourceRef } from "@finora/domain";
-import { computeRow, connector, debtTicker, marketConnectors, SEEDS, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, totalWiped, type MarketSettings, type Providers, type RowView, type SeriesData, type TileId } from "@finora/markets";
+import { computeRow, connector, debtTicker, marketConnectors, PROVIDER_SOURCE, SEEDS, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, totalWiped, type MarketSettings, type Providers, type RowView, type SeriesData, type TileId, type TileRow } from "@finora/markets";
 import { lastMarketSync, marketCheckedAt, marketSyncInfo, readMarketSeries, type Store } from "@finora/store";
 
-export type MarketRowOut = Omit<RowView, "inputs" | "tileId" | "labelKey"> & { label: string; sources: SourceRef[] };
+export type MarketRowOut = Omit<RowView, "inputs" | "tileId" | "labelKey"> & { label: string; attribution?: string; sources: SourceRef[] };
 export type CrashView = {
   tiles: { tileId: TileId; rows: MarketRowOut[] }[];
   totalWiped?: { valueUsd: number; rowItemIds: string[]; excludedItemIds: string[]; oldestAsOf: string };
 };
 
 const DERIVED_SERIES = new Set(["btc:supply"]);
+
+/** A cited row is configured only when the provider file lists a series for it. */
+function citedEntry(row: TileRow, providers: Providers) {
+  return providers["fred-cited"]?.series?.find((s) => s.rowKey === row.rowKey);
+}
+
+function configuredRow(row: TileRow, providers: Providers): boolean {
+  if (connector(row.sourceId, providers) === undefined) return false;
+  return row.sourceId !== PROVIDER_SOURCE["fred-cited"] || citedEntry(row, providers) !== undefined;
+}
+
+/** The row's attribution: the cited series' own line, else its source's (from the provider file for a coded source). */
+function attributionOf(row: TileRow, providers: Providers): string | undefined {
+  if (row.sourceId === PROVIDER_SOURCE["fred-cited"]) return citedEntry(row, providers)?.attribution;
+  return connector(row.sourceId, providers)?.meta.attribution ?? undefined;
+}
 
 export function buildCrashView(store: Store, opts: { settings: MarketSettings; providers: Providers; now: string }): CrashView {
   const { db } = store;
@@ -41,7 +57,7 @@ export function buildCrashView(store: Store, opts: { settings: MarketSettings; p
       peakSince: opts.settings.peakSince,
       now: opts.now,
       // A row whose provider the local file doesn't configure shows "not configured", whatever is stored (H4).
-      configured: connector(row.sourceId, opts.providers) !== undefined,
+      configured: configuredRow(row, opts.providers),
       sourceFailed: last?.kind === "failed",
       seeds: SEEDS,
     });
@@ -53,7 +69,8 @@ export function buildCrashView(store: Store, opts: { settings: MarketSettings; p
     // Bitcoin supply is computed by Finora from block height, so its reference is derived (architecture §8).
     const sources = view.inputs.flatMap((input) => input.syncIds.map((id) => ref(sourceOf.get(input.seriesKey) ?? row.sourceId, id, DERIVED_SERIES.has(input.seriesKey))).filter((r): r is SourceRef => r !== null));
     const { inputs: _inputs, tileId: _tile, labelKey, ...rest } = view;
-    out.get(row.tileId)?.push({ ...rest, label: labelKey, sources });
+    const attribution = view.state === "not_configured" ? undefined : attributionOf(row, opts.providers);
+    out.get(row.tileId)?.push({ ...rest, label: labelKey, ...(attribution ? { attribution } : {}), sources });
   }
   const total = totalWiped(views);
   return { tiles: TILE_ORDER.map((tileId) => ({ tileId, rows: out.get(tileId) ?? [] })), ...(total ? { totalWiped: total } : {}) };

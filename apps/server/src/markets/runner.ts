@@ -26,8 +26,8 @@ import {
 export type MarketRunOutcome =
   | { kind: "content" | "unchanged" | "stale_skipped" | "partial"; syncId: number }
   | { kind: "failed"; syncId: number; reason: MarketFailure }
-  | { kind: "skipped"; reason: "invalid_source" | "daily_limit" };
-export type MarketFailure = "key_rejected" | "not_found" | "rate_limited" | "provider_error" | "schema_changed" | "as_of_missing" | "network";
+  | { kind: "skipped"; reason: "invalid_source" | "daily_limit" | "internal" };
+export type MarketFailure = "key_rejected" | "not_found" | "rate_limited" | "provider_error" | "schema_changed" | "as_of_missing" | "future_date" | "internal" | "network";
 
 export type RunOptions = {
   mode: FetchContext["mode"];
@@ -43,6 +43,10 @@ export type RunOptions = {
 /** The only classes a market series may be written under: open data in main, licensed series in cc (R17). */
 const WRITABLE = { store: "main", "connector-cache": "cc" } as const;
 const where = (c: MarketConnector) => WRITABLE[c.meta.storage as keyof typeof WRITABLE];
+
+/** An as-of, a close or a snapshot time more than a day past the run is refused, never stored (SEC-5). */
+const FUTURE_SLACK_MS = 86_400_000;
+const ahead = (at: string, now: string) => !(Date.parse(at.length === 10 ? `${at}T00:00:00Z` : at) <= Date.parse(now) + FUTURE_SLACK_MS);
 
 /** The licence invariants of every source (R12, R13, R17): a connector that fails them never writes a row. */
 export function connectorProblems(c: MarketConnector, licences: Readonly<Record<string, Licence>> = {}): string[] {
@@ -72,6 +76,20 @@ export async function runMarketSource(store: Store, c: MarketConnector, opts: Ru
   const storage = c.meta.storage;
   upsertSource(db, { id: c.meta.id, storage, purgeScope: c.meta.purgeScope }, opts.now);
   const syncId = beginSync(db, { sourceId: c.meta.id, licenceId: c.meta.licence, storage, parserVersion: c.parserVersion, startedAt: opts.now });
+  try {
+    return await runSync(store, c, opts, syncId);
+  } catch (error) {
+    // Anything unforeseen still closes the sync as failed. The log names the error class only: a
+    // message could carry a provider host or a value (SEC-7).
+    const name = error instanceof Error ? error.name : "unknown";
+    console.error(`markets: ${c.meta.id} sync ${syncId} failed (${name})`);
+    finishSync(db, syncId, { kind: "failed", finishedAt: opts.now, report: { reason: "internal", error: name } });
+    return { kind: "failed", syncId, reason: "internal" };
+  }
+}
+
+async function runSync(store: Store, c: MarketConnector, opts: RunOptions, syncId: number): Promise<MarketRunOutcome> {
+  const { db } = store;
   const fail = (reason: MarketFailure): MarketRunOutcome => {
     finishSync(db, syncId, { kind: "failed", finishedAt: opts.now, report: { reason } });
     return { kind: "failed", syncId, reason };
@@ -100,7 +118,8 @@ export async function runMarketSource(store: Store, c: MarketConnector, opts: Ru
   } catch (error) {
     return fail(failureOf(error));
   }
-  if (!asOf || !basis) return fail("as_of_missing");
+  if (!asOf || !basis || Number.isNaN(Date.parse(asOf))) return fail("as_of_missing");
+  if (ahead(asOf, opts.now)) return fail("future_date");
 
   // Latest-only runs (quotes, snapshots) always write: their artifact changes every few minutes.
   const hash = contentHash(raw, c.parserVersion);
@@ -121,6 +140,7 @@ export async function runMarketSource(store: Store, c: MarketConnector, opts: Ru
   } catch (error) {
     return fail(failureOf(error));
   }
+  if (parsed.series.some((s) => s.observations?.some((o) => ahead(o.date, opts.now)) || (s.latest && ahead(s.latest.observedAt, opts.now)))) return fail("future_date");
 
   const dropped: Partial<Record<DropReason, number>> = {};
   for (const d of parsed.dropped) dropped[d.reason] = (dropped[d.reason] ?? 0) + 1;

@@ -1,17 +1,17 @@
 // A fetch that answers every Crash monitor URL with a synthetic fixture layout, so tests and the demo
 // run the real connectors with no network. Every value is made up (series.ts). Configured providers use
-// placeholder hosts under the reserved .invalid domain (fixtureProviders), so the repo holds no real host.
+// placeholder hosts under the reserved .example domain (fixtureProviders), so the repo holds no real host.
 import type { Providers } from "../providers.ts";
 import type { Fetch } from "../types.ts";
-import { c1Layout, c3Layout, fredLayout, o3Layout, treasuryLayout, twLayout, worldBankLayout, x4Layout } from "./layouts.ts";
+import { c1Layout, c3Layout, fredLayout, o3Layout, treasuryLayout, e1Layout, worldBankLayout, x4Layout } from "./layouts.ts";
 
 const XLSX_URL = "https://thedocs.worldbank.org/en/doc/fixture/related/CMO-Historical-Data-Monthly.xlsx";
 const ok = (bytes: Uint8Array) => ({ status: 200, headers: {}, bytes });
 const text = (s: string) => ok(new TextEncoder().encode(s));
 const first = (a: { bytes: Uint8Array }[]) => (a[0] as { bytes: Uint8Array }).bytes;
 
-/** A placeholder host per provider code, built from parts: `<code>.provider.invalid`. */
-export const fixtureHost = (code: string) => [code.replace(/[^a-z0-9]/g, ""), "provider", "invalid"].join(".");
+/** A placeholder host per provider code, built from parts: `<code>.provider.example`. */
+export const fixtureHost = (code: string) => [code.replace(/[^a-z0-9]/g, ""), "provider", "example"].join(".");
 const at = (code: string, path: string) => `https://${fixtureHost(code)}${path}`;
 
 const licence = (id: string, redistribution: boolean) => ({ id, name: `Fixture terms for ${id}`, redistribution, nonCommercial: !redistribution, attributionRequired: true, verifiedOn: "2026-11-19" });
@@ -32,8 +32,14 @@ export function fixtureProviders(): Providers {
     c1: entry("c1", { global: at("c1", "/global"), ethereum: at("c1", "/coins/markets?ids=ethereum") }),
     c3: entry("c3", { global: at("c3", "/global") }),
     o3: entry("o3", { rpc: at("o3", "/rpc"), tip: at("o3", "/blocks/tip/hash"), block: at("o3", "/block/{hash}") }, true),
-    tw: entry("tw", { month: at("tw", "/indices/month") }, true),
-    "fred-cited": { ...entry("fredcited", { series: at("fredcited", "/graph.csv?id={id}&cosd={from}") }), series: [{ id: "FIXTUREJP", rowKey: "M03.X.01:japan", attribution: "Fixture index owner, via the fixture provider" }] },
+    e1: entry("e1", { month: at("e1", "/indices/month") }, true),
+    "fred-cited": { ...entry("fredcited", { series: at("fredcited", "/graph.csv?id={id}&cosd={from}") }), series: [
+        { id: "FIXTUREJP", rowKey: "M03.X.01:japan", attribution: "Fixture index owner, via the fixture provider" },
+        { id: "FIXTUREUSL", rowKey: "M01.X.03:us_large", attribution: "Personal use; fixture index owner's copyright, via the fixture provider; 1-day lag" },
+        { id: "FIXTUREUSB", rowKey: "M01.X.03:us_broad", attribution: "Personal use; fixture index owner's copyright, via the fixture provider; 1-day lag" },
+        { id: "FIXTUREUST", rowKey: "M01.X.03:us_tech", attribution: "Personal use; fixture index owner's copyright, via the fixture provider; 1-day lag" },
+      ],
+    },
   };
 }
 
@@ -71,7 +77,7 @@ export function fakeMarketFetch(overrides: { match: RegExp; respond: Respond }[]
       return ok((u.pathname.endsWith("/global") ? daily[0] : daily[1])?.bytes ?? new Uint8Array());
     }
     if (u.hostname === fixtureHost("c3")) return ok(first(c3Layout()));
-    if (u.hostname === fixtureHost("tw")) return ok(first(twLayout()));
+    if (u.hostname === fixtureHost("e1")) return ok(first(e1Layout()));
     if (u.hostname === fixtureHost("fredcited")) return ok(first(fredLayout([u.searchParams.get("id") ?? ""])));
     return { status: 404, headers: {}, bytes: new Uint8Array() };
   };

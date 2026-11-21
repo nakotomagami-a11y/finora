@@ -34,8 +34,12 @@ const base = { valueLost: null, countInTotal: false } as const;
 
 export const TILE_ROWS: readonly TileRow[] = [
   { ...base, rowKey: "M01.X.01:us_equities", tileId: "M01", itemId: "M01.X.01", labelKey: "crash.rows.us_equities", sourceId: "us-fred-open", where: "main", seriesKey: "fred:BOGZ1LM893064105Q", unit: "usd", frequency: "quarterly", delayed: true, valueLost: "series", countInTotal: true },
+  // Daily US rows from FRED's cited index series: personal use only, drawdown only, connector cache only (legal 7066891816).
+  { ...base, rowKey: "M01.X.03:us_large", tileId: "M01", itemId: "M01.X.03", labelKey: "crash.rows.us_large", sourceId: "us-fred-cited", where: "cc", seriesKey: "fred-cited:us_large", unit: "index_points", frequency: "daily_exchange", delayed: true },
+  { ...base, rowKey: "M01.X.03:us_broad", tileId: "M01", itemId: "M01.X.03", labelKey: "crash.rows.us_broad", sourceId: "us-fred-cited", where: "cc", seriesKey: "fred-cited:us_broad", unit: "index_points", frequency: "daily_exchange", delayed: true },
+  { ...base, rowKey: "M01.X.03:us_tech", tileId: "M01", itemId: "M01.X.03", labelKey: "crash.rows.us_tech", sourceId: "us-fred-cited", where: "cc", seriesKey: "fred-cited:us_tech", unit: "index_points", frequency: "daily_exchange", delayed: true },
   { ...base, rowKey: "M03.X.01:japan", tileId: "M03", itemId: "M03.X.01", labelKey: "crash.rows.japan_index", sourceId: "us-fred-cited", where: "cc", seriesKey: "fred-cited:japan", unit: "index_points", frequency: "daily_exchange", delayed: true },
-  { ...base, rowKey: "M03.X.01:taiwan", tileId: "M03", itemId: "M03.X.01", labelKey: "crash.rows.taiwan_index", sourceId: "tw-broad-index", where: "main", seriesKey: "tw:broad_index", unit: "index_points", frequency: "daily_exchange", delayed: true },
+  { ...base, rowKey: "M03.X.01:taiwan", tileId: "M03", itemId: "M03.X.01", labelKey: "crash.rows.taiwan_index", sourceId: "e1-taiwan", where: "main", seriesKey: "e1:taiwan", unit: "index_points", frequency: "daily_exchange", delayed: true },
   { ...base, rowKey: "M05.X.01:gold_monthly", tileId: "M05", itemId: "M05.X.01", labelKey: "crash.rows.gold_monthly", sourceId: "intl-worldbank-pinksheet", where: "main", seriesKey: "worldbank:gold", unit: "usd_per_oz", frequency: "monthly", delayed: true },
   { ...base, rowKey: "M06.X.01b:bitcoin", tileId: "M06", itemId: "M06.X.01b", labelKey: "crash.rows.bitcoin", sourceId: "crypto-x4-ohlc", where: "cc", seriesKey: "x4:btcusd", unit: "usd", frequency: "daily_7d", delayed: false, valueLost: "supply", supplySeriesKey: "btc:supply" },
   { ...base, rowKey: "M06.X.01b:ether", tileId: "M06", itemId: "M06.X.01b", labelKey: "crash.rows.ether", sourceId: "crypto-x4-ohlc", where: "cc", seriesKey: "x4:ethusd", unit: "usd", frequency: "daily_7d", delayed: false, valueLost: "supply", supplySeriesKey: "c1:eth_supply" },
@@ -47,9 +51,6 @@ export const TILE_ROWS: readonly TileRow[] = [
 
 /** M02 (Europe) and M04 (Americas excluding the US) had only key-gated fund rows; under H5 they have none. */
 export const TILE_ORDER: readonly TileId[] = ["M01", "M03", "M05", "M06", "M07", "M08"];
-
-/** Part G items with a SHOW or CAVEAT call that the human's ruling H5 (no keys) switches off: no row, no connector. */
-export const OFF_BY_H5: readonly string[] = ["M01.X.02", "M02.X.01", "M03.X.02", "M04.X.01", "M05.X.02b"];
 
 /** The series a tile row needs beside its own (supply, peak). */
 export function seriesKeysOf(row: TileRow): string[] {

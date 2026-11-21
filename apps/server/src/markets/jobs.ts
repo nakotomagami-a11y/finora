@@ -21,8 +21,14 @@ const CALLS = (sourceId: string, day: string) => `markets:calls:${sourceId}:${da
 
 /** When a client last polled the crash endpoint; set by the route. In memory: a restart simply idles. */
 let lastClientPoll: string | null = null;
-export function markClientPoll(at: string): void {
+/**
+ * Only the app's own page counts as a viewer: a cross-site request must not switch the quote polling to
+ * every 5 minutes (SEC-8). A request with no Sec-Fetch-Site header (curl, an older browser) is the user's own.
+ */
+export function markClientPoll(at: string, fetchSite: string | null = null): boolean {
+  if (fetchSite !== null && fetchSite !== "same-origin" && fetchSite !== "none") return false;
   lastClientPoll = at;
+  return true;
 }
 
 function lastRuns(store: Store): Map<JobId, string> {
@@ -62,14 +68,21 @@ export async function runDueMarketJobs(deps: MarketJobsDeps): Promise<{ job: Job
         results.push({ job: id, sourceId: run.sourceId, outcome: { kind: "skipped", reason: "daily_limit" } });
         continue;
       }
-      const outcome = await runMarketSource(deps.store, c, {
-        mode: run.mode,
-        now,
-        windowStart: windowStart(settings.peakSince),
-        licences,
-        userAgent: deps.userAgent,
-        ...(deps.fetch ? { fetch: deps.fetch } : {}),
-      });
+      let outcome: MarketRunOutcome;
+      try {
+        outcome = await runMarketSource(deps.store, c, {
+          mode: run.mode,
+          now,
+          windowStart: windowStart(settings.peakSince),
+          licences,
+          userAgent: deps.userAgent,
+          ...(deps.fetch ? { fetch: deps.fetch } : {}),
+        });
+      } catch (error) {
+        // The runner closes its own sync; this catches a failure before one opened, so the next source still runs (SEC-7).
+        console.error(`markets: ${run.sourceId} could not start (${error instanceof Error ? error.name : "unknown"})`);
+        outcome = { kind: "skipped", reason: "internal" };
+      }
       if (outcome.kind !== "skipped") addCalls(deps.store, run.sourceId, day, cost, now);
       results.push({ job: id, sourceId: run.sourceId, outcome });
     }
@@ -88,7 +101,9 @@ export function startMarketJobs(deps: MarketJobsDeps): () => void {
   const tick = () => {
     if (running) return;
     running = true;
-    void runDueMarketJobs(deps).finally(() => {
+    void runDueMarketJobs(deps)
+      .catch((error: unknown) => console.error(`markets: job pass failed (${error instanceof Error ? error.name : "unknown"})`))
+      .finally(() => {
       running = false;
     });
   };

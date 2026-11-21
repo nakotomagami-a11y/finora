@@ -10,7 +10,7 @@ export const PROVIDER_URLS = {
   c3: ["global"],
   o3: ["rpc", "tip", "block"],
   "fred-cited": ["series"],
-  tw: ["month"],
+  e1: ["month"],
 } as const;
 export type ProviderCode = keyof typeof PROVIDER_URLS;
 
@@ -36,7 +36,11 @@ const IP_LITERAL = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ENTRY_KEYS = ["hosts", "urls", "licence", "termsUrl", "attribution", "homepage", "publisher", "series"];
 const LICENCE_KEYS = ["id", "name", "redistribution", "nonCommercial", "attributionRequired", "verifiedOn"];
-const SERIES_ROW_KEYS = new Set(["M03.X.01:japan"]);
+/** The rows a cited series may fill: Japan, and the daily US rows legal lit for personal use (7066891816). */
+export const SERIES_ROW_KEYS = new Set(["M03.X.01:japan", "M01.X.03:us_large", "M01.X.03:us_broad", "M01.X.03:us_tech"]);
+/** Legal's condition 1: each daily US row's attribution line states personal use. */
+const PERSONAL_USE_ROWS = "M01.X.03:";
+export const PERSONAL_USE = /\bpersonal use\b/i;
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown, max = 500): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
@@ -115,6 +119,8 @@ export function parseProviders(text: string): { providers: Providers; problems: 
           continue;
         }
         strict(s, ["id", "rowKey", "attribution"], `${where}.series`, problems);
+        if (s.rowKey.startsWith(PERSONAL_USE_ROWS) && !PERSONAL_USE.test(s.attribution)) problems.push(`${where}.series: a daily US row's attribution must state personal use`);
+        if (series.some((x) => x.rowKey === s.rowKey)) problems.push(`${where}.series: one series per row`);
         series.push({ id: s.id, rowKey: s.rowKey, attribution: s.attribution });
       }
     } else if (raw.series !== undefined) problems.push(`${where}.series: only for fred-cited`);

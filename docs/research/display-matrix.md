@@ -1,6 +1,6 @@
 # Display matrix
 
-Assembled by the coordinator on 2026-11-20 from the "Display matrix rows" of the four area docs: `baltics.md` (64 rows), `us.md` (49), `osint.md` (20) and `markets.md` (16). The rows are copied unchanged, with two exceptions: where two areas measured the same cross-border source, their rows are merged into one so the council rules once (GLEIF relationships, `S05.ALL.01`; the UN list, `S11.ALL.05`), with both areas' evidence kept. Only the `item_id`, the `From` column and the two empty decision columns are added. 149 area rows, 147 matrix rows. Regenerated after each area fix; ids can shift within a section and country until session 1 starts. The evidence for every row is in its area doc.
+Assembled by the coordinator on 2026-11-20 from the "Display matrix rows" of the four area docs: `baltics.md` (64 rows), `us.md` (49), `osint.md` (20) and `markets.md` (16). The rows are copied unchanged, with two exceptions: where two areas measured the same cross-border source, their rows are merged into one so the council rules once (GLEIF relationships, `S05.ALL.01`; the UN list, `S11.ALL.05`), with both areas' evidence kept. Only the `item_id`, the `From` column and the two empty decision columns are added. 149 area rows, 147 matrix rows, plus `M01.X.03` (the daily US rows, added under H5 on 2026-11-21), so 148. Regenerated after each area fix; ids can shift within a section and country until session 1 starts. The evidence for every row is in its area doc.
 
 This is the input for council session 1 (`docs/plan/council/00-framing.md`: gates, calls, empty states).
 
@@ -18,12 +18,12 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 |---|---|
 | A | 53 |
 | B | 35 |
-| C (incl. one row graded C by one area and A by another) | 37 |
+| C (incl. one row graded C by one area and A by another) | 38 |
 | D | 17 |
 | X | 2 |
 | X? (provisional) | 2 |
 | none (tile not graded) | 1 |
-| **Total** | **147** |
+| **Total** | **148** |
 
 ## Rows
 
@@ -161,6 +161,7 @@ This is the input for council session 1 (`docs/plan/council/00-framing.md`: gate
 | S18.US.01 | S18 | US | Status, UCC, exclusions, revocations, court cases, PPP charge-off | C | see sections | derived; the US has no tax-debt or payment-default data | us |  |  |
 | M01.X.01 | M01 | - | Fed Z.1 via FRED (quarterly) | B | 1/3 series | API/CSV; licence verified Y; quarterly only, includes non-listed equity | markets |  |  |
 | M01.X.02 | M01 | - | S7 or S6 with user key | C | 3/3 series (estimated) | user key; licence verified Y; personal use; ETF proxies on S7, the I1 index paid on S6 | markets |  |  |
+| M01.X.03 | M01 | - | FRED's third-party US index series F1-F3 (keyless CSV) | C | 3/3 series | API/CSV; licence: the owners' copyright, personal use only (legal 7066891816); daily, 1-day lag; self-hosted only, connector cache | markets |  |  |
 | M02.X.01 | M02 | - | S7 with user key | C | 1/1 (estimated) | user key; licence verified Y; ETF proxy | markets |  |  |
 | M03.X.01 | M03 | - | E1 open API, FRED's Japan index series (I4), ECB FX | B | 2/7 series | API; licence verified Y; Taiwan history from first run; Japan self-hosted only | markets |  |  |
 | M03.X.02 | M03 | - | S7 with user key; E2 with key | C | 7/7 (estimated) | user key; licence verified Y; country ETFs in USD | markets |  |  |

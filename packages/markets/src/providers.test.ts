@@ -14,7 +14,7 @@ describe("the local provider file (H4; qa 7066883380)", () => {
   it("accepts a complete file with placeholder hosts", () => {
     const { providers, problems } = parseProviders(fixtureProvidersJson());
     expect(problems).toEqual([]);
-    expect(Object.keys(providers).sort()).toEqual(["c1", "c3", "fred-cited", "o3", "tw", "x4"]);
+    expect(Object.keys(providers).sort()).toEqual(["c1", "c3", "e1", "fred-cited", "o3", "x4"]);
   });
 
   const refusals: [string, (p: Json) => void][] = [
@@ -32,6 +32,8 @@ describe("the local provider file (H4; qa 7066883380)", () => {
     ["a missing licence", (p) => void delete x4(p).licence],
     ["a licence without a verified date", (p) => void ((x4(p).licence as Json).verifiedOn = "soon")],
     ["a cited series on an unknown row", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M09.X.01:macro", attribution: "a" }])],
+    ["a daily US row whose attribution doesn't state personal use (legal 7066891816)", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M01.X.03:us_large", attribution: "the owner's copyright, via the fixture provider" }])],
+    ["two cited series on one row", (p) => void ((p["fred-cited"] as Json).series = [{ id: "X", rowKey: "M03.X.01:japan", attribution: "a" }, { id: "Y", rowKey: "M03.X.01:japan", attribution: "b" }])],
   ];
   it.each(refusals)("refuses %s, and then configures nothing at all", (_name, mutate) => {
     const { providers, problems } = parseProviders(file(mutate));
@@ -46,12 +48,12 @@ describe("the local provider file (H4; qa 7066883380)", () => {
   });
 
   it("reports problems by path only, never echoing a value from the file", () => {
-    const secretHost = ["secret", "provider", "invalid"].join(".");
+    const secretHost = ["secret", "provider", "example"].join(".");
     const { problems } = parseProviders(file((p) => void (x4(p).hosts = [`https://${secretHost}`])));
     expect(problems.join(" ")).not.toContain(secretHost);
   });
 
   it("fills URL templates with encoded values", () => {
-    expect(fillUrl("https://h.invalid/a/{pair}/?s={start}", { pair: "btc usd", start: 5 })).toBe("https://h.invalid/a/btc%20usd/?s=5");
+    expect(fillUrl("https://h.example/a/{pair}/?s={start}", { pair: "btc usd", start: 5 })).toBe("https://h.example/a/btc%20usd/?s=5");
   });
 });

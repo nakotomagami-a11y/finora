@@ -32,7 +32,7 @@ describe("Crash monitor maths (loaders/markets.md §1.4)", () => {
 
   it("never shows 0% when the peak is not known: Taiwan tracks from its first run", () => {
     const obs = plantedSeries({ seed: 3, calendar: "weekdays", from: "2026-11-02", peak: 25000 });
-    const v = computeRow(row("M03.X.01:taiwan"), data([["tw:broad_index", { observations: obs, latest: null }]]), ctx());
+    const v = computeRow(row("M03.X.01:taiwan"), data([["e1:taiwan", { observations: obs, latest: null }]]), ctx());
     expect(v.state).toBe("peak_unknown");
     expect(v.trackingSince).toBe("2026-11-02");
     expect(v.drawdownPct).toBeUndefined();
@@ -42,8 +42,8 @@ describe("Crash monitor maths (loaders/markets.md §1.4)", () => {
 
   it("uses a cited seed as the peak and marks the basis as seeded", () => {
     const obs = plantedSeries({ seed: 3, calendar: "weekdays", from: "2026-11-02", peak: 25000 });
-    const seeds = [{ seriesKey: "tw:broad_index", date: "2025-06-30", value: 30000, citation: "fixture", licence: "ogdl-tw-1.0" }];
-    const v = computeRow(row("M03.X.01:taiwan"), data([["tw:broad_index", { observations: obs, latest: null }]]), ctx({ seeds }));
+    const seeds = [{ seriesKey: "e1:taiwan", date: "2025-06-30", value: 30000, citation: "fixture", licence: "ogdl-tw-1.0" }];
+    const v = computeRow(row("M03.X.01:taiwan"), data([["e1:taiwan", { observations: obs, latest: null }]]), ctx({ seeds }));
     expect(v.state).not.toBe("peak_unknown");
     expect(v.peak).toEqual({ value: 30000, date: "2025-06-30", basis: "seeded" });
   });

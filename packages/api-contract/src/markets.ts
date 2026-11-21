@@ -35,6 +35,8 @@ export const MarketRow = z
     cadence: z.enum(["quarterly", "monthly", "daily_exchange", "daily_7d", "live"]),
     delayed: z.boolean(),
     ticker: z.object({ total: z.number(), anchor: z.string(), perSecond: z.number() }).optional(),
+    /** The source's attribution line; for a coded provider it comes from the user's local provider file (H4). */
+    attribution: z.string().min(1).max(200).optional(),
     sources: z.array(SourceRef),
   })
   .strict()
@@ -43,7 +45,9 @@ export const MarketRow = z
   .refine((r) => r.state !== "peak_unknown" || r.drawdownPct === undefined, { message: "no drawdown without a known peak" })
   // A row whose provider is not configured (H4) shows no number, never 0% (qa 7066883380, condition 4).
   .refine((r) => r.state !== "not_configured" || (r.value === undefined && r.drawdownPct === undefined), { message: "no number for a provider that is not configured" })
-  .refine((r) => r.ticker === undefined || r.itemId === "M08.X.01", { message: "only the debt row carries a ticker" });
+  .refine((r) => r.ticker === undefined || r.itemId === "M08.X.01", { message: "only the debt row carries a ticker" })
+  // The daily US rows are lit for personal use only: a value is shown only with an attribution saying so (legal 7066891816, condition 1).
+  .refine((r) => r.itemId !== "M01.X.03" || r.value === undefined || /\bpersonal use\b/i.test(r.attribution ?? ""), { message: "a daily US row needs its personal-use attribution" });
 
 export const CrashResponse = z
   .object({

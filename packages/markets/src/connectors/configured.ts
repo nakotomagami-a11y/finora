@@ -1,6 +1,7 @@
 // Connectors whose provider is configured in the user's local provider file (providers.ts, human ruling
 // H4): crypto prices from an exchange (x4), the total crypto market from two aggregators (c1, c3),
-// bitcoin's block height from a public RPC (o3), and FRED's third-party index series (fred-cited).
+// bitcoin's block height from a public RPC (o3), FRED's third-party index series (fred-cited: Japan and,
+// for personal use only, the daily US rows) and the Taiwan exchange's open data (e1).
 // The parsers live here under codes; hosts, URLs, attribution and terms come from the file. Every
 // value is licensed for the user's own display only, so these sources store in connector-cache.db (R17),
 // except the block height, which is public chain data.
@@ -21,7 +22,7 @@ export const PROVIDER_SOURCE: Record<ProviderCode, string> = {
   c3: "crypto-c3-global",
   o3: "crypto-o3-btc-height",
   "fred-cited": "us-fred-cited",
-  tw: "tw-broad-index",
+  e1: "e1-taiwan",
 };
 
 function meta(id: string, e: ProviderEntry, over: Pick<MarketMeta, "storage" | "asOf" | "items"> & Partial<MarketMeta>): MarketMeta {
@@ -250,8 +251,9 @@ export const citedSeriesKey = (rowKey: string) => `fred-cited:${rowKey.split(":"
 
 function fredCited(e: ProviderEntry): MarketConnector {
   const series = e.series ?? [];
-  const items = ["M03.X.01"];
-  const map = [concept("observation_date", "market.date", "M03.X.01"), concept("<series id>", "market.value", "M03.X.01")];
+  const itemOf = (rowKey: string) => rowKey.split(":")[0] as string;
+  const items = [...new Set(series.map((s) => itemOf(s.rowKey)))].sort();
+  const map = items.flatMap((item) => [concept("observation_date", "market.date", item), concept("<series id>", "market.value", item)]);
   return {
     meta: meta("us-fred-cited", e, { storage: "connector-cache", asOf: ["max_date_in_data"], items, country: "us", maxPurgeShare: 0.02, purgeScope: "window" }),
     parserVersion: parserVersion("us-fred-cited", 2, map, items, { tiles: tilesOf("us-fred-cited"), series: series.map((s) => s.rowKey) }),
@@ -277,7 +279,7 @@ function fredCited(e: ProviderEntry): MarketConnector {
             }
             observations.push({ date: row.date, value: row.value });
           }
-          return { series: { seriesKey: citedSeriesKey(s.rowKey), itemId: "M03.X.01", unit: "index_points", frequency: "daily_exchange" }, observations };
+          return { series: { seriesKey: citedSeriesKey(s.rowKey), itemId: itemOf(s.rowKey), unit: "index_points", frequency: "daily_exchange" }, observations };
         }),
         dropped,
       };
@@ -286,7 +288,7 @@ function fredCited(e: ProviderEntry): MarketConnector {
 }
 
 
-// ---------------------------------------------------------------- tw: the Taiwan exchange's open-data broad index
+// ---------------------------------------------------------------- e1: the Taiwan exchange's open-data broad index
 
 /** The exchange's dates are ROC calendar, 7 digits YYYMMDD; the Gregorian year is YYY + 1911. */
 export function rocToIso(roc: string): string | null {
@@ -296,33 +298,33 @@ export function rocToIso(roc: string): string | null {
   return isoDay(iso) && new Date(`${iso}T00:00:00Z`).toISOString().slice(0, 10) === iso ? iso : null;
 }
 
-const twItems = ["M03.X.01"];
-const twMap = [concept("Date", "market.date", "M03.X.01"), concept("ClosingIndex", "market.value", "M03.X.01"), notRead("OpeningIndex"), notRead("HighestIndex"), notRead("LowestIndex")];
+const e1Items = ["M03.X.01"];
+const e1Map = [concept("Date", "market.date", "M03.X.01"), concept("ClosingIndex", "market.value", "M03.X.01"), notRead("OpeningIndex"), notRead("HighestIndex"), notRead("LowestIndex")];
 
-function twRows(raw: readonly RawArtifact[]): Record<string, unknown>[] {
+function e1Rows(raw: readonly RawArtifact[]): Record<string, unknown>[] {
   const body = jsonOf(artifact(raw, "month.json"));
-  if (!Array.isArray(body)) throw new SchemaChanged("tw: not an array");
+  if (!Array.isArray(body)) throw new SchemaChanged("e1: not an array");
   return body.filter(isRecord);
 }
 
 /** The month's daily closes (the open-data API has no backfill; history accumulates from the first run). */
-function tw(e: ProviderEntry): MarketConnector {
+function e1(e: ProviderEntry): MarketConnector {
   return {
     // Open government data: the entry's licence allows the main store only when it allows redistribution.
-    meta: meta("tw-broad-index", e, { storage: e.licence.redistribution && !e.licence.nonCommercial ? "store" : "connector-cache", asOf: ["max_date_in_data"], items: twItems, publishedAtUtc: "22:00" }),
-    parserVersion: parserVersion("tw-broad-index", 2, twMap, twItems, tilesOf("tw-broad-index")),
-    fieldMap: twMap,
+    meta: meta("e1-taiwan", e, { storage: e.licence.redistribution && !e.licence.nonCommercial ? "store" : "connector-cache", asOf: ["max_date_in_data"], items: e1Items, publishedAtUtc: "22:00" }),
+    parserVersion: parserVersion("e1-taiwan", 2, e1Map, e1Items, tilesOf("e1-taiwan")),
+    fieldMap: e1Map,
     fetchHosts: e.hosts,
     async fetch(ctx) {
       return [art(ctx, "month.json", await ctx.fetch(e.urls.month as string))];
     },
     asOf(raw) {
-      return { max_date_in_data: maxOf(twRows(raw).map((r) => rocToIso(String(r.Date ?? "")))) };
+      return { max_date_in_data: maxOf(e1Rows(raw).map((r) => rocToIso(String(r.Date ?? "")))) };
     },
     parse(raw) {
       const dropped: MarketParse["dropped"] = [];
       const observations: Observation[] = [];
-      for (const r of twRows(raw)) {
+      for (const r of e1Rows(raw)) {
         const date = rocToIso(String(r.Date ?? ""));
         const value = num(r.ClosingIndex);
         if (!date || value === null || value <= 0) {
@@ -331,12 +333,12 @@ function tw(e: ProviderEntry): MarketConnector {
         }
         observations.push({ date, value });
       }
-      return { series: [{ series: { seriesKey: "tw:broad_index", itemId: "M03.X.01", unit: "index_points", frequency: "daily_exchange" }, observations }], dropped };
+      return { series: [{ series: { seriesKey: "e1:taiwan", itemId: "M03.X.01", unit: "index_points", frequency: "daily_exchange" }, observations }], dropped };
     },
   };
 }
 
-const MAKERS: Record<ProviderCode, (e: ProviderEntry) => MarketConnector> = { x4, c1, c3, o3, "fred-cited": fredCited, tw };
+const MAKERS: Record<ProviderCode, (e: ProviderEntry) => MarketConnector> = { x4, c1, c3, o3, "fred-cited": fredCited, e1 };
 
 /** The connectors the provider file configures; a provider missing from the file has none. */
 export function configuredConnectors(providers: Providers): MarketConnector[] {

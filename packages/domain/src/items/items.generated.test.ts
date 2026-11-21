@@ -3,7 +3,7 @@ import { EMPTY_STATE_KEYS, ITEM_CAVEATS_EN, ITEMS } from "./items.generated.ts";
 
 describe("the generated item list (architecture §3.6)", () => {
   it("holds every Part G row once", () => {
-    expect(ITEMS).toHaveLength(155);
+    expect(ITEMS).toHaveLength(156);
     expect(new Set(ITEMS.map((item) => item.id)).size).toBe(ITEMS.length);
   });
 
@@ -11,7 +11,7 @@ describe("the generated item list (architecture §3.6)", () => {
     const count = (call: string) => ITEMS.filter((item) => item.call === call).length;
     expect({ show: count("show"), caveat: count("caveat"), later: count("later"), hide: count("hide") }).toEqual({
       show: 40,
-      caveat: 50,
+      caveat: 51,
       later: 60,
       hide: 5,
     });

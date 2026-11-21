@@ -118,7 +118,7 @@ Tiles use the IDs in `docs/research/README.md`. "Peak" is the highest daily clos
 - Tested with: `official.py` probe `ecb_fx`.
 - Verdict: **use** for FX conversion of M03 and M04.
 
-#### Taiwan exchange open-data API (provider code `tw`)
+#### Taiwan exchange open-data API (provider code `e1`)
 - Access: JSON, no key, 143 endpoints. The host lives in the private notes and the local provider file (H4).
 - Fields: `/exchangeReport/MI_INDEX`: date (ROC calendar), index name, closing level, direction, points change, % change; 267 indices per day, the broad index included. `/indicesReport/MI_5MINS_HIST`: broad-index daily OHLC, **current month only** (14 rows on 2026-11-19).
 - Freshness: latest trading day (2026-11-18 seen on 2026-11-19 UTC, before the next close).
@@ -275,7 +275,7 @@ Target refresh: crypto every 5 min, stocks hourly while their market is open, of
 | Treasury debt | 1 | 2 | 2 | none documented | yes |
 | FRED CSV (oil 2, FX 6, M09 2) | 10 | 1 | 10 | none documented (API: 120/min) | yes |
 | ECB FX | 1 | 1 | 1 | none documented | yes |
-| tw | 2 | 1 | 2 | none documented | yes |
+| e1 | 2 | 1 | 2 | none documented | yes |
 | O3 RPC (height + 3 oracle reads) | 4 | 288 | 1,152 | unpublished; 429 when exceeded | probably; back off on 429 |
 | X4 daily candles (bitcoin, ether) | 2 | 24 | 48 | 10,000 per 10 min | yes |
 | C1 global (keyless or demo key) | 1 | 288 | 288 (8,640/month) | demo key 10k/month | yes, with ~14% headroom |
@@ -291,7 +291,7 @@ Target refresh: crypto every 5 min, stocks hourly while their market is open, of
 |---|---|---|---|---|---|---|
 | M01 | Z.1 `BOGZ1LM893064105Q`; user key: ETF or index symbols | quarterly (~10 weeks after quarter end); with key: end of day or hourly | Z.1 yes; S7 yes (30 years); S6 yes (2 years) | Z.1 yes; key data: user's local store only, deleted on key removal | "Board of Governors of the Federal Reserve System, via FRED"; provider line | quarterly total US equity value |
 | M02 | user key only | end of day | with key yes | local only | provider line | "Add your key" state |
-| M03 | the Taiwan exchange's broad index (tw); FRED F5; the Korean exchange with a key | daily (same or next day) | Japan yes; Taiwan **no** (current month only); Korea from 2010 with key | Taiwan yes (OGDL); FRED Japan series: local only, no redistribution | the Taiwan exchange's open-data line; the index owner's citation via FRED; ECB for FX | Taiwan and Japan |
+| M03 | the Taiwan exchange's broad index (e1); FRED F5; the Korean exchange with a key | daily (same or next day) | Japan yes; Taiwan **no** (current month only); Korea from 2010 with key | Taiwan yes (OGDL); FRED Japan series: local only, no redistribution | the Taiwan exchange's open-data line; the index owner's citation via FRED; ECB for FX | Taiwan and Japan |
 | M04 | user key only | end of day | with key yes | local only | provider line | "Add your key" state |
 | M05 | World Bank Pink Sheet gold; oracle XAU/USD; user key | monthly; oracle ~hourly | World Bank yes (from 1960) | World Bank yes (CC BY) | "World Bank Commodity Price Data (CC BY 4.0)" | last month-end drawdown |
 | M06 | block height; oracle BTC/USD, ETH/USD; X4 `btcusd`, `ethusd`; C1 global; C3 global | minutes; oracle up to ~1 h | X4 yes (pages back); oracle per round only | X4 derived values yes; C1 refresh within 24 h; C3 personal only | X4 none required; C1 "Powered by" line; C3 attribution | bitcoin and ether price, drawdown, cap; total market |
@@ -337,7 +337,7 @@ Each value carries its own as-of date (observation date, or block time for on-ch
 | M01 | - | Fed Z.1 via FRED (quarterly) | B | 1/3 series | API/CSV; licence verified Y; quarterly only, includes non-listed equity |
 | M01 | - | S7 or S6 with user key | C | 3/3 series (estimated) | user key; licence verified Y; personal use; ETF proxies on S7, the large-cap index paid on S6 |
 | M02 | - | S7 with user key | C | 1/1 (estimated) | user key; licence verified Y; ETF proxy |
-| M03 | - | Taiwan exchange open data (tw), FRED F5, ECB FX | B | 2/7 series | API; licence verified Y; Taiwan history from first run; Japan self-hosted only |
+| M03 | - | Taiwan exchange open data (e1), FRED F5, ECB FX | B | 2/7 series | API; licence verified Y; Taiwan history from first run; Japan self-hosted only |
 | M03 | - | S7 with user key; the Korean exchange with a key | C | 7/7 (estimated) | user key; licence verified Y; country ETFs in USD |
 | M04 | - | S7 with user key | C | 2/2 (estimated) | user key; licence verified Y; ETF proxies |
 | M05 | - | World Bank Pink Sheet | B | 1/1 | bulk XLSX; licence verified Y; monthly only |

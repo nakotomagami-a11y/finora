@@ -2,7 +2,7 @@ import { ITEMS } from "@finora/domain";
 import { describe, expect, it } from "vitest";
 import { marketConnectors } from "./connectors/index.ts";
 import { fixtureProviders } from "./fixtures/fake-fetch.ts";
-import { OFF_BY_H5, TILE_ROWS } from "./tiles.ts";
+import { TILE_ROWS } from "./tiles.ts";
 
 const MARKET_CONNECTORS = marketConnectors(fixtureProviders());
 
@@ -10,9 +10,8 @@ const marketItems = ITEMS.filter((i) => i.section.startsWith("M"));
 
 describe("Crash monitor items (Part G, one case per M item)", () => {
   for (const item of marketItems) {
-    const loadable = (item.call === "show" || item.call === "caveat") && !OFF_BY_H5.includes(item.id);
-    const why = OFF_BY_H5.includes(item.id) ? "switched off by H5 (no keys)" : item.call;
-    it(`${item.id} (${why}) ${loadable ? "has a tile row and a connector" : "has no tile row and no connector"}`, () => {
+    const loadable = item.call === "show" || item.call === "caveat";
+    it(`${item.id} (${item.call}) ${loadable ? "has a tile row and a connector" : "has no tile row and no connector"}`, () => {
       const rows = TILE_ROWS.filter((r) => r.itemId === item.id);
       const connectors = MARKET_CONNECTORS.filter((c) => c.meta.items.includes(item.id));
       if (loadable) {

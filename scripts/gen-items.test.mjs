@@ -8,13 +8,13 @@ import { EMPTY_STATE_KEYS, emptyStateKeys, parsePartG, render } from "./gen-item
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const partG = readFileSync(join(ROOT, "docs/plan/council/01-data.md"), "utf8");
 
-test("Part G gives 155 items with the council's counts", () => {
+test("Part G gives 156 items with the council's counts", () => {
   const items = parsePartG(partG);
-  assert.equal(items.length, 155);
+  assert.equal(items.length, 156);
   const count = (call) => items.filter((i) => i.call === call).length;
   assert.deepEqual(
     { show: count("show"), caveat: count("caveat"), later: count("later"), hide: count("hide") },
-    { show: 40, caveat: 50, later: 60, hide: 5 },
+    { show: 40, caveat: 51, later: 60, hide: 5 },
   );
 });
 

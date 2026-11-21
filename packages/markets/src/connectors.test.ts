@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { connector, marketConnectors, ProviderRefused, quarterEnd, rocToIso, SchemaChanged, updatedOn } from "./connectors/index.ts";
 import { fixtureProviders } from "./fixtures/fake-fetch.ts";
-import { c1Layout, c3Layout, fredLayout, o3Layout, treasuryLayout, twLayout, worldBankLayout, x4Layout } from "./fixtures/layouts.ts";
+import { c1Layout, c3Layout, fredLayout, o3Layout, treasuryLayout, e1Layout, worldBankLayout, x4Layout } from "./fixtures/layouts.ts";
 import { FIXTURE_TODAY } from "./fixtures/series.ts";
 import type { FetchContext, MarketConnector, RawArtifact } from "./types.ts";
 
@@ -67,10 +67,10 @@ describe("official sources parse their measured layouts", () => {
     expect(() => c.parse(raw("DCOILBRENTEU.csv", "<html>"), parseCtx)).toThrow(SchemaChanged);
   });
 
-  it("tw: ROC dates and thousands separators", () => {
+  it("e1: ROC dates and thousands separators", () => {
     expect(rocToIso("1151118")).toBe("2026-11-18");
     expect(rocToIso("1151340")).toBeNull();
-    const obs = get("tw-broad-index").parse(twLayout(), parseCtx).series[0]?.observations ?? [];
+    const obs = get("e1-taiwan").parse(e1Layout(), parseCtx).series[0]?.observations ?? [];
     expect(obs.at(-1)?.date).toBe(FIXTURE_TODAY);
     expect(obs.every((o) => o.value > 1000)).toBe(true);
   });

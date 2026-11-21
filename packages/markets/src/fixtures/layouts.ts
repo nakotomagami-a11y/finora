@@ -27,7 +27,7 @@ export function fredLayout(ids: readonly string[], seed = 2): RawArtifact[] {
   });
 }
 
-export function twLayout(seed = 3): RawArtifact[] {
+export function e1Layout(seed = 3): RawArtifact[] {
   const s = plantedSeries({ seed, calendar: "weekdays", from: "2026-11-01", peak: 25000 });
   const roc = (d: string) => `${Number(d.slice(0, 4)) - 1911}${d.slice(5, 7)}${d.slice(8, 10)}`;
   const fmt = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

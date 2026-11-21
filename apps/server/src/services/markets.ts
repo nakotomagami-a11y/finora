@@ -59,6 +59,8 @@ function getProviders(): Providers {
     const loaded = loadProviders(env.FINORA_PROVIDERS_FILE ?? join(getDataDir(), "providers.json"));
     providers = loaded.providers;
     providerProblems = loaded.problems;
+    // A count only: the problems name paths, and the file itself is never logged (architect 7067106700).
+    if (loaded.problems.length) console.warn(`markets: provider file refused (${loaded.problems.length} problems); its rows read not configured`);
   }
   return providers;
 }
@@ -96,11 +98,11 @@ export function startMarkets(): void {
   stopJobs = startMarketJobs({ store: s, now: () => new Date().toISOString(), settings: () => settingsOf(s), providers: p, userAgent: `Finora/${pkg.version} (+${env.FINORA_SOURCE_URL})` });
 }
 
-export function getCrash(now?: string, given?: Store): CrashResponse {
+export function getCrash(opts: { now?: string; store?: Store; fetchSite?: string | null } = {}): CrashResponse {
   startMarkets();
-  const s = given ?? getStore();
-  const at = now ?? (getEnv().FINORA_DEMO === "1" ? FIXTURE_NOW : new Date().toISOString());
-  markClientPoll(at);
+  const s = opts.store ?? getStore();
+  const at = opts.now ?? (getEnv().FINORA_DEMO === "1" ? FIXTURE_NOW : new Date().toISOString());
+  markClientPoll(at, opts.fetchSite ?? null);
   const view = buildCrashView(s, { settings: settingsOf(s), providers: getProviders(), now: at });
   return CrashResponse.parse(view);
 }

@@ -15,7 +15,7 @@ export const JOBS: readonly Job[] = [
       { sourceId: "us-treasury-debt", mode: "daily" },
       { sourceId: "us-fred-open", mode: "daily" },
       { sourceId: "us-fred-cited", mode: "daily" },
-      { sourceId: "tw-broad-index", mode: "daily" },
+      { sourceId: "e1-taiwan", mode: "daily" },
     ],
     rule: { kind: "slots", utc: ["01:00", "07:00", "13:00", "19:00"] },
   },

@@ -3,7 +3,7 @@ export { computeRow, isStale, LATEST_MAX_AGE_MS, SUPPLY_MAX_AGE_DAYS, totalWiped
 export { debtTicker, tickerValue, type DebtTicker } from "./debt.ts";
 export { btcSupply } from "./btc-supply.ts";
 export { addDays, PEAK_SINCE_DEFAULT, readMarketSettings, settingKey, windowStart, type MarketSettings } from "./settings.ts";
-export { OFF_BY_H5, seriesKeysOf, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, type TileId, type TileRow } from "./tiles.ts";
+export { seriesKeysOf, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, type TileId, type TileRow } from "./tiles.ts";
 export { CONNECTED_GRACE_MS, dueJobs, FREE_LIMITS, JOBS, newYorkToUtc, requestsPerRun, type Job, type JobId, type JobRun } from "./schedule.ts";
 export { SEEDS } from "./seeds.ts";
 export { fillUrl, parseProviders, PROVIDER_URLS, PROVIDERS_MAX_BYTES, type ProviderCode, type ProviderEntry, type Providers } from "./providers.ts";
