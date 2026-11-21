@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01 and S04a **accepted**; S02 and S03 fixes in `e401c22` (re-checks by qa, web-qa, security pending; S03 baselines to come); S04i `4ee5b41` landed, not accepted: qa M1-M5, security SEC-1..3 and cto's lease fencing open; legal accepted with conditions; S04f next | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01 and S04a **accepted**; S02 `e401c22`: qa, security and legal closed, web-qa pending; S03 `e401c22`: designer signed off, qa closed except the baselines commit, web-qa pending; S04i `4ee5b41` landed, not accepted: qa M1-M5, security SEC-1..3 and cto's lease fencing open; legal accepted with conditions; S04f next | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
