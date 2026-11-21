@@ -502,13 +502,13 @@ Legal 7067048486 and 7067060813 (P8: no model may read search snippets before Fi
 
 | Row | Now (v1) |
 |---|---|
-| S15.LT.01, S15.LV.02, S15.EE.02, S15.US.01 | CAVEAT "Checked from a known domain only; no web search in this version". A known domain is the one the user typed, one the register lists (the EE website field; LV and EE applicant or winner sites where loaded), or one Finora verified (below). Read through `cite_page` with the full filter: DNS, certificates, the homepage, US RDAP and the .lt registry date |
+| S15.LT.01, S15.LV.02, S15.EE.02, S15.US.01 | CAVEAT "Checked from a known domain only; no web search in this version". A known domain is the one the user typed, one the register lists (the EE website field; LV and EE applicant or winner sites where loaded). (A domain verified by Finora's own discovery was proposed but is LATER, below.) Read through `cite_page` with the full filter: DNS, certificates, the homepage, US RDAP and the .lt registry date |
 | S16.ALL.01 | CAVEAT "Mentions the name; not confirmed" unless tied to the code or domain, from the keyless news source read only through `cite_page`; "Checked from a known domain only; no web search in this version" |
 | General web search | **not in v1.** It would need a search API Finora calls itself and filters before any model reads it, which needs a key (an exception to H5, the human's call; legal would read its terms first). The council's default is no exception |
 
 **Mitigations** (council; gated as shown):
 1. The Investigate sheet's optional field is relabelled "Company website or the domain on the offer", helper "The web check needs a domain; without one it can't run" (designer, frontend; gates S11).
-2. Check 11 runs on a known domain only. With none, the coverage line reads "Web check: not run, no website known (add one to check it)", never "none found"; the coverage line reads "Web check: run on a domain you gave / the register lists / Finora verified", or "not run, no website known" (council 7067084394) (data-osint; gates S10).
+2. Check 11 runs on a known domain only. With none, the coverage line reads "Web check: not run, no website known (add one to check it)", never "none found"; the coverage line reads "Web check: run on a domain you gave / the register lists", or "not run, no website known" (council 7067084394; the "Finora verified" case is dropped with discovery LATER, council 7070598246) (data-osint; gates S10).
 3. The web lane shows its real tasks (domain, certificates, homepage, news); the other lanes keep their registry, list and court tasks.
 4. No change to the "Not enough data" threshold: Baltic investigations still reach 6 or more checks from the instant checks.
 
