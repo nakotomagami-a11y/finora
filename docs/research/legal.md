@@ -29,7 +29,7 @@
 
 - **Baltic DPAs.** Lithuania (VDAI): no position on register republication found. **Gap.** Latvia (DVI): only the secondary summary above. Estonia (AKI): no guidance found beyond the single letter above. **Gap, LAWYER.**
 - **Legitimate interest.** The controller must state the specific interest. Data subjects can object (Art 21). Lithuanian practice is described only in secondary law-firm newsletters (April and August 2025).
-- **Transparency (Art 14).** A controller must disclose the source, including whether it is publicly accessible. Art 14(5)(b) lets controllers skip notice for disproportionate effort only with appropriate safeguards. [gdpr-info.eu, Art 14](https://gdpr-info.eu/art-14-gdpr/)
+- **Transparency (Art 14).** A controller must disclose the source, including whether it is publicly accessible. Art 14(5)(b) lets controllers skip notice for disproportionate effort only with appropriate safeguards. [Regulation (EU) 2016/679 (GDPR), Art 14, EUR-Lex](https://eur-lex.europa.eu/eli/reg/2016/679/oj)
 - **Retention.** C-398/15 gives no fixed cut-off. Our retention must be set case by case. **LAWYER.**
 - **Data subject rights.** No general erasure right for register data (C-398/15). Objection and access rights were not verified in this round. **LAWYER.**
 - **Latvian scope.** The ruling concerns shareholders. Whether board and officer data stays public was **not found**. **LAWYER.**
