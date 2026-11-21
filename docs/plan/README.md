@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01 **accepted** (`b6b7b08`; qa: no MUST-FIX, 4 SHOULD-FIX before S04a; `reviews/slices/S01.md`); S02 landed `ea57ec5` (security review: 1 MUST-FIX, `reviews/slices/S02.md`); S04a landed `c4c77ec` (qa review pending); S03 (frontend) and S04i (architect) in progress | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01 accepted (fixes `8a46ba6`); S02 `ea57ec5` waiting on frontend's SEC-1/Q-1 fix; S03 `52efbcc` landed (e2e red, review pending); S04a fixes `e4deb70` (qa to verify); S04i in progress | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
