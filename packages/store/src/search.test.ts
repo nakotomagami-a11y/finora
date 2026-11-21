@@ -11,7 +11,7 @@ beforeAll(() => {
   const sync = contentSync(db, "lv-register", "2026-11-01T00:00:00.000Z");
   const put = (entity: EntityInput) =>
     writeRecord(db, { syncId: sync, sourceId: "lv-register", recordKey: entity.eid, hashInput: [JSON.stringify(entity)], entities: [entity] });
-  put(company("lv-00000000001", "Ābeļu Dārzs SIA"));
+  put(company("lv-00000000001", "Ābeļu Dārzs Paraugs SIA"));
   put(company("lv-00000000002", "Fixture Timber Works SIA"));
   put(company("lv-00000000003", "Example Trading SIA"));
   put(company("lv-00000000004", "Example Logistics SIA"));
@@ -51,7 +51,7 @@ describe("company search", () => {
 
   it("finds a diacritic name by its ASCII form", () => {
     const [hit] = searchCompanies(db, "abelu darzs");
-    expect(hit).toMatchObject({ eid: "lv-00000000001", caption: "Ābeļu Dārzs SIA", match: "prefix" });
+    expect(hit).toMatchObject({ eid: "lv-00000000001", caption: "Ābeļu Dārzs Paraugs SIA", match: "prefix" });
   });
 
   it("finds a name by a substring inside a word", () => {

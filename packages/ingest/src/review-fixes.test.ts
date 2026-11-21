@@ -364,7 +364,7 @@ describe("qa S8, S9: explicit deletes and person fields", () => {
 describe("SEC-4, qa S4, S5: live-cache views", () => {
   const principals = (names: string[]) => [
     { recordKey: "r1", hashInput: names, entities: [{ eid: "us-ct-FX0001", schema: "Company" as const, country: "us", legalForm: "us-llc", code: "FX0001", statements: [{ prop: "name", value: "Example Holdings LLC", itemId: "S01.US.02" }] }] },
-    { recordKey: "r2", hashInput: ["second"], entities: [{ eid: "us-ct-FX0002", schema: "Company" as const, country: "us", legalForm: "us-llc", code: "FX0002", statements: [{ prop: "name", value: "Second Holdings LLC", itemId: "S01.US.02" }] }] },
+    { recordKey: "r2", hashInput: ["second"], entities: [{ eid: "us-ct-FX0002", schema: "Company" as const, country: "us", legalForm: "us-llc", code: "FX0002", statements: [{ prop: "name", value: "Second Example Holdings LLC", itemId: "S01.US.02" }] }] },
   ];
   function source(delayMs: number) {
     const base = fakeSource({ id: "us-ct-business", country: "us", storage: "live-cached", items: ["S01.US.02"] });

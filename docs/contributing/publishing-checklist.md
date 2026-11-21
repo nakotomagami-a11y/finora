@@ -25,6 +25,15 @@ The hooks run `scripts/guard/guard.mjs` on staged changes (pre-commit), the comm
 
 Data sources we integrate (public registries, official APIs) may be named where the code or docs need them.
 
+The guard blocks names already on the private denylist. To find the ones nobody has listed yet, run the discovery sweep over your change before review (H4, C15):
+
+```
+node scripts/check-outside-names.mjs range <base> <head>    # a slice's commits
+node scripts/check-outside-names.mjs tree                   # a full audit
+```
+
+It prints `file:line  class` (host, org, ticker, id, brand, binary) and a counts-only summary line, never the matched text. Resolve each hit by giving it a coded alias, removing it, or, for a public body, official registry, open standard, tool, licence, official field name or a plainly fictional test name, listing it in the private allowlist `.local/outside-names-allow.txt` as `<category> <host or phrase>`. It exits 1 while any hit is unresolved.
+
 ## 4. No personal or machine data
 
 - [ ] No emails, phone numbers, personal codes or ID numbers, home addresses, or birth dates.

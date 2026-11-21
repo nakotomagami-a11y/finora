@@ -10,7 +10,7 @@ writeRecord(store.db, {
   syncId,
   sourceId: "demo-register",
   recordKey: "lv-00000000001",
-  hashInput: ["lv-00000000001", "Ābeļu Dārzs SIA"],
+  hashInput: ["lv-00000000001", "Ābeļu Dārzs Paraugs SIA"],
   entities: [
     {
       eid: "lv-00000000001",
@@ -18,7 +18,7 @@ writeRecord(store.db, {
       country: "lv",
       legalForm: "lv-sia",
       code: "00000000001",
-      statements: [{ prop: "name", value: "Ābeļu Dārzs SIA", itemId: "S01.LV.01" }],
+      statements: [{ prop: "name", value: "Ābeļu Dārzs Paraugs SIA", itemId: "S01.LV.01" }],
     },
   ],
 });

@@ -25,7 +25,7 @@ function loadRegister(store: Store): void {
     sourceId: "ee-register",
     recordKey: EID,
     hashInput: [EID],
-    entities: [company("ee-00000009", "Filler OÜ", { legalForm: "ee-ou" }), company(EID, "Example Holding OÜ", { legalForm: "ee-ou" })],
+    entities: [company("ee-00000009", "Filler Example OÜ", { legalForm: "ee-ou" }), company(EID, "Example Holding OÜ", { legalForm: "ee-ou" })],
   });
 }
 

@@ -93,7 +93,7 @@ describe("writeRecord", () => {
     expect([count(db, "main.records"), count(db, "main.entities"), count(db, "main.statements")]).toEqual([0, 0, 0]);
 
     transaction(db, () => {
-      writeRecord(db, { ...input, recordKey: "good", entities: [company("lv-00000000002", "Good SIA")] });
+      writeRecord(db, { ...input, recordKey: "good", entities: [company("lv-00000000002", "Good Example SIA")] });
       expect(() => writeRecord(db, input)).toThrow();
     });
     expect([count(db, "main.records"), count(db, "main.entities")]).toEqual([1, 1]);

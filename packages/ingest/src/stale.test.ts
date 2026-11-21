@@ -7,10 +7,10 @@ describe("a stale file is skipped", () => {
     const db = memoryDb();
     const loader = fakeSource({}, { records: companies(1, 5), asOf: { in_file_field: "2026-11-10" } });
     await sync(db, loader);
-    loader.state.records = [companyRecord(1, { name: "Older Name SIA" })];
+    loader.state.records = [companyRecord(1, { name: "Older Example Name SIA" })];
     loader.state.asOf = { in_file_field: "2026-11-09" };
     expect((await sync(db, loader)).kind).toBe("stale_skipped");
-    expect(count(db, "SELECT COUNT(*) AS n FROM main.statements WHERE value = 'Older Name SIA'")).toBe(0);
+    expect(count(db, "SELECT COUNT(*) AS n FROM main.statements WHERE value = 'Older Example Name SIA'")).toBe(0);
     expect(count(db, "SELECT COUNT(*) AS n FROM main.records")).toBe(5);
   });
 
