@@ -26,7 +26,7 @@
     z1: src("Federal Reserve Z.1, via FRED", "FRED Z.1", "Public domain; cite the Board of Governors", "Q2 2026", { cadence: "quarterly" }),
     usDaily: src("US index series F1-F3, via FRED (index owner named in your local provider file)", "FRED F1-F3", "Personal use only; the index owner's copyright; 1-day lag", "18 Nov", { cadence: "daily", tier: "fetched by this machine, kept on this machine only" }),
     jp: src("Japan broad index, cited series F5, via FRED", "FRED F5", "Citation required; kept on this machine only", "19 Nov", { cadence: "daily", tier: "fetched by this machine, kept on this machine only" }),
-    tw: src("Taiwan exchange, official open data", "Taiwan exchange", "Open Government Data Licence", "19 Nov", { cadence: "daily" }),
+    tw: src("Taiwan exchange E1, official open data", "exchange E1", "Open Government Data Licence", "19 Nov", { cadence: "daily" }),
     wb: src("World Bank Commodity Price Data (Pink Sheet)", "World Bank", "CC BY 4.0", "Oct 2026", { cadence: "monthly" }),
     chain: src("Public node: block height and computed supply; exchange candles (X4)", "on-chain + X4", "Self-hosted, personal use", stale ? "07:40" : "09:55", { cadence: "5-minute" }),
     agg: src("Crypto market data, provider C1 (keyless)", "C1", "Personal use; attribution; values older than 24 h are dropped", stale ? "07:40" : "09:55", { cadence: "15-minute" }),
@@ -97,7 +97,7 @@
         ${banner}
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch"><div style="flex:2 1 520px;min-width:0">${state === "loading" ? `<section class="card" style="padding:20px"><span class="sk" style="width:30%;height:20px"></span>${Array.from({ length: 6 }, () => '<span class="sk" style="margin-top:14px"></span>').join("")}</section>` : ddStrip()}</div>${debt()}</div>
         ${tiles()}
-        <section class="small muted" style="display:flex;flex-direction:column;gap:4px"><strong class="ink2">How it's calculated</strong><span>Drawdown = latest close ÷ highest daily close since 1 Jan 2025 − 1. Every series is fetched by this machine without a key; the personal-use series stay on this machine and are never exported or shared.</span><span>Sources: Board of Governors of the Federal Reserve System, via FRED · World Bank Commodity Price Data (CC BY 4.0) · U.S. Energy Information Administration · U.S. Treasury, Fiscal Data · Taiwan exchange open data · providers C1 and X4 (named in your local provider file).</span></section>
+        <section class="small muted" style="display:flex;flex-direction:column;gap:4px"><strong class="ink2">How it's calculated</strong><span>Drawdown = latest close ÷ highest daily close since 1 Jan 2025 − 1. Every series is fetched by this machine without a key; the personal-use series stay on this machine and are never exported or shared.</span><span>Sources: Board of Governors of the Federal Reserve System, via FRED · World Bank Commodity Price Data (CC BY 4.0) · U.S. Energy Information Administration · U.S. Treasury, Fiscal Data · exchange E1 open data (Taiwan) · providers C1 and X4 (named in your local provider file).</span></section>
       </div>
     </div>`;
   }

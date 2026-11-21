@@ -43,7 +43,7 @@
     // Agent sources (web)
     webHome: { kind: "web", name: "The company's own website, homepage", short: "web · paraugs-timber.example", licence: "Quoted up to 300 characters, with a link; not stored", asOf: "20 Nov", tier: "display only", retrieved: "20 Nov 2026, 09:42", by: "the web, domain and news agent", quote: "Kiln-dried construction timber from our sawmill near Rīga since 2014.", url: true },
     webCt: { kind: "web", name: "Certificate transparency logs", short: "web · certificate logs", licence: "Public logs", asOf: "20 Nov", tier: "query time", retrieved: "20 Nov 2026, 09:42", by: "the web, domain and news agent" },
-    news: { kind: "web", name: "Open news index N1 (titles and links)", short: "web · news index", licence: "Citation and link to the index", asOf: "20 Nov", tier: "display only", retrieved: "20 Nov 2026, 09:43", by: "the web, domain and news agent", quote: "Regional sawmill expands drying capacity", url: true },
+    news: { kind: "web", name: "News dataset P4 (titles and links, read through Finora's page filter)", short: "web · news P4", licence: "Citation and link to the dataset", asOf: "20 Nov", tier: "display only", retrieved: "20 Nov 2026, 09:43", by: "the web, domain and news agent", quote: "Regional sawmill expands drying capacity", url: true },
     court: { kind: "web", name: "Court rulings portal (anonymised rulings)", short: "web · court portal", licence: "Official publication, cited at query time", asOf: "20 Nov", tier: "query time", retrieved: "20 Nov 2026, 09:41", by: "the legal, insolvency and sanctions agent", url: true },
   };
 
@@ -67,7 +67,7 @@
       ["Insolvency, liquidation, pledges, securing measures", "soft", "1 open securing measure since 2 Oct 2026"],
       ["Sanctions and watchlists", "ok", "5 lists checked, none found"],
       ["Court cases", "notrun", "Check manually at the official court-decision portal"],
-      ["Web presence consistent with the register", "ok", "Website names the same registration number"],
+      ["Web presence consistent with the register", "ok", "Web check run on the domain the register lists: it names the same registration number"],
     ],
   };
 
@@ -88,7 +88,7 @@
       ["Insolvency, liquidation, pledges, securing measures", "soft", "1 commercial pledge registered 2024"],
       ["Sanctions and watchlists", "ok", "5 lists checked, none found"],
       ["Court cases", "notrun", "Check manually at the official court-decision portal"],
-      ["Web presence consistent with the register", "ok", "Website matches the register's website field"],
+      ["Web presence consistent with the register", "ok", "Web check run on the domain the register lists: it matches the register's website field"],
     ],
   };
 
@@ -109,7 +109,7 @@
       ["Insolvency, liquidation, pledges, securing measures", "stale", "Bankruptcy reports published up to Oct 2025, older than their usual cycle"],
       ["Sanctions and watchlists", "ok", "6 lists checked, none found"],
       ["Court cases", "notrun", "Check manually at the official court-decision portal"],
-      ["Web presence consistent with the register", "ok", "Website names the same company code"],
+      ["Web presence consistent with the register", "notrun", "Web check: not run, no website known (add one to check it)"],
     ],
   };
 
@@ -130,7 +130,7 @@
       ["Insolvency, liquidation, pledges, securing measures", "ok", "UCC filings in Colorado: none found"],
       ["Sanctions and watchlists", "ok", "OFAC and 3 more lists: none found; federal exclusions are a manual lookup"],
       ["Court cases", "ok", "Legal agent: no federal case found"],
-      ["Web presence consistent with the register", "ok", "Domain created 2019, same year as the registration"],
+      ["Web presence consistent with the register", "ok", "Web check run on a domain Finora verified (its homepage states the entity ID): created 2019, the year of registration"],
     ],
   };
 
@@ -151,7 +151,7 @@
       ["Insolvency, liquidation, pledges, securing measures", "ok", "No bankruptcy filing in EDGAR"],
       ["Sanctions and watchlists", "ok", "OFAC and 4 more lists: none found"],
       ["Court cases", "ok", "Legal agent: 1 federal civil case matches the name only (a fact, not a flag)"],
-      ["Web presence consistent with the register", "ok", "Investor site links to the same CIK"],
+      ["Web presence consistent with the register", "ok", "Web check run on the domain the SEC filings list: it links to the same CIK"],
     ],
   };
 

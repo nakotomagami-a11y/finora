@@ -32,9 +32,11 @@
         : cli === "missing" ? `<span class="row-main">Not found</span><span class="small muted">Install Claude Code, then run <span class="mono">claude</span> once in a terminal and sign in. Company profiles and Crash monitor work without it.</span>`
         : `<span class="row-main">Found, not signed in</span><span class="small muted">Run <span class="mono">claude</span> in a terminal and sign in, then press Check again.</span>`}
       </span><span class="row-end">${cli === "ready" ? pill("good", "Ready") : pill("bad", cli === "missing" ? "Not found" : "Not signed in")}<button class="btn btn-sm" type="button">Check again</button></span></div>`;
+    const backendRow = `<div class="row"><span class="row-label">Agent investigations</span><span class="row-value"><span class="row-main">${cli === "ready" ? "On" : "Off"} · <span class="mono">FINORA_AGENT_BACKEND=${cli === "ready" ? "cli" : "off"}</span></span><span class="small muted">Off by default. When off, company profiles, the official checks and Crash monitor still work; Investigate explains how to turn agents on.</span></span><span class="row-end">${cli === "ready" ? pill("good", "On") : pill("off", "Off")}</span></div>`;
     const connections = `<section class="section" aria-labelledby="k-h"><div class="section-head"><h2 id="k-h">Connections</h2></div>
       <p class="small muted" style="margin-bottom:8px">Finora needs no API keys. Everything below stays on this machine.</p>
       <div class="rows">
+        ${backendRow}
         ${cliRow}
         <div class="row"><span class="row-label">SEC contact</span><span class="row-value"><span class="row-main mono">SEC_USER_AGENT</span><span class="small muted">A contact string the SEC asks every client to send. Optional; it unlocks US public companies: filings, officers, financials, insider trades.</span></span><span class="row-end">${state === "cli-missing" ? pill("off", "Not set") : pill("good", "Set")}</span></div>
       </div></section>`;
