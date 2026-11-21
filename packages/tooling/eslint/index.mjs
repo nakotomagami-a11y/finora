@@ -14,6 +14,14 @@ export const finoraPlugin = {
 const BARE_BUILTINS = builtinModules.filter((name) => !name.startsWith("_") && !name.startsWith("node:"));
 const ENV_MESSAGE = "Read the environment through apps/server/src/env.ts, validated once at boot (architecture §2).";
 
+// The forms no-restricted-properties cannot see (qa S01 #4).
+const ENV_SYNTAX = [
+  { selector: "MemberExpression[object.name='process'][computed=true]", message: ENV_MESSAGE },
+  { selector: "VariableDeclarator[init.name='process'] > ObjectPattern", message: ENV_MESSAGE },
+  { selector: "AssignmentExpression[right.name='process'] > ObjectPattern", message: ENV_MESSAGE },
+  { selector: "ImportDeclaration[source.value=/^(node:)?process$/] > ImportSpecifier[imported.name='env']", message: ENV_MESSAGE },
+];
+
 export function finoraConfig() {
   return defineConfig(
     {
@@ -55,8 +63,7 @@ export function finoraConfig() {
     },
     {
       files: ["apps/**/*.{ts,tsx}", "packages/**/*.{ts,tsx}"],
-      // instrumentation.ts reads NEXT_RUNTIME, which Next.js inlines only as a literal `process.env.NEXT_RUNTIME`.
-      ignores: ["**/env.ts", "apps/web/src/instrumentation.ts", "**/*.test.{ts,tsx}", "packages/tooling/**"],
+      ignores: ["**/env.ts", "**/*.test.{ts,tsx}", "packages/tooling/**"],
       rules: {
         "no-restricted-properties": [
           "error",
@@ -66,13 +73,22 @@ export function finoraConfig() {
             message: ENV_MESSAGE,
           },
         ],
-        // The forms no-restricted-properties cannot see (qa S01 #4).
+        "no-restricted-syntax": ["error", ...ENV_SYNTAX],
+      },
+    },
+    {
+      // Next.js inlines only the literal `process.env.NEXT_RUNTIME`, so instrumentation.ts may read that one
+      // name in that one form; every other env read stays refused there.
+      files: ["apps/web/src/instrumentation.ts"],
+      rules: {
+        "no-restricted-properties": "off",
         "no-restricted-syntax": [
           "error",
-          { selector: "MemberExpression[object.name='process'][computed=true]", message: ENV_MESSAGE },
-          { selector: "VariableDeclarator[init.name='process'] > ObjectPattern", message: ENV_MESSAGE },
-          { selector: "AssignmentExpression[right.name='process'] > ObjectPattern", message: ENV_MESSAGE },
-          { selector: "ImportDeclaration[source.value=/^(node:)?process$/] > ImportSpecifier[imported.name='env']", message: ENV_MESSAGE },
+          ...ENV_SYNTAX,
+          {
+            selector: "MemberExpression[object.name='process'][property.name='env']:not(MemberExpression[computed=false][property.name='NEXT_RUNTIME'] > MemberExpression.object)",
+            message: ENV_MESSAGE,
+          },
         ],
       },
     },
