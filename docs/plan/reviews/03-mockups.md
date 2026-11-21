@@ -47,3 +47,19 @@
 | - | resolved | WebKit sheet focus trap | **closed**: 0 of 12 Tabs escape in WebKit at `8f5b8f1` |
 
 **Re-test 3 (web-qa at `8f5b8f1`):** 488 Chromium renders clean; WebKit trap and "Show agents" focus closed. W1b (table popover clip) is unchanged and is the only blocker; W7 and W8 stay MINOR.
+
+## web-qa re-test at `08eaad5`, after H4, H5 and C19 (2026-11-22): still signed off
+
+- **Coverage:** all 77 state URLs. Chromium at 4 viewports in both themes (616 renders); Firefox and WebKit at 4 viewports (308 renders each).
+- **Result:** 0 console errors, 0 failed requests, 0 overflow, 0 contrast failures, 0 unnamed controls, one h1 per page, no banned words.
+- **No currency on any usage surface:**
+  - The only dollar figures are Crash monitor market data.
+  - Usage reads as a share of the cap and in standard tokens.
+- **New states:**
+  - `agents-off`, `cli-missing` and `cli-signed-out` open as modal dialogs that trap focus.
+  - `overage` and its at-limit variant render at 390 and 1280, with "Check and resume" and "Stop here and write the report".
+- **Earlier fixes:** they hold in all three engines.
+- **Notes, not defects:**
+  - `?state=nokey` no longer opens a sheet; it was replaced by the three CLI states.
+  - The mockup-tooling pill covers the bottom of the page at 390.
+- **Not tested:** screen readers, 200% zoom, print, and the real app's versions of these states (S11, S12).
