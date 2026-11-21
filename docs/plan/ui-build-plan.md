@@ -343,7 +343,7 @@ Person data (S03, S04, S14 insider names) sits behind a stated purpose (legal ru
 - Results come as **groups**: LT, LV, EE, US (bulk-loaded), then the live US state groups. Each group has a state: `ready`, `loading {percent}`, `live`, `error`, `empty`. A country whose load is still running shows "Estonia: loading, 62%" in its place. **"No match" appears only when every group has settled.** A live-state group reads "Searching NY, CO, CT, PA" and then lists results or "Checked NY, CO, CT, PA: no match", so "No match" never means "no such company in the US".
 - A row shows the distinguishing facts: code, legal form, status, city, registration year. Names clamp to two lines. Struck-off companies are listed, with "Removed from the register in 2021".
 - No person results, ever (L2): the result type has no person variant.
-- No match shows two things: what was checked, and **Investigate this text** (opens the Investigate sheet with the text as subject; without a key it opens the key sheet).
+- No match shows two things: what was checked, and **Investigate this text** (opens the Investigate sheet with the text as subject; if agents can't run, it opens the state its status shows (agents-off, cli-missing, cli-signed-out or busy)).
 - The command bar adds a second group: tools (Explorer, Crash monitor) and recent investigations. `Enter` on a company opens the company page; `Enter` on a tool navigates.
 - Search is keyboard-complete: `/` focuses the box; arrow keys move; `Enter` opens; `Esc` resets, then closes.
 - Response shape (accepted, architecture §5.1): `GET /search` returns groups, and each live US state register is its own `GET /search/live/:register` request with a 3 s timeout and an error state.
@@ -443,7 +443,7 @@ GET /investigations/:id/events   -> SSE, header Last-Event-ID = lastEventId   (a
                                    |  flushed once per animation frame
                        reduce(state, event)  -- pure, idempotent -->  React state (useReducer)
                                    |
-        selectors: lanes, tasks, header counts, findings by section, pending question, verdict, spend
+        selectors: lanes, tasks, header counts, findings by section, pending question, verdict, usage
 ```
 
 - **Snapshot then stream.** A reload fetches the snapshot, builds the state from it, and opens the stream after `lastEventId`. The reducer ignores any event whose `id` is not greater than the state's `lastEventId`, so replays and duplicates change nothing.
@@ -484,7 +484,7 @@ type InvestigationState = {
 | `finding` | A `FindingItem` lands in the matching `SectionCard` (by the item's section) with a 600 ms accent wash (none under reduced motion) and in the report's evidence group. A finding with no section shows only in the evidence group. A `context` finding has no severity and no severity chip, and never counts as a fired rule. A web finding with anchor `name_only` shows "Linked by name only"; a news item that is not confirmed shows "Mentions the name; not confirmed to be this company" and is never a key finding. No citation: never rendered |
 | `question` | `QuestionCard` pinned to the top of the panel; lanes it blocks show "Waiting for your answer" |
 | `question.answered` | The card collapses to "Answered: {answer}" (by you or by default) and the lane resumes |
-| `cost` | The lane's cost and the header's spend against the cap. Between 80% and 100% of the cap the header turns `--warn` |
+| `usage` | The lane's usage and the header's usage against the cap. Between 80% and 100% of the cap the header turns `--warn` |
 | `verdict` | `VerdictBlock` appears on top of the page; the panel keeps the lanes for replay |
 | `error` | An inline `ErrorState` in the panel with the mapped message |
 
@@ -539,9 +539,9 @@ The question announcement does not move focus. A shortcut and a link take the us
 - **Purpose required** (`428`): the section shows the purpose gate, not an error.
 - **Host or origin refused** (`403`): a plain page "This app only answers on the machine it runs on" (local mode).
 - **Offline**: the shell shows a banner "You are offline"; cached pages stay readable.
-- **Agents off** (the default, `FINORA_AGENT_BACKEND=off`): the explorer works fully. **Investigate** stays visible and opens the agents-off sheet; with the backend on, it opens the state the status shows (`cli-missing`, `cli-signed-out`, `busy`, `unsafe`). Never a disabled button with no reason.
+- **Agents off or unavailable** (the default, `FINORA_AGENT_BACKEND=off`): the explorer works fully. **Investigate** stays visible and opens the agents-off sheet; with the backend on, it opens the state the status shows (`cli-missing`, `cli-signed-out`, `busy`, `unsafe`). Never a disabled button with no reason.
 - **No SEC contact setting**: US public profiles show `needs_source` rows ("needs the SEC contact setting") and promise nothing.
-- **Daily cap reached**: Investigate opens the spend and reset-time sheet. The instant profile keeps working.
+- **Daily cap reached**: Investigate opens the usage and reset-time sheet. The instant profile keeps working.
 - **404 and 500**: `not-found.tsx` and `error.tsx` per tool, with the search box and a link home.
 
 ---
@@ -769,12 +769,12 @@ Slices that depend only on fixtures start before the real API lands (the archite
   4. A live-state group shows "Searching ..." then results or "Checked NY, CO, CT, PA: no match".
   5. A result row shows code, legal form, status, city and registration year; a 200-character name clamps to two lines at 390 px with no overflow.
   6. The result type has no person variant (type test); a person's name returns no result in the e2e fixture.
-  7. No match offers "Investigate this text"; without a key it opens the key sheet. The Investigate sheet has the optional offer-domain field, validated as a hostname (no scheme, no path), sent as `offerDomain`, and echoed on the run page ("Checking offer domain {domain} against the register"). The web agent's result shows as one of four rule-given outcomes: tied to the company, not tied, tied to another company, or does not resolve (`offer_domain_tied`, `not_tied`, `other_company`, `unresolvable`), each with its own catalogue line and citations; "tied to another company" is a point to check and may be a key finding.
+  7. No match offers "Investigate this text"; if agents can't run, it opens the state its status shows (agents-off, cli-missing, cli-signed-out or busy). The Investigate sheet has the optional offer-domain field, validated as a hostname (no scheme, no path), sent as `offerDomain`, and echoed on the run page ("Checking offer domain {domain} against the register"). The web agent's result shows as one of four rule-given outcomes: tied to the company, not tied, tied to another company, or does not resolve (`offer_domain_tied`, `not_tied`, `other_company`, `unresolvable`), each with its own catalogue line and citations; "tied to another company" is a point to check and may be a key finding.
   8. The tool rail is built from the manifests; the active tool has `aria-current`; below 768 px the bottom bar replaces it; no horizontal scroll at the four widths.
   9. The footer source-code link is on every page (rule 18).
   10. Switching locale (in Settings) keeps path and query.
   11. The home page shows one card per country with its promise ("full check", "money and status check; no names", "registration and filings") and its load time; a country still loading shows its percent; Recent lists the last investigations with code and time.
-  12. The `UsagePill` shows today's spend against the daily cap, turns `--warn` from 80%, and is hidden under 768 px.
+  12. The `UsagePill` shows today's share of the daily cap, turns `--warn` from 80%, and is hidden under 768 px.
   13. At 390 px the status pill sits under the name and the name takes at least 60% of the row width.
 - **Tests:** `ui/src/primitives/combobox/combobox.test.tsx`, `web/src/components/search/*.test.tsx`, `web/e2e/search.spec.ts`, `web/e2e/command-bar.spec.ts`, `web/e2e/shell.spec.ts`, `web/e2e/shell.responsive.spec.ts`, `web/e2e/locale.spec.ts`.
 - **Demo:** press `/`, type part of an example name, arrow to a result, open it, switch to `lt`.
@@ -806,10 +806,10 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 - **Scope:** `InvestigateSheet` (estimate, first-run, agents-off, cli-missing, cli-signed-out, busy, unsafe, daily-cap), `AgentPanel`, `RunHeader`, `AgentLane`, `TaskRow`, `ActivityLine`, findings landing in sections, the question cards (§5.6) including `SanctionsMatchCard`, stop, reconnect and failure states, the live region, the small-screen sheet and summary bar.
 - **Acceptance:**
-  1. The sheet shows the estimate (typical, high, basis), the cap and the spend left today before Start; with no key it shows the steps to add one; at the daily cap it shows spend and reset time. **Investigate** is never a disabled button without a reason.
+  1. The sheet shows the estimate (typical, high, basis), the share of the cap and the daily allowance left before Start; when agents can't run it shows the state the status gives (agents-off, cli-missing, cli-signed-out, busy, unsafe) with its one step; at the daily cap it shows the share used and the reset time. **Investigate** is never a disabled button without a reason.
   2. An event reaches the DOM within 500 ms of arrival (e2e with the fake provider and a scripted clock); renders are batched to one per frame (unit).
   3. Four lanes and their task rows update at once: the replay fixture shows at least three lanes `running` in the same frame; the header counts equal the reducer's totals.
-  4. Each lane shows status as icon and word, the current step, sources read, elapsed time, the timing hint and its own cost; the header shows spend against the cap and turns `--warn` from 80%.
+  4. Each lane shows status as icon and word, the current step, sources read, elapsed time, the timing hint and its own usage; the header shows spend against the cap and turns `--warn` from 80%.
   5. A finding lands in its `SectionCard` with `AiLabel`, severity icon and word, and citation chips; a finding with no section appears only in the evidence group; a finding without a citation is never rendered.
   6. A question card pins at the top of the primary column; lanes it blocks show "Waiting for your answer" and link to it; other lanes keep running; answering resumes the lane.
   7. Entity choice: shows code, legal form, status, city, registered date and "None of these"; has no default and no countdown; on timeout the report shows "Not enough data: company not confirmed".
