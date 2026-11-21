@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i and S06 **accepted**; S06 accepted; S22 waits on qa re-verify and SEC-5/7/8; before S05's first real load: sync-worker `resourceLimits` (MUST) and `meta.order`; S04b next (architect); H5 runtime redesign (`agents.md` `f81348d`) under review; H6 (the subscription terms) awaits the human; H4 tree sweep in progress | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i and S06 **accepted**; S22 waits on qa's re-verify of `cae16c6`, SEC-5/7/8 and the M01 daily rows; before S05's first real load: `meta.order` (the worker heap cap is in); S04b next (architect); agent runtime accepted (C18, C19), plan edits pending; H6 (the subscription terms) awaits the human; H4 tree sweep: 130 hits left | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
