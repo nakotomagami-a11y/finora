@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@finora/domain": "workspace:*"
+    "@finora/domain": "workspace:*",
+    "@finora/formats": "workspace:*"
   },
   "devDependencies": {
     "@finora/tooling": "workspace:*",

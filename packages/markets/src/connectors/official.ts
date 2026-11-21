@@ -4,7 +4,7 @@ import type { DropReason } from "@finora/domain";
 import { addDays } from "../settings.ts";
 import { TILE_ROWS } from "../tiles.ts";
 import type { FetchContext, MarketConnector, MarketMeta, MarketParse, Observation, RawArtifact, SeriesDef } from "../types.ts";
-import { readSheet } from "../xlsx.ts";
+import { ArchiveError, readXlsxSheet } from "@finora/formats";
 import { artifact, concept, isoDay, isRecord, jsonOf, maxOf, notRead, num, parserVersion, SchemaChanged, textOf } from "./common.ts";
 
 const tilesOf = (sourceId: string) => TILE_ROWS.filter((r) => r.sourceId === sourceId);
@@ -261,19 +261,20 @@ function monthEnd(label: string): string | null {
 }
 
 function goldSheet(raw: readonly RawArtifact[]): { asOf: string | null; rows: { label: string; value: string | undefined }[] } {
-  let sheet: Map<number, Map<number, string>>;
+  let sheet: string[][];
   try {
-    sheet = readSheet(artifact(raw, "CMO-Historical-Data-Monthly.xlsx").bytes, "Monthly Prices");
+    sheet = readXlsxSheet(artifact(raw, "CMO-Historical-Data-Monthly.xlsx").bytes, "Monthly Prices");
   } catch (error) {
-    throw new SchemaChanged(`pink sheet: ${(error as Error).message}`);
+    if (error instanceof ArchiveError) throw new SchemaChanged(`pink sheet: ${error.message}`);
+    throw error;
   }
-  const header = sheet.get(5);
-  const goldCol = header ? [...header].find(([, v]) => v.trim() === "Gold")?.[0] : undefined;
-  if (goldCol === undefined) throw new SchemaChanged("pink sheet: no Gold column in row 5");
-  if (!(sheet.get(6)?.get(goldCol) ?? "").includes("troy oz")) throw new SchemaChanged("pink sheet: gold unit is not troy oz");
-  const rows: { label: string; value: string | undefined }[] = [];
-  for (const [n, cells] of sheet) if (n >= 7) rows.push({ label: cells.get(0) ?? "", value: cells.get(goldCol) });
-  return { asOf: updatedOn(sheet.get(4)?.get(0) ?? ""), rows };
+  // Row n of the sheet is at index n - 1: the as-of in A4, names in row 5, units in row 6, months from row 7.
+  const header = sheet[4] ?? [];
+  const goldCol = header.findIndex((v) => v.trim() === "Gold");
+  if (goldCol < 0) throw new SchemaChanged("pink sheet: no Gold column in row 5");
+  if (!(sheet[5]?.[goldCol] ?? "").includes("troy oz")) throw new SchemaChanged("pink sheet: gold unit is not troy oz");
+  const rows = sheet.slice(6).map((cells) => ({ label: cells[0] ?? "", value: cells[goldCol] }));
+  return { asOf: updatedOn(sheet[3]?.[0] ?? ""), rows };
 }
 
 export const worldBankGold: MarketConnector = {

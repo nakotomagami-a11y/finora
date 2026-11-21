@@ -1,7 +1,7 @@
 // `uk-sanctions-list`: the UK Sanctions List CSV (sanctions.md §3). Line 1 is the report date, line
 // 2 the header; one row per name variant, grouped by Unique ID. Entities are stored for screening;
 // individuals go to the in-memory person index only (§7a); ships are not loaded.
-import { csvRows, columns } from "../../formats/csv.ts";
+import { csvRows, columns } from "@finora/formats";
 import { parserVersion } from "../../parser-version.ts";
 import type { FieldMap, ParseContext, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
 import { countryCode } from "./countries.ts";

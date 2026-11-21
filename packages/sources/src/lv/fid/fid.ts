@@ -6,7 +6,7 @@
 // nor any token of it in another column, and the file itself is never cached (it holds persons).
 import { createHash } from "node:crypto";
 import { namesCompany, normalizeText } from "@finora/domain";
-import { readXlsx } from "../../formats/xlsx.ts";
+import { readXlsx } from "@finora/formats";
 import { countryCode } from "../../intl/sanctions/countries.ts";
 import { isoDate, normalizeId, subjectRecord } from "../../intl/sanctions/shared.ts";
 import { parserVersion } from "../../parser-version.ts";

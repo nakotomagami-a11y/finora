@@ -1,7 +1,7 @@
 // `eu-fsf`: the EU consolidated financial sanctions list (sanctions.md §1). Long-format CSV: one
 // row per entry x name x address x birth date x identifier, grouped by Entity_LogicalId. An
 // enterprise is stored for screening; a person goes to the in-memory person index only (§7a).
-import { csvRows, columns } from "../../formats/csv.ts";
+import { csvRows, columns } from "@finora/formats";
 import { parserVersion } from "../../parser-version.ts";
 import type { FieldMap, ParseContext, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
 import { countryCode } from "./countries.ts";

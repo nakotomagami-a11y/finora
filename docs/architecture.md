@@ -82,14 +82,15 @@ Each package may import only the packages in its row. The row **is** its `packag
 | Package | May depend on |
 |---|---|
 | `domain` | nothing internal |
+| `formats` | nothing internal (zip, XLSX, XML and CSV readers with one set of archive limits; Node built-ins allowed) |
 | `i18n` | nothing internal |
 | `ui` | `i18n` (types only) |
 | `api-contract` | `domain` |
 | `store` | `domain` |
-| `sources` | `domain` |
+| `sources` | `domain`, `formats` |
 | `resolve` | `domain`, `store` |
 | `ingest` | `domain`, `store`, `sources`, `resolve` |
-| `markets` | `domain` |
+| `markets` | `domain`, `formats` |
 | `agent-tools` | `domain`, `store`, `resolve`, `markets` |
 | `agents` | `domain`, `store`, `agent-tools` |
 | `apps/server` | all packages except `ui`, plus `apps/mcp` (its HTTP handler, mounted at `/mcp`) |

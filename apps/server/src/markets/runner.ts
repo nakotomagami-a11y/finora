@@ -40,7 +40,9 @@ export type RunOptions = {
   fetch?: PoliteFetch;
 };
 
-const where = (c: MarketConnector) => (c.meta.storage === "connector-cache" ? "cc" : "main");
+/** The only classes a market series may be written under: open data in main, licensed series in cc (R17). */
+const WRITABLE = { store: "main", "connector-cache": "cc" } as const;
+const where = (c: MarketConnector) => WRITABLE[c.meta.storage as keyof typeof WRITABLE];
 
 /** The licence invariants of every source (R12, R13, R17): a connector that fails them never writes a row. */
 export function connectorProblems(c: MarketConnector): string[] {
@@ -64,7 +66,8 @@ function failureOf(error: unknown): MarketFailure {
 }
 
 export async function runMarketSource(store: Store, c: MarketConnector, opts: RunOptions): Promise<MarketRunOutcome> {
-  if (connectorProblems(c).length) return { kind: "skipped", reason: "invalid_source" };
+  // A class other than store or connector-cache (agent-only, live-no-store) may hold no market row at all (S22 review M2).
+  if (connectorProblems(c).length || !(c.meta.storage in WRITABLE)) return { kind: "skipped", reason: "invalid_source" };
   if (c.meta.requires.some((k) => !opts.keys[k])) return { kind: "skipped", reason: "key_missing" };
   if (c.meta.id === "stocks-s7" && opts.slots.length === 0) return { kind: "skipped", reason: "no_slots" };
   const { db } = store;

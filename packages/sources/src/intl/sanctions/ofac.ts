@@ -3,7 +3,7 @@
 // 111 MB file is never held as one string. Organisations are stored for screening; individuals go
 // to the in-memory person index only (§7a); vessels and aircraft are not loaded (no company
 // screening needs them, and the store has no schema for them).
-import { attr, decodeXml, elements, text } from "../../formats/xml.ts";
+import { attr, decodeXml, elements, text } from "@finora/formats";
 import { parserVersion } from "../../parser-version.ts";
 import type { FieldMap, ParseContext, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
 import { countryCode } from "./countries.ts";

@@ -90,3 +90,9 @@ export const TILE_ORDER: readonly TileId[] = ["M01", "M02", "M03", "M04", "M05",
 export function seriesKeysOf(row: TileRow): string[] {
   return [row.seriesKey, row.supplySeriesKey, row.peakSeriesKey].filter((k): k is string => k !== undefined);
 }
+
+/**
+ * Snapshots a source's terms let us show only while fresh: C1 must be refreshed within 24 hours or
+ * dropped. The view leaves older ones out even before the expiry job runs (S22 review S1).
+ */
+export const SNAPSHOT_MAX_AGE_HOURS: Readonly<Record<string, number>> = { "crypto-c1": 24 };

@@ -38,6 +38,14 @@ describe("market sources hold the licence invariants (R12, R13, R17)", () => {
     expect(readMarketSeries(store.db)).toEqual([]);
     expect((store.db.prepare("SELECT count(*) AS n FROM main.syncs").get() as { n: number }).n).toBe(0);
   });
+
+  it.each(["agent-only", "live-no-store"] as const)("a connector of class %s writes no row and opens no sync (S22 review M2)", async (storage) => {
+    const store = openStore({ dataDir: null });
+    const other = { ...get("crypto-x4-ohlc"), meta: { ...get("crypto-x4-ohlc").meta, storage } } as unknown as MarketConnector;
+    expect(await run(store, other)).toEqual({ kind: "skipped", reason: "invalid_source" });
+    expect(readMarketSeries(store.db)).toEqual([]);
+    expect((store.db.prepare("SELECT count(*) AS n FROM main.syncs").get() as { n: number }).n).toBe(0);
+  });
 });
 
 describe("the market runner (loaders/markets.md §1.7)", () => {
@@ -144,6 +152,16 @@ describe("the Crash monitor view (architecture §8)", () => {
     expect(results.find((r) => r.sourceId === "gold-s3")?.outcome).toEqual({ kind: "skipped", reason: "daily_limit" });
     const again = await runDueMarketJobs({ store, now: () => NOW, settings: () => settings(), keys: KEYS, userAgent: "Finora test", fetch: politeOf() });
     expect(again).toEqual([]);
+  });
+
+  it("leaves out a total-crypto snapshot older than 24 h even before the expiry job runs (S22 review S1)", async () => {
+    const store = openStore({ dataDir: null });
+    await run(store, get("crypto-c1"), { mode: "latest" });
+    await run(store, get("crypto-c3-global"));
+    const later = new Date(Date.parse(NOW) + 25 * 3_600_000).toISOString();
+    const row = rows(store, buildCrashView(store, { settings: settings(), keys: KEYS, now: later })).find((r) => r.rowKey === "M06.X.02:total_crypto");
+    expect(row?.value).toBeUndefined();
+    expect((store.db.prepare("SELECT count(*) AS n FROM cc.market_latest").get() as { n: number }).n).toBeGreaterThan(0);
   });
 
   it("deletes total-crypto snapshots older than 24 h (C1's terms), so the row shows no number", async () => {

@@ -11,21 +11,22 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const LICENSE = "AGPL-3.0-or-later";
 
 const SERVER_ALLOWED = [
-  "domain", "i18n", "api-contract", "store", "sources", "resolve", "ingest",
+  "domain", "i18n", "api-contract", "store", "formats", "sources", "resolve", "ingest",
   "markets", "agent-tools", "agents", "mcp",
 ];
 
 /** Architecture §2. `@finora/tooling` is allowed everywhere as a dev dependency. */
 export const ALLOWED = {
   "@finora/domain": [],
+  "@finora/formats": [],
   "@finora/i18n": [],
   "@finora/ui": ["i18n"],
   "@finora/api-contract": ["domain"],
   "@finora/store": ["domain"],
-  "@finora/sources": ["domain"],
+  "@finora/sources": ["domain", "formats"],
   "@finora/resolve": ["domain", "store"],
   "@finora/ingest": ["domain", "store", "sources", "resolve"],
-  "@finora/markets": ["domain"],
+  "@finora/markets": ["domain", "formats"],
   "@finora/agent-tools": ["domain", "store", "resolve", "markets"],
   "@finora/agents": ["domain", "store", "agent-tools"],
   "@finora/tooling": [],

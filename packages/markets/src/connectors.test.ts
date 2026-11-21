@@ -3,7 +3,6 @@ import { connector, MARKET_CONNECTORS, ProviderRefused, quarterEnd, rocToIso, Sc
 import { c1Layout, c3Layout, fredLayout, o3Layout, s3Layout, s7Layout, treasuryLayout, twseLayout, worldBankLayout, x4Layout } from "./fixtures/layouts.ts";
 import { FIXTURE_TICKERS, FIXTURE_TODAY } from "./fixtures/series.ts";
 import type { FetchContext, MarketConnector, RawArtifact } from "./types.ts";
-import { readZip, writeStoredZip, ZipError } from "./zip.ts";
 
 const parseCtx = { now: `${FIXTURE_TODAY}T22:00:00Z`, windowStart: "2024-12-22" };
 const get = (id: string): MarketConnector => {
@@ -189,13 +188,5 @@ describe("price connectors parse their documented or measured layouts", () => {
 
   it("C3: the all-time high as the peak seed", () => {
     expect(get("crypto-c3-global").parse(c3Layout(), parseCtx).series[0]?.latest).toEqual({ value: 4e12, observedAt: "2025-10-06T00:00:00.000Z" });
-  });
-});
-
-describe("the zip reader (World Bank workbook)", () => {
-  it("round-trips stored entries and refuses what is not a zip", () => {
-    const files = new Map([["a.txt", enc("hello")]]);
-    expect(new TextDecoder().decode(readZip(writeStoredZip(files)).get("a.txt"))).toBe("hello");
-    expect(() => readZip(enc("not a zip"))).toThrow(ZipError);
   });
 });

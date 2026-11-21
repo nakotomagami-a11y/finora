@@ -3,7 +3,6 @@ import "server-only";
 // crash endpoint from what is stored. The endpoint never calls an upstream source.
 import { CrashResponse } from "@finora/api-contract";
 import { FUND_SLOTS, readMarketSettings, settingKey, type Fetch } from "@finora/markets";
-import { fakeMarketFetch, FIXTURE_TICKERS, FIXTURE_TODAY } from "@finora/markets/fixtures";
 import { FetchError, type PoliteFetch } from "@finora/sources";
 import { openStore, type Store } from "@finora/store";
 import pkg from "../../package.json" with { type: "json" };
@@ -15,7 +14,8 @@ import { buildCrashView } from "../markets/view.ts";
 let store: Store | undefined;
 let stopJobs: (() => void) | undefined;
 
-const FIXTURE_NOW = `${FIXTURE_TODAY}T22:30:00Z`;
+/** The fixture world's "today" (markets fixtures, FIXTURE_TODAY), at the evening after the closes. */
+const FIXTURE_NOW = "2026-11-18T22:30:00Z";
 /** Fixture-only key values, so the demo shows the key-gated rows filled. */
 const DEMO_KEYS = { MARKETS_S7_API_KEY: "fixture-demo-key", MARKETS_S3_API_KEY: "fixture-demo-key" };
 
@@ -52,12 +52,15 @@ export function startMarkets(): void {
   if (stopJobs || env.NODE_ENV === "test") return;
   if (env.FINORA_DEMO === "1") {
     // Demo: one pass of the real connectors over synthetic fixtures, into an in-memory store. No network.
+    // The fixtures load only here, so a normal build never runs them (S22 review NIT).
     const demo = openStore({ dataDir: null });
-    const put = demo.db.prepare("INSERT INTO user.settings (key, value) VALUES (?, ?)");
-    FUND_SLOTS.forEach((slot, i) => put.run(settingKey.fund(slot), FIXTURE_TICKERS[i] as string));
     useMarketsStore(demo);
     stopJobs = () => undefined;
-    void runDueMarketJobs({ store: demo, now: () => FIXTURE_NOW, settings: () => settingsOf(demo), keys: DEMO_KEYS, userAgent: "Finora demo", fetch: politePolicy(fakeMarketFetch()) });
+    void import("@finora/markets/fixtures").then(({ fakeMarketFetch, FIXTURE_TICKERS }) => {
+      const put = demo.db.prepare("INSERT INTO user.settings (key, value) VALUES (?, ?)");
+      FUND_SLOTS.forEach((slot, i) => put.run(settingKey.fund(slot), FIXTURE_TICKERS[i] as string));
+      return runDueMarketJobs({ store: demo, now: () => FIXTURE_NOW, settings: () => settingsOf(demo), keys: DEMO_KEYS, userAgent: "Finora demo", fetch: politePolicy(fakeMarketFetch()) });
+    });
     return;
   }
   const s = getStore();

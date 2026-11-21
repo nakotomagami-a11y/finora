@@ -3,7 +3,7 @@
 // and website. `ae_comments` is free text that may name people: it is never read.
 import { createHash } from "node:crypto";
 import { isFixtureLei, isValidLei } from "@finora/domain";
-import { csvRows, columns } from "../../formats/csv.ts";
+import { csvRows, columns } from "@finora/formats";
 import { parserVersion } from "../../parser-version.ts";
 import type { DropReason, FieldMap, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
 import { countryCode } from "./countries.ts";

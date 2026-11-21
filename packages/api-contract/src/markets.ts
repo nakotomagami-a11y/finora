@@ -41,7 +41,8 @@ export const MarketRow = z
   // A value always has its source; a peak-unknown row never shows a drawdown (never 0%).
   .refine((r) => r.value === undefined || r.sources.length > 0, { message: "a value needs a source" })
   .refine((r) => r.state !== "peak_unknown" || r.drawdownPct === undefined, { message: "no drawdown without a known peak" })
-  .refine((r) => !["needs_key", "needs_symbol"].includes(r.state) || r.value === undefined, { message: "no number without a key or a symbol" });
+  .refine((r) => !["needs_key", "needs_symbol"].includes(r.state) || r.value === undefined, { message: "no number without a key or a symbol" })
+  .refine((r) => r.ticker === undefined || r.itemId === "M08.X.01", { message: "only the debt row carries a ticker" });
 
 export const CrashResponse = z
   .object({

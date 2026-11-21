@@ -2,7 +2,7 @@
 // The shapes follow the responses measured in research/probes/markets/shapes.py; the values are made up.
 import { FUND_SLOTS } from "../settings.ts";
 import type { RawArtifact } from "../types.ts";
-import { writeStoredZip } from "../zip.ts";
+import { writeZip } from "@finora/formats/testing";
 import { FIXTURE_TICKERS, FIXTURE_TODAY, plantedSeries } from "./series.ts";
 
 const enc = new TextEncoder();
@@ -58,7 +58,7 @@ export function worldBankLayout(seed = 4, options: { goldHeader?: string; goldUn
     ["xl/worksheets/sheet1.xml", enc.encode(`<worksheet><sheetData/></worksheet>`)],
     ["xl/worksheets/sheet2.xml", enc.encode(`<worksheet><sheetData>${rows.join("")}</sheetData></worksheet>`)],
   ]);
-  return [a("CMO-Historical-Data-Monthly.xlsx", writeStoredZip(files))];
+  return [a("CMO-Historical-Data-Monthly.xlsx", writeZip([...files].map(([name, data]) => ({ name, data }))))];
 }
 
 export function s7Layout(slots: number = FUND_SLOTS.length, seed = 5): RawArtifact[] {

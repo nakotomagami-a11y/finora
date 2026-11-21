@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { writeXlsx, writeZip } from "../testing/xlsx-writer.ts";
+import { writeXlsx, writeZip } from "./testing/xlsx-writer.ts";
 import { CsvError, csvRows } from "./csv.ts";
 import { elements, withoutComments } from "./xml.ts";
-import { readXlsx } from "./xlsx.ts";
+import { readXlsx, readXlsxSheet } from "./xlsx.ts";
 import { ArchiveError, readZip } from "./zip.ts";
 
 const utf8 = (s: string) => new TextEncoder().encode(s);
@@ -85,5 +85,44 @@ describe("readXlsx", () => {
   it("reads both sheets as rows of strings, sparse cells as empty", () => {
     const sheets = readXlsx(writeXlsx([[["a", "", "c & d"], ["1"]], [["sheet two"]]]));
     expect(sheets).toEqual([[["a", "", "c & d"], ["1"]], [["sheet two"]]]);
+  });
+});
+
+describe("archive limits hold against lying headers (S22 review M1)", () => {
+  /** Rewrites every central-directory entry to declare a 1-byte member. */
+  function lie(zip: Uint8Array): Uint8Array {
+    const out = new Uint8Array(zip);
+    const view = new DataView(out.buffer);
+    for (let p = 0; p + 46 <= out.length; p++) if (view.getUint32(p, true) === 0x02014b50) view.setUint32(p + 24, 1, true);
+    return out;
+  }
+
+  it("refuses members that declare 1 byte each but together inflate past the total", () => {
+    const members = ["a", "b", "c", "d", "e", "f"].map((name) => ({ name, data: new Uint8Array(600), deflate: true }));
+    const zip = lie(writeZip(members));
+    expect(() => readZip(zip, ["a", "b", "c", "d", "e", "f"], { maxMemberBytes: 1000, maxTotalBytes: 2000 })).toThrow(ArchiveError);
+  });
+
+  it("caps one member's inflation at what is left of the total, not only at the member limit", () => {
+    const zip = lie(writeZip([{ name: "a", data: new Uint8Array(900), deflate: true }, { name: "b", data: new Uint8Array(900), deflate: true }]));
+    expect(() => readZip(zip, ["a", "b"], { maxMemberBytes: 1000, maxTotalBytes: 1200 })).toThrow(ArchiveError);
+    expect(readZip(zip, ["a"], { maxMemberBytes: 1000, maxTotalBytes: 1200 }).get("a")?.length).toBe(900);
+  });
+});
+
+describe("readXlsxSheet", () => {
+  it("finds a sheet by its name through the workbook relationships, keeping row numbers", () => {
+    const enc = (t: string) => new TextEncoder().encode(t);
+    const zip = writeZip([
+      { name: "xl/workbook.xml", data: enc('<workbook><sheets><sheet name="Notes" r:id="rId1"/><sheet name="Monthly Prices" r:id="rId7"/></sheets></workbook>') },
+      { name: "xl/_rels/workbook.xml.rels", data: enc('<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/><Relationship Id="rId7" Target="worksheets/sheet9.xml"/></Relationships>') },
+      { name: "xl/sharedStrings.xml", data: enc("<sst><si><t>Gold</t></si></sst>") },
+      { name: "xl/worksheets/sheet1.xml", data: enc("<worksheet><sheetData/></worksheet>") },
+      { name: "xl/worksheets/sheet9.xml", data: enc('<worksheet><sheetData><row r="5"><c r="B5" t="s"><v>0</v></c></row><row r="7"><c r="A7" t="inlineStr"><is><t>2026M10</t></is></c><c r="B7"><v>2500</v></c></row></sheetData></worksheet>') },
+    ]);
+    const rows = readXlsxSheet(zip, "Monthly Prices");
+    expect(rows[4]).toEqual(["", "Gold"]);
+    expect(rows[6]).toEqual(["2026M10", "2500"]);
+    expect(() => readXlsxSheet(zip, "Missing")).toThrow(ArchiveError);
   });
 });

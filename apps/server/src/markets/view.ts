@@ -2,7 +2,7 @@ import "server-only";
 // Builds the Crash monitor rows from the stored series (loaders/markets.md §1.4, architecture §8).
 // Every value carries the SourceRef of the sync that wrote it; computed values are flagged derived.
 import type { SourceRef } from "@finora/domain";
-import { computeRow, connector, debtTicker, MARKET_CONNECTORS, SEEDS, TILE_ORDER, TILE_ROWS, totalWiped, type MarketSettings, type RowView, type SeriesData, type TileId } from "@finora/markets";
+import { computeRow, connector, debtTicker, MARKET_CONNECTORS, SEEDS, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, totalWiped, type MarketSettings, type RowView, type SeriesData, type TileId } from "@finora/markets";
 import { lastMarketSync, marketCheckedAt, marketSyncInfo, readMarketSeries, type Store } from "@finora/store";
 
 export type MarketRowOut = Omit<RowView, "inputs" | "tileId" | "labelKey"> & { label: string; sources: SourceRef[] };
@@ -19,7 +19,9 @@ export function buildCrashView(store: Store, opts: { settings: MarketSettings; k
   const data = new Map<string, SeriesData>();
   const sourceOf = new Map<string, string>();
   for (const s of stored) {
-    data.set(s.seriesKey, { observations: s.observations, latest: s.latest });
+    const maxAge = SNAPSHOT_MAX_AGE_HOURS[s.sourceId];
+    const expired = maxAge !== undefined && s.latest !== null && Date.parse(opts.now) - Date.parse(s.latest.observedAt) > maxAge * 3_600_000;
+    data.set(s.seriesKey, { observations: s.observations, latest: expired ? null : s.latest });
     sourceOf.set(s.seriesKey, s.sourceId);
   }
   const info = marketSyncInfo(db, stored.flatMap((s) => [...s.observations.map((o) => o.syncId), ...(s.latest ? [s.latest.syncId] : [])]));

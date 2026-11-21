@@ -39,7 +39,7 @@ export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: Zi
     p += 46 + nameLength + view.getUint16(p + 30, true) + view.getUint16(p + 32, true);
     if (unsafePath(name)) throw new ArchiveError("unsafe member path");
     if (!wanted.includes(name)) continue;
-    if (size > limits.maxMemberBytes) throw new ArchiveError("member too large");
+    if (size > limits.maxMemberBytes || total + size > limits.maxTotalBytes) throw new ArchiveError("member too large");
     if (local + 30 > bytes.length || view.getUint32(local, true) !== 0x04034b50) throw new ArchiveError("bad local header");
     const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
     const data = bytes.subarray(start, start + compressed);
@@ -47,7 +47,9 @@ export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: Zi
     if (method === 0) member = data;
     else if (method === 8) {
       try {
-        member = inflateRawSync(data, { maxOutputLength: limits.maxMemberBytes });
+        // Capped at inflate time against what is left of the total too, so a member that declares a
+        // small size cannot inflate past the archive's limit (S22 review M1).
+        member = inflateRawSync(data, { maxOutputLength: Math.max(1, Math.min(limits.maxMemberBytes, limits.maxTotalBytes - total)) });
       } catch {
         throw new ArchiveError("member inflates past its limit or is corrupt");
       }
