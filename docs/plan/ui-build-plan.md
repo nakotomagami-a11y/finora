@@ -411,10 +411,8 @@ One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`Mark
 |---|---|---|
 | `live` | data is current | value, drawdown, as-of time |
 | `delayed` | the source is delayed | the same, plus "15 min delayed" or the lag, in the chip |
-| `coarse` | official-only value, finer with a key (M01 quarterly, M05 monthly) | the coarse value, "Quarterly · as of Q2 2026" and "Add a key for daily" inside the tile; never claims to be live |
-| `needs-key` | row with a symbol (or a key-only source) and no key | the row's shape with no number, "Add your key to check" |
+| `coarse` | official-only value (M01 quarterly, M05 monthly) | the coarse value, "Quarterly · as of Q2 2026" (M01's official row) or "Monthly · as of Oct 2026" (M05); never claims to be live. M01's daily rows are separate rows with the personal-use caveat and no key prompt |
 | `not_configured` | a row whose provider is not in the local provider file | "Not configured: add provider [code] to your local provider file", "How to set it up"; no number, never 0% |
-| `proxy` | fund proxy with a symbol | title "[Region], in USD" and the caveat "Via {symbol}, a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index." |
 | `peak-unknown` | history does not reach the peak start | "Peak not known yet: tracking since {date}". **No drawdown percentage, never 0%** |
 | `stale` | as-of older than twice its cadence | the value stays, the as-of chip turns `--warn`: "as of {time}, older than its usual refresh" |
 | `error` | the request failed | the last good value with its as-of time and a Retry, or an error row if there is none |
@@ -452,7 +450,7 @@ GET /investigations/:id/events   -> SSE, header Last-Event-ID = lastEventId   (a
 - **Idempotent and order-safe.** Events are applied in `id` order. If one arrives with a gap (`id > last + 1`), the client does not guess: it re-fetches the snapshot and reconnects.
 - **Batching.** Events received between two animation frames are reduced together and rendered once. With 17 tasks ticking this keeps the page at one render per frame. The measured budget is an event on screen within 500 ms of arrival.
 - **Connection states** (`RunHeader` shows them): `connecting`, `live`, `reconnecting` (shown after 3 s offline, content stays), `failed` (after 5 minutes: "Lost connection to the app. Reload to continue"). Backoff 1, 2, 4, 8, then 15 s, with jitter. A silence of 45 s (two missed 20 s heartbeats) forces a reconnect.
-- **Money** is integer micro-USD end to end; sums are integer; formatting uses `Intl.NumberFormat` with the locale. No float arithmetic on money (a test searches for it in the reducer).
+- **Usage** is integer standard tokens end to end (`used`, `held`, `cap`). Shares are computed for display only, with `Intl.NumberFormat` in the locale. No currency field and no float arithmetic on usage exists in the reducer (a test scans for both).
 - **Text is never model prose in a lane.** A lane step is `stepKey` + `params` (for example `step.fetching_page`, `step.searching_courts`) and a task is `labelKey` + `params` (`task.screen_sanctions`, `task.live_list`, `task.search_courts`, `task.domain_report`, `task.news_search`), both rendered from the `agents` catalogue namespace. An unknown key renders the generic "Working". The key lists live in `docs/plan/agents.md` §11. Lanes start within 2 s of the pin (staggered 1 s apart), so the first frame after `plan` shows `queued` lanes turning `running` in sequence. Findings, explanations and answers are model text, always with `AiLabel`.
 
 ### 6.2 Reducer state
