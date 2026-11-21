@@ -215,7 +215,7 @@ export const ITEM_CAVEATS_EN: Readonly<Record<string, string>> = {
   "S18.LT.02": "Social-insurance fund, read at query time; no licence stated by the publisher. Agent path only, not stored",
   "S18.US.01": "The US has no public tax-debt or payment-default data",
   "M01.X.01": "Quarterly; includes non-listed equity",
-  "M01.X.03": "Personal use; [owner]'s copyright, via FRED; 1-day lag",
+  "M01.X.03": "For personal use only. [owner]'s copyright, via FRED; 1-day lag",
   "M03.X.01": "Peak seeded once from a cited official figure, if legal clears it",
   "M05.X.01": "Monthly average",
   "M06.X.01b": "Self-hosted, personal use",

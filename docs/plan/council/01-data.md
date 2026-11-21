@@ -452,7 +452,7 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S18.US.01 | CAVEAT | The US has no public tax-debt or payment-default data | NC per check |
 | M01.X.01 | CAVEAT | Quarterly; includes non-listed equity | NC |
 | M01.X.02 | LATER | - | — (H5: no keyless source; was the fund proxy with the user's key) |
-| M01.X.03 | CAVEAT | Personal use; [owner]'s copyright, via FRED; 1-day lag | NC |
+| M01.X.03 | CAVEAT | For personal use only. [owner]'s copyright, via FRED; 1-day lag | NC |
 | M02.X.01 | LATER | - | — (H5: no keyless source; was the fund proxy with the user's key) |
 | M03.X.01 | CAVEAT | Peak seeded once from a cited official figure, if legal clears it | NC / "Peak not known yet: tracking since [date]" (no %, never 0%) |
 | M03.X.02 | LATER | - | — (H5: no keyless source; was the fund proxy with the user's key) |
