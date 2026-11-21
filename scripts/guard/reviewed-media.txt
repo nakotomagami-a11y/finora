@@ -81,3 +81,5 @@ d7e852ebe1bb1cadfb05ca63c9fba3bde201ff161fec41b07f5ebfc1badb8138  apps/web/e2e/_
 3778af0fbd4b2aa28a4bb9c384dca0ab1ac9999e419b6025130a8a9367e5742a  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-dialog-390-light.png
 d7d775e3ad373efb7df2bc404f071ed0fa1f76c6e964e9a8685eabc6871f6e9c  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-1280-dark.png
 527a5c561a8acc38cdbd3a21e5ab35663ebf2addb2ce4ff926548722ad9685dd  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-1280-light.png
+c9c12bb2ab37847ac39900f0c46d496d1a13195d731ad176a06184d02444a165  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-390-dark.png
+b91539a1ee831947b7a8a2a18a058524c231c2a6c5a2a99c124f2a0ec935028f  apps/web/e2e/__screenshots__/design.visual.spec.ts/open-sheet-390-light.png
