@@ -1117,7 +1117,7 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 | `DISPUTE_SUPPRESS_AFTER` | `0` (immediately) | R10 (LAWYER) |
 | `HISTORY_MAX_GB` | `1` | P9, warns only |
 | `CRASH_PEAK_SINCE` | `2025-01-01` | start date for "peak" |
-| `FINORA_PROVIDERS_FILE` | `<data dir>/providers.json`, absent | the local provider map: each coded market source's hosts, https URL templates on those hosts, licence (registered from the entry), attribution, publisher and terms URL (C15, C17). Validated strictly by `packages/markets/src/providers.ts` (bare hostnames, no IP literal, localhost or wildcard; unknown keys refused; a size cap), loaded once; a broken or missing file configures nothing, and those Crash monitor rows read `not_configured`, never 0. Never backed up (backups copy allowlisted tables only; `cli/src/commands.test.ts`), logged or served |
+| `FINORA_PROVIDERS_FILE` | `<data dir>/providers.json`, absent | the local provider map: each coded market source's hosts, https URL templates on those hosts, licence (registered from the entry), attribution, publisher and terms URL, and for a cited series its owner slot, which holds the copyright holder's name only; no licence terms (C15, C17, legal 7070802248). Validated strictly by `packages/markets/src/providers.ts` (bare hostnames, no IP literal, localhost or wildcard; unknown keys refused; a size cap), loaded once; a broken or missing file configures nothing, and those Crash monitor rows read `not_configured`, never 0. Never backed up (backups copy allowlisted tables only; `cli/src/commands.test.ts`), logged or served |
 
 ---
 
