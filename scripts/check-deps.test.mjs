@@ -38,6 +38,17 @@ test("@finora/tooling as a runtime dependency fails", () => {
   assert.match(problem, /@finora\/tooling is a dev dependency only/);
 });
 
+test("markets and sources may use formats; formats may use nothing internal and markets never store or sources (S22 review M1)", () => {
+  assert.deepEqual(checkManifests([pkg("@finora/markets", { "@finora/domain": "workspace:*", "@finora/formats": "workspace:*" })]), []);
+  assert.deepEqual(checkManifests([pkg("@finora/sources", { "@finora/domain": "workspace:*", "@finora/formats": "workspace:*" })]), []);
+  for (const internal of ["@finora/domain", "@finora/sources", "@finora/store"]) {
+    assert.match(checkManifests([pkg("@finora/formats", { [internal]: "workspace:*" })])[0], /@finora\/formats may not depend on/);
+  }
+  for (const forbidden of ["@finora/store", "@finora/sources"]) {
+    assert.match(checkManifests([pkg("@finora/markets", { [forbidden]: "workspace:*" })])[0], /@finora\/markets may not depend on/);
+  }
+});
+
 test("a package missing from the table fails", () => {
   assert.match(checkManifests([pkg("@finora/mystery")])[0], /not in the dependency table/);
 });

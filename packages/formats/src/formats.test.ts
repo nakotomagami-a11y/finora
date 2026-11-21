@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { writeXlsx, writeZip } from "./testing/xlsx-writer.ts";
 import { CsvError, csvRows } from "./csv.ts";
 import { elements, withoutComments } from "./xml.ts";
-import { readXlsx, readXlsxSheet } from "./xlsx.ts";
+import { readXlsx, readXlsxSheet, XLSX_LIMITS } from "./xlsx.ts";
 import { ArchiveError, readZip } from "./zip.ts";
 
 const utf8 = (s: string) => new TextEncoder().encode(s);
@@ -101,6 +101,13 @@ describe("archive limits hold against lying headers (S22 review M1)", () => {
     const members = ["a", "b", "c", "d", "e", "f"].map((name) => ({ name, data: new Uint8Array(600), deflate: true }));
     const zip = lie(writeZip(members));
     expect(() => readZip(zip, ["a", "b", "c", "d", "e", "f"], { maxMemberBytes: 1000, maxTotalBytes: 2000 })).toThrow(ArchiveError);
+  });
+
+  it("refuses qa's probe at the real limits: six members declaring 1 byte, each inflating to 10 MB (60 MB in all)", () => {
+    const names = ["a", "b", "c", "d", "e", "f"];
+    const zip = lie(writeZip(names.map((name) => ({ name, data: new Uint8Array(10 * 1024 * 1024), deflate: true }))));
+    expect(zip.length).toBeLessThan(1024 * 1024);
+    expect(() => readZip(zip, names, XLSX_LIMITS)).toThrow(ArchiveError);
   });
 
   it("caps one member's inflation at what is left of the total, not only at the member limit", () => {
