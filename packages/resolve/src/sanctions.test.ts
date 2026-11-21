@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { clearPersonList, setPersonList } from "./person-index.ts";
 import { screenCompany, screenName } from "./sanctions.ts";
-import { testStore, type TestCompany } from "./test-store.ts";
+import { addOfficers, purposeContext, testStore, type TestCompany } from "./test-store.ts";
 
 const EXAMPLE: TestCompany = { eid: "lv-40003000018", country: "lv", code: "40003000018", name: "Example Company 1 AS", legalForm: "lv-as", lei: "FX000000000000000044" };
 const ENERGY: TestCompany = { eid: "lv-50003000024", country: "lv", code: "50003000024", name: "Test Energy 7 SIA", legalForm: "lv-sia", lei: "FX000000000000000723" };
@@ -83,25 +83,41 @@ describe("sanctions screening (sanctions.md §7)", () => {
 
   it("officer-possible-match-only", () => {
     const db = testStore([ENERGY], []);
-    expect(screenCompany(db, ENERGY.eid, { officerNames: ["Officer Golf 600"] })!.officers).toEqual({ status: "not_screened_lists_loading" });
+    addOfficers(db, ENERGY.eid, ["Officer Golf 600", "Officer Juliet 326"]);
+    const purposed = purposeContext("compliance_screening");
+    expect(screenCompany(db, ENERGY.eid, { purposed })!.officers).toEqual({ status: "not_screened_lists_loading" });
     setPersonList("eu-fsf", {
       asOf: "2026-11-20",
       loadedAt: "2026-11-21T06:00:00Z",
       entries: [{ list: "eu-fsf", entryId: "900004", names: ["Officer Golf 600"], program: "FXP", listDate: "2026-03-01", birthYear: 1970, nationalities: ["zz"] }],
     });
-    const result = screenCompany(db, ENERGY.eid, { officerNames: ["Officer Golf 600", "Officer Juliet 326"] })!;
+    const result = screenCompany(db, ENERGY.eid, { purposed })!;
     expect(result.officers).toEqual({ status: "screened", matches: [{ list: "eu-fsf", entryId: "900004", listDate: "2026-03-01", status: "possible_match", signal: "officer_sanctions_possible_match" }] });
     expect(result.hits).toEqual([]);
     expect(screenCompany(db, ENERGY.eid)!.officers).toBeNull();
   });
 
+  it("officers-only-behind-the-purpose-gate", () => {
+    const db = testStore([ENERGY], []);
+    addOfficers(db, ENERGY.eid, ["Officer Golf 600"]);
+    setPersonList("eu-fsf", { asOf: "2026-11-20", loadedAt: "", entries: [{ list: "eu-fsf", entryId: "900004", names: ["Officer Golf 600"], program: null, listDate: null, birthYear: null, nationalities: [] }] });
+    // No purpose, a blocked purpose or an expired session: the gate asks, and nothing is matched.
+    expect(screenCompany(db, ENERGY.eid, { purposed: purposeContext(null) })!.officers).toEqual({ status: "needs_purpose" });
+    expect(screenCompany(db, ENERGY.eid, { purposed: purposeContext("compliance_screening", "2026-11-23T10:00:00.000Z") })!.officers).toEqual({ status: "needs_purpose" });
+    expect(() => screenCompany(db, ENERGY.eid, { purposed: purposeContext("credit_decision") })).toThrow();
+    // A purposed read is logged for this company, with the purpose in force.
+    screenCompany(db, ENERGY.eid, { purposed: purposeContext("supplier_check") });
+    expect(db.prepare("SELECT company_eid, section, purpose_id FROM user.purpose_log").all()).toEqual([{ company_eid: ENERGY.eid, section: "S11", purpose_id: "supplier_check" }]);
+  });
+
   it("sole-trader-no-level", () => {
     const db = testStore([TRADER], [{ list: "eu", sourceId: "eu-fsf", id: "900012", names: ["Sample Trader 500"], identifiers: [{ type: "registration", number: "50003001104", country: "lv" }] }]);
     setPersonList("eu-fsf", { asOf: "2026-11-20", loadedAt: "", entries: [{ list: "eu-fsf", entryId: "900013", names: ["Sample Trader 500"], program: null, listDate: null, birthYear: null, nationalities: [] }] });
-    const result = screenCompany(db, TRADER.eid, { ownName: "Sample Trader 500" })!;
+    const result = screenCompany(db, TRADER.eid, { purposed: purposeContext("counterparty_check") })!;
     expect(result.naturalPerson).toBe(true);
     expect(result.hits).toEqual([]);
-    expect(result.ownName).toEqual([{ list: "eu-fsf", entryId: "900013", listDate: null, status: "possible_match" }]);
+    expect(result.ownName).toEqual({ status: "screened", matches: [{ list: "eu-fsf", entryId: "900013", listDate: null, status: "possible_match" }] });
+    expect(screenCompany(db, TRADER.eid, { purposed: purposeContext(null) })!.ownName).toEqual({ status: "needs_purpose" });
     expect(screenCompany(db, TRADER.eid)!.ownName).toBeNull();
   });
 

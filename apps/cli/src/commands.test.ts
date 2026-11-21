@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -90,6 +90,16 @@ describe("finora-cli (S04f)", () => {
     expect(lines).toEqual(["no match on the stored lists (organisations only)"]);
     search(io(), "example company 1");
     expect(lines.join("\n")).not.toContain("sanc-");
+  });
+
+  it("leaves no listed person in any file of the data dir after the worker synced the lists (legal on S06, condition 1)", () => {
+    const walk = (d: string): string[] => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
+    const all = walk(dir);
+    expect(all.length).toBeGreaterThan(0);
+    for (const file of all) {
+      const bytes = readFileSync(file);
+      for (const needle of ["Sentinel", "SENTINEL", "Personone", "PERSONFOUR", "1961-05-04", "1966-07-08"]) expect(bytes.includes(Buffer.from(needle)), `${file}: ${needle}`).toBe(false);
+    }
   });
 
   it("doctor reports disk, quick_check and leases", () => {

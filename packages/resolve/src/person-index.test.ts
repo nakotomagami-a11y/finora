@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { scanStore } from "@finora/store";
 import { clearPersonList, personIndexState, personListHeld, screenPersonName, setPersonList } from "./person-index.ts";
 import { screenCompany } from "./sanctions.ts";
-import { testStore } from "./test-store.ts";
+import { addOfficers, purposeContext, testStore } from "./test-store.ts";
 
 const SENTINEL = "Sentinel Personone Alpha";
 const list = {
@@ -40,11 +40,13 @@ describe("the in-memory person index (LAW-SANCTIONS-PERSONS)", () => {
     const appends = vi.spyOn(fs, "appendFileSync");
     const logs = [vi.spyOn(console, "log"), vi.spyOn(console, "info"), vi.spyOn(console, "warn"), vi.spyOn(console, "error")];
     const db = testStore([{ eid: "lv-50003000024", country: "lv", code: "50003000024", name: "Test Energy 7 SIA", legalForm: "lv-sia" }], []);
+    addOfficers(db, "lv-50003000024", [SENTINEL]);
     setPersonList("eu-fsf", list);
-    const result = screenCompany(db, "lv-50003000024", { officerNames: [SENTINEL] });
+    const result = screenCompany(db, "lv-50003000024", { purposed: purposeContext("compliance_screening") });
     expect(result?.officers).toMatchObject({ status: "screened", matches: [{ entryId: "900003" }] });
     for (const spy of [writes, appends, ...logs]) for (const call of spy.mock.calls) expect(JSON.stringify(call)).not.toMatch(/Sentinel|1961/);
-    expect(scanStore(db, [SENTINEL, "Personone", "1961"])).toEqual([]);
+    // The officer's own register row holds the name; no list field (birth year, entry) is stored with it.
+    expect(scanStore(db, ["1961", "900003", "S. P. Alpha"])).toEqual([]);
   });
 
   it("forgets a list when it is cleared", () => {

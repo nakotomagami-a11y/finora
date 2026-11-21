@@ -62,15 +62,30 @@ describe("a sanctions list with individuals (eu-fsf fixture)", () => {
     store.close();
   });
 
-  it("parses again when the serving process holds no person list, else answers unchanged", async () => {
-    const store = openStore({ dataDir: null });
-    await sync(store.db, euFsf, { fetcher: euFetch });
-    expect((await sync(store.db, euFsf, { fetcher: euFetch })).kind).toBe("unchanged");
+  it("parses again when the serving process holds no person list, in memory only, else answers unchanged", async () => {
+    const dir = tempDir();
+    dirs.push(dir);
+    const store = openStore({ dataDir: join(dir.path, "data") });
+    const options = { fetcher: euFetch, rawCacheDir: join(dir.path, "raw") };
+    // legal on S06, condition 3: after every sync, held or re-parsed, no file holds a listed person.
+    const noPersonOnDisk = () => {
+      for (const file of files(dir.path)) {
+        const bytes = readFileSync(file);
+        for (const needle of ["Sentinel", "Personone", "1961-05-04", "SENTINELDOC1"]) expect(bytes.includes(Buffer.from(needle)), `${file}: ${needle}`).toBe(false);
+      }
+    };
+    await sync(store.db, euFsf, options);
+    noPersonOnDisk();
+    expect((await sync(store.db, euFsf, options)).kind).toBe("unchanged");
     clearPersonList("eu-fsf");
-    expect((await sync(store.db, euFsf, { fetcher: euFetch })).kind).toBe("content");
+    expect((await sync(store.db, euFsf, options)).kind).toBe("content");
     expect(personListHeld("eu-fsf")).toBe(true);
-    expect((await sync(store.db, euFsf, { fetcher: euFetch, personListHeld: false })).kind).toBe("content");
+    noPersonOnDisk();
+    expect((await sync(store.db, euFsf, { ...options, personListHeld: false })).kind).toBe("content");
+    noPersonOnDisk();
+    expect(scanStore(store.db, ["Sentinel", "Personone"])).toEqual([]);
     store.close();
+    noPersonOnDisk();
   });
 
   it("posts the person list to the serving process", async () => {

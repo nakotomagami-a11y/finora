@@ -49,7 +49,7 @@ export function legalForm(code: string): LegalForm | undefined {
  * §7); the LV frozen-assets party gate loads a foreign row only if its name carries one (§4).
  */
 export const LEGAL_FORM_TOKENS: ReadonlySet<string> = new Set([
-  "sia", "as", "ks", "ps", "ou", "tu", "uu", "uab", "ab", "mb", "llc", "inc", "corp", "corporation", "co", "company",
+  "sia", "as", "ks", "ps", "ik", "ou", "tu", "uu", "fie", "uab", "ab", "mb", "ii", "llc", "inc", "corp", "corporation", "co", "company",
   "ltd", "limited", "plc", "lp", "llp", "gmbh", "ag", "kg", "ooo", "ao", "oao", "zao", "pao", "jsc", "ojsc", "cjsc",
   "pjsc", "tov", "pat", "prat", "bv", "nv", "sa", "sas", "sarl", "srl", "spa", "sl", "sro", "kft", "zrt", "doo",
   "ad", "ood", "eood", "fze", "fzco", "fzc", "fzllc", "dmcc", "pte", "pty", "bhd", "sdn", "lda", "ltda", "oy",

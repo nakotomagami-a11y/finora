@@ -1,7 +1,11 @@
 // A small store for the screening tests: fixture-world companies and hand-built list entries in
 // the shape the sanctions loaders write (sanctions.md §6). Every name and code is fictional.
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { beginSync, finishSync, openStore, upsertSource, writeRecord, type EntityInput, type SourceEventInput } from "@finora/store";
+import { beginSync, finishSync, openStore, RestrictionsLog, upsertSource, writeRecord, type EntityInput, type SourceEventInput } from "@finora/store";
+import type { PurposeContext } from "./sanctions.ts";
 
 export type TestEntry = {
   list: string;
@@ -105,4 +109,45 @@ export function testStore(companies: TestCompany[], entries: TestEntry[], frozen
     });
   }
   return db;
+}
+
+/** A company's current officers, as the LV officers loader writes them (role-local person rows). */
+export function addOfficers(db: DatabaseSync, companyEid: string, names: string[], set = 1): void {
+  syncOf(db, `lv-officers-${set}`, (syncId) => {
+    const itemId = "S03.LV.01";
+    writeRecord(db, {
+      syncId,
+      sourceId: `lv-officers-${set}`,
+      recordKey: `${companyEid}:officers`,
+      hashInput: names.map((n, i) => `${1000 + i}|${n}`),
+      lineIds: names.map((_, i) => String(1000 + i)),
+      entities: names.flatMap((name, i): EntityInput[] => [
+        { eid: `p-${set}-${i}`, schema: "Person", country: "lv", statements: [{ prop: "name", value: name, itemId, line: i }] },
+        {
+          eid: `rel-${set}-${i}`,
+          schema: "Directorship",
+          country: "lv",
+          statements: [
+            { prop: "organization", value: companyEid, itemId, line: i },
+            { prop: "director", value: `p-${set}-${i}`, itemId, line: i },
+            { prop: "role", value: "board_member", itemId, line: i },
+          ],
+        },
+      ]),
+    });
+  });
+}
+
+/** A purpose context for the gate: a stated purpose (or none), and an empty restrictions log. */
+export function purposeContext(purposeId: string | null, now = "2026-11-21T10:00:00.000Z"): PurposeContext {
+  const dir = mkdtempSync(join(tmpdir(), "finora-resolve-"));
+  const path = join(dir, "restrictions.log");
+  writeFileSync(path, "");
+  return {
+    purpose: purposeId ? { purposeId, startedAt: "2026-11-21T09:00:00.000Z" } : null,
+    surface: "ui",
+    actor: "test",
+    now,
+    restrictions: new RestrictionsLog(path),
+  };
 }

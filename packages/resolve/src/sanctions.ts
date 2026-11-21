@@ -1,9 +1,11 @@
 // Sanctions screening (sanctions.md §7; R8). A company is screened against the stored list entries
 // (`sanc-*` organisations, never persons) by official identifier and by name; its current
-// officers, only when a caller behind the purpose gate passes their names, against the in-memory
-// person index. `listed` needs an official-ID match; a name alone is `possible_match`; an entry
+// officers against the in-memory person index only through the purpose gate (P2): the names are
+// read here by `readPurposeSection`, never taken from a caller. `listed` needs an official-ID match; a name alone is `possible_match`; an entry
 // whose own registration number in the company's country differs is `ruled_out`.
 import type { DatabaseSync } from "node:sqlite";
+import { ITEMS } from "@finora/domain";
+import { readPurposeSection, type PurposeSession, type RestrictionsLog } from "@finora/store";
 import { nameKey, namesMatch, nameTokens } from "./names.ts";
 import { personIndexState, screenPersonName, type PersonCitation } from "./person-index.ts";
 
@@ -37,17 +39,34 @@ export type SanctionsHit = {
 };
 
 export type ListState = { sourceId: string; asOf: string | null; checkedAt: string | null };
-export type OfficerScreening = { status: "screened"; matches: (PersonCitation & { signal: "officer_sanctions_possible_match" })[] } | { status: "not_screened_lists_loading" };
+export type OfficerScreening =
+  | { status: "screened"; matches: (PersonCitation & { signal: "officer_sanctions_possible_match" })[] }
+  | { status: "not_screened_lists_loading" }
+  | { status: "needs_purpose" };
+export type OwnNameScreening = { status: "screened"; matches: PersonCitation[] } | { status: "not_screened_lists_loading" } | { status: "needs_purpose" };
+
+/** What the purpose gate needs (P2): the session in force, who asks, from where, and the restrictions log. */
+export type PurposeContext = {
+  purpose: PurposeSession | null;
+  surface: "ui" | "api" | "mcp" | "agent";
+  actor: string;
+  now: string;
+  restrictions: RestrictionsLog;
+  sessionHours?: number;
+};
+
+/** The people items (S03): officer names are read only through these, behind the gate. */
+const PEOPLE_ITEMS = ITEMS.filter((i) => i.section === "S03").map((i) => i.id);
 
 export type CompanyScreening = {
   eid: string;
   /** A sole trader or other natural person: no verdict and no list level, facts only (R5, rule 9). */
   naturalPerson: boolean;
   hits: SanctionsHit[];
-  /** Present only when the caller passed names from behind the purpose gate. */
+  /** Present only when a purpose context was given; names come from the gate, never the caller. */
   officers: OfficerScreening | null;
   /** A natural-person subject's own name against the person index, behind the purpose gate. */
-  ownName: PersonCitation[] | null;
+  ownName: OwnNameScreening | null;
   lists: ListState[];
 };
 
@@ -225,15 +244,40 @@ function company(db: DatabaseSync, eid: string): Company | null {
 
 const RANK: Record<ScreeningStatus, number> = { listed: 0, possible_match: 1, ruled_out: 2 };
 
-/** Screens one company against every stored list (rules 1-7), and its officers when given (rule 8). */
-export function screenCompany(db: DatabaseSync, eid: string, options: { officerNames?: readonly string[]; ownName?: string } = {}): CompanyScreening | null {
+/**
+ * Passes the purpose gate for this company (logged in `purpose_log`) and returns its current
+ * people's names, or null when the gate asks for a purpose. Only lines that name a natural person
+ * are screened against the person index.
+ */
+function purposedNames(db: DatabaseSync, eid: string, context: PurposeContext): string[] | null {
+  const read = readPurposeSection(
+    db,
+    { companyEid: eid, section: "S11", itemIds: PEOPLE_ITEMS, purpose: context.purpose, surface: context.surface, actor: context.actor, now: context.now, ...(context.sessionHours !== undefined ? { sessionHours: context.sessionHours } : {}) },
+    context.restrictions,
+  );
+  if (read.state !== "data") return null;
+  return [...new Set(read.lines.filter((l) => l.personal && l.name).map((l) => l.name!))];
+}
+
+/**
+ * Screens one company against every stored list (rules 1-7). With a purpose context, also its
+ * current officers (rule 8), or a natural-person subject's own name (rule 9), against the person
+ * index; without one, no person-index match is ever computed.
+ */
+export function screenCompany(db: DatabaseSync, eid: string, options: { purposed?: PurposeContext } = {}): CompanyScreening | null {
   const subject = company(db, eid);
   if (!subject) return null;
   const idx = index(db);
   const lists = [...idx.lists.values()];
   if (subject.naturalPerson) {
     // Rule 9: no list level for a natural person; at most a possible match on its own name.
-    return { eid, naturalPerson: true, hits: [], officers: null, ownName: options.ownName !== undefined ? screenPersonName(options.ownName) : null, lists };
+    let ownName: OwnNameScreening | null = null;
+    if (options.purposed) {
+      if (purposedNames(db, eid, options.purposed) === null) ownName = { status: "needs_purpose" };
+      else if (personIndexState().length === 0) ownName = { status: "not_screened_lists_loading" };
+      else ownName = { status: "screened", matches: [...new Map(subject.names.flatMap(screenPersonName).map((m) => [`${m.list}|${m.entryId}`, m])).values()] };
+    }
+    return { eid, naturalPerson: true, hits: [], officers: null, ownName, lists };
   }
   const byEntry = new Map<string, SanctionsHit>();
   const keep = (h: SanctionsHit) => {
@@ -307,10 +351,12 @@ export function screenCompany(db: DatabaseSync, eid: string, options: { officerN
   hits.sort((a, b) => RANK[a.status] - RANK[b.status] || STORED_LISTS.indexOf(a.sourceId as (typeof STORED_LISTS)[number]) - STORED_LISTS.indexOf(b.sourceId as (typeof STORED_LISTS)[number]) || a.entryEid.localeCompare(b.entryEid));
 
   let officers: OfficerScreening | null = null;
-  if (options.officerNames !== undefined) {
-    if (personIndexState().length === 0) officers = { status: "not_screened_lists_loading" };
+  if (options.purposed) {
+    const names = purposedNames(db, eid, options.purposed);
+    if (names === null) officers = { status: "needs_purpose" };
+    else if (personIndexState().length === 0) officers = { status: "not_screened_lists_loading" };
     else {
-      const matches = options.officerNames.flatMap((n) => screenPersonName(n));
+      const matches = names.flatMap((n) => screenPersonName(n));
       const unique = [...new Map(matches.map((m) => [`${m.list}|${m.entryId}`, m])).values()];
       officers = { status: "screened", matches: unique.map((m) => ({ ...m, signal: "officer_sanctions_possible_match" as const })) };
     }
