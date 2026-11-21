@@ -32,7 +32,12 @@ for (const theme of THEMES) {
         await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
         await page.goto(`${path}${path.includes("design") ? `?theme=${theme}` : ""}`);
         await page.waitForLoadState("networkidle");
-        await expect(page).toHaveScreenshot(`${name}-${viewport.name}-${theme}.png`, { fullPage: true, animations: "disabled", maxDiffPixelRatio: 0.002 });
+        // A full-page capture would draw the fixed rail and bottom bar over the middle of the page. A window as tall
+        // as the page shows the bars where a person sees them: the rail along the whole height, the bar at the foot.
+        const height = await page.evaluate(() => document.documentElement.scrollHeight);
+        await page.setViewportSize({ width: viewport.width, height });
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        await expect(page).toHaveScreenshot(`${name}-${viewport.name}-${theme}.png`, { animations: "disabled", maxDiffPixelRatio: 0.002 });
       });
     }
   }
