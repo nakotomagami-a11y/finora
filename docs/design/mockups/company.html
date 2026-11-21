@@ -31,7 +31,9 @@
   const lvRoleCounts = subj.key === "lv" && param("lvpeople", "names") === "role_counts";
   const reconnecting = state === "reconnecting";
   const stopped = state === "report" && param("stopped", "no") === "yes";
-  const phase = ["streaming", "question", "reconnecting"].includes(state) ? "run" : ["report", "partial"].includes(state) ? "report" : "profile";
+  const limited = state === "limit";
+  const concurrency2 = param("concurrency", "4") === "2";
+  const phase = ["streaming", "question", "reconnecting", "limit"].includes(state) ? "run" : ["report", "partial"].includes(state) ? "report" : "profile";
   const natural = !!subj.natural;
   const name = longName ? subj.longName : subj.name;
 
@@ -52,7 +54,7 @@
     const pillTone = { good: "", warn: "pill-warn", bad: "pill-bad" }[subj.status[2]] || "";
     const runStats = phase === "run"
       ? `<div class="run-head" aria-live="polite">
-           <span class="run-stats num">${icon("agent", "icon icon-sm")} ${reconnecting ? "Reconnecting · last update 09:43:12" : "Investigating"} · 4 agents · 23 tasks · 31 sources · $0.27 of $1.50</span>
+           <span class="run-stats num">${icon("agent", "icon icon-sm")} ${reconnecting ? "Reconnecting · last update 09:43:12" : limited ? "Paused: your Claude plan's usage limit · resumes after 14:00" : "Investigating"} · 4 agents · 23 tasks · 31 sources · 18% of the cap</span>
            <div class="meter" role="progressbar" aria-label="Investigation progress" aria-valuenow="58" aria-valuemin="0" aria-valuemax="100"><i style="width:58%"></i></div>
          </div>`
       : "";
@@ -305,7 +307,7 @@
     else if (state === "question" && q === "sanctions") liveRow = `<div class="row"><span class="row-label">UK Sanctions List</span><span class="row-value"><span class="state-line" style="color:var(--warn)">${icon("q", "icon icon-sm")}<span>Possible match, needs review · <a href="#question">answer the question above</a></span></span></span></div>`;
     else liveRow = R("Live lists", { state: "checked_none", sourceName: live, asOf: "20 Nov 2026", caveat: "Checked live at query time; a match needs a second identifier and your review." });
     return section({ id: "sanctions", sid: "S11", title: "Sanctions and watchlists", body: `<div class="rows">
-      ${lists.map(([n, s]) => R(n, { state: "checked_none", sourceName: s.short.replace(/ LV$/, ""), asOf: s.asOfLong, src: s })).join("")}
+      ${lists.map(([n, s]) => s === S.samEx ? R(n, { state: "not_checked", reason: "manual_lookup", site: "the federal exclusions search (no keyless automated access)" }) : R(n, { state: "checked_none", sourceName: s.short.replace(/ LV$/, ""), asOf: s.asOfLong, src: s })).join("")}
       ${liveRow}</div>` });
   }
 
@@ -433,27 +435,29 @@
   /* ---------- Aside: checks card, agent panel, chat ---------- */
   function lanes() {
     const L = [
-      { n: "Lead: resolve and plan", st: "done", meta: "14 s · $0.02", step: "Pinned to registration no. 40000FX0017" },
-      { n: "Registry and people", st: "done", meta: "22 s · $0.05", tasks: [["done", "register file", "1"], ["done", "officers", "1"], ["done", "company members", "1"], ["done", "name history", "1"], ["done", "our snapshots", "1"]] },
-      { n: "Money and tax", st: "done", meta: "28 s · $0.06", tasks: [["done", "annual reports", "1"], ["done", "quarterly taxes", "1"], ["done", "tax rating", "1"], ["skipped", "tax debt amount: manual lookup only", "0"]] },
-      { n: "Legal, insolvency and sanctions", st: q === "sanctions" && state === "question" ? "waiting" : state === "partial" ? "done" : "running", meta: "31 s · usually under 1 min · $0.05", tasks: [["done", "insolvency register", "1"], ["done", "securing measures", "1"], ["done", "EU consolidated list", "1"], ["done", "OFAC lists", "1"], ["done", "UK Sanctions List", "1"], ["done", "FIU frozen-assets list", "1"], ["running", "UN list (live)", "0"], ["skipped", "court portals: manual in the Baltics", "0"], ["queued", "central bank warnings", "0"]] },
-      { n: "Web, domain and news", st: state === "partial" ? "failed" : "running", meta: "48 s · usually 1-2 min · $0.09", step: state === "partial" ? "stopped: the website did not answer" : "reading the news index (query 2 of 4)", tasks: [["done", "find the website", "3"], ["done", "DNS", "1"], ["done", "certificate logs", "1"], [state === "partial" ? "failed" : "done", "homepage", "1"], ["running", "news index", "2"], ["queued", "web search 3 of 4", "0"], ["queued", "web search 4 of 4", "0"]] },
+      { n: "Lead: resolve and plan", st: "done", meta: "14 s · 1% of the cap", step: "Pinned to registration no. 40000FX0017" },
+      { n: "Registry and people", st: "done", meta: "22 s · 3% of the cap", tasks: [["done", "register file", "1"], ["done", "officers", "1"], ["done", "company members", "1"], ["done", "name history", "1"], ["done", "our snapshots", "1"]] },
+      { n: "Money and tax", st: "done", meta: "28 s · 4% of the cap", tasks: [["done", "annual reports", "1"], ["done", "quarterly taxes", "1"], ["done", "tax rating", "1"], ["skipped", "tax debt amount: manual lookup only", "0"]] },
+      { n: "Legal, insolvency and sanctions", st: q === "sanctions" && state === "question" ? "waiting" : state === "partial" ? "done" : "running", meta: "31 s · usually under 1 min · 4% of the cap", tasks: [["done", "insolvency register", "1"], ["done", "securing measures", "1"], ["done", "EU consolidated list", "1"], ["done", "OFAC lists", "1"], ["done", "UK Sanctions List", "1"], ["done", "FIU frozen-assets list", "1"], ["running", "UN list (live)", "0"], ["skipped", "court portals: manual in the Baltics", "0"], ["queued", "central bank warnings", "0"]] },
+      { n: "Web, domain and news", st: state === "partial" ? "failed" : "running", meta: "48 s · usually 1-2 min · 6% of the cap", step: state === "partial" ? "stopped: the website did not answer" : "reading the news index (query 2 of 4)", tasks: [["done", "find the website", "3"], ["done", "DNS", "1"], ["done", "certificate logs", "1"], [state === "partial" ? "failed" : "done", "homepage", "1"], ["running", "news index", "2"], ["queued", "web search 3 of 4", "0"], ["queued", "web search 4 of 4", "0"]] },
       { n: "Verdict", st: "queued", meta: "usually 15-30 s", step: "" },
     ];
-    if (state === "question" && q === "entity") L.forEach((l, i) => { if (i === 0) { l.st = "waiting"; l.step = "waiting for you: which company is it?"; l.meta = "12 s · $0.02"; } else { l.st = "queued"; l.tasks = undefined; l.step = ""; l.meta = "waits for the lead"; } });
+    if (state === "question" && q === "entity") L.forEach((l, i) => { if (i === 0) { l.st = "waiting"; l.step = "waiting for you: which company is it?"; l.meta = "12 s · 1% of the cap"; } else { l.st = "queued"; l.tasks = undefined; l.step = ""; l.meta = "waits for the lead"; } });
     if (reconnecting) L.forEach((l) => { if (l.st === "running") l.meta = l.meta + " · last update 12 s ago"; });
+    if (limited) L.forEach((l) => { if (l.st === "running") { l.st = "waiting"; l.step = "paused: your Claude plan's usage limit, resumes after 14:00"; } });
+    if (concurrency2 && state === "streaming") { const w = L[4]; w.st = "queued"; w.label = "waiting to start"; w.step = "starts when a lane finishes (2 agents at a time on this plan)"; w.meta = "0 s"; w.tasks = w.tasks.map((t) => ["queued", t[1], "0"]); }
     if (stopped) L.forEach((l) => { if (l.st === "running" || l.st === "queued") { l.st = l.n === "Verdict" ? "done" : "stopped"; l.step = l.n === "Verdict" ? "written from the findings so far" : "stopped by you at 09:44:05"; } });
-    if (state === "question" && (q === "cap" || q === "cap-used")) L.forEach((l) => { if (l.st === "running") { l.st = "waiting"; l.step = "paused at the cost cap"; } });
+    if (state === "question" && (q === "cap" || q === "cap-used")) L.forEach((l) => { if (l.st === "running") { l.st = "waiting"; l.step = "paused at the usage cap"; } });
     const TI = { done: "check", running: null, queued: "clock", failed: "x", skipped: "skip" };
     const lane = (l) => `<div class="lane ${l.st}">
-      <div class="lane-head"><span class="status ${l.st}"><span class="dot"></span>${l.st}</span><span class="lane-name">${esc(l.n)}</span></div>
+      <div class="lane-head"><span class="status ${l.st}"><span class="dot"></span>${l.label || l.st}</span><span class="lane-name">${esc(l.n)}</span></div>
       <span class="lane-meta num" style="margin-left:0">${esc(l.meta)}</span>
       ${l.step ? `<span class="lane-step">${esc(l.step)}</span>` : ""}
       ${l.st === "failed" ? `<span><button class="btn btn-sm" type="button">Retry this agent</button></span>` : ""}
       ${l.tasks ? `<div class="tasks">${l.tasks.map(([s, t, n]) => `<div class="task ${s}"><span class="t-ic">${TI[s] ? icon(TI[s], "icon icon-sm") : '<span class="spinner"></span>'}</span><span class="t-label">${esc(t)}</span><span class="t-end num">${s === "queued" ? "queued" : s === "skipped" ? "skipped" : `${n} src`}</span></div>`).join("")}</div>` : ""}
     </div>`;
     return `<section class="card" id="agents" tabindex="-1" style="padding:16px;display:flex;flex-direction:column;gap:12px;scroll-margin-top:120px" aria-label="Agents">
-      <div style="display:flex;align-items:baseline;gap:8px"><h2 class="serif" style="font-size:22px">Agents</h2><span class="muted small num" style="margin-left:auto">$0.27 of $1.50</span></div>
+      <div style="display:flex;align-items:baseline;gap:8px"><h2 class="serif" style="font-size:22px">Agents</h2><span class="muted small num" style="margin-left:auto">18% of the cap</span></div>
       <div class="meter ${q.startsWith("cap") && state === "question" ? "cap" : ""}" role="progressbar" aria-label="Spend against the cap" aria-valuenow="${q.startsWith("cap") && state === "question" ? 100 : 18}" aria-valuemin="0" aria-valuemax="100"><i style="width:${q.startsWith("cap") && state === "question" ? 100 : 18}%"></i></div>
       <div class="lanes">${L.map(lane).join("")}</div>
       <p class="small muted">Lanes run in parallel. Findings land in their section as each check finishes.</p>
@@ -468,13 +472,13 @@
       <p class="small" style="padding:8px 10px;border-radius:8px;background:var(--surface-2)"><strong>No verdict yet.</strong> These checks use official data only; the rest run when you investigate. Missing does not mean clean.</p>
       <p class="small muted">The instant profile runs checks 1 to 9 from loaded registers. Agents run check 11${subj.cc === "US" ? " and check 10" : ""}; ${subj.cc === "US" ? "" : "court cases are a manual check in this country, so check 10 is not possible."}</p>
       ${checksList(subj.checks, { instant: true })}
-      <a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate · typically $0.46</a>
+      <a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate · about 150k standard tokens</a>
     </section>`;
   }
 
   function chatDock() {
     return `<section class="card chat" aria-label="Ask about this report">
-      <div class="chat-head"><h2 style="font-size:15px;font-weight:600">Ask about this report</h2><span class="small muted">Answers cite the findings; $0.25 cap per question</span></div>
+      <div class="chat-head"><h2 style="font-size:15px;font-weight:600">Ask about this report</h2><span class="small muted">Answers cite the findings; each question is capped at 85k standard tokens</span></div>
       <div class="chat-body">
         <button class="suggest" type="button">What does the securing measure stop the company from doing?</button>
         <button class="suggest" type="button">Summarise this for a colleague in three lines</button>
@@ -489,7 +493,7 @@
   function questionCard() {
     const foot = (waiting, dflt) => `<div class="q-foot"><span>${icon("clock", "icon icon-sm")} Waiting on you: ${esc(waiting)}</span><span>${esc(dflt)}</span></div>`;
     const card = (who, title, inner, f) => `<section class="question" id="question" aria-labelledby="q-h" role="region">
-      <div class="q-who"><span class="status waiting"><span class="dot"></span>Needs you</span><span class="small ink2">${esc(who)}</span>${who === "Cost cap" ? ruleTag() : aiTag()}</div>
+      <div class="q-who"><span class="status waiting"><span class="dot"></span>Needs you</span><span class="small ink2">${esc(who)}</span>${who === "Usage cap" || who === "Your Claude plan" ? ruleTag() : aiTag()}</div>
       <h2 id="q-h">${title}</h2>${inner}${f}</section>`;
     if (q === "entity") return card("Lead agent", "Three registered companies match “the timber people from Rīga”. Which one is it?",
       `<div class="q-options">
@@ -517,13 +521,13 @@
         <button class="btn" type="button">Yes, it's theirs</button><button class="btn" type="button">No</button><button class="btn" type="button">Not sure</button>
       </div>
       <p class="small muted">Until it is confirmed, findings from this site are marked "name only" and can't raise more than a point to check.</p>`, foot("Web, domain and news", "If unanswered in 30 minutes: “Not sure” (answered by default)."));
-    if (q === "cap") return card("Cost cap", "This investigation reached its $1.50 cap.",
-      `<div class="kv"><div><span class="k">Spent on this investigation</span><span class="num">$1.50 of $1.50</span></div><div><span class="k">Left today</span><span class="num">$8.16 of $10.00</span></div><div><span class="k">Still running</span><span>Web, domain and news (2 searches left)</span></div></div>
+    if (q === "cap") return card("Usage cap", "This investigation reached its usage cap.",
+      `<div class="kv"><div><span class="k">Used by this investigation</span><span class="num">500k of 500k standard tokens</span></div><div><span class="k">Left today</span><span class="num">2.9M of 3.3M standard tokens</span></div><div><span class="k">Still running</span><span>Web, domain and news (2 searches left)</span></div></div>
       <div class="q-options">
         <button class="q-option default" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Uses the findings so far · default</span></button>
-        <button class="q-option" type="button"><span class="q-title">Allow up to $0.50 more</span><span class="q-sub">Offered once per investigation; never past today's cap</span></button>
+        <button class="q-option" type="button"><span class="q-title">Allow up to a third more of the cap (170k standard tokens)</span><span class="q-sub">Offered once per investigation; never past today's cap</span></button>
       </div>`, foot("Web, domain and news; the verdict", "If unanswered in 10 minutes: stop and write the report."));
-    return card("Cost cap", "This investigation reached its cap again.",
+    return card("Usage cap", "This investigation reached its usage cap again.",
       `<p class="small ink2">The extension is already used for this investigation, so it can only stop now. Findings so far are kept.</p>
       <div class="q-options"><button class="q-option default" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Extension already used for this investigation</span></button></div>`,
       foot("the verdict", "The report is written automatically in 30 seconds."));
@@ -534,9 +538,14 @@
     if (state === "estimate") return sheet({ title: "Start an investigation", body: `
       <p class="ink2">Four agents check ${esc(name)} in parallel against registers, courts, sanctions lists and the open web, then a rule-based verdict is written up with sources.</p>
       <div class="kv">
-        <div><span class="k">Typical cost</span><span class="num"><strong>$0.46</strong>, at most $0.92</span></div>
-        <div><span class="k">Cap for this run</span><span class="num">$1.50</span></div>
-        <div><span class="k">Left today</span><span class="num">$8.16 of $10.00</span></div>
+      </div>
+      <div class="usage-est" style="display:flex;flex-direction:column;gap:8px">
+        <span><strong>Estimated usage.</strong> About 150k standard tokens of your subscription, up to about 310k. Cap 500k. Today: 2.9M of 3.3M left.</span>
+        <div class="meter" style="position:relative" role="img" aria-label="Typically about 30% of this investigation's cap, at most about 62%"><i style="width:30%"></i><b style="position:absolute;left:30%;width:32%;top:0;bottom:0;background:color-mix(in srgb, var(--accent) 35%, transparent);border-radius:2px"></b></div>
+        <span class="small muted">Typically about 30% of this investigation's cap, at most about 62% ·
+          <span class="chip-wrap"><button type="button" class="link-btn" data-chip aria-controls="st-info" aria-expanded="false">What is a standard token?</button><span class="pop" id="st-info" role="dialog" aria-label="What is a standard token" hidden>Standard tokens are Finora's measure of how much of your Claude plan a run uses. Your plan's own limits are set by your plan, and Finora can't see them.</span></span></span>
+      </div>
+      <div class="kv">
         <div><span class="k">Typical time</span><span>1 to 2 minutes</span></div>
         <div><span class="k">Purpose</span><span>Checking a company I may do business with · <a href="?${qs({ state: "full", purpose: "unset" })}#people">change</a></span></div>
       </div>
@@ -544,18 +553,28 @@
         <input id="offer-domain" class="input" inputmode="url" autocomplete="off" placeholder="for example invoices.example" value="${offer === "none" ? "" : offer === "match" ? "paraugs-timber.example" : "paraugs-timber-pay.example"}">
         <span class="muted">The web agent checks it against the register: DNS, certificates, the homepage and, where the registry publishes one, the domain's creation date. Use it when an unknown company sent you an offer or an invoice.</span></label>
       ${subj.key === "us-private" ? `<p class="small banner banner-info">For a US private company the verdict will normally be “Not enough data”: US sources don't publish owners, accounts or taxes.</p>` : ""}
-      <details><summary class="small">Cost per agent</summary><div class="kv small" style="margin-top:8px">
-        <div><span class="k">Lead</span><span class="num">$0.02</span></div><div><span class="k">Registry and people</span><span class="num">$0.06</span></div><div><span class="k">Money and tax</span><span class="num">$0.06</span></div><div><span class="k">Legal, insolvency and sanctions</span><span class="num">$0.07</span></div><div><span class="k">Web, domain and news</span><span class="num">$0.20</span></div><div><span class="k">Verdict</span><span class="num">$0.05</span></div>
+      <details><summary class="small">Usage per agent and per model</summary><div class="kv small" style="margin-top:8px">
+        <div><span class="k">Lead</span><span class="num">about 6k st · 3 turns</span></div><div><span class="k">Registry and people</span><span class="num">about 20k st · 6 turns</span></div><div><span class="k">Money and tax</span><span class="num">about 20k st · 6 turns</span></div><div><span class="k">Legal, insolvency and sanctions</span><span class="num">about 23k st · 7 turns</span></div><div><span class="k">Web, domain and news</span><span class="num">about 67k st · 12 turns</span></div><div><span class="k">Verdict</span><span class="num">about 17k st · 2 turns</span></div>
+        <div><span class="k">Raw tokens, main model</span><span class="num">about 410k input (380k read from cache) · 9k output</span></div><div><span class="k">Raw tokens, small model</span><span class="num">about 60k input · 4k output</span></div>
       </div></details>
-      <p class="small muted">Estimate from default per-agent costs until this install has 10 finished investigations. Your own key pays; the cap is enforced in code.</p>`,
+      <p class="small muted">This run uses your Claude subscription through Claude Code on this machine. Finora stops at its own caps. The estimate uses default per-agent usage until this install has 10 finished investigations.</p>`,
       actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Cancel</a><a class="btn btn-primary" href="?${qs({ state: "streaming" })}">Start investigation</a>` });
-    if (state === "nokey") return sheet({ title: "Add your key to run agents", body: `
-      <p class="ink2">The company profile works without a key. Agents need an AI model key of your own; Finora never pays for or stores usage elsewhere.</p>
-      <ol class="small ink2" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Open <span class="mono">.env.local</span> in the Finora folder.</li><li>Set <span class="mono">ANTHROPIC_API_KEY</span>.</li><li>Restart Finora with <span class="mono">pnpm finora</span>.</li></ol>`,
-      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn btn-primary" href="settings.html?state=keys-missing">Open settings</a>` });
-    if (state === "daily-cap") return sheet({ title: "Today's agent budget is used", body: `
-      <div class="kv"><div><span class="k">Spent today</span><span class="num">$10.00 of $10.00</span></div><div><span class="k">Resets</span><span class="num">at 00:00, in 6 h 12 min</span></div></div>
-      <p class="ink2">The company profile and the checks from official data keep working, because they cost nothing. The daily cap is set in Settings and can't be raised from inside a run.</p>`,
+    if (state === "first-run") return sheet({ title: "Before your first investigation", body: `
+      <p class="ink2">Finora stops at its own daily cap. If paid extra usage is on in your Claude account, a run could draw on it. Keep it off to make sure Finora never costs money.</p>
+      <p class="small muted">Finora can't see your Claude account's settings. With extra usage on, the most a day of runs can use is Finora's daily cap (3.3M standard tokens). Settings repeats this note.</p>
+      <label class="radio"><input type="checkbox" checked> <span>I understand</span></label>`,
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Cancel</a><a class="btn btn-primary" href="?${qs({ state: "estimate" })}">Continue</a>` });
+    if (state === "cli-missing") return sheet({ title: "Claude Code isn't installed", body: `
+      <p class="ink2">Agents run on Claude Code on this machine, under your own Claude plan. The company profile works without it.</p>
+      <ol class="small ink2" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Install Claude Code.</li><li>Run <span class="mono">claude</span> once in a terminal and sign in.</li><li>Come back and press Check again.</li></ol>`,
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn btn-primary" href="?${qs({ state: "estimate" })}">Check again</a>` });
+    if (state === "cli-signed-out") return sheet({ title: "Claude Code isn't signed in", body: `
+      <p class="ink2">Claude Code is installed on this machine but not signed in, so agents can't start. The company profile keeps working.</p>
+      <ol class="small ink2" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Run <span class="mono">claude</span> in a terminal and sign in.</li><li>Come back and press Check again.</li></ol>`,
+      actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn btn-primary" href="?${qs({ state: "estimate" })}">Check again</a>` });
+    if (state === "daily-cap") return sheet({ title: "Today's usage cap is reached", body: `
+      <div class="kv"><div><span class="k">Used today</span><span class="num">3.3M of 3.3M standard tokens</span></div><div><span class="k">Resets</span><span class="num">at 00:00, in 6 h 12 min</span></div></div>
+      <p class="ink2">The company profile and the checks from official data keep working, because they don't use your Claude plan. The daily cap is set in Settings and can't be raised from inside a run.</p>`,
       actions: `<a class="btn" data-cancel href="?${qs({ state: "full" })}">Close</a><a class="btn" href="settings.html">Settings</a>` });
     return "";
   }
@@ -571,7 +590,7 @@
     if (state === "question" && q === "entity") {
       return `<div class="page"><div class="cols"><div class="primary">
         <div class="co-head"><span class="label">Investigation running · subject not confirmed</span><h1 class="co-title">“the timber people from Rīga, quote for 40 m³”</h1>
-        <div class="run-head"><span class="run-stats num">${icon("agent", "icon icon-sm")} Waiting for you · lead agent · 3 candidates · $0.02 of $1.50</span><div class="meter"><i style="width:6%"></i></div></div></div>
+        <div class="run-head"><span class="run-stats num">${icon("agent", "icon icon-sm")} Waiting for you · lead agent · 3 candidates · 1% of the cap</span><div class="meter"><i style="width:6%"></i></div></div></div>
         ${questionCard()}
         <p class="small muted">Nothing is shown until the company is confirmed, so no finding can attach to the wrong company.</p>
         </div><aside class="aside" tabindex="0" aria-label="Agents">${lanes()}</aside></div></div>`;
@@ -581,10 +600,20 @@
     const tally = phase === "profile" && !natural && state === "full" ? `<div class="checks-tally" role="note"><span><strong>No verdict yet.</strong> Official checks: ${t.filter((c, i) => i < 9 && c[1] === "ok").length} on record · ${t.filter((c) => c[1] === "soft" || c[1] === "hard").length} to check · ${t.filter((c) => c[1] === "notrun").length} not possible · ${t.filter((c) => c[1] === "stale").length} past their cycle</span><a href="#ic-h">See the checks</a></div>` : "";
     const banner = stopped ? `<div class="banner banner-info" role="status">${icon("stop")}<span><strong>You stopped this investigation at 09:44:05.</strong> Findings so far are kept, the verdict is written from them, and checks that had not finished count as not run. <a href="?${qs({ state: "streaming", stopped: "no" })}">Re-run</a></span></div>` : state === "partial" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One agent did not finish.</strong> The web agent stopped when the company's website did not answer, so check 11 counts as not run. Other findings are complete. <button class="link-btn" type="button">Re-run the web agent</button></span></div>` : "";
     const lanesInline = phase === "run" && !(state === "question" && q === "entity") ? `<section class="lanes-inline" aria-label="Agents, compact">
-      ${[["done", "Registry and people", "5 of 5 tasks", "22 s · $0.05"], ["done", "Money and tax", "3 of 4 tasks, 1 skipped", "28 s · $0.06"], [q === "sanctions" && state === "question" ? "waiting" : "running", "Legal, insolvency and sanctions", q === "sanctions" && state === "question" ? "waiting for you: possible sanctions match" : "checking the UN list", "31 s · $0.05"], ["running", "Web, domain and news", "reading the news index (query 2 of 4)", "48 s · $0.09"], ["queued", "Verdict", "waits for the four agents", ""]].map(([st, n, step, meta]) => `<div class="li-row"><span class="status ${st}"><span class="dot"></span>${st}</span><span class="li-name">${n}</span><span class="li-meta num">${meta}</span><span class="li-step">${st === "done" ? "✓ " : "› "}${step}</span></div>`).join("")}
+      ${[["done", "Registry and people", "5 of 5 tasks", "22 s · 3%"], ["done", "Money and tax", "3 of 4 tasks, 1 skipped", "28 s · 4%"], [q === "sanctions" && state === "question" ? "waiting" : "running", "Legal, insolvency and sanctions", q === "sanctions" && state === "question" ? "waiting for you: possible sanctions match" : "checking the UN list", "31 s · 4%"], ["running", "Web, domain and news", "reading the news index (query 2 of 4)", "48 s · 6%"], ["queued", "Verdict", "waits for the four agents", ""]].map(([st, n, step, meta]) => `<div class="li-row"><span class="status ${st}"><span class="dot"></span>${st}</span><span class="li-name">${n}</span><span class="li-meta num">${meta}</span><span class="li-step">${st === "done" ? "✓ " : "› "}${step}</span></div>`).join("")}
       <a class="small" href="#agents" style="min-height:32px;display:inline-flex;align-items:center" onclick="setTimeout(() => document.getElementById('agents').focus(), 0)">All tasks and sources</a></section>` : "";
-    const runBar = phase === "run" ? `<div class="run-bar" role="status"><span>${reconnecting ? "Reconnecting" : state === "question" ? "Needs you" : "4 agents · 2 running"} · $0.27 of $1.50</span><a href="#agents" onclick="setTimeout(() => document.getElementById('agents').focus(), 0)">Show agents</a></div>` : "";
-    const qcard = state === "question" ? questionCard() : reconnecting ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Connection lost at 09:43:12. Reconnecting (attempt 2)…</strong> The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost. <button class="link-btn" type="button">Retry now</button></span></div>` : "";
+    const runBar = phase === "run" ? `<div class="run-bar" role="status"><span>${reconnecting ? "Reconnecting" : limited ? "Paused until 14:00" : state === "question" ? "Needs you" : "4 agents · 2 running"} · 18% of the cap</span><a href="#agents" onclick="setTimeout(() => document.getElementById('agents').focus(), 0)">Show agents</a></div>` : "";
+    const limitCard = limited ? `<section class="question" id="question" aria-labelledby="lim-h" role="region">
+      <div class="q-who"><span class="status waiting"><span class="dot"></span>Paused</span><span class="small ink2">Your Claude plan</span>${ruleTag()}</div>
+      <h2 id="lim-h">Usage limit reached: resumes after 14:00</h2>
+      <p class="small ink2">Your Claude plan's usage window ran out at 09:44, so the agents stopped mid-run. Nothing is lost: findings so far are kept, and no verdict is written on partial evidence.</p>
+      <div class="q-options">
+        <button class="q-option default" type="button"><span class="q-title">Resume at 14:00</span><span class="q-sub">The run picks up where it stopped · default</span></button>
+        <button class="q-option" type="button"><span class="q-title">Stop here and write the report</span><span class="q-sub">Checks that haven't finished count as not run</span></button>
+      </div>
+      <div class="q-foot"><span>${icon("clock", "icon icon-sm")} Waiting: Legal, insolvency and sanctions; Web, domain and news; the verdict</span></div>
+    </section>` : "";
+    const qcard = limited ? limitCard : state === "question" ? questionCard() : reconnecting ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Connection lost at 09:43:12. Reconnecting (attempt 2)…</strong> The run keeps going on this machine; when the page reconnects it catches up from the last event it saw. Nothing is lost. <button class="link-btn" type="button">Retry now</button></span></div>` : "";
     const sections = [statusSection(), peopleSection(), ownersSection(), financialsSection(), workforceSection(), taxSection(), insolvencySection(), courtsSection(), sanctionsSection(), filingsSection(), securitiesSection(), webSection(), networkSection()].join("");
     const index = phase !== "run" && state !== "loading" ? `<nav class="sec-index" aria-label="Sections">${[["status", "Status"], ["people", "People"], ["owners", "Owners"], ["financials", "Financials"], ["tax", "Taxes"], ["insolvency", "Insolvency"], ["courts", "Courts"], ["sanctions", "Sanctions"], ["web", "Web"]].filter(([a]) => sections.includes(`id="${a}"`)).map(([a, l]) => `<a href="#${a}">${l}</a>`).join("")}</nav>` : "";
     const aside = phase === "run" ? lanes() : phase === "report" ? chatDock() + (state === "partial" || stopped ? lanes() : "") : checksCard();
@@ -600,13 +629,14 @@
 
   Finora.mount("explorer", render, [
     { key: "country", label: "Subject", options: [["lv", "Latvia · SIA (full)"], ["ee", "Estonia · OÜ"], ["lt", "Lithuania · UAB"], ["us-private", "US private · Colorado LLC"], ["us-public", "US public · SEC filer"], ["sole-trader", "Sole trader · facts only (LT)"]] },
-    { key: "state", label: "Page state", options: [["full", "Profile: official data"], ["loading", "Profile: loading"], ["error", "Profile: error"], ["estimate", "Investigate: cost estimate sheet"], ["nokey", "Investigate: no AI key"], ["daily-cap", "Investigate: daily cap reached"], ["streaming", "Investigation streaming"], ["reconnecting", "Investigation: reconnecting"], ["question", "Agent asks you"], ["report", "Report"], ["partial", "Report: one agent failed"]] },
+    { key: "state", label: "Page state", options: [["full", "Profile: official data"], ["loading", "Profile: loading"], ["error", "Profile: error"], ["estimate", "Investigate: usage estimate sheet"], ["first-run", "Investigate: first-time extra-usage notice"], ["cli-missing", "Investigate: Claude Code not installed"], ["cli-signed-out", "Investigate: Claude Code not signed in"], ["daily-cap", "Investigate: daily usage cap reached"], ["streaming", "Investigation streaming"], ["reconnecting", "Investigation: reconnecting"], ["limit", "Investigation: plan usage limit, paused"], ["question", "Agent asks you"], ["report", "Report"], ["partial", "Report: one agent failed"]] },
     { key: "q", label: "Question (with Agent asks you)", options: [["entity", "Which company is it?"], ["sanctions", "Possible sanctions match"], ["scope", "Is this website theirs?"], ["cap", "Cost cap reached"], ["cap-used", "Cap reached, extension used"]] },
     { key: "verdict", label: "Verdict level (with Report)", options: [["auto", "As the data says"], ["none", "No concerns found"], ["points", "Points to check"], ["serious", "Serious concerns"], ["insufficient", "Not enough data"]] },
     { key: "purpose", label: "Purpose gate", options: [["set", "Purpose stated"], ["unset", "No purpose yet"]] },
     { key: "install", label: "Snapshot history", options: [["established", "Covers 6 months"], ["new", "New install: not evaluated yet"]] },
     { key: "sec", label: "SEC contact (US public)", options: [["set", "Set"], ["missing", "Missing: needs key"]] },
     { key: "name", label: "Name length", options: [["normal", "Normal"], ["long", "Very long (Latvia)"]] },
+    { key: "concurrency", label: "Parallel agents (streaming)", options: [["4", "4 at a time"], ["2", "2 at a time: one waiting to start"]] },
     { key: "offer", label: "Offer domain (report, Latvia)", options: [["none", "Not given"], ["match", "Tied to the company"], ["mismatch", "Not tied to the company"], ["other", "Belongs to another company"], ["unresolvable", "Does not resolve"]] },
     { key: "lvpeople", label: "Latvian officer names", options: [["names", "Names (v1 default)"], ["role_counts", "Role counts only (legal fallback)"]] },
   ]);

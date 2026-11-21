@@ -24,7 +24,7 @@ An editorial serif (Instrument Serif) carries headings and the verdict, so the p
 Principles:
 1. **Official first, agents second.** The company page shows register data instantly from the local store. Agents add findings; they never overwrite official values.
 2. **Never a blank section.** Every gap has a named state (§5). "Missing does not mean clean" is said wherever it matters.
-3. **Show the work.** Every agent, task, source, question and cost is visible while it happens and stays inspectable in the report.
+3. **Show the work.** Every agent, task, source, question and its usage is visible while it happens and stays inspectable in the report.
 4. **Opinion is labelled.** Rule-based, AI-written, official, corroborated, single-source, inferred and derived each look different.
 5. **Colour carries meaning, never alone.** Every status colour pairs with an icon, a sign or a word. "None found" and "No concerns found" are never green.
 6. **One shell, many tools.** A new tool adds a manifest and routes, not a new visual language.
@@ -113,7 +113,7 @@ Every value renders through `FieldRow` with an `itemId` from Part G. The section
 | `not_checked{reason: error}` | NC | `warn` in `--warn` | "Not checked: [reason] · Retry" | |
 | `not_checked{reason: skipped}` | NC | `dash` | "Not checked: [why the run skipped it]" | |
 | `not_checked{reason: paid_only}` | PAID | `euro` | "Available as a paid register extract" + "Order from the register" | link only to the official register's own ordering page; no link if none exists |
-| `not_checked{reason: needs_key}` | KEY | `key` | "Add your key to check" or the row's line (for example "Set the SEC contact") + Settings link | |
+| `not_checked{reason: needs_key}` | KEY | `key` | the row's setting, "Set the SEC contact in Settings" (the only optional local setting in v1; H5: no API keys) + Settings link | |
 | `not_checked{reason: needs_purpose}` | | none | the purpose gate itself (§8.3), never the words "Not checked" | |
 | `not_checked{reason: agent_only, agentId}` | AGENT | `agent` | "Not checked here: the [agent] agent checks this when you investigate" | becomes a running line, then a finding, during a run |
 | `not_checked{reason: manual_lookup, url}` | MANUAL | `hand` | "Check manually at [official site] · Open" | url on the official-host allowlist |
@@ -163,14 +163,14 @@ Summary; routes and the tool manifest are in `docs/design/IA.md`.
 |---|---|---|
 | Search (home) | `search.html` | empty home with country status and recent runs; results grouped by country with distinguishing facts; very long name; a country still loading ("Estonia: loading, 62%"); US live registers streaming; no match (lists the registers checked, offers "Investigate this text"); live registers failed |
 | Company profile | `company.html?state=full` | Latvia, Estonia, Lithuania, US private, US public, US public without the SEC contact, sole trader; purpose gate unset; new install (snapshot rules not evaluated); long name; loading; error |
-| Investigate | `company.html?state=estimate`, `nokey`, `daily-cap` | pre-run cost estimate; no AI key; daily cap reached |
+| Investigate | `company.html?state=estimate`, `first-run`, `cli-missing`, `cli-signed-out`, `daily-cap` | pre-run usage estimate; one-time extra-usage notice; Claude Code not installed; not signed in; daily usage cap reached |
 | Investigation running | `company.html?state=streaming` | agent panel with lanes and task sub-rows; findings landing; header stats |
-| Agent asks you | `company.html?state=question&q=…` | which company (no default), possible sanctions match, scope and cost, cost cap reached, cap reached with the extension used |
+| Agent asks you | `company.html?state=question&q=…` | which company (no default), possible sanctions match, is this website theirs (scope), usage cap reached, cap reached with the extension used |
 | Report | `company.html?state=report`, `partial` | No concerns found, Points to check, Serious concerns, Not enough data; one agent failed (the web agent, so check 11 is not run). The facts-only variant is a profile state (`?country=sole-trader`) |
 | Network explorer | `network.html` | graph, list twin, address hosting 412 companies, no links, loading, error |
 | Library | `library.html` | list, filtered, empty, loading, error |
-| Crash monitor | `crash.html` | no keys (official only), keys and funds set, one source stale, one source failed, loading |
-| Settings | `settings.html` | all keys set, keys missing, AI key rejected, history near its limit |
+| Crash monitor | `crash.html` | keyless (current), one source stale, one source failed, loading, Taiwan peak seeded |
+| Settings | `settings.html` | ready, Claude Code not installed, not signed in, history near its limit |
 | Sources | `sources.html` | all current, one source stale, loading; filter by country |
 
 ### 8.1 Company page anatomy
@@ -185,7 +185,7 @@ Summary; routes and the tool manifest are in `docs/design/IA.md`.
 5. **Section index** (pills linking to sections) on profile and report.
 6. **Sections**, in order: S02 Status and history, S03 People, S04 Owners, S06 Financials, S07 Workforce, S08 Taxes and arrears, S09 Insolvency, pledges and notices, S10 Courts, S11 Sanctions and watchlists, S13 Filings and events, S14 Securities (US public), S15·S16 Web presence and news, S17 Network. S01 is the header. S05 and S12 are LATER and not rendered. Each section header carries its id and "Report a problem".
 7. **Footer:** the attribution lines of every cited source (deduplicated), the disclaimer when a person is shown, "AI-written text is labelled", and the correction link.
-8. **Aside:** profile shows "Checks from official data" (checks 1 to 9; 10 and 11 say "Runs when you investigate") with the Investigate button and typical cost. It opens with the fixed line (council session 2, item 13; the condition of O1): **"No verdict yet. These checks use official data only; the rest run when you investigate. Missing does not mean clean."** A check whose data is past its source's cycle shows a **clock**, never a check mark. Under 1024 px, where the aside moves down, a **checks tally** under the header repeats "No verdict yet" with counts (on record, to check, not possible, past their cycle) and links to the panel; run shows the agent panel; report shows the chat dock (plus the lanes when an agent failed).
+8. **Aside:** profile shows "Checks from official data" (checks 1 to 9; 10 and 11 say "Runs when you investigate") with the Investigate button and the typical usage ("about 150k standard tokens"). It opens with the fixed line (council session 2, item 13; the condition of O1): **"No verdict yet. These checks use official data only; the rest run when you investigate. Missing does not mean clean."** A check whose data is past its source's cycle shows a **clock**, never a check mark. Under 1024 px, where the aside moves down, a **checks tally** under the header repeats "No verdict yet" with counts (on record, to check, not possible, past their cycle) and links to the panel; run shows the agent panel; report shows the chat dock (plus the lanes when an agent failed).
 
 ### 8.2 Section rules by country
 
@@ -220,15 +220,16 @@ A well inside the People (and US Owners, Securities) section: legend "Why are yo
 
 ### 9.1 Agent panel (streaming)
 
-- **Header stats**, mono, in the page header: `Investigating · 4 agents · 23 tasks · 31 sources · $0.27 of $1.50`, with a progress meter. A polite live region announces at most one update per lane step.
+- **Header stats**, mono, in the page header: `Investigating · 4 agents · 23 tasks · 31 sources · 18% of the cap`, with a progress meter. A polite live region announces at most one update per lane step.
 - **Lanes,** in order: Lead (resolve and plan), Registry and people, Money and tax, Legal, insolvency and sanctions, Web, domain and news, Verdict. Each lane shows:
   - status (`queued`, `running` with a pulsing dot, `waiting`, `done`, `failed`, `stopped`) as word plus dot;
-  - name; `elapsed · usually [typical] · $cost` in mono (typical: 15 to 35 s; web 1 to 2 min);
+  - name; `elapsed · usually [typical] · N% of the cap` in mono (typical: 15 to 35 s; web 1 to 2 min);
+  - a lane queued by the concurrency limit reads **"waiting to start"** with "starts when a lane finishes", so all four agents stay visible even when fewer run at once (council; `?state=streaming&concurrency=2`);
   - the current step (`› reading the news index (query 2 of 4)`);
   - **task sub-rows** from `run.task`: icon (check, spinner, clock for queued, x for failed, skip), label, sources read or "queued"/"skipped".
 - **Findings land in their section** with a 600 ms accent ring; the section shows "The [agent] agent is checking this now: [step]" until then.
 - **Waiting lanes** get an amber border; failed lanes a red border.
-- **Under 1024 px** a compact lane list sits right under the page header (one line per lane: status, name, current step or tasks done, time and cost; "All tasks and sources" jumps to the full panel), and a sticky **run bar** under the top bar carries the state ("4 agents · 2 running · $0.27 of $1.50", or "Needs you", or "Reconnecting") and a "Show agents" link that jumps to the panel. A question card always renders inline at the top of the content.
+- **Under 1024 px** a compact lane list sits right under the page header (one line per lane: status, name, current step or tasks done, time and share of the cap; "All tasks and sources" jumps to the full panel), and a sticky **run bar** under the top bar carries the state ("4 agents · 2 running · $0.27 of $1.50", or "Needs you", or "Reconnecting") and a "Show agents" link that jumps to the panel. A question card always renders inline at the top of the content.
 - At most one question per run and three per investigation (`agents.md` §7).
 - **Stopped by you** (`?state=report&stopped=yes`): "Stop and write the report" ends every running lane as `stopped`, the verdict step writes from the findings so far, checks that had not finished count as not run, and an info banner says so with a Re-run link.
 - **A failed lane** shows "Retry this agent" on the lane; the report banner offers the same (`?state=partial`).
@@ -240,11 +241,11 @@ A card pinned at the top of the primary column (`id="question"`), amber border o
 
 | Kind | Options | Default and timeout |
 |---|---|---|
-| (all agent questions) | the question text and reasons are written by an agent, so the card header carries the `AI-written` tag; the cost-cap card is `Rule-based` | |
+| (all agent questions) | the question text and reasons are written by an agent, so the card header carries the `AI-written` tag; the usage-cap and plan-limit cards are `Rule-based` | |
 | `entity_choice` | one card per candidate with code, legal form, status, city, registration year; "None of these" | **no default, no countdown**; on timeout the run ends "Not enough data: company not confirmed"; nothing is shown until the company is pinned |
 | `sanctions_match` | side-by-side table of the fields either side has (identifiers first), each marked similar / differs / not on list, all neutral colour; Same company / Different company / Not sure | 30 min: recorded as "possible match, needs review (answered by default)"; "Not sure" is a soft flag; "sanctioned" appears only for an ID-confirmed primary-list entry |
 | `scope` (`agents.md` §7) | "Is [domain] this company's website?" with how it was found, what the site says and the domain's age; Yes / No / Not sure | 30 min: "Not sure"; until confirmed, findings from the site are "name only" and can raise at most a point to check |
-| `cap_reached` | "Stop here and write the report" (default), "Allow up to $0.50 more" (**once per investigation**, clipped to what is left today, hidden when nothing is left) | **10 min**: stop and write |
+| `cap_reached` | "Stop here and write the report" (default), "Allow up to a third more of the cap (170k standard tokens)" (**once per investigation**, clipped to what is left today, hidden when nothing is left) | **10 min**: stop and write |
 | `cap_reached`, extension used | only "Stop here and write the report", with "Extension already used for this investigation" | the report is written automatically |
 
 ### 9.3 Verdict (companies only)
@@ -259,12 +260,17 @@ A card pinned at the top of the primary column (`id="question"`), amber border o
 
 **Facts-only variant** (`isNaturalPerson`): shown on the profile itself, because no investigation can exist for a natural person or sole trader. The block reads "Facts only · No verdict is given on a private individual." with the disclaimer and "official facts from N sources · [date]". No level, no checks scored, no agents, never "Serious concerns". The aside explains why, with no Investigate button.
 
-### 9.4 Cost
+### 9.4 Usage (human ruling H5: no money, no API keys)
 
-- **Pre-run sheet** (Investigate): what will happen; typical cost and the most it should cost (`$0.46, at most $0.92`); the run's cap; what is left today; typical time; the purpose; an optional **"Domain on the offer or invoice"** field (council item 7, `subject.offerDomain`) with the help text "The web agent checks it against the register: DNS, certificates, the homepage and, where the registry publishes one, the domain's creation date"; for a US private company the note "the verdict will normally be 'Not enough data'"; cost per agent behind a disclosure; "Estimate from default per-agent costs until this install has 10 finished investigations. Your own key pays; the cap is enforced in code." Buttons: Cancel, **Start investigation**.
-- **No AI key:** Investigate opens a sheet that explains the three steps (`.env.local`, `ANTHROPIC_API_KEY`, restart). It is never a disabled button.
-- **Daily cap reached:** a sheet with spend and reset time; the profile keeps working.
-- Spend shows in the agent panel header, on each lane, and in the top bar.
+Agents run on the local Claude Code CLI under the user's own Claude plan. Usage is counted in **standard tokens** (st; cto: 1 st = one Sonnet-class uncached input token, from the CLI's own usage report). Caps: **500k st per investigation, 85k st per follow-up, 3.3M st per day**; one extension of **+170k st** ("a third more of the cap"), once per investigation, clipped to the daily cap.
+
+- **Words:** "usage", "standard tokens", "cap". Never a currency symbol, "cost", "spend", "price" or "pays" on any agent surface, and never a percentage of the user's plan or a claim about its remaining allowance (Finora can't see either). The only exception is the council's own notice text below ("… never costs money").
+- **Primary reading: a share of the cap.** Meters fill against the cap; the run header, the agent panel and each lane read "N% of the cap"; the top-bar pill reads "today N% of daily cap" (title: "0.6M of the 3.3M standard-token daily cap"), hidden under 768 px, `--warn` from 80%.
+- **Pre-run sheet** (Investigate): what will happen; **the estimate line exactly as cto wrote it**: "About 150k standard tokens of your subscription, up to about 310k. Cap 500k. Today: 2.9M of 3.3M left." Under it, a meter with the typical share filled and the worst-case share as a lighter band, "Typically about 30% of this investigation's cap, at most about 62%", and an info popover **"What is a standard token?"**: "Standard tokens are Finora's measure of how much of your Claude plan a run uses. Your plan's own limits are set by your plan, and Finora can't see them." Then typical time; the purpose; the optional **"Domain on the offer or invoice"** field (council item 7) with its help text; for a US private company the note "the verdict will normally be 'Not enough data'"; a disclosure **"Usage per agent and per model"** (standard tokens and turns per agent, raw tokens per model); and "This run uses your Claude subscription through Claude Code on this machine. Finora stops at its own caps. The estimate uses default per-agent usage until this install has 10 finished investigations." Buttons: Cancel, **Start investigation**.
+- **First Investigate ever** (`?state=first-run`), a one-time notice before the estimate (council): "Finora stops at its own daily cap. If paid extra usage is on in your Claude account, a run could draw on it. Keep it off to make sure Finora never costs money." with an "I understand" checkbox and Continue. Settings → Usage repeats it.
+- **Claude Code not installed** (`?state=cli-missing`) and **not signed in** (`?state=cli-signed-out`): Investigate opens a sheet with the one or two steps to fix it ("Install Claude Code; run `claude` once and sign in") and **Check again**. Never a disabled button; the instant profile keeps working.
+- **Daily usage cap reached:** a sheet "Today's usage cap is reached · 3.3M of 3.3M standard tokens · resets at 00:00"; the profile keeps working, because it doesn't use the plan.
+- **Your Claude plan's usage limit** (`?state=limit`, council H5 item 2): the run **pauses**; the header reads "Paused: your Claude plan's usage limit · resumes after [time]", running lanes read "paused …", and a `Rule-based` card "Usage limit reached: resumes after [time]" offers **Resume at [time]** (default) or **Stop here and write the report** (checks that haven't finished count as not run). Never a verdict on partial evidence.
 
 ### 9.5 Follow-up chat
 
@@ -276,22 +282,24 @@ Company-to-company only, one hop (S17). Graph and an equivalent list ("List" is 
 
 ## 11. Library
 
-Rows: country code, name, code and time, a status note when relevant (one agent did not finish, needs you, stopped at the cap), the verdict pill, checks that ran, cost. Filters: all, points to check or serious, needs you, per country, a text filter. Empty, loading and error states.
+Rows: country code, name, code and time, a status note when relevant (one agent did not finish, needs you, stopped at the cap), the verdict pill, checks that ran, usage in standard tokens ("140k st"). Filters: all, points to check or serious, needs you, per country, a text filter. Empty, loading and error states.
 
 ## 12. Crash monitor
 
-- **Banner** when running on official data only: "10 of 20 series work without a key …".
-- **Distance from peak** strip: one row per market sorted by drop, bar plus signed percentage with an arrow; "Add your key" or "peak not known yet" instead of a bar where needed.
+No keys in v1 (H5): every tile runs on a keyless source or is not drawn. Commercial sources appear under coded aliases (H4); their real names live in a local provider file.
+
+- **Distance from peak** strip: one row per market sorted by drop, bar plus signed percentage with an arrow; "peak not known yet" instead of a bar where needed.
 - **US national debt:** a ticking figure labelled `estimate`, the official figure with its date, the 30-day change.
-- **Tiles M01 to M07:** title, id, the drawdown in large type, a context line (as-of, peak date), extra rows, the council caveat, and source chips in the footer.
-  - Key-only tiles without a key show the tile's shape with "Add your key"; fund tiles without a symbol show "Choose a fund in settings". Never a number without data.
-  - Fund-proxy tiles are titled "[Region], in USD" with the council caveat.
-  - Taiwan: "Peak not known yet: tracking since [date]", never 0%.
-  - **Value below peak** appears only on rows whose tile config allows it (`valueLost` in `docs/plan/loaders/markets.md`): US stocks from Z.1, bitcoin and ether (drop × current supply, "computed by Finora"), and the total crypto market. Fund, index, gold and oil rows show drawdown only.
-  - **Peak basis** (`peakBasis`): `since` reads "peak = highest daily close since [date]"; `all_time` (total crypto) reads "all-time high, [date]"; `seeded` (Taiwan, once legal clears it) reads "peak seeded from [source]" (`?taiwan=seeded`).
-  - **Value below peaks** summary at the top of the drawdown card (`totalWiped`): "≈ $X trillion", then a sentence naming every row it sums with its as-of ("US stocks (quarterly, Q2 2026) and the total crypto market (09:55)"), "Peaks fall on different dates; the oldest figure is from [as-of]", and the Derived by Finora badge. Bitcoin and ether are inside the crypto total and are never added on top of it.
+- **Tiles: M01 US stocks, M03 Asia and Pacific, M05 gold, M06 crypto, M07 oil.** Title, id, the drawdown in large type, a context line (as-of, peak date), extra rows, the council caveat, and source chips in the footer.
+  - **M01:** the quarterly official row (US equity value, keeps "value below peak") plus daily rows per series ("US large companies", "US broad market", "US technology"; index names never appear). The daily rows' caveat says: personal use only, the index owner's copyright (the owner is named from the local provider file), via FRED, 1-day lag; drawdown only, and the series never leaves the machine.
+  - **M03:** Japan, broad index (citation required, kept on this machine) and Taiwan. Taiwan: "Peak not known yet: tracking since [date]", never 0%.
+  - **M05:** the monthly average only. **M06:** keyless, as before. **M07:** unchanged.
+  - **Not drawn:** Europe (M02), the Americas outside the US (M04) and South Korea. A footer line under the tiles says "Not covered in v1: Europe, the Americas outside the US and South Korea (no free source)". A tile with no data is never drawn and never reads 0%.
+  - **Value below peak** appears only on rows whose tile config allows it (`valueLost`): the quarterly US row, bitcoin and ether (drop × current supply, "computed by Finora"), and the total crypto market.
+  - **Peak basis** (`peakBasis`): `since` reads "peak = highest daily close since [date]"; `all_time` (total crypto) reads "all-time high, [date]"; `seeded` (Taiwan, once legal approves it) reads "peak seeded from [source]" (`?taiwan=seeded`).
+  - **Value below peaks** summary at the top of the drawdown card (`totalWiped`): "≈ $X trillion" (market value, not usage), then a sentence naming every row it sums with its as-of, "Peaks fall on different dates; the oldest figure is from [as-of]", and the Derived by Finora badge. Bitcoin and ether are inside the crypto total and are never added on top of it.
   - A failed source hides its value ("Last good value 07:40, hidden rather than shown as current"); a stale one shows amber dates and a banner.
-- "How it's calculated" and the attribution lines close the page. Fund symbols and key data stay on this machine.
+- "How it's calculated" and the attribution lines close the page; providers are named by their codes. Personal-use series stay on this machine and are never exported.
 
 ## 13. Components
 
@@ -323,6 +331,8 @@ The frontend inventory (`docs/plan/ui-build-plan.md`) is the build list; these a
 | LibraryRow, FilterChips | web | §11 |
 | CrashTile, DrawdownStrip, DebtTicker | web | §12 |
 | Banner, EmptyState, Skeleton, Spinner, Meter | ui | warn, bad, info banners |
+| UsagePill, UsageEstimate, UsageMeter | web | §9.4: share of the cap first, standard tokens and per-model tokens in a disclosure, the "What is a standard token?" popover; never a currency |
+| CliStatusSheet, ExtraUsageNotice, PlanLimitCard | web | §9.4: Claude Code missing or signed out (Check again), the one-time extra-usage notice, the paused-at-plan-limit card (Resume / Stop and write the report) |
 
 ## 14. Accessibility
 
@@ -344,7 +354,7 @@ Checked at 390×844, 768×1024, 1280×800 and 1920×1080, with no horizontal ove
 - **Under 1280:** the aside narrows to 320 px.
 - **Under 1024:** the aside (agent panel, chat, checks) moves below the content; the network side card moves under the graph.
 - **Under 768:**
-  - the tool rail becomes a bottom bar and the spend pill hides;
+  - the tool rail becomes a bottom bar and the usage pill hides;
   - field rows stack the label above the value, and the meta row stacks;
   - sheets become bottom sheets, and the network defaults to the list.
 - Tables scroll sideways inside their section rather than crushing columns.
@@ -352,8 +362,8 @@ Checked at 390×844, 768×1024, 1280×800 and 1920×1080, with no horizontal ove
 ## 16. Assumptions and open items
 
 - Dark is the default theme; light is complete.
-- Environment variable names for market keys in `settings.html` (`STOCK_DATA_KEY`, `CRYPTO_DEMO_KEY`) are placeholders; the loader specs own the real names.
-- Typical costs and times come from `docs/research/osint.md` §4.8 and become per-install averages after 10 runs (architecture §7.6).
+- Settings has no key rows in v1 (H5): **Connections** shows Claude Code's status (found, signed in, version, Check again) and the optional SEC contact setting; **Usage** shows the three caps, today's share and the extra-usage notice.
+- Typical usage and times start from the per-role defaults converted to standard tokens (cto: typical about 153k st, worst about 307k st) and become per-install figures after 10 runs.
 - The four purposes in the gate are a draft for legal to confirm against P7.
 - Open with legal: WHOIS and web-archive terms (S15 stays DNS, certificate logs and homepage until then).
 

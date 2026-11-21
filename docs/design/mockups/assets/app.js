@@ -75,7 +75,7 @@
               ${icon("search")}<span>Search companies, tools, investigations</span><span style="margin-left:auto" class="kbd">/</span>
             </button>
             <div class="topbar-end">
-              ${opts.spend === false ? "" : `<span class="spend-pill" title="Agent spend today against the daily cap">today $${opts.spendToday ?? "1.84"} of $10.00</span>`}
+              ${opts.spend === false ? "" : `<span class="spend-pill" title="Agent usage today: 0.6M of the 3.3M standard-token daily cap">today 18% of daily cap</span>`}
               <button class="btn btn-quiet btn-sm" type="button" aria-label="Switch between dark and light theme" onclick="Finora.toggleTheme()">${icon("moon")}</button>
             </div>
           </header>
@@ -366,7 +366,7 @@
       case "paid_only":
         return `<span class="state-line">${icon("euro", "icon icon-sm")}<span>${esc(r.text || "Available as a paid register extract")}${r.orderUrl ? ` · <a href="#" onclick="return false">Order from the register ${icon("ext", "icon icon-sm")}</a>` : ""}</span></span>`;
       case "needs_key":
-        return `<span class="state-line">${icon("key", "icon icon-sm")}<span>${esc(r.text || "Add your key to check")} · <a href="settings.html?state=keys-missing">Settings</a></span></span>`;
+        return `<span class="state-line">${icon("key", "icon icon-sm")}<span>${esc(r.text || "Needs a setting")} · <a href="settings.html">Settings</a></span></span>`;
       case "agent_only":
         return `<span class="state-line">${icon("agent", "icon icon-sm")}<span>Not checked here: the ${esc(r.agent)} agent checks this when you investigate</span></span>`;
       case "manual_lookup":

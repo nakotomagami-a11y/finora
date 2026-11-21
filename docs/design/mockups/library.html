@@ -43,7 +43,7 @@
         ${STATUS[r.status]}
         <span class="pill ${tone}">${r.level === "facts" ? "" : '<span class="dot"></span>'}${l}</span>
         <span class="small muted mono" style="min-width:86px;text-align:right">${esc(r.cov)}</span>
-        <span class="small muted mono" style="min-width:44px;text-align:right">${esc(r.cost)}</span>
+        <span class="small muted mono" style="min-width:64px;text-align:right" title="Agent usage in standard tokens">${esc(r.usage)}</span>
       </span>
     </a>`;
   }
@@ -63,7 +63,7 @@
     else if (state === "loading") body = `<div class="card" aria-busy="true">${Array.from({ length: 6 }, () => `<div class="lib-row"><span class="sk" style="width:28px;height:22px"></span><span class="lib-main"><span class="sk" style="width:40%"></span><span class="sk" style="width:24%;height:10px"></span></span><span class="sk" style="width:120px"></span></div>`).join("")}</div>`;
     else if (state === "error") body = `<div class="banner banner-bad" role="alert">${icon("warn")}<span><strong>The library couldn't be loaded.</strong> The local store didn't answer; your investigations are not lost. <button class="link-btn" type="button">Retry</button></span></div>`;
     else body = `<div class="card">${rows.map(row).join("")}</div>
-      <p class="small muted">${state === "filtered" ? `${rows.length} of ${FX.LIBRARY.length} investigations` : `${rows.length} investigations · $4.18 spent this month`} · columns: verdict, checks that ran, cost</p>`;
+      <p class="small muted">${state === "filtered" ? `${rows.length} of ${FX.LIBRARY.length} investigations` : `${rows.length} investigations · 1.4M standard tokens this month`} · columns: verdict, checks that ran, usage</p>`;
     return `<div class="page" style="max-width:1080px">
       <div class="co-head"><span class="label">Explorer</span><h1 class="co-title">Library</h1><p class="ink2">Every investigation you ran, newest first.</p></div>
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">${state === "empty" || state === "error" ? "" : filters}${body}</div>

@@ -43,7 +43,7 @@
     // Agent sources (web)
     webHome: { kind: "web", name: "The company's own website, homepage", short: "web · paraugs-timber.example", licence: "Quoted up to 300 characters, with a link; not stored", asOf: "20 Nov", tier: "display only", retrieved: "20 Nov 2026, 09:42", by: "the web, domain and news agent", quote: "Kiln-dried construction timber from our sawmill near Rīga since 2014.", url: true },
     webCt: { kind: "web", name: "Certificate transparency logs", short: "web · certificate logs", licence: "Public logs", asOf: "20 Nov", tier: "query time", retrieved: "20 Nov 2026, 09:42", by: "the web, domain and news agent" },
-    news: { kind: "web", name: "GDELT news index (titles and links)", short: "web · news index", licence: "Citation and link to the GDELT Project", asOf: "20 Nov", tier: "display only", retrieved: "20 Nov 2026, 09:43", by: "the web, domain and news agent", quote: "Regional sawmill expands drying capacity", url: true },
+    news: { kind: "web", name: "Open news index N1 (titles and links)", short: "web · news index", licence: "Citation and link to the index", asOf: "20 Nov", tier: "display only", retrieved: "20 Nov 2026, 09:43", by: "the web, domain and news agent", quote: "Regional sawmill expands drying capacity", url: true },
     court: { kind: "web", name: "Court rulings portal (anonymised rulings)", short: "web · court portal", licence: "Official publication, cited at query time", asOf: "20 Nov", tier: "query time", retrieved: "20 Nov 2026, 09:41", by: "the legal, insolvency and sanctions agent", url: true },
   };
 
@@ -128,7 +128,7 @@
       ["Financial position", "notrun", "Not published in the US"],
       ["Tax and social-insurance arrears", "notrun", "The US publishes no tax debt data"],
       ["Insolvency, liquidation, pledges, securing measures", "ok", "UCC filings in Colorado: none found"],
-      ["Sanctions and watchlists", "ok", "OFAC, SAM exclusions and 3 more lists: none found"],
+      ["Sanctions and watchlists", "ok", "OFAC and 3 more lists: none found; federal exclusions are a manual lookup"],
       ["Court cases", "ok", "Legal agent: no federal case found"],
       ["Web presence consistent with the register", "ok", "Domain created 2019, same year as the registration"],
     ],
@@ -164,13 +164,13 @@
   };
 
   const LIBRARY = [
-    { name: "Paraugs Timber SIA", cc: "LV", code: "40000FX0017", level: "points", cov: "11 of 11", when: "Today 09:44", cost: "$0.41", status: "done" },
-    { name: "Näidis Freight OÜ", cc: "EE", code: "1FX000017", level: "none", cov: "10 of 11", when: "Today 08:12", cost: "$0.38", status: "done" },
-    { name: "Pavyzdys Bakery UAB", cc: "LT", code: "30FX00017", level: "points", cov: "8 of 11", when: "Yesterday", cost: "$0.52", status: "partial" },
-    { name: "Sample Roofing LLC", cc: "US", code: "2019FX00017", level: "insufficient", cov: "5 of 11", when: "Yesterday", cost: "$0.33", status: "done" },
-    { name: "Example Instruments Inc.", cc: "US", code: "99FX000017", level: "points", cov: "10 of 11", when: "18 Nov", cost: "$0.47", status: "waiting" },
-    { name: "Demo Logistics SIA", cc: "LV", code: "40000FX0042", level: "serious", cov: "9 of 11", when: "16 Nov", cost: "$1.50", status: "cap" },
-    { name: "Fictional Fasteners OÜ", cc: "EE", code: "1FX000042", level: "none", cov: "10 of 11", when: "3 Nov", cost: "$0.36", status: "done" },
+    { name: "Paraugs Timber SIA", cc: "LV", code: "40000FX0017", level: "points", cov: "11 of 11", when: "Today 09:44", usage: "140k st", status: "done" },
+    { name: "Näidis Freight OÜ", cc: "EE", code: "1FX000017", level: "none", cov: "10 of 11", when: "Today 08:12", usage: "128k st", status: "done" },
+    { name: "Pavyzdys Bakery UAB", cc: "LT", code: "30FX00017", level: "points", cov: "8 of 11", when: "Yesterday", usage: "176k st", status: "partial" },
+    { name: "Sample Roofing LLC", cc: "US", code: "2019FX00017", level: "insufficient", cov: "5 of 11", when: "Yesterday", usage: "110k st", status: "done" },
+    { name: "Example Instruments Inc.", cc: "US", code: "99FX000017", level: "points", cov: "10 of 11", when: "18 Nov", usage: "158k st", status: "waiting" },
+    { name: "Demo Logistics SIA", cc: "LV", code: "40000FX0042", level: "serious", cov: "9 of 11", when: "16 Nov", usage: "500k st", status: "cap" },
+    { name: "Fictional Fasteners OÜ", cc: "EE", code: "1FX000042", level: "none", cov: "10 of 11", when: "3 Nov", usage: "121k st", status: "done" },
   ];
 
   window.FX = { S, LV, EE, LT, USPRIV, USPUB, SOLE, LIBRARY, SUBJECTS: { lv: LV, ee: EE, lt: LT, "us-private": USPRIV, "us-public": USPUB, "sole-trader": SOLE } };
