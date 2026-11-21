@@ -699,7 +699,7 @@ Each rule has one place in the UI and a named test. Rules R1-R18 are the legal m
 | R18 source-code link | `Footer` | `web/e2e/source-link.spec.ts` |
 | L3 indexing | `noindex` header and meta; `<title>` is the company name, or the registry code and legal form for natural persons and sole traders; never a person's name | `web/e2e/seo-headers.spec.ts` |
 | Banned wording | §11 | `i18n/src/banned-terms.test.ts`, plus a pass over rendered fixture pages in `web/e2e/banned-words.spec.ts` |
-| P12 fund tickers local | `FundSymbolField` writes to local settings only; fixtures use fictional symbols | the guard, plus `web/e2e/settings.spec.ts` |
+| P12 fund tickers local | No fund settings exist in v1 (H5); the Crash screen has no fund input | `web/e2e/settings.spec.ts` asserts none |
 | P14 snapshot windows | "Not evaluated: tracked since {date}" | `web/src/components/field/snapshot-window.test.tsx` (a 10-day-old fixture cannot show "no rename in 6 months") |
 | Secrets | The UI shows key presence only | `web/e2e/settings.spec.ts` plants a canary key and asserts it is absent from HTML, API JSON and client chunks |
 
