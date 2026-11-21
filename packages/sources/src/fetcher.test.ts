@@ -27,6 +27,48 @@ describe("the polite fetcher", () => {
     expect(f.calls[0]).toMatchObject({ address: "93.184.216.34", headers: { "user-agent": "Finora test@example.org" } });
   });
 
+  it("sends a POST body only when given, and never follows a POST through a redirect (JSON-RPC reads)", async () => {
+    const seen: { method: string | undefined; body: string }[] = [];
+    const server = createServer((req, res) => {
+      let body = "";
+      req.on("data", (c: Buffer) => (body += c.toString()));
+      req.on("end", () => {
+        seen.push({ method: req.method, body });
+        if (req.url === "/moved") {
+          res.writeHead(302, { location: "/rpc" });
+          res.end();
+        } else res.end('{"result":1}');
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const fetch = politeFetch({ officialHosts: ["rpc.example.org"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, retries: 0 });
+      const posted = await fetch(`http://rpc.example.org:${port}/rpc`, { headers: { "content-type": "application/json" }, body: '{"method":"getbestblockhash"}' });
+      expect(new TextDecoder().decode(posted.bytes)).toBe('{"result":1}');
+      await fetch(`http://rpc.example.org:${port}/plain`);
+      expect(seen).toEqual([
+        { method: "POST", body: '{"method":"getbestblockhash"}' },
+        { method: "GET", body: "" },
+      ]);
+      await expect(fetch(`http://rpc.example.org:${port}/moved`, { body: "{}" })).rejects.toMatchObject({ code: "too_many_redirects" });
+    } finally {
+      server.close();
+    }
+  });
+
+  it("retries a POST only when it is marked idempotent, and keeps the body out of error messages", async () => {
+    const plain = fake([{ status: 503, headers: {}, bytes: new Uint8Array() }, ok()]);
+    const fetchPlain = politeFetch({ officialHosts: ["rpc.example.org"], userAgent: "x", transport: plain.transport, resolve: publicDns, sleep: plain.sleep });
+    await expect(fetchPlain("https://rpc.example.org/", { body: '{"secret-body":1}' })).rejects.toSatisfy((e: unknown) => e instanceof FetchError && !e.message.includes("secret-body"));
+    expect(plain.calls).toHaveLength(1);
+    const marked = fake([{ status: 503, headers: {}, bytes: new Uint8Array() }, ok("done")]);
+    const fetchMarked = politeFetch({ officialHosts: ["rpc.example.org"], userAgent: "x", transport: marked.transport, resolve: publicDns, sleep: marked.sleep });
+    const r = await fetchMarked("https://rpc.example.org/", { body: "{}", idempotent: true });
+    expect(new TextDecoder().decode(r.bytes)).toBe("done");
+    expect(marked.calls).toHaveLength(2);
+  });
+
   it("refuses a host that is not official, before any request", async () => {
     const f = fake([]);
     const fetch = politeFetch({ officialHosts: ["data.example.lv"], userAgent: "x", transport: f.transport, resolve: publicDns });

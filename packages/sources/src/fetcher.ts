@@ -72,19 +72,20 @@ export function isPrivateAddress(address: string): boolean {
 export type TransportResponse = { status: number; headers: Record<string, string>; bytes: Uint8Array };
 export type Transport = (
   url: URL,
-  options: { headers: Record<string, string>; address: string; family: number; maxBytes: number; deadline: number },
+  options: { headers: Record<string, string>; address: string; family: number; maxBytes: number; deadline: number; body?: string },
 ) => Promise<TransportResponse>;
 export type Resolver = (hostname: string) => Promise<{ address: string; family: number }[]>;
 
 /** node:http(s) with the connection pinned to the checked address, an idle timeout and a total deadline. */
-export const nodeTransport: Transport = (url, { headers, address, family, maxBytes, deadline }) =>
+export const nodeTransport: Transport = (url, { headers, address, family, maxBytes, deadline, body }) =>
   new Promise((resolve, reject) => {
     let failed = false;
     const client = url.protocol === "https:" ? https : http;
     const request = client.request(
       url,
       {
-        headers,
+        method: body === undefined ? "GET" : "POST",
+        headers: body === undefined ? headers : { ...headers, "content-length": String(Buffer.byteLength(body)) },
         timeout: 60_000,
         // Node asks for every address when `all` is set (happy eyeballs); answer with the checked one only.
         lookup: ((_host: string, opts: { all?: boolean }, cb: (...args: unknown[]) => void) =>
@@ -123,7 +124,7 @@ export const nodeTransport: Transport = (url, { headers, address, family, maxByt
       failed = true;
       reject(error instanceof FetchError ? error : new FetchError("network", `${url.hostname}: ${error.message}`));
     });
-    request.end();
+    request.end(body);
   });
 
 export type PoliteFetchOptions = {
@@ -178,7 +179,7 @@ export function politeFetch(options: PoliteFetchOptions): PoliteFetch {
     if (slot > t) await sleep(slot - t);
   }
 
-  async function once(url: URL, headers: Record<string, string>, deadline: number): Promise<TransportResponse> {
+  async function once(url: URL, headers: Record<string, string>, deadline: number, body: string | undefined): Promise<TransportResponse> {
     if (url.protocol !== "https:" && url.protocol !== "http:") throw new FetchError("host_not_official", `${url.protocol} is not fetched`);
     if (!options.officialHosts.includes(url.hostname)) throw new FetchError("host_not_official", `${url.hostname} is not an official host of this source`);
     const addresses = isIP(url.hostname) ? [{ address: url.hostname, family: isIP(url.hostname) }] : await resolve(url.hostname);
@@ -188,29 +189,33 @@ export function politeFetch(options: PoliteFetchOptions): PoliteFetch {
     }
     await pace();
     if (now() > deadline) throw new FetchError("deadline", `${url.hostname}: no complete answer before the deadline`);
-    return transport(url, { headers, address: target.address, family: target.family, maxBytes, deadline });
+    return transport(url, { headers, address: target.address, family: target.family, maxBytes, deadline, ...(body === undefined ? {} : { body }) });
   }
 
   return async (input, init) => {
     const deadline = now() + deadlineMs;
     let headers: Record<string, string> = { "user-agent": options.userAgent, "accept-encoding": "identity", ...init?.headers };
     let url = new URL(input);
+    // A POST body is never re-sent to another host; a redirect turns it into a refused request.
+    const body = init?.body;
+    const retriesFor = body === undefined || init?.idempotent === true ? retries : 0;
     for (let redirects = 0; ; ) {
       let response: TransportResponse | undefined;
       for (let attempt = 0; ; attempt++) {
         try {
-          response = await once(url, headers, deadline);
+          response = await once(url, headers, deadline, body);
         } catch (error) {
-          if (!(error instanceof FetchError) || error.code !== "network" || attempt >= retries) throw error;
+          if (!(error instanceof FetchError) || error.code !== "network" || attempt >= retriesFor) throw error;
           await sleep(backoff * 2 ** attempt);
           continue;
         }
-        if (!RETRYABLE(response.status) || attempt >= retries) break;
+        if (!RETRYABLE(response.status) || attempt >= retriesFor) break;
         await sleep(retryAfterMs(response.headers["retry-after"], now()) ?? backoff * 2 ** attempt);
       }
       if (response.status >= 300 && response.status < 400 && response.headers.location) {
         if (++redirects > 3) throw new FetchError("too_many_redirects", `${url.hostname}: more than 3 redirects`);
         const target = new URL(response.headers.location, url);
+        if (body !== undefined) throw new FetchError("too_many_redirects", `${url.hostname}: a POST is not followed through a redirect`);
         if (url.protocol === "https:" && target.protocol !== "https:") throw new FetchError("insecure_redirect", `${url.hostname}: a redirect away from https is refused`);
         if (target.host !== url.host) headers = Object.fromEntries(Object.entries(headers).filter(([k]) => SAFE_ON_HOST_CHANGE.has(k.toLowerCase())));
         url = target;

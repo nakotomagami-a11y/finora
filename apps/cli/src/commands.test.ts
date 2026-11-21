@@ -99,6 +99,7 @@ describe("finora-cli (S04f)", () => {
     expect(text).toContain("quick_check main: ok");
     expect(text).toContain("quick_check user: ok");
     expect(text).toContain("quick_check sa: ok");
+    expect(text).toContain("quick_check cc: ok");
     expect(text).toContain("leases: none held");
     expect(text).toContain("restrictions.log: present");
   });

@@ -4,6 +4,16 @@
 >
 > Commercial providers keep their research codes (S7, S3, X4, C1, C3, O3) in prose. Their hosts appear only in the `SourceMeta` blocks, because the code must call them. Env var names are coded too.
 
+> **Built in S22 (2026-11-21); where the build refined this spec:**
+> - `market_series.item_id` is the item id as text (the table is small, so it isn't interned). `cc` tables have no foreign key on `sync_id`, because SQLite can't reference another file; the main ones do.
+> - `MarketRow` carries `state: "loading"` before a source's first sync, and `ticker` on the M08 row. Value lost is whole USD as a float (`valueLostUsd`, `totalWiped.valueUsd`): integer micro-USD passes `Number.MAX_SAFE_INTEGER` above about $9 billion.
+> - A seed in `seeds.ts` makes a row's peak known whatever its history (the seed is a cited figure for the peak itself).
+> - The total-crypto aggregator's quotes run every 15 min while a client is connected (council session 2, CFO), not 5. Last runs and per-source daily request counts live in `main.jobs`, so they survive a restart, and a source at its daily free limit is skipped.
+> - The Treasury connector reads `tot_pub_debt_out_amt` only; the other two debt fields are not read (no row shows them).
+> - A POST (the bitcoin block-header read) is retried only when marked idempotent, and is never followed through a redirect.
+> - The user agent names the source URL (`Finora/<version> (+<url>)`): FRED's edge resets a request whose agent has no `(+https://…)` part (measured 2026-11-21).
+> - Jobs start on the first `GET /api/v1/markets/crash` until S25 moves the start into `boot()` behind a Node-runtime guard. `FINORA_DEMO=1` runs one pass of the real connectors over synthetic fixtures, into an in-memory store, with no network.
+
 This is a group spec: one shared part (series model, maths, scheduling, settings, tests), then one section per source in the template order. The template's "Party gate" does not apply to any market source: series are not parties, and no market source holds personal data.
 
 ## Part 1: shared

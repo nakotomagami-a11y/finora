@@ -3,6 +3,7 @@
 // are not scanned (qa #20), and person row ids live only in entities.eid, by design.
 import type { DatabaseSync } from "node:sqlite";
 import { COMPANY_ID_PROPS, findPersonalCodes, PERSON_EID } from "@finora/domain";
+import { STORE_SCHEMAS } from "./open.ts";
 
 export type CanaryHit = { table: string; column: string; kind: string };
 
@@ -29,7 +30,7 @@ export function scanStore(db: DatabaseSync, needles: readonly string[] = []): Ca
     if (["director", "member", "owner"].includes(row.prop)) continue;
     check(hits, "main.statements", "value", row.value, needles);
   }
-  for (const schema of ["main", "user", "sa"]) {
+  for (const schema of STORE_SCHEMAS) {
     const tables = db
       .prepare(`SELECT name FROM ${schema}.sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`)
       .all() as { name: string }[];

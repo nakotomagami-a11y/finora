@@ -13,7 +13,22 @@ const EnvSchema = z.object({
   FINORA_DEMO: z.literal("1").optional(),
   FINORA_SOURCE_URL: z.url({ protocol: /^https?$/u }).default(DEFAULT_SOURCE_URL),
   FINORA_COMMIT: z.string().min(1).optional(),
+  // Crash monitor keys, the user's own (docs/plan/loaders/markets.md §1.5). All optional: without one the
+  // tiles it unlocks show "Add your key".
+  MARKETS_S7_API_KEY: z.string().min(8).optional(),
+  MARKETS_S3_API_KEY: z.string().min(8).optional(),
+  MARKETS_C1_DEMO_KEY: z.string().min(8).optional(),
 });
+
+/** The market keys a connector reads, by env name; values never leave the server (R17). */
+export function marketKeys(env: Env): Record<string, string> {
+  const keys: Record<string, string> = {};
+  for (const name of ["MARKETS_S7_API_KEY", "MARKETS_S3_API_KEY", "MARKETS_C1_DEMO_KEY"] as const) {
+    const value = env[name];
+    if (value) keys[name] = value;
+  }
+  return keys;
+}
 
 export type Env = z.infer<typeof EnvSchema>;
 

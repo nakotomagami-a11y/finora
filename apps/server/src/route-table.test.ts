@@ -13,8 +13,8 @@ describe("route table", () => {
     expect(committed.replace(/\r\n/gu, "\n")).toBe(renderRouteTable(SERVER_ROOT));
   });
 
-  it("lists the S02 routes under /api/v1", () => {
-    expect(ROUTE_TABLE.map((entry) => entry.pattern)).toEqual(["/api/v1/about", "/api/v1/health"]);
+  it("lists the routes under /api/v1", () => {
+    expect(ROUTE_TABLE.map((entry) => entry.pattern)).toEqual(["/api/v1/about", "/api/v1/health", "/api/v1/markets/crash"]);
   });
 
   it("turns a dynamic folder into a path parameter", () => {

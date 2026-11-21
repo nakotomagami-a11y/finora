@@ -38,6 +38,10 @@ export const DROP_REASONS = [
   "duplicate_key",
   "person_document",
   "no_item",
+  // the Crash monitor connectors (loaders/markets.md)
+  "market_missing_value",
+  "market_invalid_value",
+  "market_outside_window",
   "unmapped_line",
   "consolidated_report",
   "conflicting_value",

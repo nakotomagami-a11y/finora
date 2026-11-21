@@ -8,7 +8,7 @@ import { FIXTURE_PROFILE } from "@finora/fixtures";
 import { runSyncsInWorker, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { LOADERS } from "@finora/sources";
-import { companyValues, openStore, searchCompanies, sourceRefForStatement, writeBackup, type Store } from "@finora/store";
+import { companyValues, openStore, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
 
 export type Io = { env: CliEnv; out: (line: string) => void; now?: () => Date };
@@ -213,7 +213,7 @@ export function doctor(io: Io): number {
     const fs = statfsSync(io.env.dataDir);
     const freeGb = (fs.bavail * fs.bsize) / 1024 ** 3;
     io.out(`disk: ${freeGb.toFixed(1)} GB free at ${io.env.dataDir}${freeGb < 15 ? " (under the 15 GB the core load needs)" : ""}`);
-    for (const schema of ["main", "user", "sa"]) {
+    for (const schema of STORE_SCHEMAS) {
       const result = (db.prepare(`PRAGMA ${schema}.quick_check`).all() as { quick_check: string }[]).map((r) => r.quick_check);
       const ok = result.length === 1 && result[0] === "ok";
       if (!ok) problems++;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BACKUP_CLASSES, BACKUP_FILTERS } from "./backup-classes.ts";
+import { STORE_SCHEMAS } from "./open.ts";
 import { memoryStore } from "./test-helpers.ts";
 
 const FTS_SHADOW = /_(?:data|idx|docsize|config|content)$/;
@@ -7,7 +8,7 @@ const FTS_SHADOW = /_(?:data|idx|docsize|config|content)$/;
 function liveTables(): Map<string, string[]> {
   const { db } = memoryStore();
   const tables = new Map<string, string[]>();
-  for (const schema of ["main", "user", "sa"]) {
+  for (const schema of STORE_SCHEMAS) {
     for (const { name } of db
       .prepare(`SELECT name FROM ${schema}.sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`)
       .all() as { name: string }[]) {

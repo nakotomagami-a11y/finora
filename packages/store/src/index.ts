@@ -1,4 +1,4 @@
-export { openStore, transaction, type Store } from "./open.ts";
+export { openStore, STORE_SCHEMAS, transaction, type Store, type StoreSchema } from "./open.ts";
 export { IDENTIFIER_INDEX_WHERE, IDENTIFIER_PROPS, LARGE_TABLES, largeTableRewrites, migrate, MIGRATIONS, type Migration, type Target } from "./migrations.ts";
 export {
   beginSync,
@@ -65,3 +65,26 @@ export {
 } from "./ingest-support.ts";
 export { BACKUPS_KEPT, writeBackup } from "./backup.ts";
 export { companyValues, type CompanyValue } from "./values.ts";
+export {
+  countMarketObservations,
+  deleteMarketObservations,
+  deleteMarketSeries,
+  deleteMarketSource,
+  expireMarketLatest,
+  lastMarketSync,
+  marketCheckedAt,
+  marketSyncInfo,
+  missingMarketDates,
+  putMarketLatest,
+  putMarketObservations,
+  readMarketSeries,
+  trimMarketWindow,
+  upsertMarketSeries,
+  type MarketDb,
+  type MarketFrequency,
+  type MarketObservation,
+  type MarketSeriesInput,
+  type MarketSyncInfo,
+  type MarketUnit,
+  type StoredMarketSeries,
+} from "./markets.ts";

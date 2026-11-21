@@ -40,6 +40,13 @@ export const BACKUP_CLASSES: Record<string, BackupClass> = {
   "main.withheld": derivable,
   "main.live_cache_misses": derivable,
   "main.live_cache_checks": derivable,
+  "main.market_series": derivable,
+  "main.market_obs": derivable,
+  "main.market_latest": derivable,
+  // Licensed market series are re-fetched with the user's own access, never backed up or exported (R17).
+  "cc.market_series": derivable,
+  "cc.market_obs": derivable,
+  "cc.market_latest": derivable,
   "user.purpose_log": {
     class: "backed_up",
     columns: ["id", "company_eid", "section", "purpose_id", "surface", "actor", "at"],

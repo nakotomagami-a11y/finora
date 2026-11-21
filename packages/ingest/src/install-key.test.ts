@@ -32,6 +32,7 @@ describe("no install key and no person pseudonym in v1 (PERSON_ROWS=names_no_id;
       .filter((n) => !/-(wal|shm|journal)$/.test(n))
       .sort();
     expect(names).toEqual([
+      "connector-cache.db",
       "deletions.log",
       "finora-sa.db",
       "finora-user.db",

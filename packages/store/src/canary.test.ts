@@ -80,6 +80,12 @@ describe("P3, PS5: no personal code or person id outside its own row", () => {
     );
   });
 
+  it("reads connector-cache.db too: a needle planted in a cc table is found", () => {
+    const { db } = loaded();
+    db.prepare("INSERT INTO cc.market_series (series_key, source_id, item_id, unit, frequency, symbol) VALUES (?, ?, ?, ?, ?, ?)").run("fixture:cc", "stocks-s7", "M02.X.01", "usd", "daily_exchange", "PLANTED-NEEDLE");
+    expect(scanStore(db, ["PLANTED-NEEDLE"]).map((h) => `${h.table}.${h.column}:${h.kind}`)).toEqual(["cc.market_series.symbol:needle"]);
+  });
+
   it("does not flag a company's own registration number (qa #20)", () => {
     const { db } = memoryStore();
     const sync = contentSync(db, "ee-register", "2026-11-01T00:00:00.000Z");

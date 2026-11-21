@@ -2,13 +2,14 @@
 //   main  finora.db       registry data, re-derivable from the raw cache
 //   user  finora-user.db  what cannot be re-derived: purposes, disputes, suppressions, judgements, settings
 //   sa    finora-sa.db    share-alike rows, keyed on the public eid only (P1, A6)
+//   cc    connector-cache.db  licensed market series fetched for this user; never exported or backed up (R17)
 // Each file tracks how many of its migrations ran in its own PRAGMA user_version.
 // Until the first release (the M1 demo) the initial migration of a file may still change in place,
 // because no store exists outside test runs; from then on every change is a new migration.
 
 import type { DatabaseSync } from "node:sqlite";
 
-export type Target = "main" | "user" | "sa";
+export type Target = "main" | "user" | "sa" | "cc";
 export type Migration = { target: Target; name: string; sql: string };
 
 export const MIGRATIONS: readonly Migration[] = [
@@ -279,6 +280,66 @@ export const MIGRATIONS: readonly Migration[] = [
     name: "share-alike records",
     sql: `ALTER TABLE sa.sa_syncs ADD COLUMN records INTEGER;`,
   },
+  {
+    // S22: Crash monitor series (loaders/markets.md §1.2). Open-licence series live in main; their
+    // provenance is the sync that wrote each value.
+    target: "main",
+    name: "markets",
+    sql: `
+      CREATE TABLE main.market_series (
+        id INTEGER PRIMARY KEY,
+        series_key TEXT NOT NULL UNIQUE,
+        source_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        unit TEXT NOT NULL CHECK (unit IN ('index_points', 'usd', 'usd_per_oz', 'usd_per_bbl', 'usd_cap', 'coins')),
+        frequency TEXT NOT NULL CHECK (frequency IN ('daily_exchange', 'daily_7d', 'monthly', 'quarterly')),
+        symbol TEXT
+      ) STRICT;
+      CREATE TABLE main.market_obs (
+        series_id INTEGER NOT NULL REFERENCES market_series(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        value REAL NOT NULL,
+        sync_id INTEGER NOT NULL REFERENCES syncs(id),
+        PRIMARY KEY (series_id, date)
+      ) STRICT, WITHOUT ROWID;
+      CREATE TABLE main.market_latest (
+        series_id INTEGER PRIMARY KEY REFERENCES market_series(id) ON DELETE CASCADE,
+        value REAL NOT NULL,
+        observed_at TEXT NOT NULL,
+        sync_id INTEGER NOT NULL REFERENCES syncs(id)
+      ) STRICT;
+    `,
+  },
+  {
+    // S22: licensed market series (R17). The same tables in connector-cache.db. SQLite cannot hold a
+    // foreign key across files, so sync_id points at main.syncs by convention, checked in markets.test.ts.
+    target: "cc",
+    name: "connector cache",
+    sql: `
+      CREATE TABLE cc.market_series (
+        id INTEGER PRIMARY KEY,
+        series_key TEXT NOT NULL UNIQUE,
+        source_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        unit TEXT NOT NULL CHECK (unit IN ('index_points', 'usd', 'usd_per_oz', 'usd_per_bbl', 'usd_cap', 'coins')),
+        frequency TEXT NOT NULL CHECK (frequency IN ('daily_exchange', 'daily_7d', 'monthly', 'quarterly')),
+        symbol TEXT
+      ) STRICT;
+      CREATE TABLE cc.market_obs (
+        series_id INTEGER NOT NULL REFERENCES market_series(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        value REAL NOT NULL,
+        sync_id INTEGER NOT NULL,
+        PRIMARY KEY (series_id, date)
+      ) STRICT, WITHOUT ROWID;
+      CREATE TABLE cc.market_latest (
+        series_id INTEGER PRIMARY KEY REFERENCES market_series(id) ON DELETE CASCADE,
+        value REAL NOT NULL,
+        observed_at TEXT NOT NULL,
+        sync_id INTEGER NOT NULL
+      ) STRICT;
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */
@@ -322,7 +383,7 @@ export function largeTableRewrites(sql: string): string[] {
 
 /** Runs the migrations a database file has not run yet. `upTo` limits each target, for tests. */
 export function migrate(db: DatabaseSync, upTo?: Partial<Record<Target, number>>): void {
-  for (const target of ["main", "user", "sa"] as const) {
+  for (const target of ["main", "user", "sa", "cc"] as const) {
     const list = MIGRATIONS.filter((m) => m.target === target);
     const limit = Math.min(upTo?.[target] ?? list.length, list.length);
     const row = db.prepare(`PRAGMA ${target}.user_version`).get() as { user_version: number };

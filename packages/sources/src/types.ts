@@ -131,7 +131,11 @@ export type ParseContext = {
   onDrop?: (reason: DropReason) => void;
 };
 
-export type PoliteFetch = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ status: number; headers: Record<string, string>; bytes: Uint8Array }>;
+/**
+ * GET, or POST when `body` is given (a JSON-RPC read such as a block header); never a write to the source.
+ * A POST is retried only when the caller marks it `idempotent`.
+ */
+export type PoliteFetch = (url: string, init?: { headers?: Record<string, string>; body?: string; idempotent?: boolean }) => Promise<{ status: number; headers: Record<string, string>; bytes: Uint8Array }>;
 
 export interface SourceLoader {
   meta: SourceMeta;

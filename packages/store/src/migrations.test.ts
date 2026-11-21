@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import { largeTableRewrites, migrate, MIGRATIONS, type Target } from "./migrations.ts";
 import { memoryStore } from "./test-helpers.ts";
 
-const TARGETS: Target[] = ["main", "user", "sa"];
+const TARGETS: Target[] = ["main", "user", "sa", "cc"];
 
 function bare(): DatabaseSync {
   const db = new DatabaseSync(":memory:");
-  db.exec("ATTACH DATABASE ':memory:' AS user; ATTACH DATABASE ':memory:' AS sa;");
+  db.exec("ATTACH DATABASE ':memory:' AS user; ATTACH DATABASE ':memory:' AS sa; ATTACH DATABASE ':memory:' AS cc;");
   return db;
 }
 
@@ -21,7 +21,7 @@ function schemaOf(db: DatabaseSync): string[] {
 
 function versions(db: DatabaseSync): Record<Target, number> {
   const v = (t: Target) => (db.prepare(`PRAGMA ${t}.user_version`).get() as { user_version: number }).user_version;
-  return { main: v("main"), user: v("user"), sa: v("sa") };
+  return { main: v("main"), user: v("user"), sa: v("sa"), cc: v("cc") };
 }
 
 const count = (t: Target) => MIGRATIONS.filter((m) => m.target === t).length;
@@ -29,7 +29,7 @@ const count = (t: Target) => MIGRATIONS.filter((m) => m.target === t).length;
 describe("migrations", () => {
   it("run from empty files to the latest version of each", () => {
     const store = memoryStore();
-    expect(versions(store.db)).toEqual({ main: count("main"), user: count("user"), sa: count("sa") });
+    expect(versions(store.db)).toEqual({ main: count("main"), user: count("user"), sa: count("sa"), cc: count("cc") });
     for (const table of ["main.statements", "user.purpose_log", "sa.sa_statements", "main.leases"]) {
       expect(() => store.db.prepare(`SELECT COUNT(*) FROM ${table}`).get()).not.toThrow();
     }
@@ -52,7 +52,7 @@ describe("migrations", () => {
     for (const target of TARGETS) {
       for (let k = 0; k <= count(target); k++) {
         const db = bare();
-        migrate(db, { main: 0, user: 0, sa: 0, [target]: k });
+        migrate(db, { main: 0, user: 0, sa: 0, cc: 0, [target]: k });
         expect(versions(db)[target]).toBe(k);
         migrate(db);
         expect(schemaOf(db), `${target} from ${k}`).toEqual(expected);

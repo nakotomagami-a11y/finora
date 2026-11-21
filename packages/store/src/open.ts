@@ -6,9 +6,13 @@ import { migrate } from "./migrations.ts";
 import { forgetInterned } from "./registry.ts";
 import { RestrictionsLog } from "./restrictions-log.ts";
 
+/** The attached store files: registry, user state, share-alike rows, licensed market series (§3.5). */
+export const STORE_SCHEMAS = ["main", "user", "sa", "cc"] as const;
+export type StoreSchema = (typeof STORE_SCHEMAS)[number];
+
 export type Store = {
   db: DatabaseSync;
-  paths: { main: string; user: string; sa: string };
+  paths: Record<StoreSchema, string>;
   /** The two fail-closed logs beside the store files; null for an in-memory store. */
   logs: { deletions: DeletionsLog; restrictions: RestrictionsLog } | null;
   close(): void;
@@ -24,8 +28,9 @@ function createLog(path: string): void {
 }
 
 /**
- * Opens the three store files and attaches them as `main`, `user` and `sa` (architecture §3.5,
- * §16). `dataDir: null` opens all three in memory, for tests. The logs are created with a new
+ * Opens the four store files and attaches them as `main`, `user`, `sa` and `cc` (architecture §3.5,
+ * §8, §16). `cc` is connector-cache.db: licensed market series, never exported or backed up (R17).
+ * `dataDir: null` opens all four in memory, for tests. The logs are created with a new
  * user file only: a log missing beside an existing store is damage, and reads and repairs refuse.
  */
 export function openStore(options: { dataDir: string | null }): Store {
@@ -34,15 +39,17 @@ export function openStore(options: { dataDir: string | null }): Store {
         main: join(options.dataDir, "finora.db"),
         user: join(options.dataDir, "finora-user.db"),
         sa: join(options.dataDir, "finora-sa.db"),
+        cc: join(options.dataDir, "connector-cache.db"),
       }
-    : { main: ":memory:", user: ":memory:", sa: ":memory:" };
+    : { main: ":memory:", user: ":memory:", sa: ":memory:", cc: ":memory:" };
   if (options.dataDir) mkdirSync(options.dataDir, { recursive: true });
   const db = new DatabaseSync(paths.main);
   // First, so that two processes opening one store at once wait for each other instead of failing.
   db.exec("PRAGMA busy_timeout = 5000");
   db.prepare("ATTACH DATABASE ? AS user").run(paths.user);
   db.prepare("ATTACH DATABASE ? AS sa").run(paths.sa);
-  for (const schema of ["main", "user", "sa"]) {
+  db.prepare("ATTACH DATABASE ? AS cc").run(paths.cc);
+  for (const schema of STORE_SCHEMAS) {
     if (options.dataDir) db.exec(`PRAGMA ${schema}.journal_mode = WAL`);
     db.exec(`PRAGMA ${schema}.synchronous = NORMAL`);
   }
