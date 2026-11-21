@@ -5,5 +5,5 @@ export { clearLiveView, liveRowsFor, liveView, type LiveView } from "./live-view
 export { countDrops, effectiveStorage, emptyReport, runSync, writeParsed, type Logger, type SyncKind, type SyncOptions, type SyncOutcome, type SyncReport } from "./pipeline.ts";
 export { dropRaw, loadRaw, saveRaw } from "./raw-cache.ts";
 export { validRecord } from "./validate.ts";
-export { runSyncInWorker, runSyncsInWorker, serveSyncWorker, type WorkerBatch, type WorkerJob } from "./worker.ts";
+export { laneOf, runSyncInWorker, runSyncsInWorker, serveSyncWorker, workerStartCount, type WorkerBatch, type WorkerJob } from "./worker.ts";
 export const CORE_SYNC_WORKER = new URL("./sync-worker.ts", import.meta.url);

@@ -2,6 +2,8 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { FIXTURE_PROFILE } from "@finora/fixtures";
+import { laneOf, workerStartCount } from "@finora/ingest";
 import { openStore, suppressItem } from "@finora/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { backup, dataStatus, dataSync, doctor, resolveSanctions, search, show, type Io } from "./commands.ts";
@@ -23,7 +25,7 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 describe("finora-cli (S04f)", () => {
   it("data sync loads every fixture source, and a second run is unchanged", async () => {
     expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
-    expect(lines).toHaveLength(17);
+    expect(lines).toHaveLength(19);
     expect(lines.at(-1)).toMatch(/^peak RSS: \d+ MB$/);
     for (const line of lines.filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged/);
     expect(await dataSync(io(), { profile: "fixtures", source: "fx-hide" })).toBe(0);
@@ -31,10 +33,24 @@ describe("finora-cli (S04f)", () => {
     expect(await dataSync(io(), { profile: "nope" })).toBe(2);
   }, 120_000);
 
+  it("starts exactly one long-lived worker per lane, never one per source (cto on S04i)", async () => {
+    const fresh = mkdtempSync(join(tmpdir(), "finora-cli-lanes-"));
+    try {
+      const before = workerStartCount();
+      const lanes = new Set(FIXTURE_PROFILE.map((p) => laneOf(p.loader)));
+      expect(lanes.size).toBeGreaterThanOrEqual(4);
+      expect(await dataSync({ ...io(), env: { dataDir: fresh, secUserAgent: null, shareAlikeMode: "store" } }, { profile: "fixtures" })).toBe(0);
+      expect(workerStartCount() - before).toBe(lanes.size);
+      expect(lines.filter((l) => l.startsWith("fx-") || l.startsWith("eu-") || l.startsWith("us-") || l.startsWith("uk-") || l.startsWith("esma-") || l.startsWith("lv-")).length).toBe(FIXTURE_PROFILE.length);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
+  }, 120_000);
+
   it("data status shows each source's report with drops by reason (acceptance 3)", () => {
     expect(dataStatus(io())).toBe(0);
     const text = lines.join("\n");
-    for (const id of ["fx-lv-register", "fx-ee-register", "fx-lt-register", "fx-us-register", "fx-lv-officers", "fx-ee-officers", "fx-financials", "fx-ee-tax", "fx-lt-arrears", "fx-hide"]) {
+    for (const id of ["fx-lv-register", "fx-ee-register", "fx-lt-register", "fx-us-register", "fx-lv-officers", "fx-ee-officers", "fx-lv-financials", "fx-ee-financials", "fx-lt-financials", "fx-ee-tax", "fx-lt-arrears", "fx-hide"]) {
       expect(text).toContain(`${id} [`);
     }
     expect(text).toMatch(/fx-hide \[store\][^\n]*\n[^\n]*\n {2}dropped: hide_item 15/);

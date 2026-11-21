@@ -41,6 +41,11 @@ export type SourceMeta = {
   limits: { requestsPerSecond?: number; dailyRequests?: number; maxBytes?: number };
   /** Every item the source fills; must equal the item ids of its field map. */
   items: string[];
+  /**
+   * The worker lane this source loads in (architecture §4.5): one long-lived worker per lane, lanes
+   * in parallel, a lane's sources in order. Defaults to the country; GLEIF has its own.
+   */
+  lane?: string;
 };
 
 export type ParsedStatement = { prop: string; value: string; itemId: string; lang?: string; line?: number };

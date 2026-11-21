@@ -124,8 +124,12 @@ const officers = (country: "lv" | "ee") =>
 export const fxLvOfficers = officers("lv");
 export const fxEeOfficers = officers("ee");
 
-export const fxFinancials = jsonLoader(meta("fx-financials", "intl", "store", ["S06.LV.01", "S06.EE.01", "S06.LT.01"]), () =>
-  world().reports.map((r) => ({
+/** Annual reports per country, so each loads in its country's lane after the register. */
+const financials = (country: "lv" | "ee" | "lt") =>
+  jsonLoader(meta(`fx-${country}-financials`, country, "store", [`S06.${country.toUpperCase()}.01`]), () =>
+    world()
+      .reports.filter((r) => r.country === country)
+      .map((r) => ({
     recordKey: `${r.companyEid}:${r.periodEnd}`,
     hashInput: [JSON.stringify(r)],
     entities: [],
@@ -144,7 +148,11 @@ export const fxFinancials = jsonLoader(meta("fx-financials", "intl", "store", ["
       },
     ],
   })),
-);
+  );
+
+export const fxLvFinancials = financials("lv");
+export const fxEeFinancials = financials("ee");
+export const fxLtFinancials = financials("lt");
 
 /** EE taxes paid: share-alike, so finora-sa.db only (or memory only in live-no-store mode). */
 export const fxEeTax = jsonLoader(meta("fx-ee-tax", "ee", "share-alike-store", ["S08.EE.01b"]), () =>
@@ -208,7 +216,9 @@ export const FIXTURE_PROFILE: readonly { exportName: string; loader: SourceLoade
   { exportName: "fxUsRegister", loader: fxUsRegister },
   { exportName: "fxLvOfficers", loader: fxLvOfficers },
   { exportName: "fxEeOfficers", loader: fxEeOfficers },
-  { exportName: "fxFinancials", loader: fxFinancials },
+  { exportName: "fxLvFinancials", loader: fxLvFinancials },
+  { exportName: "fxEeFinancials", loader: fxEeFinancials },
+  { exportName: "fxLtFinancials", loader: fxLtFinancials },
   { exportName: "fxEeTax", loader: fxEeTax },
   { exportName: "fxLtArrears", loader: fxLtArrears },
   { exportName: "fxHide", loader: fxHide },

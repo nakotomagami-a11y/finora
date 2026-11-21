@@ -5,7 +5,7 @@ import { existsSync, readdirSync, statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { eidKind, isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { FIXTURE_PROFILE } from "@finora/fixtures";
-import { runSyncsInWorker, type SyncReport } from "@finora/ingest";
+import { laneOf, runSyncsInWorker, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { LOADERS } from "@finora/sources";
 import { companyValues, openStore, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
@@ -49,20 +49,30 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     return 2;
   }
   let failed = 0;
-  // One worker runs every chosen source in order, each under its own lease (see ingest/worker.ts).
-  const outcomes = await runSyncsInWorker(SYNC_WORKER, {
-    dataDir: io.env.dataDir,
-    sourceIds: chosen.map((p) => p.loader.meta.id),
-    userAgent: io.env.secUserAgent ?? "Finora (fixtures)",
-    options: {
-      shareAlikeMode: io.env.shareAlikeMode,
-      allowMassPurge: args.allowMassPurge === true,
-      rawCacheDir: join(io.env.dataDir, "raw"),
-      companyPartyTypes: COMPANY_PARTY_TYPES,
-    },
-  });
-  for (const [i, { loader }] of chosen.entries()) {
-    const outcome = outcomes[i]!;
+  // One long-lived worker per lane (a country, the sanctions lists, GLEIF), the lanes in parallel,
+  // each lane's sources in order with the register first (architecture §4.5, cto on S04i). A few
+  // long-lived workers, never one per source: many short-lived ones crashed V8 (ingest/worker.ts).
+  const lanes = new Map<string, string[]>();
+  for (const { loader } of chosen) lanes.set(laneOf(loader), [...(lanes.get(laneOf(loader)) ?? []), loader.meta.id]);
+  const results = await Promise.all(
+    [...lanes.values()].map(async (sourceIds) => {
+      const outcomes = await runSyncsInWorker(SYNC_WORKER, {
+        dataDir: io.env.dataDir,
+        sourceIds,
+        userAgent: io.env.secUserAgent ?? "Finora (fixtures)",
+        options: {
+          shareAlikeMode: io.env.shareAlikeMode,
+          allowMassPurge: args.allowMassPurge === true,
+          rawCacheDir: join(io.env.dataDir, "raw"),
+          companyPartyTypes: COMPANY_PARTY_TYPES,
+        },
+      });
+      return sourceIds.map((id, i) => [id, outcomes[i]!] as const);
+    }),
+  );
+  const byId = new Map(results.flat());
+  for (const { loader } of chosen) {
+    const outcome = byId.get(loader.meta.id)!;
     if (outcome.kind === "failed" || outcome.kind === "partial") failed++;
     const r = outcome.report;
     io.out(`${loader.meta.id}: ${outcome.kind}${r ? `, read ${r.read}, written ${r.written}, unchanged ${r.unchanged}, deleted ${r.deleted}, dropped ${dropsLine(r.dropped)}` : ""}`);

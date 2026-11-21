@@ -72,6 +72,13 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
   post({ type: "done" });
 }
 
+let started = 0;
+/** How many sync workers this process has started: the lane test counts them (cto on S04i). */
+export const workerStartCount = () => started;
+
+/** The lane a source loads in: its declared lane, else its country (architecture §4.5). */
+export const laneOf = (loader: SourceLoader) => loader.meta.lane ?? loader.meta.country;
+
 /**
  * Spawns `entry` (a module that calls `serveSyncWorker`) for a batch of sources, run in order.
  * Resolves with one outcome per source. A crash, the timeout or a hung worker (no progress for
@@ -90,6 +97,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: { time
   };
   return new Promise((resolve) => {
     const worker = new Worker(entry, { workerData: data });
+    started++;
     const outcomes = new Map<string, SyncOutcome>();
     let current: { sourceId: string; syncId: number } | null = null;
     let settled = false;
