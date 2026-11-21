@@ -41,7 +41,7 @@ const PRIVATE = [/^0\./, /^10\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, /^
 const isPublic = (address) => !PRIVATE.some((re) => re.test(address));
 
 /** The registrable domain, simplified: the last two labels (enough for .lv, .lt, .ee and .com). */
-const registrable = (host) => host.toLowerCase().replace(/^www\./, "").split(".").slice(-2).join(".");
+export const registrable = (host) => host.toLowerCase().replace(/^www\./, "").split(".").slice(-2).join(".");
 
 /** Candidate hosts from the company's own registered name only (never a person's). */
 export function candidates(name, country) {
@@ -131,7 +131,7 @@ function robotsAllowsRoot(text) {
 }
 
 /** One candidate: DNS, robots, then the homepage, with same-registrable-domain redirects only. */
-async function check(candidate, company, budget) {
+export async function check(candidate, company, budget) {
   // The www. form of the same candidate counts as the same candidate: many sites answer only there.
   let host = candidate;
   let dns = await resolvePublic(host);
