@@ -1,9 +1,9 @@
-"""Probe CourtListener: bulk snapshots on S3, anonymous API reach, and (with a token) search.
+"""Probe provider P2 (a nonprofit court-data aggregator): bulk snapshots, anonymous API reach, and (with a token) search.
 
-COURTLISTENER_TOKEN comes from the environment. Without it only the bulk files and
+No token is read (H5). P2_BULK_BASE and P2_API_BASE come from the private provider map. Without it only the bulk files and
 court metadata are reachable: every other v4 endpoint answers 401.
 
-    python -I research/probes/us/courtlistener.py ["party name query"]
+    python -I research/probes/us/p2_dockets.py ["party name query"]
 """
 
 import bz2
@@ -21,9 +21,9 @@ import urllib.request
 
 csv.field_size_limit(1 << 30)
 UA = "Finora research (open-source; github.com/nakotomagami-a11y/finora)"
-BUCKET = "https://com-courtlistener-storage.s3-us-west-2.amazonaws.com"
-API = "https://www.courtlistener.com/api/rest/v4"
-CACHE = pathlib.Path(__file__).resolve().parents[2] / ".cache" / "us" / "courtlistener"
+BUCKET = os.environ.get("P2_BULK_BASE", "")  # P2 bulk-file host, from the private provider map
+API = os.environ.get("P2_API_BASE", "")  # P2 REST API base, from the private provider map
+CACHE = pathlib.Path(__file__).resolve().parents[2] / ".cache" / "us" / "p2"
 
 
 def get(url, token=None, limit=None):
@@ -100,9 +100,9 @@ def main(query):
         status, _, headers = get(f"{API}/{path}")
         print(f"anonymous GET {path.split('?')[0]} -> {status} etag={headers.get('ETag') is not None}")
 
-    token = os.environ.get("COURTLISTENER_TOKEN")
+    token = None  # keys are out of v1 (H5)
     if not token:
-        print("COURTLISTENER_TOKEN not set: skipping authenticated search")
+        print("no token (H5): skipping authenticated search")
         return
     q = urllib.parse.urlencode({"q": f'party:("{query}")', "type": "r"})
     status, body, _ = get(f"{API}/search/?{q}", token)

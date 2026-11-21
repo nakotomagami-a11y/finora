@@ -71,7 +71,7 @@ PRIVATE = [
 ]
 
 
-def soql(domain, dataset, params):
+def portal_query(domain, dataset, params):
     url = f"https://{domain}/resource/{dataset}.json?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
     try:
@@ -82,7 +82,7 @@ def soql(domain, dataset, params):
 
 
 def pick_private(rng, seg):
-    ids = soql(
+    ids = portal_query(
         seg["domain"],
         seg["dataset"],
         {"$select": f"{seg['id']}, max({seg['name']}) as pick_name", "$where": seg["where"],

@@ -56,7 +56,7 @@ def get_json(url, body=None):
         return {"_error": err.code}
 
 
-def soql(domain, dataset, where, select="*", limit=200):
+def portal_query(domain, dataset, where, select="*", limit=200):
     params = {"$where": where, "$limit": limit}
     if select != "*":
         params["$select"] = select
@@ -72,7 +72,7 @@ def by_name(domain, dataset, col, name, select="*"):
     """Prefix query on the first two normalized words, then exact match on the normalized name."""
     target = norm(name)
     prefix = quote(" ".join(target.split()[:2]))
-    rows = soql(domain, dataset, f"upper({col}) like '{prefix}%'", select, limit=1000)
+    rows = portal_query(domain, dataset, f"upper({col}) like '{prefix}%'", select, limit=1000)
     return [r for r in rows if norm(r.get(col)) == target]
 
 
@@ -90,7 +90,7 @@ def registry_hits(sample):
     hits = {}
     for state, (domain, ds, key, col) in REGISTRIES.items():
         if state == sample["state"]:
-            rows = soql(domain, ds, f"{key} = '{quote(sample['id'])}'")
+            rows = portal_query(domain, ds, f"{key} = '{quote(sample['id'])}'")
         else:
             rows = by_name(domain, ds, col, sample["name"])
         if rows:
@@ -103,7 +103,7 @@ def people(sample, hits):
     if "CT" in hits:
         ct_id = hits["CT"][0].get("id")
         if ct_id:
-            found["CT principals"] = len(soql("data.ct.gov", "ka36-64k6", f"business_id = '{ct_id}'", "name__c"))
+            found["CT principals"] = len(portal_query("data.ct.gov", "ka36-64k6", f"business_id = '{ct_id}'", "name__c"))
     if "OR" in hits:
         found["OR representatives"] = sum(
             1 for r in hits["OR"] if r.get("associated_name_type") in ("AUTHORIZED REPRESENTATIVE", "REGISTERED AGENT")
@@ -121,11 +121,11 @@ def people(sample, hits):
 def history(sample, hits):
     found = {}
     if "NY" in hits:
-        found["NY status history"] = len(soql("data.ny.gov", "3gg2-jgnp", f"corpid_num = '{hits['NY'][0]['dos_id']}'", "status"))
+        found["NY status history"] = len(portal_query("data.ny.gov", "3gg2-jgnp", f"corpid_num = '{hits['NY'][0]['dos_id']}'", "status"))
     if "CO" in hits:
-        found["CO transactions"] = len(soql("data.colorado.gov", "casm-dbbj", f"entityid = '{hits['CO'][0]['entityid']}'", "historydes"))
+        found["CO transactions"] = len(portal_query("data.colorado.gov", "casm-dbbj", f"entityid = '{hits['CO'][0]['entityid']}'", "historydes"))
     if "CT" in hits:
-        found["CT filings"] = len(soql("data.ct.gov", "ah3s-bes7", f"account = '{hits['CT'][0]['accountnumber']}'", "type"))
+        found["CT filings"] = len(portal_query("data.ct.gov", "ah3s-bes7", f"account = '{hits['CT'][0]['accountnumber']}'", "type"))
     return {k: v for k, v in found.items() if v}
 
 
@@ -139,7 +139,7 @@ def ucc(sample):
 
 def fmcsa(sample):
     if sample["segment"] == "freight broker":
-        rows = soql("data.transportation.gov", "az4n-8mr2", f"dot_number = '{sample['id']}'")
+        rows = portal_query("data.transportation.gov", "az4n-8mr2", f"dot_number = '{sample['id']}'")
     else:
         rows = by_name("data.transportation.gov", "az4n-8mr2", "legal_name", sample["name"])
     return {

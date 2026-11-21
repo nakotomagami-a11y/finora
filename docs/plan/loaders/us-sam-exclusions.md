@@ -9,7 +9,7 @@ Module `packages/sources/src/us/sam-exclusions/`. Research: `docs/research/us.md
 - Artifact: the daily public exclusions extract `SAM_Exclusions_Public_Extract_V2_<yyddd>.ZIP` (CSV inside; 2026-11-19 file: 11,898,264 bytes, 169,170 rows, 31 columns).
 - **Access path, because of SAM.gov's terms** (https://sam.gov/about/terms-of-use, read 2026-11-20): "Automated data gathering, web scraping tools are prohibited"; "With permission, you may use software to connect to some SAM.gov data"; "You may also download some SAM.gov data". The permitted software path is the **Extracts API with a SAM.gov API key**: `GET https://api.sam.gov/data-services/v1/extracts?api_key=<key>&fileName=SAM_Exclusions_Public_Extract_V2_<yyddd>.ZIP` (*endpoint verify in the key-testing round*). One request a day fits the 10-a-day limit of a personal key without a SAM role.
 - `id`: `us-sam-exclusions`. `licence`: `sam-gov-terms` (US Government work; terms above; `redistribution: true` for agency-entered exclusion fields, pending legal's light below). `attribution`: "Source: SAM.gov exclusions (U.S. General Services Administration)".
-- **provider D1 clause:** "provider D1 Open Data may be in entity registration records last updated before April 4, 2022" and exclusion records created before that date; "You must state in writing that provider D1 is the data source"; "You may not share provider D1 Open Data in bulk". The loader reads none of the fields that could carry provider D1 data (addresses, provider-D1-derived fields), see the field map; the measured `Open Data Flag` column is empty on all 169,170 rows.
+- **K1 clause (paraphrased; the original names a commercial credit-data vendor, coded K1):** SAM.gov's terms say that K1's open data may be in entity registration records last updated before 2022-04-04 and in exclusion records created before that date; whoever uses it must state in writing that K1 is the source, and may not share it in bulk. The loader reads none of the fields that could carry K1 data (addresses, legacy-vendor-id-derived fields), see the field map; the measured `Open Data Flag` column is empty on all 169,170 rows.
 - `storage`: `store`. `cadence`: `daily`. `publishedAtUtc`: null (file dated each day).
 - `asOf`: `[in_file_name]` (`_26323` = year 2026, day 323 → 2026-11-19).
 - `maxPurgeShare`: 0.02. `deepLink`: null (SAM.gov exclusion pages need a session); the chip links `https://sam.gov/search/?index=ex`. `orderUrl`: null.
@@ -41,7 +41,7 @@ Only rows with `Classification = Firm` are read (8,367 rows; 7,770 with a UEI). 
 | `Excluding Agency`, `CT Code` | text | `Sanction.authority` | S11.US.01 | no | e.g. HHS, OPM, DOJ, HUD |
 | `Active Date`, `Termination Date`, `Record Status` | dates, text | `Sanction.startDate`, `endDate`, `status` | S11.US.01 | no | "Indefinite" termination kept verbatim |
 | `State / Province`, `Country` | text | `Sanction.country` (matching only) | S11.US.01 | no | |
-| `Prefix`, `First`, `Middle`, `Last`, `Suffix`, `Address 1-4`, `City`, `Zip Code`, `NPI`, `Additional Comments`, `Cross-Reference`, `Open Data Flag`, `Blank (Deprecated)` | | **dropped** | - | - | person-name parts, addresses (possible provider D1 data), and free text |
+| `Prefix`, `First`, `Middle`, `Last`, `Suffix`, `Address 1-4`, `City`, `Zip Code`, `NPI`, `Additional Comments`, `Cross-Reference`, `Open Data Flag`, `Blank (Deprecated)` | | **dropped** | - | - | person-name parts, addresses (possible K1 data), and free text |
 
 ## Party gate
 - Only `Classification = Firm` rows; drop reason `not_firm` (counted by classification).
@@ -69,4 +69,4 @@ No key: KEY state, "Federal exclusions: needs the SAM.gov key". API refused (429
 ## Open questions
 None. Legal's light (hub 7029706804):
 1. Only the keyed Extracts API; a keyless or scraped pull falls under the ban on automated gathering, so it stays off (`ingest/src/sam-terms.test.ts`).
-2. The provider D1 restriction on agency-entered fields is not verified: the fields that might carry it (addresses and the provider-D1-derived columns) stay dropped. Showing any of them later is a LAWYER item (P13).
+2. The K1 restriction on agency-entered fields is not verified: the fields that might carry it (addresses and the legacy-vendor-id-derived columns) stay dropped. Showing any of them later is a LAWYER item (P13).

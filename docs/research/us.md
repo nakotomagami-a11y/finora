@@ -8,7 +8,7 @@ Owner: `data-us`. Measured 2026-11-19 and 2026-11-20 unless a line says otherwis
 - **SEC EDGAR is not measured yet.** EDGAR answers 403 unless the User-Agent carries a real contact address; GitHub no-reply addresses are refused too. The probes are written (probe `edgar_probe.py`) and run as soon as `SEC_USER_AGENT` is set in the main checkout's `.env` (coordinator's human-task, item 1). Every EDGAR line below marked *deferred: `SEC_USER_AGENT` pending* is from SEC's own documentation, not from a measurement.
 - **Five states publish free bulk people data:** FL (six officer slots), CT (principals), PA (parties), NY (chief executive of corporations only) and OR (authorised representative). CO publishes only the registered agent; WA publishes contractor-licence principals. **CA and DE have no free bulk data:** CA sells bulk orders, DE charges per status query.
 - **No US source publishes private-company financials, owners or employees.** The reality check confirms it: S04 Owners, S05 Group and S06 Financials are empty for all five private samples.
-- **Courts:** the federal Integrated Database is free and bulk, but only civil cases carry party names; bankruptcy records carry no debtor name at all. CourtListener has 73 M dockets in free bulk files; its API needs a free token and allows 125 requests a day. PACER costs $0.10 a page.
+- **Courts:** the federal Integrated Database is free and bulk, but only civil cases carry party names; bankruptcy records carry no debtor name at all. P2 has 73 M dockets in free bulk files; its API needs a free token and allows 125 requests a day. PACER costs $0.10 a page.
 - **Legal limits that change the UI:** FEC individual-donor data may not be used for commercial purposes (52 U.S.C. 30111(a)(4)); FINRA BrokerCheck data may be compiled only for investor-protection, compliance, academic or regulatory purposes, with source, date and an error-correction channel; CT principals and FMCSA records carry home addresses and emails that must not be shown.
 
 ## How to read this
@@ -99,7 +99,7 @@ Common to every EDGAR source:
 
 ## 2. State business registries
 
-All except Florida are published on Socrata open-data portals: SoQL API, no key (an optional free app token raises limits), JSON or CSV export, `rowsUpdatedAt` in metadata. Probe: `research/probes/us/states/socrata_probe.py` (columns, `count(*)`, metadata licence and attribution), run 2026-11-19.
+All except Florida are published on official open-data portals that share one platform: portal query API, no key (an optional free app token raises limits), JSON or CSV export, `rowsUpdatedAt` in metadata. Probe: `research/probes/us/states/portal_probe.py` (columns, `count(*)`, metadata licence and attribution), run 2026-11-19.
 
 | State | Dataset (portal id) | Rows | Updated (seen) | Licence on the official portal | People fields |
 |---|---|---|---|---|---|
@@ -122,7 +122,7 @@ All except Florida are published on Socrata open-data portals: SoQL API, no key 
 | DE | Business Licenses (`5zy2-grhr`) | 74,418 | 2026-11-19 | Public Domain | none (a tax licence list, not the corporate registry) |
 
 ### 2.1 New York — Department of State, Division of Corporations
-- Access: Socrata API and bulk CSV on data.ny.gov; no key.
+- Access: the portal platform API and bulk CSV on data.ny.gov; no key.
 - Licence: OPEN-NY Terms of Use (PDF linked from the NY Open Data Handbook, https://data.ny.gov/download/77gx-ii52/application/pdf, read 2026-11-20): "use our government information however you wish, in private sector projects or in government collaborations", and the terms "do not contain restrictions requiring members of the public to use attribution, to re-post the license terms … to impose share-alike or technical restrictions". Attribution shown in the portal metadata: "New York State Department of State".
 - Coverage: active entities only in the master file; inactive ones appear in All Filings and Status History. The portal's own limitation note: the current name only (former names are in the filings file), and the service-of-process address "may not reflect the physical location of the corporation or any of its officers".
 - People: the chairman/CEO name is filed only by business corporations; LLCs (most small firms) show no person except a registered agent, if any.
@@ -165,7 +165,7 @@ All except Florida are published on Socrata open-data portals: SoQL API, no key 
 
 ### 2.10 Volumes, change feeds and how to load (cto's asks)
 
-Measured 2026-11-20 with `research/probes/us/states/socrata_volumes.py 2` (rows whose Socrata system field `:updated_at` changed in the last 2 days) and the FL probe above.
+Measured 2026-11-20 with `research/probes/us/states/portal_volumes.py 2` (rows whose portal system field `:updated_at` changed in the last 2 days) and the FL probe above.
 
 | State | Dataset | Rows | Rows we'd load | Distinct entities | Columns | Rows changed in 2 days | Change feed |
 |---|---|---|---|---|---|---|---|
@@ -191,7 +191,7 @@ Size at the cto's lean layout (123 bytes per statement), keeping about 10 fields
 
 **All six together are about 18 GB: well over the 10 GB budget before any Baltic data.**
 
-**The alternative measured here: query live, cache what was looked up.** Every Socrata registry (NY, CO, OR, CT, PA, WA) answers a name-prefix query with no key in a median of 0.66-1.05 s (5 queries per portal, max 1.72 s; no rate-limit headers returned; a free Socrata app token, `SOCRATA_APP_TOKEN`, is the documented way to avoid shared throttling). So:
+**The alternative measured here: query live, cache what was looked up.** Every portal registry (NY, CO, OR, CT, PA, WA) answers a name-prefix query with no key in a median of 0.66-1.05 s (5 queries per portal, max 1.72 s; no rate-limit headers returned; a free the portal platform app token, a platform app token, is the documented way to avoid shared throttling). So:
 - **Proposal:** US state registries are queried live per search and per profile, and each entity looked up is cached in the store with its source and retrieval date. No bulk state load by default.
 - **FL is the exception:** no API, only SFTP files. Proposal: opt-in bulk load of active FL entities (about 5.5 GB), refreshed from the daily delta files, off by default.
 - **Trade-off:** live queries need the network and leave the portals' uptime in our path; search across all states at once becomes 5-6 parallel requests (about 1-2 s). Network-of-officers within a state (S17) needs the bulk file, so it stays LATER for the live states.
@@ -215,7 +215,7 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 - WA: the portal's own "[To be retired] Terms of Service" (`wt8r-5xui`) was due to retire after 2026-06-01, and no successor was found. The portal's About page is licensed PDDL in its metadata. A search-engine excerpt of that page reads "Data.wa.gov content may be used for free by anyone for most any purpose", but the page renders by script and the sentence could not be read directly. To settle: ask the WA Open Data Program by email (address on the WaTech open-data page).
 - Legal's ruling (hub comment 7029000097): the live slice for OR and WA stays blocked until a terms page is read. The CO disclaimer and CT withdrawal each get a test in the loader spec.
 
-**API throttling (all six portals run on the same platform):** "requests that aren't using an application token come from a shared pool via IP address", while "currently we do not throttle API requests that are using an application token" (https://dev.socrata.com/docs/app-tokens.html, read 2026-11-20). No numeric limits are published; throttled requests get HTTP 429.
+**API throttling (all six portals run on the same platform):** "requests that aren't using an application token come from a shared pool via IP address", while "currently we do not throttle API requests that are using an application token" ((the portal platform's developer documentation; URL in the private notes) read 2026-11-20). No numeric limits are published; throttled requests get HTTP 429.
 
 **What this means for the cache:**
 - No time limit comes from the portals. Retention of person data (officers, principals, agents) is set by legal rule R11 and a lawyer, not by these terms.
@@ -224,7 +224,7 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 
 ### 2.9 Other states
 - Texas: the "Active Franchise Taxpayers" dataset (`9cir-efmm`) did not answer the count query; not usable as tested.
-- No other state with free bulk **officer** data was found on the Socrata catalogue search; IA, VT, AK and others were not checked individually. To settle: one pass over each Secretary of State's data page.
+- No other state with free bulk **officer** data was found on the the portal platform catalogue search; IA, VT, AK and others were not checked individually. To settle: one pass over each Secretary of State's data page.
 
 ---
 
@@ -238,12 +238,12 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 - Probe: `research/probes/us/fjc_idb.py civil` (bankruptcy profiled with `unzip -p`).
 - Verdict: civil **use with caveat** (name match only; "party names are as filed and may be a different company with the same name"); bankruptcy **skip** for profiles.
 
-### 3.2 CourtListener / RECAP (Free Law Project)
+### 3.2 Provider P2 (a nonprofit court-data aggregator)
 - Bulk: 1,111 files on public S3, 1.78 TB in total; dockets 5.14 GB, 72,979,931 dockets, regenerated quarterly ("on the last day of March, June, September, and December"), latest 2026-09-30. About 7.7 M dockets have an organisation-like case name. Dockets sample (50,000 rows): case name 100%, docket number 94%, date filed 90%, nature of suit 22%.
-- Licence (bulk): "Our bulk data files are free of known copyright restrictions." (https://wiki.free.law/c/courtlistener/help/api/bulk-data/bulk-legal-data, read 2026-11-20). No attribution requested.
-- API v4: anonymous requests reach only `courts/`; dockets and search answer 401. With a free token: "authenticated users may make up to 5 requests per minute, 50 requests per hour, and 125 requests per day" (https://wiki.free.law/c/courtlistener/help/api/rest/v4/overview, read 2026-11-20). Commercial agreements on request.
-- Blocking dependency: `COURTLISTENER_TOKEN` (human-task item 2) for search; none for bulk.
-- Probe: `research/probes/us/courtlistener.py`.
+- Licence (bulk): "Our bulk data files are free of known copyright restrictions." (P2's bulk-data documentation, read 2026-11-20; URL in the private notes). No attribution requested.
+- API v4: anonymous requests reach only `courts/`; dockets and search answer 401. With a free token: "authenticated users may make up to 5 requests per minute, 50 requests per hour, and 125 requests per day" (P2's bulk-data documentation, read 2026-11-20; URL in the private notes). Commercial agreements on request.
+- Blocking dependency: a P2 API token (human-task item 2) for search; none for bulk.
+- Probe: `research/probes/us/p2_dockets.py`.
 - Verdict: **use**: bulk dockets for name search over loaded data (S10), API for an agent's targeted look-ups within 125 a day.
 
 ### 3.3 PACER
@@ -257,7 +257,7 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 ### 4.1 USAspending.gov (federal contracts, grants, loans)
 - API `https://api.usaspending.gov/api/v2/`, no key, no stated rate limit; monthly bulk archives (FY2026 contracts full file dated 2026-11-06). Awards data last updated 2026-11-19.
 - Recipient table: 18,320,930 rows (parent, child and recipient levels). FY2026 award counts: contracts 4,712,741; direct payments 2,694,387; loans 1,086,502; grants 426,844.
-- Recipient profile fields: name, alternate names, UEI, the legacy provider-D1 number, parent UEI and name, business types, location, totals. Award fields: amount, agency, NAICS, PSC, place of performance, period, description. "Executive details" (top-5 officer pay) exist but were null in the sample.
+- Recipient profile fields: name, alternate names, UEI, the legacy vendor id, parent UEI and name, business types, location, totals. Award fields: amount, agency, NAICS, PSC, place of performance, period, description. "Executive details" (top-5 officer pay) exist but were null in the sample.
 - Licence: no statement on the API page; federal data, US Government work (17 U.S.C. 105). **Licence verified: partial.**
 - Join keys: UEI (12 characters), parent UEI. Search by name is fuzzy: one keyword returned 24,597 recipients.
 - Probe: `research/probes/us/usaspending.py`.
@@ -340,7 +340,7 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 | Public company | Issuers with a Form 3/4/5 in 2026 (local store) | 6,427 |
 
 - Profiles: `research/probes/us/reality_profile.py [--bulk]` looks every sample up in the registries of NY, CO, OR, CT and PA (home record by id, others by normalised name), CT principals, OR representatives, status and filing history, CO and CT UCC debtors, FMCSA, OR and WA contractor licences, USAspending, GLEIF, the Forms 3/4/5 store, and with `--bulk` PPP, the FJC civil file and the SAM extracts. Name matching is exact after normalising case, punctuation and legal suffixes.
-- **Not checked, with the reason:** SEC EDGAR (no `SEC_USER_AGENT`), CourtListener search (no token), OFAC (data-osint), FL (quarterly file still downloading during the run; the samples aren't Florida entities).
+- **Not checked, with the reason:** SEC EDGAR (no `SEC_USER_AGENT`), P2 search (no token), OFAC (data-osint), FL (quarterly file still downloading during the run; the samples aren't Florida entities).
 
 ### Results
 
@@ -354,7 +354,7 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 | S06 Financials | 0 | 0 | XBRL not run (would fill public); private: not published |
 | S07 Workforce | 1 (20%) | 1 (20%) | PPP jobs reported (2020-21) |
 | S09 Insolvency, pledges | 0 | 0 | UCC checked for CO and CT only; no hits |
-| S10 Courts | 1 (20%) | 0 | FJC civil name match; CourtListener not run |
+| S10 Courts | 1 (20%) | 0 | FJC civil name match; P2 not run |
 | S11 Sanctions, exclusions | 0 | 0 | SAM exclusions checked for all 10: none found |
 | S12 Public money | 1 (20%) | 1 (20%) | USAspending (1 private), PPP (1 public) |
 | S13 Filings and events | 2 (40%) | 2 (40%) | state filing history; EDGAR not run |
@@ -387,23 +387,23 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
   - PPP: 13 files, 5.2 GB in total · one streaming pass, not timed separately · static since 2024-10.
   - FJC civil: 329,665,474 bytes zipped · the FJC civil and SAM passes together took about 5 min · Last-Modified · about quarterly.
   - FJC bankruptcy: 887,034,431 bytes zipped · one pass over 10 min (stopped at the 10-min tool limit, finished in the background) · Deflate64.
-  - Socrata states: no full pull needed under the live-query proposal (section 2.10); Socrata exports full CSVs if needed.
+  - the portal platform states: no full pull needed under the live-query proposal (section 2.10); the portal platform exports full CSVs if needed.
 - **EDGAR change feed (architect):** the daily index files (`form.YYYYMMDD.idx`, nightly) list every filing by form, CIK and date; the submissions JSON carries `formerNames` (with from/to dates) and both business and mailing addresses, and `submissions.zip` holds the same JSON for every CIK (SEC documentation; not measured, deferred: `SEC_USER_AGENT` pending).
 - **Keys (human ruling H5, 2026-11-21): v1 uses no API keys.** SEC_USER_AGENT is a contact setting, not a key (C14), and stays optional. The list below records what each key would unlock if allowed later:
   - `SEC_USER_AGENT` (not a key, a contact string): all of EDGAR: submissions, XBRL financials, Form D related persons, 13D/G, 8-K 5.02 text, DEF 14A, EX-21, and the exact rebuild size for Forms 3/4/5. Without it, US public companies have no S06 financials and weak S01.
-  - `COURTLISTENER_TOKEN`: docket search by party name (125 a day). The bulk dockets need no token.
+  - a P2 API token: docket search by party name (125 a day). The bulk dockets need no token.
   - `SAM_GOV_API_KEY`: live entity look-up by UEI (10 a day without a SAM role). The public extracts need no key, so this is low value.
   - `USPTO_ODP_KEY`: trademarks and patents (LATER anyway).
   - `FEC_API_KEY`: higher rate limit than `DEMO_KEY` for company PAC look-ups (LATER anyway).
-  - `SOCRATA_APP_TOKEN` (optional, free): avoids shared throttling on live state queries.
-- **Change feeds:** NY daily filings dataset; CO, CT, FMCSA daily full refresh (Socrata `rowsUpdatedAt`); FL daily files; GLEIF three publishes a day with deltas; SAM exclusions daily, entities monthly; FJC and CourtListener quarterly; PPP static.
-- **As-of dates:** Socrata gives `rowsUpdatedAt` per dataset, not per record; records carry their own filing or status dates (NY `initial_dos_filing_date`, CO `entityformdate`, CT `date_registration`). FL records carry file date and last-transaction date. SAM and GLEIF carry per-record registration and last-update dates.
+  - a platform app token (optional, free): avoids shared throttling on live state queries.
+- **Change feeds:** NY daily filings dataset; CO, CT, FMCSA daily full refresh (the portal platform `rowsUpdatedAt`); FL daily files; GLEIF three publishes a day with deltas; SAM exclusions daily, entities monthly; FJC and P2 quarterly; PPP static.
+- **As-of dates:** the portal platform gives `rowsUpdatedAt` per dataset, not per record; records carry their own filing or status dates (NY `initial_dos_filing_date`, CO `entityformdate`, CT `date_registration`). FL records carry file date and last-transaction date. SAM and GLEIF carry per-record registration and last-update dates.
 - **Terminated entities:** CO, CT and FMCSA keep them with a status; NY's master file drops them (status history keeps them); OR's dataset is active businesses only.
 - **Person identity:** name only in every state file (no birth dates, no personal codes). SEC insiders have a CIK. So people can be linked across companies only by name within a state, which the network view must label as "same name".
 - **Sole traders:** state registries list legal entities; sole proprietors appear only in assumed-name/trade-name files (CO trade names 289,445 rows with first and last names). Those are natural persons (R5).
 - **Vocabularies (English):** CO statuses (Good Standing, Delinquent, Administratively Dissolved, Exists, Converted, …); FL status A/I and filing types (FLAL, DOMP, DOMNP, FORL, FORP, …) and officer title codes (MGR, AMBR, P, VP, CEO, D, …); FMCSA authority actions (granted, involuntary revocation, reinstated, dismissed, …); SAM exclusion types (prohibition/restriction, ineligible, voluntary exclusion).
 - **Field sizes:** FL longest name 93 of 192 characters; FL officers per record median 1, maximum 6 slots plus a "more than six" flag; Form 4 issuers can have dozens of insiders a year.
-- **Deep links** (patterns other than SEC are not verified yet): SEC (above); USAspending `https://www.usaspending.gov/recipient/<recipient hash>/latest`; FMCSA `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string=0000000`; GLEIF `https://search.gleif.org/#/record/<LEI>`; CourtListener `https://www.courtlistener.com/docket/<id>/<slug>/`. State registries: search pages only, no stable per-entity URL was verified.
+- **Deep links** (patterns other than SEC are not verified yet): SEC (above); USAspending `https://www.usaspending.gov/recipient/<recipient hash>/latest`; FMCSA `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string=0000000`; GLEIF `https://search.gleif.org/#/record/<LEI>`; P2 docket pages on the host from the local provider map. State registries: search pages only, no stable per-entity URL was verified.
 
 ---
 
@@ -442,7 +442,7 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 | S09 | US | FJC bankruptcy IDB | D | n/a | bulk, but no debtor names, so a case can't be tied to a company |
 | S09 | US | PACER bankruptcy dockets | D | n/a | paid: $0.10/page, $3 cap, waived under $30 a quarter |
 | S10 | US | FJC civil IDB | B | 20% public (1/5), 0% private | bulk, about quarterly; licence verified partial; party names only, agent must confirm |
-| S10 | US | CourtListener dockets (bulk) and API | B | not run | bulk quarterly, free; API needs `COURTLISTENER_TOKEN`, 125 calls a day; licence verified Y (bulk) |
+| S10 | US | P2 dockets (bulk) and API | B | not run | bulk quarterly, free; API needs a P2 API token, 125 calls a day; licence verified Y (bulk) |
 | S11 | US | SAM.gov exclusions | A | checked 100%, hits 0% | bulk daily; licence verified partial; risk signal |
 | S11 | US | FMCSA revocations | A | carriers and brokers only | bulk daily; licence verified partial |
 | S11 | US | FINRA BrokerCheck | C | not run | per-query only; licence verified Y (permitted-uses terms: attribution, compile date, error channel) |
@@ -483,8 +483,8 @@ Read 2026-11-20. **No portal limits how long a query result may be kept.** Color
 | S08 | US | small private business | 5 | 0 | 0% | not published in the US |
 | S09 | US | public company | 5 | 0 | 0% | UCC checked in CO and CT: none found; bankruptcy files carry no debtor names |
 | S09 | US | small private business | 5 | 0 | 0% | UCC checked in CO and CT: none found; bankruptcy files carry no debtor names |
-| S10 | US | public company | 5 | 1 | 20% | FJC civil name match (needs agent confirmation); CourtListener not run |
-| S10 | US | small private business | 5 | 0 | 0% | FJC civil name match (needs agent confirmation); CourtListener not run |
+| S10 | US | public company | 5 | 1 | 20% | FJC civil name match (needs agent confirmation); P2 not run |
+| S10 | US | small private business | 5 | 0 | 0% | FJC civil name match (needs agent confirmation); P2 not run |
 | S11 | US | public company | 5 | 0 | 0% | SAM exclusions checked for all: none found; OFAC by data-osint |
 | S11 | US | small private business | 5 | 0 | 0% | SAM exclusions checked for all: none found; OFAC by data-osint |
 | S12 | US | public company | 5 | 1 | 20% | USAspending, PPP |

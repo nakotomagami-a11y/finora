@@ -4,7 +4,7 @@ Module `packages/sources/src/us/fmcsa/`. Research: `docs/research/us.md` §4.10,
 
 ## Source
 - Publisher: Federal Motor Carrier Safety Administration (U.S. Department of Transportation). `officialHosts`: `data.transportation.gov`, `safer.fmcsa.dot.gov`.
-- Datasets (Socrata, no key): Company Census `az4n-8mr2` (4,533,061 rows, 147 columns); Carrier (Licensing & Insurance) `6eyk-hxee` (1,860,604); Revocation `sa6p-acbp` (1,529,083). All updated 2026-11-19 (daily).
+- Datasets (portal API, no key): Company Census `az4n-8mr2` (4,533,061 rows, 147 columns); Carrier (Licensing & Insurance) `6eyk-hxee` (1,860,604); Revocation `sa6p-acbp` (1,529,083). All updated 2026-11-19 (daily).
 - `id`: `us-fmcsa-brokers` and `us-fmcsa-carriers` (below). `licence`: `us-gov-work` (portal metadata states no licence; federal work, 17 U.S.C. 105). `verifiedOn`: 2026-11-19, `https://data.transportation.gov/d/az4n-8mr2` (licence field empty in the dataset metadata). `attribution`: "Source: FMCSA, U.S. Department of Transportation".
 - **Two source ids, one storage class each (§3.5):** `us-fmcsa-brokers` (`store`, bulk, filtered to active broker authority) and `us-fmcsa-carriers` (`live-cached`, `cacheTtl` `{ refetchHours: 24, purgeUnviewedDays: 30 }`). Both share the parser and field map below. `cadence`: `daily`. `publishedAtUtc`: null (portal refresh time observed overnight).
 - `asOf`: `[portal_metadata]` (`rowsUpdatedAt`), then `[max_date_in_data]` over census `mcs150_date`.
@@ -44,7 +44,7 @@ Module `packages/sources/src/us/fmcsa/`. Research: `docs/research/us.md` §4.10,
 | `business_org_desc` | party gate only | resolution key | no | CORPORATION, INDIVIDUAL, PARTNERSHIP, or empty |
 | `company_officer_1`, `company_officer_2` | **dropped** | - | - | S03 for carriers is not a Part G item; officer names are not loaded |
 | `email_address`, `phone`, `cell_phone`, `fax` | **dropped** (never selected) | - | - | contact data of often one-person carriers |
-| `safety_rating`, the provider-D1 number column | dropped | - | - | |
+| `safety_rating`, the legacy vendor id column | dropped | - | - | |
 
 **Revocation `sa6p-acbp`**: `docket_number`, `type_license`, `order1_serve_date`, `order2_type_desc` → event `register.authority_revoked` (S11.US.02), last 5 years.
 
@@ -62,10 +62,10 @@ Many carriers and some brokers are one-person businesses (sole proprietors: natu
 - Removal: a broker that leaves the filter is deleted with `finora.status_changed` "Broker authority no longer active since [date]". History events: `finora.status_changed`, `finora.name_changed`.
 
 ## Size and time budget
-Brokers: ≈ 25,000 entities × 8 statements ≈ 0.03 GB. Carriers: cache only (≈ 3 KB per opened carrier). First load ≈ 1 min (about 30 paged SoQL requests of 1,000 rows); daily refresh ≈ 30 s.
+Brokers: ≈ 25,000 entities × 8 statements ≈ 0.03 GB. Carriers: cache only (≈ 3 KB per opened carrier). First load ≈ 1 min (about 30 paged portal query requests of 1,000 rows); daily refresh ≈ 30 s.
 
 ## Fixtures
-`fixtures/us/fmcsa/*.json` (Socrata arrays) with 4 fictional entities: a broker with a bond, a carrier with fleet facts, a sole-proprietor carrier (must be reduced), and a revoked authority. USDOT fixture numbers ≥ 9,900,000,000 (above any assigned number).
+`fixtures/us/fmcsa/*.json` (portal JSON arrays) with 4 fictional entities: a broker with a bond, a carrier with fleet facts, a sole-proprietor carrier (must be reduced), and a revoked authority. USDOT fixture numbers ≥ 9,900,000,000 (above any assigned number).
 
 ## Tests
 `sources/src/us/fmcsa/fmcsa.test.ts` (filters, field map; email and phone columns never selected), `ingest/src/party-gate.test.ts` (sole proprietor → natural person reductions: country-only address, no name stored), `ingest/src/live-cache.test.ts` (FMCSA carrier cases: 24 h re-fetch, 30-day purge, the two-miss rule as in `us-states.md`).

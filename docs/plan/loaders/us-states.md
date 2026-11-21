@@ -1,6 +1,6 @@
 # us-states: NY, CO, CT and PA business registries (live-cached)
 
-Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, `state-co/`, `state-ct/`, `state-pa/`), sharing one Socrata client (`packages/sources/src/us/socrata.ts`). OR and WA are LATER (P11, register C11). FL is LATER (S01.US.04). Research: `docs/research/us.md` §2, §2.10, §2.11.
+Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, `state-co/`, `state-ct/`, `state-pa/`), sharing one portal client (`packages/sources/src/us/portal.ts`). OR and WA are LATER (P11, register C11). FL is LATER (S01.US.04). Research: `docs/research/us.md` §2, §2.10, §2.11.
 
 ## Source
 
@@ -21,10 +21,10 @@ Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, 
 - `asOf`: `[portal_metadata]`: the dataset's `rowsUpdatedAt` (Unix seconds) from `GET https://<host>/api/views/<dataset>.json`, read in the same fetch as the rows; it renders as "as published by the portal". It is the dataset's refresh time, not a per-record date; record dates (filing, formation, status dates) are separate statements. Measured 2026-11-19/20: NY 2026-11-19, CO 2026-11-19, CT 2026-11-19, PA 2026-11-03.
 - `deepLink`: null. No state publishes a stable per-entity URL that we verified; the source chip links the dataset page `https://<host>/d/<dataset>`.
 - `orderUrl`: null.
-- `requires`: none. **No app token in v1 (H5).** Without one, "requests that aren't using an application token come from a shared pool via IP address" (https://dev.socrata.com/docs/app-tokens.html); the measured latencies above were taken without a token. A 429 backs off as below and the state shows "did not answer".
+- `requires`: none. **No app token in v1 (H5).** Without one, "requests that aren't using an application token come from a shared pool via IP address" ((the portal platform's developer documentation; URL in the private notes)); the measured latencies above were taken without a token. A 429 backs off as below and the state shows "did not answer".
 - `limits`: `{ requestsPerSecond: 5 }` per host. Measured latency for a name-prefix query: median 0.66-1.05 s, max 1.72 s. A 429 backs off 2, 4, 8 s, then fails the request (§7.6a rules).
 
-### Queries (SoQL over `GET https://<host>/resource/<dataset>.json`)
+### Queries (Queries over `GET https://<host>/resource/<dataset>.json`)
 
 | Use | Query |
 |---|---|
@@ -164,21 +164,21 @@ UCC debtor rows **are** party rows and go through `ingest/src/party-gate.ts`:
 
 ## Fixtures
 
-- `packages/sources/src/us/socrata/fixtures/<dataset>.json`: Socrata JSON arrays with exactly the selected columns, plus `views/<dataset>.json` with `rowsUpdatedAt`.
+- `packages/sources/src/us/portal/fixtures/<dataset>.json`: portal JSON arrays with exactly the selected columns, plus `views/<dataset>.json` with `rowsUpdatedAt`.
 - Fixture ids use the `FX` prefix: `us-ny-FX000001`, `us-co-FX000000001`, `us-ct-FX00001`, `us-pa-FX0000001` (§3.4). Names are obviously fictional ("Example Roofing LLC"). The id validators run in two modes: production rejects `FX` ids; the `fixtures` load profile accepts only `FX` ids (`fixtures/ids.test.ts` tests both).
-- The layout writer `fixtures/us/socrata.ts` emits one company per state with: a NY corporation with a chairman, a CO entity with history and one UCC debtor row, a CT company with one principal (residence columns present in the fixture file but not selected) and one withdrawn principal on the second fetch, and a PA company with two parties and no status.
+- The layout writer `fixtures/us/portal.ts` emits one company per state with: a NY corporation with a chairman, a CO entity with history and one UCC debtor row, a CT company with one principal (residence columns present in the fixture file but not selected) and one withdrawn principal on the second fetch, and a PA company with two parties and no status.
 
 ## Tests
 
 | File | Proves |
 |---|---|
 | `sources/src/us/state-ny/state-ny.test.ts`, `state-co.test.ts`, `state-ct.test.ts`, `state-pa.test.ts` | parse the fixtures; every statement has an item id; field map equals `meta.items` |
-| `sources/src/us/socrata/select.test.ts` | every request's `$select` equals the field-map columns: residence, email, phone and agent columns are never requested (HIDE-field negative test) |
+| `sources/src/us/portal/select.test.ts` | every request's `$select` equals the field-map columns: residence, email, phone and agent columns are never requested (HIDE-field negative test) |
 | `ingest/src/live-cache.test.ts` (shared) | fake clock: re-fetch after 24 h; day 29 survives, day 30 purged; **CT withdrawal**: a principal absent while the company is returned is deleted and a `finora.role_ended` event without a name is written; **empty re-fetch**: the first miss keeps the rows but withholds them and shows "did not return", a second miss 24 h later deletes them, principals included; **per dataset**: an empty principals answer while the company is returned withholds the principals only, and a second miss deletes them with `role_ended`; **NY**: an entity missing from the master shows its status-history status, not a miss; a 5xx never counts as a miss; the "did not return" text contains no person name and none of the status words struck off, dissolved, inactive |
 | `web/e2e/co-disclaimer.spec.ts` + `domain/src/report/attribution.test.ts` | **CO disclaimer**: every report, API response and MCP response containing a CO value carries the full disclaimer text; the source chip shows it |
 | `ingest/src/party-gate.test.ts` (US cases) | a UCC debtor with a different name is not attached; person debtor columns can't reach the store |
 | `sources/src/licences.test.ts` | OR and WA have no enabled `live-cached` source (P11) |
-| `sources/src/us/socrata/query.test.ts` | a user string with `'`, `%` and `_` is escaped; no SoQL injection |
+| `sources/src/us/portal/query.test.ts` | a user string with `'`, `%` and `_` is escaped; no query injection |
 | `server/src/routes/v1/search/live/route.contract.test.ts`, `web/e2e/search-live.spec.ts` (slice S17) | `GET /search/live/:register` answers within 3 s or returns the "did not answer" state; the four state groups render independently |
 
 ## Failure modes

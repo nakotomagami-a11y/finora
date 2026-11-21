@@ -1,9 +1,9 @@
-"""Measure state business-registry datasets published on Socrata portals.
+"""Measure state business-registry datasets published on official open-data portals.
 
 For each dataset: columns, row count, last update, licence and attribution as the
 portal reports them, plus a small sample saved to research/.cache (never committed).
 
-Usage: python -I socrata_probe.py [cache_dir]
+Usage: python -I portal_probe.py [cache_dir]
 """
 
 import json
@@ -84,7 +84,7 @@ def main():
         except Exception as e:  # noqa: BLE001 - record and keep probing the rest
             results.append({"state": state, "id": ds_id, "label": label, "error": repr(e)})
         time.sleep(0.5)
-    (cache / "socrata_summary.json").write_text(json.dumps(results, indent=1), encoding="utf-8")
+    (cache / "portal_summary.json").write_text(json.dumps(results, indent=1), encoding="utf-8")
     for r in results:
         if "error" in r:
             print(f"{r['state']} {r['id']} ERROR {r['error']}")

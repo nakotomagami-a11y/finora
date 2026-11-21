@@ -67,7 +67,7 @@ LATER, not read: S03.US.04 (DEF 14A), S05.US.01 (EX-21), S14.US.03, S17.US.01. *
 | `cik` | int | entity key `us-cik-<10 digits>` | resolution key | no | zero-pad to 10 |
 | `name` | text | `Company.name` (search) | S01.US.01 | no | |
 | `ticker` | text | `Security.ticker` | S14.US.02 | no | upper case |
-| `exchange` | text | `Security.exchange` | S14.US.02 | no | values as published (e.g. Nasdaq, NYSE, OTC, CBOE) |
+| `exchange` | text | `Security.exchange` | S14.US.02 | no | exchange names as published by the SEC |
 
 **us-sec-company: submissions**
 

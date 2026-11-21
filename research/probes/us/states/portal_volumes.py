@@ -1,10 +1,10 @@
-"""Volumes and change feeds of state registry datasets on Socrata portals.
+"""Volumes and change feeds of state registry datasets on official open-data portals.
 
 Per dataset: total rows, rows we would load (active), distinct entities, column count,
-and rows whose system field :updated_at is newer than N days (Socrata's
+and rows whose system field :updated_at is newer than N days (the platform's
 modified-since filter; a full re-publish touches every row).
 
-    python -I research/probes/us/states/socrata_volumes.py [days=2]
+    python -I research/probes/us/states/portal_volumes.py [days=2]
 """
 import json
 import sys
