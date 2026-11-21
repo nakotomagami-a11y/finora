@@ -70,6 +70,37 @@ describe("check-outside-names: the classes (qa 7066865925 a-e)", () => {
   });
 });
 
+describe("check-outside-names: qa's gaps and false positives (7070905192)", () => {
+  it("finds a regex-escaped host", () => {
+    assert.deepEqual(classes(scanText("x.mjs", `const re = /${j("north", "bay")}\.com/;`)), ["host"]);
+  });
+
+  it("in prose, finds a two-label host on any country TLD outside code spans", () => {
+    assert.deepEqual(classes(scanText("x.md", `see ${[j("north", "bay"), "de"].join(".")} for more`)), ["host"]);
+    assert.deepEqual(scanText("x.ts", `see ${[j("north", "bay"), "de"].join(".")}`), [], "in code, only the known TLD list");
+    assert.deepEqual(scanText("x.md", "the field `meta.id` and the format dd.mm"), []);
+  });
+
+  it("finds a bare 11-digit LV register code with a real check digit; passes fixture and other numbers", () => {
+    const code = validLvCode();
+    assert.deepEqual(classes(scanText("x.md", `code ${code}`)), ["id"]);
+    assert.deepEqual(scanText("x.md", `code ${code.slice(0, 10)}${(Number(code[10]) + 1) % 10}`), []);
+    assert.deepEqual(scanText("x.md", "an id of 30000000001"), []);
+  });
+
+  it("skips code that reads like a host: upper-case members, word TLDs and file names", () => {
+    for (const text of ["FX.LV.register", "COUNTS.us + LOCAL.us", "e.urls.global", 'name: "global.json"', "see slices.md and data.csv"]) {
+      assert.deepEqual(scanText("x.ts", text), [], text);
+    }
+  });
+
+  it("still finds a host after a scheme in any case, a www host on a word TLD, and a brand-case host", () => {
+    assert.deepEqual(classes(scanText("x.ts", `"https://API.${j("north", "bay")}.global/v1"`)), ["host"]);
+    assert.deepEqual(classes(scanText("x.md", `www.${j("north", "bay")}.news`)), ["host"]);
+    assert.deepEqual(classes(scanText("x.md", `the ${j("North", "Bay")}.gov portal`)), ["host"]);
+  });
+});
+
 describe("check-outside-names: allowlist, scope and output", () => {
   it("keeps a hit listed in the allowlist with its category; a host entry covers its subdomains", () => {
     const allow = parseAllowlist([`public-body ${host}`, `fictional ${org}`].join("\n"));

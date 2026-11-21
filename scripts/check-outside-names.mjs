@@ -4,7 +4,7 @@
 //
 //   node scripts/check-outside-names.mjs tree                every tracked file at HEAD
 //   node scripts/check-outside-names.mjs range <base> <head>  the files a slice changed
-//   node scripts/check-outside-names.mjs files <path...>      the given files
+//   node scripts/check-outside-names.mjs files <path...>      the given files; a directory means its tracked files
 //
 // Classes: host (hostnames, URLs, email domains), org (organisation-shaped phrases), ticker,
 // id (a real-shaped register code, LEI, ISIN or CIK), brand (a stem of a private denylist entry),
@@ -16,7 +16,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isFixtureRegisterCode, isValidLei, isValidRegisterCode } from "../packages/domain/src/ids/check-digits.ts";
@@ -30,10 +30,23 @@ const BINARY_OK = /(^|\/)__screenshots__\//;
 const BINARY_EXT = /\.(png|jpe?g|gif|webp|pdf|zip|gz|xlsx?|docx?|pptx?|sqlite|db|bin)$/i;
 
 const TLDS = "com|net|org|io|co|ai|dev|app|info|biz|eu|lv|lt|ee|us|uk|gov|edu|int|de|fr|nl|se|fi|no|dk|pl|ch|at|be|es|it|ie|lu|ru|cn|jp|kr|tw|hk|sg|au|ca|nz|br|mx|xyz|cloud|tech|me|tv|ly|gg|page|site|online|global|news|finance|money|exchange|network|markets|capital|trade";
-const HOST = new RegExp(String.raw`(?<![\w.-])((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${TLDS}))(?![\w-]|\.[a-z0-9])`, "gi");
+/** Hosts are lower case in practice; `FX.LV` and `COUNTS.us` are code (qa 7070905192). */
+const LABEL = String.raw`[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?`;
+const BARE_HOST = new RegExp(String.raw`(?<![\w.$-])((?:${LABEL}\.)+[a-z]{2,24})(?![\w-]|\.[a-z0-9])`, "g");
+/** A host written in brand case (`Name.gov`, `NameSpending.gov`) still counts when its TLD is a lower-case strong one. */
+const MIXED_HOST = /(?<![\w.$-])((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+(?:gov|com|org|net|edu))(?![\w-]|\.[a-z0-9])/g;
+/** Date formats in prose (`dd.mm`, `dd.mm.yyyy`) are not hosts. */
+const DATE_FORMAT = /^(dd|mm|yy|yyyy)(\.(dd|mm|yy|yyyy))+$/;
+/** After a scheme or `@`, any case counts. */
+const ANCHORED_HOST = /(?:\b[a-z][a-z0-9+.-]*:\/\/|@)([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+)/g;
+const KNOWN_TLDS = new Set(TLDS.split("|"));
+/** TLDs that read like words or code (`e.urls.global`, `p.news`, `rows.at`): they count only after a scheme, `@` or `www.`. */
+const GENERIC_TLDS = new Set(["global", "page", "site", "online", "news", "finance", "money", "exchange", "network", "markets", "capital", "trade", "tech", "cloud", "app", "dev", "me", "tv", "co", "ai", "io", "info", "biz", "xyz", "ly", "gg", "int", "at", "it", "no", "be", "es", "de"]);
+/** A last label that is a file extension is a file name (`global.json`, `slices.md`), never a host. */
+const FILE_EXT = new Set(["md", "mdx", "ts", "tsx", "js", "mjs", "cjs", "json", "py", "sh", "yml", "yaml", "csv", "xml", "txt", "html", "css", "png", "svg", "sql", "db", "lock", "toml", "xlsx", "zip", "gz", "pdf", "rs", "go", "rb", "ps1", "env", "log", "ico", "woff", "woff2"]);
 const RESERVED_HOST = (h) => /(^|\.)(invalid|test|localhost)$/.test(h) || /(^|\.)example(\.|$)/.test(h);
 /** A bare `label.tld` counts only on these TLDs, or after a scheme, `@` or `www.`: `obs.at(...)` and `p.news` are code. */
-const BARE_TLDS = new Set(["lv", "lt", "ee", "eu", "uk", "us", "gov", "org", "com", "net", "io"]);
+const BARE_TLDS = new Set(["lv", "lt", "ee", "eu", "uk", "us", "gov", "org", "com", "net"]);
 const ITEM_ID = /^[sm]\d{2}\.[a-z]{2,3}(\.|$)/i;
 
 const FORMS = String.raw`SIA|AS|UAB|OÜ|AB|Oy|AG|SE|GmbH|PLC|LLC|LLP|Inc\.?|Ltd\.?|Corp\.?|Corporation|S\.A\.|N\.V\.|B\.V\.|S\.p\.A\.`;
@@ -46,6 +59,8 @@ const CASHTAG = /(?<![\w$])\$([A-Z]{2,5})\b(?![{\w])/g;
 const FIXTURE_TICKER = /^ZZFX\d{2}$/;
 
 const EID = /\b(lv|ee|lt)-(\d{8,11})\b/g;
+/** A bare LV register code (4 or 5, then ten digits) with a real check digit (qa 7070905192). */
+const BARE_LV = /(?<![\w-])([45]\d{10})(?!\d)/g;
 const LEI = /\b[0-9A-Z]{18}\d{2}\b/g;
 const ISIN = /\b(?:US|LV|LT|EE|GB|DE|FR|NL|SE|FI|IE|LU|CH|JP|TW|KY|BM|CA|AU|XS)[A-Z0-9]{9}\d\b/g;
 const CIK = /\bcik\b[^0-9\n]{0,12}(\d{6,10})\b/gi;
@@ -101,13 +116,37 @@ export function scanText(path, text, { allow = [], stems = [] } = {}) {
   text.split(/\r?\n/).forEach((line, i) => {
     const at = i + 1;
     const hit = (cls, matched, kind = "phrase") => findings.push({ line: at, cls, kept: allowedAs(allow, matched, kind) });
-    for (const m of line.matchAll(HOST)) {
+    // A regex-escaped host (`name\.com` in a pattern) is still a host.
+    const text = line.replace(/\\\./g, ".");
+    const anchoredSpans = [];
+    for (const m of text.matchAll(ANCHORED_HOST)) {
       const host = m[1].toLowerCase();
-      if (RESERVED_HOST(host) || ITEM_ID.test(host) || line[m.index + m[0].length] === "(") continue;
-      const labels = host.split(".");
-      const anchored = /(:\/\/|@)$/.test(line.slice(0, m.index)) || labels[0] === "www";
-      if (labels.length === 2 && !anchored && (labels[0].length < 2 || !BARE_TLDS.has(labels[1]))) continue;
+      const tld = host.split(".").at(-1) ?? "";
+      anchoredSpans.push([m.index, m.index + m[0].length]);
+      if (!/^[a-z]{2,24}$/.test(tld) || FILE_EXT.has(tld) || RESERVED_HOST(host)) continue;
       hit("host", host, "host");
+    }
+    // Backtick spans in prose hold code (`meta.id`), so the any-ccTLD rule stops at them.
+    const codeSpans = prose ? [...text.matchAll(/`[^`]*`/g)].map((m) => [m.index, m.index + m[0].length]) : [];
+    const inside = (spans, at) => spans.some(([a, b]) => at >= a && at < b);
+    for (const m of text.matchAll(BARE_HOST)) {
+      if (inside(anchoredSpans, m.index)) continue;
+      const host = m[1];
+      const labels = host.split(".");
+      const tld = labels.at(-1) ?? "";
+      if (RESERVED_HOST(host) || ITEM_ID.test(host) || FILE_EXT.has(tld) || DATE_FORMAT.test(host) || text[m.index + m[0].length] === "(") continue;
+      const www = labels[0] === "www";
+      // In prose outside code spans any two-letter country TLD counts; elsewhere only the known list.
+      const anyCountry = prose && tld.length === 2 && !inside(codeSpans, m.index);
+      const known = (KNOWN_TLDS.has(tld) && (!GENERIC_TLDS.has(tld) || www)) || anyCountry;
+      if (!known) continue;
+      if (labels.length === 2 && !www && (labels[0].length < 2 || !(BARE_TLDS.has(tld) || anyCountry))) continue;
+      hit("host", host, "host");
+    }
+    for (const m of text.matchAll(MIXED_HOST)) {
+      if (!/[A-Z]/.test(m[1]) || inside(anchoredSpans, m.index)) continue;
+      const host = m[1].toLowerCase();
+      if (!RESERVED_HOST(host)) hit("host", host, "host");
     }
     for (const m of line.matchAll(ORG)) {
       // A fictional word in the phrase, or earlier on the same line, marks the whole name as invented.
@@ -121,6 +160,7 @@ export function scanText(path, text, { allow = [], stems = [] } = {}) {
       // All-zero bodies are placeholders (lv-00000000001), never a register's code.
       if (code.length === CODE_LENGTH[country] && !/^0+\d{0,2}$/.test(code) && isValidRegisterCode(country, code) && !isFixtureRegisterCode(country, code)) hit("id", m[0]);
     }
+    for (const m of line.matchAll(BARE_LV)) if (isValidRegisterCode("lv", m[1]) && !isFixtureRegisterCode("lv", m[1])) hit("id", m[1]);
     for (const m of line.matchAll(LEI)) if (/[A-Z]/.test(m[0]) && isValidLei(m[0])) hit("id", m[0]);
     for (const m of line.matchAll(ISIN)) if (isValidIsin(m[0])) hit("id", m[0]);
     for (const m of line.matchAll(CIK)) if (!m[1].padStart(10, "0").startsWith("99") && Number(m[1]) > 0) hit("id", m[0]);
@@ -172,7 +212,8 @@ function main(argv) {
     paths = git(["diff", "--name-only", "--diff-filter=ACMR", "-z", `${rest[0]}..${rest[1]}`]).toString().split("\0").filter(Boolean);
     label = `${rest[0]}..${rest[1]}`;
   } else if (mode === "files" && rest.length > 0) {
-    paths = rest;
+    // A directory stands for the tracked files under it.
+    paths = rest.flatMap((p) => (existsSync(p) && statSync(p).isDirectory() ? git(["ls-files", "-z", "--", p]).toString().split("\0").filter(Boolean) : [p]));
     label = "files";
   } else {
     console.error("usage: check-outside-names.mjs tree | range <base> <head> | files <path...>");
