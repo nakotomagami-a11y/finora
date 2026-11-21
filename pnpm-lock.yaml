@@ -320,7 +320,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 5.1.1(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0))
+        version: 5.1.1(@types/node@24.19.2)(jsdom@31.0.1)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0))
 
   packages/tooling:
     dependencies:
