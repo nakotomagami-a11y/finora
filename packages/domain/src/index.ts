@@ -18,6 +18,7 @@ export {
   type PurposeId,
 } from "./config/purposes.ts";
 export { isNaturalPerson, naturalPersonCaption } from "./policy/persons.ts";
+export { NATURAL_PERSON_DROPPED_SECTIONS, naturalPersonDrop, SOLE_TRADER_DROPPED_PROPS } from "./policy/natural-person-load.ts";
 export { balticCheckDigit, COMPANY_ID_PROPS, findPersonalCodes, idIsPersonalCode, isBalticPersonalCode, PERSON_EID, type PersonalCodeHit } from "./policy/personal-codes.ts";
 export {
   FINORA_EXTENSIONS,

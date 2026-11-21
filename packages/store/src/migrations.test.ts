@@ -78,5 +78,10 @@ describe("migrations", () => {
     expect(largeTableRewrites(rebuild).length).toBeGreaterThan(0);
     expect(largeTableRewrites("UPDATE facts SET value = value * 1000")).toHaveLength(1);
     expect(largeTableRewrites("ALTER TABLE main.statements ADD COLUMN extra TEXT; CREATE INDEX main.x ON records(source_id)")).toEqual([]);
+    expect(largeTableRewrites("CREATE TABLE main.notes (record_id INTEGER REFERENCES records(id))")).toEqual([]);
+    expect(largeTableRewrites("CREATE TABLE main.copy AS SELECT * FROM statements")).toHaveLength(1);
+    expect(largeTableRewrites("INSERT INTO main.archive SELECT * FROM main.records")).toHaveLength(1);
+    expect(largeTableRewrites("DELETE FROM records WHERE 1")).toHaveLength(1);
+    expect(largeTableRewrites("ALTER TABLE main.other RENAME TO facts")).toHaveLength(1);
   });
 });

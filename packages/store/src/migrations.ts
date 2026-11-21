@@ -242,6 +242,37 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX sa.sa_statements_eid ON sa_statements(eid);
     `,
   },
+  {
+    // S04i: window and periods_in_file purges need a record's period; a field refused at load
+    // (a sole trader's id with a personal-code shape) is recorded as withheld so the profile shows
+    // "not loaded", never an empty value (legal 7058881476); live-cached sources count misses per dataset.
+    target: "main",
+    name: "ingest",
+    sql: `
+      ALTER TABLE main.records ADD COLUMN period TEXT;
+      CREATE INDEX main.records_source_period ON records(source_id, period);
+      CREATE TABLE main.withheld (
+        record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+        entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+        prop_id INTEGER NOT NULL REFERENCES props(id),
+        reason TEXT NOT NULL,
+        PRIMARY KEY (record_id, entity_id, prop_id)
+      ) STRICT, WITHOUT ROWID;
+      CREATE TABLE main.live_cache_misses (
+        source_id TEXT NOT NULL REFERENCES sources(id),
+        record_key TEXT NOT NULL,
+        dataset TEXT NOT NULL,
+        first_miss_at TEXT NOT NULL,
+        PRIMARY KEY (source_id, record_key, dataset)
+      ) STRICT, WITHOUT ROWID;
+      CREATE TABLE main.live_cache_checks (
+        source_id TEXT NOT NULL REFERENCES sources(id),
+        record_key TEXT NOT NULL,
+        checked_at TEXT NOT NULL,
+        PRIMARY KEY (source_id, record_key)
+      ) STRICT, WITHOUT ROWID;
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */
@@ -262,15 +293,25 @@ export const IDENTIFIER_INDEX_WHERE = "st.prop_id BETWEEN 1 AND 8";
 /** Large tables take additive migrations only: a rebuild doubles disk use on a ~7 GB store (cto S3). */
 export const LARGE_TABLES = ["statements", "facts", "records"] as const;
 
-const ADDITIVE = [/^ALTER TABLE \S+ ADD COLUMN /i, /^CREATE (?:UNIQUE )?INDEX /i];
+const WRITE_TARGET = /^(?:CREATE TABLE|DROP TABLE|INSERT(?: OR \w+)? INTO|REPLACE INTO|UPDATE(?: OR \w+)?|DELETE FROM|ALTER TABLE)\s+(?:IF (?:NOT )?EXISTS\s+)?(?:main\.)?(\w+)/i;
+const isLarge = (name: string | undefined) => name !== undefined && (LARGE_TABLES as readonly string[]).includes(name.toLowerCase());
 
-/** Returns the statements of a non-initial migration that rewrite a large table. */
+/**
+ * Returns the statements of a non-initial migration that rewrite a large table: any write to one
+ * (create, drop, insert, update, delete, alter other than ADD COLUMN), a rename onto one, or a
+ * copy that reads one. A new table or index that only references a large table is additive.
+ */
 export function largeTableRewrites(sql: string): string[] {
   return sql
     .split(";")
     .map((s) => s.trim().replace(/\s+/g, " "))
-    .filter((s) => s && LARGE_TABLES.some((t) => new RegExp(`\\b(?:main\\.)?${t}\\b`, "i").test(s)))
-    .filter((s) => !ADDITIVE.some((re) => re.test(s)));
+    .filter(Boolean)
+    .filter((s) => {
+      if (/^ALTER TABLE \S+ ADD COLUMN /i.test(s) || /^CREATE (?:UNIQUE )?INDEX /i.test(s)) return false;
+      if (isLarge(WRITE_TARGET.exec(s)?.[1])) return true;
+      if (isLarge(/\bRENAME TO (?:main\.)?(\w+)/i.exec(s)?.[1])) return true;
+      return /^(?:INSERT|REPLACE|CREATE TABLE)\b/i.test(s) && /\bSELECT\b/i.test(s) && isLarge(/\bFROM (?:main\.)?(\w+)/i.exec(s)?.[1]);
+    });
 }
 
 /** Runs the migrations a database file has not run yet. `upTo` limits each target, for tests. */
@@ -282,7 +323,14 @@ export function migrate(db: DatabaseSync, upTo?: Partial<Record<Target, number>>
     for (let i = row.user_version; i < limit; i++) {
       const migration = list[i];
       if (!migration) break;
-      db.exec("BEGIN");
+      // IMMEDIATE takes the write lock up front, and the version is read again under it, so two
+      // processes migrating one store at once run each migration exactly once.
+      db.exec("BEGIN IMMEDIATE");
+      const again = (db.prepare(`PRAGMA ${target}.user_version`).get() as { user_version: number }).user_version;
+      if (again > i) {
+        db.exec("COMMIT");
+        continue;
+      }
       try {
         db.exec(migration.sql);
         db.exec(`PRAGMA ${target}.user_version = ${i + 1}`);

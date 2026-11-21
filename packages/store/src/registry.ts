@@ -97,7 +97,23 @@ export type RecordInput = {
    * where it has none (architecture §3.3). Internal: never output, logged or exported.
    */
   lineIds?: (string | null)[];
+  /** Window and periods_in_file sources: the record's period (ISO date). */
+  period?: string | null;
+  reports?: ReportInput[];
+  events?: SourceEventInput[];
+  /** Fields refused at load: the profile shows them as not loaded, never as empty. */
+  withheld?: { entityEid: string; prop: string; reason: string }[];
 };
+export type ReportInput = {
+  entityEid: string;
+  kind: string;
+  periodStart?: string | null;
+  periodEnd: string;
+  currency?: string | null;
+  unitScale?: number;
+  facts: { concept: string; value: number }[];
+};
+export type SourceEventInput = { entityEid: string; type: string; date: string; data?: Record<string, string | number | null>; itemId: string };
 
 /** sha256 truncated to 16 bytes (architecture §3.2). */
 export function rowHash(hashInput: string[]): Buffer {
@@ -105,6 +121,9 @@ export function rowHash(hashInput: string[]): Buffer {
 }
 
 function refuse(input: RecordInput): void {
+  for (const event of input.events ?? []) {
+    if (!isLoadable(event.itemId)) throw new StoreError("item_not_loadable", event.itemId);
+  }
   for (const entity of input.entities) {
     const naturalPerson = isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null });
     for (const s of entity.statements) {
@@ -155,19 +174,22 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
     previousEntities = (
       db.prepare("SELECT DISTINCT entity_id FROM main.statements WHERE record_id = ?").all(recordId) as { entity_id: number }[]
     ).map((r) => r.entity_id);
-    db.prepare("UPDATE main.records SET row_hash = ?, last_changed_sync_id = ?, line_ids = ? WHERE id = ?").run(
+    db.prepare("UPDATE main.records SET row_hash = ?, last_changed_sync_id = ?, line_ids = ?, period = ? WHERE id = ?").run(
       hash,
       input.syncId,
       lineIds,
+      input.period ?? null,
       recordId,
     );
-    db.prepare("DELETE FROM main.statements WHERE record_id = ?").run(recordId);
+    for (const table of ["statements", "fact_reports", "events", "withheld"]) {
+      db.prepare(`DELETE FROM main.${table} WHERE record_id = ?`).run(recordId);
+    }
   } else {
     const result = db
       .prepare(
-        `INSERT INTO main.records (source_id, record_key, row_hash, first_sync_id, last_changed_sync_id, line_ids) VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO main.records (source_id, record_key, row_hash, first_sync_id, last_changed_sync_id, line_ids, period) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(input.sourceId, input.recordKey, hash, input.syncId, input.syncId, lineIds);
+      .run(input.sourceId, input.recordKey, hash, input.syncId, input.syncId, lineIds, input.period ?? null);
     recordId = Number(result.lastInsertRowid);
   }
 
@@ -180,6 +202,41 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
       insert.run(entityId, intern(db, "props", s.prop), s.value, s.lang ?? null, intern(db, "items", s.itemId), recordId, s.line ?? null);
     }
     refreshEntity(db, entityId);
+  }
+  const entityId = (eid: string): number => {
+    const row = db.prepare("SELECT id FROM main.entities WHERE eid = ?").get(eid) as { id: number } | undefined;
+    if (!row) throw new Error(`record ${input.recordKey} refers to ${eid}, which it does not write`);
+    return row.id;
+  };
+  for (const report of input.reports ?? []) {
+    const reportId = Number(
+      db
+        .prepare(
+          `INSERT INTO main.fact_reports (entity_id, kind, period_start, period_end, currency, unit_scale, record_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(entityId(report.entityEid), report.kind, report.periodStart ?? null, report.periodEnd, report.currency ?? null, report.unitScale ?? 1, recordId)
+        .lastInsertRowid,
+    );
+    const fact = db.prepare("INSERT INTO main.facts (report_id, concept_id, value) VALUES (?, ?, ?)");
+    for (const f of report.facts) fact.run(reportId, intern(db, "concepts", f.concept), f.value);
+  }
+  for (const event of input.events ?? []) {
+    db.prepare("INSERT INTO main.events (entity_id, type_id, date, data, item_id, record_id) VALUES (?, ?, ?, ?, ?, ?)").run(
+      entityId(event.entityEid),
+      intern(db, "event_types", event.type),
+      event.date,
+      event.data ? JSON.stringify(event.data) : null,
+      intern(db, "items", event.itemId),
+      recordId,
+    );
+  }
+  for (const w of input.withheld ?? []) {
+    db.prepare("INSERT OR IGNORE INTO main.withheld (record_id, entity_id, prop_id, reason) VALUES (?, ?, ?, ?)").run(
+      recordId,
+      entityId(w.entityEid),
+      intern(db, "props", w.prop),
+      w.reason,
+    );
   }
   // An entity left with no statement (a person whose role ended, PS4) keeps nothing, not even its row.
   for (const id of previousEntities) dropIfOrphan(db, id);

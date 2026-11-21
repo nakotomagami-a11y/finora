@@ -38,6 +38,8 @@ export function openStore(options: { dataDir: string | null }): Store {
     : { main: ":memory:", user: ":memory:", sa: ":memory:" };
   if (options.dataDir) mkdirSync(options.dataDir, { recursive: true });
   const db = new DatabaseSync(paths.main);
+  // First, so that two processes opening one store at once wait for each other instead of failing.
+  db.exec("PRAGMA busy_timeout = 5000");
   db.prepare("ATTACH DATABASE ? AS user").run(paths.user);
   db.prepare("ATTACH DATABASE ? AS sa").run(paths.sa);
   for (const schema of ["main", "user", "sa"]) {
@@ -45,7 +47,6 @@ export function openStore(options: { dataDir: string | null }): Store {
     db.exec(`PRAGMA ${schema}.synchronous = NORMAL`);
   }
   db.exec("PRAGMA foreign_keys = ON");
-  db.exec("PRAGMA busy_timeout = 5000");
   const fresh = (db.prepare("PRAGMA user.user_version").get() as { user_version: number }).user_version === 0;
   migrate(db);
   let logs: Store["logs"] = null;

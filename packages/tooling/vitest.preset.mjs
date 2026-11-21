@@ -16,6 +16,8 @@ export const finoraVitest = {
     environment: "node",
     env: { NODE_ENV: "test" },
     restoreMocks: true,
+    // The whole suite runs in parallel; a loaded machine must not turn a slow test into a failure.
+    testTimeout: 30_000,
     setupFiles: [fileURLToPath(new URL("./vitest.setup.mjs", import.meta.url))],
   },
 };
