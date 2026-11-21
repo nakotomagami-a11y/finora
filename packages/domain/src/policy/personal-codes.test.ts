@@ -31,6 +31,15 @@ describe("idIsPersonalCode is country-aware (lv-register.md)", () => {
     expect(idIsPersonalCode("lv", ["400030", "00001"].join(""))).toBe(false);
   });
 
+  it("refuses an LV value only with a real calendar date (legal, 7058598489)", () => {
+    expect(idIsPersonalCode("lv", ["290290", "12345"].join(""))).toBe(true);
+    expect(idIsPersonalCode("lv", ["310490", "12345"].join(""))).toBe(false);
+    expect(idIsPersonalCode("lv", ["300290", "12345"].join(""))).toBe(false);
+    expect(idIsPersonalCode("lv", ["001390", "12345"].join(""))).toBe(false);
+    expect(idIsPersonalCode("lv", ["310490", "*****"].join("-"))).toBe(false);
+    expect(idIsPersonalCode("lv", ["010190", "*****"].join("-"))).toBe(true);
+  });
+
   it("refuses an EE or LT 11-digit value that passes the check, and lets their 8- and 9-digit ids through", () => {
     expect(idIsPersonalCode("ee", eeLt())).toBe(true);
     expect(idIsPersonalCode("lt", eeLt())).toBe(true);

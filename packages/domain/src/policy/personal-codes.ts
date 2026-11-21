@@ -33,6 +33,15 @@ export function findPersonalCodes(text: string): PersonalCodeHit[] {
   return hits;
 }
 
+const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** A calendar date as DDMMYY. 29 February counts for every year: the century is unknown. */
+function isDdmmyy(six: string): boolean {
+  const day = Number(six.slice(0, 2));
+  const month = Number(six.slice(2, 4));
+  return month >= 1 && month <= 12 && day >= 1 && day <= (DAYS_IN_MONTH[month - 1] ?? 0);
+}
+
 /**
  * Whether a sole trader's own register id has the shape of a personal code of its country
  * (docs/plan/loaders/lv-register.md, legal's S04a condition). Country-aware on purpose: about 6%
@@ -41,12 +50,11 @@ export function findPersonalCodes(text: string): PersonalCodeHit[] {
 export function idIsPersonalCode(country: string, value: string): boolean {
   const digits = value.replace(/[\s-]/g, "");
   if (country === "lv") {
-    if (LV_CODE.test(value)) return true;
-    if (!/^\d{11}$/.test(digits)) return false;
-    if (digits.startsWith("32")) return true;
-    const day = Number(digits.slice(0, 2));
-    const month = Number(digits.slice(2, 4));
-    return day >= 1 && day <= 31 && month >= 1 && month <= 12;
+    // 11 digits, or 6 + hyphen + 5 (masked forms too); refused only for the 32 prefix or a real
+    // DDMMYY date (legal's condition: a value that fails the date check is not an LV code).
+    const lv = /^(\d{6})-?(?:\d{5}|[*x]{5}|\d[*x]{4})$/i.exec(value.trim());
+    if (!lv?.[1]) return false;
+    return lv[1].startsWith("32") || isDdmmyy(lv[1]);
   }
   if (country === "ee" || country === "lt") return /^\d{11}$/.test(digits) && isBalticPersonalCode(digits);
   if (country === "us") return US_SSN.test(value) || /^\d{9}$/.test(digits);
