@@ -1,11 +1,13 @@
-// News probe: GDELT DOC 2.0 article search (rolling 3 months, no key, one request per 5 seconds).
+// News probe: the news dataset P4's article search (rolling 3 months, no key, one request per 5
+// seconds). Its endpoint comes from the local provider map (providers.mjs, C15).
 // Returns article counts, languages and source countries for a company name, never article text.
 
 import { fetchJson, sleep } from "./lib.mjs";
+import { provider } from "./providers.mjs";
 import { normalise } from "./sanctions.mjs";
 
 let last = 0;
-const GAP_MS = Number(process.env.GDELT_GAP_MS ?? 6000);
+const GAP_MS = Number(process.env.NEWS_GAP_MS ?? 6000);
 
 /** The display name an agent would search for: the register name without legal-form words or quotes. */
 export function searchName(name) {
@@ -15,10 +17,10 @@ export function searchName(name) {
   return words.join(" ").replace(/[^\p{L}\p{N}&.\- ]/gu, "").trim();
 }
 
-export async function gdelt(name, { attempts = 3 } = {}) {
+export async function newsSearch(name, { attempts = 3 } = {}) {
   const phrase = searchName(name);
   if (phrase.length < 4) return { ok: false, ms: 0, bytes: 0, error: "name too short to search", phrase };
-  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(`"${phrase}"`)}&mode=artlist&format=json&maxrecords=250&sort=datedesc`;
+  const url = provider("P4").replaceAll("{query}", encodeURIComponent(`"${phrase}"`));
   for (let i = 0; i < attempts; i++) {
     const wait = last + GAP_MS - Date.now();
     if (wait > 0) await sleep(wait);

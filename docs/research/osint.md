@@ -11,7 +11,7 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 1. **Sanctions are the strongest open-web source.** The official OFAC, EU, UN and UK lists are free, bulk and reusable (🟢 7 files, 85 MB, all downloaded in one pass). Name-only screening of random register names gave hits for 0.22% of company names and 0.06% of person names (🟢 5,000 each), all on generic names, so every hit needs a second identifier before it is shown. The aggregated open sanctions/PEP dataset is CC BY-NC: connector only, under the user's own licence (legal rule 12).
 2. **Domain WHOIS ties a website to the register in LV and EE.** The .lv and .ee WHOIS publish the registrant's company code for legal persons, a direct join key. 🟢 On the sample it matched the register code for 5 of 21 websites (44% of EE sites). None of .lt, .lv, .ee or .eu offers RDAP; all need port-43 WHOIS, whose terms restrict reuse. Show at query time, never bulk-store. **Legal's reading (session 1): .lt CAVEAT; .lv and .ee LATER, so the code match is not usable in v1.**
 3. **Most small Baltic companies have no findable website.** 🟢 LV: 2 of 8 samples, LT: 2 of 7, both by web search. EE's register has a website contact field, but 🟢 only 5.6% of active EE entities fill it. 🟢 3 of 9 register-listed EE websites no longer resolve (both micro companies and the one in liquidation). A dead official website is a useful "points to check" signal.
-4. **News is thin and rate limited.** GDELT is free, redistributable with attribution, and covers Lithuanian, Latvian and Estonian media, but it searches only the last 3 months and allows one request every 5 seconds per IP (stated in its own error message). 🟢 It answered only 13 of 32 queries (rate limits and connection timeouts, even at 12 s spacing with retries); 5 returned articles, and 3 of those were other things with the same name. News needs a fallback (the provider's web search, restricted to news domains) and a relevance check before anything is cited. Commercial news APIs either exclude Baltic languages or forbid production use on their free tiers.
+4. **News is thin and rate limited.** P4 is free, redistributable with attribution, and covers Lithuanian, Latvian and Estonian media, but it searches only the last 3 months and allows one request every 5 seconds per IP (stated in its own error message). 🟢 It answered only 13 of 32 queries (rate limits and connection timeouts, even at 12 s spacing with retries); 5 returned articles, and 3 of those were other things with the same name. News needs a fallback (the provider's web search, restricted to news domains) and a relevance check before anything is cited. Commercial news APIs either exclude Baltic languages or forbid production use on their free tiers.
 5. **Reviews and social platform APIs are closed to this use.** Every major review API either bans feeding its content to a generative AI model, bans "creating content" from it, or is approval-only. The microblogging, social-network and professional-network platforms explicitly ban background checks, eligibility decisions or "investigating". The council's LATER call stands; the evidence is in §1.3-1.4. What is open: 🟢 41% of samples link at least one social profile from their own website, which costs nothing to read.
 6. **Regulator red-flag lists are small and mostly HTML.** Three publish files (Bank of Lithuania illegal websites, 145 rows; ESMA non-compliant crypto providers, 217; Lithuanian gambling regulator, 197 domains). Estonian and Latvian warning lists are HTML only. The US consumer-complaint database refuses non-browser clients (🟢 HTTP 403 on both the API and the bulk file).
 7. **EU-wide procurement (TED) joins cleanly.** Anonymous API and bulk XML, free reuse. 🟢 92-99% of Baltic winners are identified by their national register code, and 9 of 24 Baltic samples won at least one EU-wide award.
@@ -22,7 +22,7 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 ### 1.1 Website and domain (report section S15)
 
 #### Domain registration data: RDAP and ccTLD WHOIS
-- Publisher and official URL: IANA RDAP bootstrap `https://data.iana.org/rdap/dns.json`; generic TLDs answer at the registry's RDAP server (for .com, `https://rdap.verisign.com/com/v1/`). The ccTLD registries for .lt, .lv, .ee and .eu answer on port-43 WHOIS only (`whois.domreg.lt`, `whois.nic.lv`, `whois.tld.ee`, `whois.eu`).
+- Publisher and official URL: IANA RDAP bootstrap `https://data.iana.org/rdap/dns.json`; generic TLDs answer at the registry's RDAP server (for .com, the .com registry's RDAP server, found through the IANA bootstrap). The ccTLD registries for .lt, .lv, .ee and .eu answer on port-43 WHOIS only (`whois.domreg.lt`, `whois.nic.lv`, `whois.tld.ee`, `whois.eu`).
 - Access: per-query. RDAP is JSON over HTTPS; WHOIS is plain text over TCP port 43.
 - Fields: registration date, expiry date, registrar, registrant type. For legal persons: registrant name (all four ccTLDs), registry code (.lv `RegNr`, .ee `org id`), address and email (.lv, .lt). Natural persons are hidden by every Baltic registry.
 - Rows and coverage: 🟢 the bootstrap file (published 2026-11-19) has no entry for lt, lv, ee or eu. 🟢 On 21 sample websites: registration date found 76% (LT 2/2, EE 6/9, US 8/8, LV 0/2: .lv WHOIS publishes no dates); registrant is an organisation 43% (US 0/8: .com RDAP at the registry shows the registrar only).
@@ -30,7 +30,7 @@ Commercial platforms are described by kind ("a review platform's API") unless th
 - Size and speed: 🟢 p50 84 ms, p95 129 ms; 1.5 KB median response.
 - Join keys: 🟢 .lv and .ee registrant code equals the register code for 5 of 21 sample sites (LV 1/2, EE 4/9).
 - Person identity: none shown for natural persons.
-- Licence: no open licence. .lv: "It is permitted to use the WHOIS service only for technical or administrative needs associated with the operation of the Internet or in order to contact the domain name holder over legal problems"; "It is not permitted to obtain (including copying) or re-use in any form or by any means all or quantitatively or qualitatively significant part of the WHOIS without NIC.LV's express permission" (a database-right clause about substantial parts, so one lookup per investigation is not covered by it) ([nic.lv](https://nic.lv/en/nic-whois-policy)). .ee: "may not be used for business, advertising, reproduction, recompilation, redistribution, reuse"; not "as a backend for a search engine" ([internet.ee](https://www.internet.ee/domains/whois-terms-and-conditions)). .lt: "used only for the information on a specific .lt domain and its holder" ([domreg.lt](https://www.domreg.lt/en/services/whois/)). .com RDAP: no "high volume, automated" processes ([verisign.com](https://www.verisign.com/en_US/domain-names/registration-data-access-protocol/terms-service/index.xhtml)). Verified 2026-11-19.
+- Licence: no open licence. .lv: "It is permitted to use the WHOIS service only for technical or administrative needs associated with the operation of the Internet or in order to contact the domain name holder over legal problems"; "It is not permitted to obtain (including copying) or re-use in any form or by any means all or quantitatively or qualitatively significant part of the WHOIS without NIC.LV's express permission" (a database-right clause about substantial parts, so one lookup per investigation is not covered by it) ([nic.lv](https://nic.lv/en/nic-whois-policy)). .ee: "may not be used for business, advertising, reproduction, recompilation, redistribution, reuse"; not "as a backend for a search engine" ([internet.ee](https://www.internet.ee/domains/whois-terms-and-conditions)). .lt: "used only for the information on a specific .lt domain and its holder" ([domreg.lt](https://www.domreg.lt/en/services/whois/)). .com RDAP: no "high volume, automated" processes (terms page in the local provider map). Verified 2026-11-19.
 - Keys, limits, cost: free, no key. Per-IP limits without numbers (.lv, .ee). rdap.org redirector: 10 requests per 10 s.
 - Legal constraints: one lookup for one domain the user is investigating fits the stated purposes best; bulk lookups or building a domain-to-company table does not. The .lv purpose clause is the tightest: **legal to confirm** whether a due-diligence lookup fits "technical or administrative needs" or "to contact the domain name holder over legal problems". Its reuse clause covers only all or a significant part of the WHOIS, which a single lookup is not.
 - Tested with: `domain.mjs` `registration()`, via `reality_check.mjs`.
@@ -68,8 +68,8 @@ Council session 1, item 5, asked for these texts. Retrieved 2026-11-20. "Banner"
 - The Procedural Regulation for the .lt domain (edition 3.0, 2023-06-01, [PDF](https://www.domreg.lt/informacija/dokumentai/procedural-regulation.pdf)) defines the WHOIS database (3.20) as data "which can be used individually by electronic means" and sets no other rule on using it.
 - Reading for legal: the loosest of the three. One lookup about one domain matches "information on a specific .lt domain and its holder", and none of the banned uses (advertising, solicitations, nuisance) applies. The .lt server gives the creation date but no register code.
 
-**The web archive (Internet Archive, Wayback Machine)**
-- The live terms page (`https://archive.org/about/terms.php`) now renders only in a browser that runs its scripts; a headless browser returned an empty shell. The text below is the last server-rendered version, headed "Terms of Use 31 Dec 2014", from the archive's own capture of that page on 2024-11-30 (`https://web.archive.org/web/20241130085839/https://archive.org/about/terms.php`). **Legal should confirm the live text is unchanged.**
+**The web archive P8**
+- The live terms page (`<endpoint in the local provider map>`) now renders only in a browser that runs its scripts; a headless browser returned an empty shell. The text below is the last server-rendered version, headed "Terms of Use 31 Dec 2014", from the archive's own capture of that page on 2024-11-30 (`<endpoint in the local provider map>`). **Legal should confirm the live text is unchanged.**
 - The relevant clauses, verbatim:
   > Access to the Archive's Collections is provided at no cost to you and is granted for scholarship and research purposes only.
 
@@ -80,38 +80,38 @@ Council session 1, item 5, asked for these texts. Retrieved 2026-11-20. "Banner"
   > In using the Archive's site, Collections, and/or services, you further agree (a) not to violate anyone's rights of privacy, (b) not to act in any way that might give rise to civil or criminal liability, (c) not to use or attempt to use another person's password, (d) not to collect or store personal data about anyone, (e) not to infringe any copyright, trademark, patent, or other proprietary rights of any person, ...
 
   > ... we request that, according to standard academic practice, if you use the Archive's Collections for any research that results in an article, a book, or other publication, you list the Archive as a resource in your bibliography.
-- The archive's help centre ("Internet Archive Access Policy", [help.archive.org](https://help.archive.org/help/internet-archive-access-policy/)): "The Internet Archive's Terms of Use governs patrons' use of the collection of Web pages and other digital content available through the Internet Archive."
+- The archive's help centre ("the archive's access policy", (terms page in the local provider map)): "The archive's Terms of Use governs patrons' use of the collection of Web pages and other digital content available through the P8."
 - **What Finora would do:** ask the capture index (CDX) for one domain's capture dates, show the first and last capture year, and link to a snapshot. No page content is copied or stored, and no personal data is collected.
 - Reading for legal: two questions. Does a user checking a company count as "research"? And could capture dates for a domain be "personal data about anyone"? For a sole trader's domain they could, so legal rule 5 applies there either way.
 
 
 **Legal's reading** (comment 7029245848, 2026-11-20, not legal advice; a lawyer settles the LAWYER items): .lt CAVEAT (one live lookup per investigation; creation date and registrar only; no storage beyond the investigation's cited record; no contact with the holder). .lv LATER, until the registry confirms in writing. .ee LATER, with no field shown, including the register-code match. Web archive LATER, with no due-diligence use; a plain link the user opens is a LAWYER item and never a finding. The live texts are re-read before the build.
 
-#### Certificate transparency: Cert Spotter API and crt.sh
-- Publisher and official URL: SSLMate Cert Spotter `https://api.certspotter.com/v1/issuances`; Sectigo crt.sh `https://crt.sh/?q=<domain>&output=json`.
+#### Certificate transparency: P1 and P5
+- Publisher and official URL: P1 `<endpoint in the local provider map>`; P5 `<endpoint in the local provider map>`.
 - Access: per-query JSON.
 - Fields: certificate issuance dates, DNS names on each certificate (subdomains), issuer.
-- Rows and coverage: 🟢 certificates found for 14 of 21 sample websites (67%). The query failed for 4 (US): Cert Spotter's unauthenticated tier stopped answering late in the run (17 full-domain queries in a few minutes had succeeded), and crt.sh returned HTTP 502 or 404. Every site that answered had certificates except the 3 dead EE domains. A free Cert Spotter key (10 full-domain queries an hour, 100 single-hostname) is enough for one user; querying the single hostname instead of all subdomains stays within the larger quota.
+- Rows and coverage: 🟢 certificates found for 14 of 21 sample websites (67%). The query failed for 4 (US): P1's unauthenticated tier stopped answering late in the run (17 full-domain queries in a few minutes had succeeded), and P5 returned HTTP 502 or 404. Every site that answered had certificates except the 3 dead EE domains. A free P1 key (10 full-domain queries an hour, 100 single-hostname) is enough for one user; querying the single hostname instead of all subdomains stays within the larger quota.
 - Freshness: live (CT logs).
-- Size and speed: 🟢 p50 458 ms, p95 7.5 s (crt.sh fallback); 4 KB median, 100 KB max.
+- Size and speed: 🟢 p50 458 ms, p95 7.5 s (P5 fallback); 4 KB median, 100 KB max.
 - Join keys: domain only.
-- Licence: Cert Spotter: free tier "may be reduced during periods of high load"; the terms do not address storing or redistributing results ([sslmate.com](https://sslmate.com/ct_search_api/)). crt.sh: no terms found, "© Sectigo ... All rights reserved". Verified 2026-11-19.
-- Keys, limits, cost: Cert Spotter free key: 100 single-hostname and 10 full-domain queries per hour; $50/month for 10x. crt.sh: 60 requests per minute (2020 statement, unverified today); 🟢 returned HTTP 502 on first try.
+- Licence: P1: free tier "may be reduced during periods of high load"; the terms do not address storing or redistributing results (terms page in the local provider map). P5: no terms found, "© P5's operator ... All rights reserved". Verified 2026-11-19.
+- Keys, limits, cost: P1 free key: 100 single-hostname and 10 full-domain queries per hour; $50/month for 10x. P5: 60 requests per minute (2020 statement, unverified today); 🟢 returned HTTP 502 on first try.
 - Legal constraints: none found beyond the above.
 - Tested with: `domain.mjs` `certificates()`.
-- Verdict: use. Derived facts only (first certificate seen, number of hostnames). Cert Spotter first, crt.sh as fallback; a free Cert Spotter key is optional configuration.
+- Verdict: use. Derived facts only (first certificate seen, number of hostnames). P1 first, P5 as fallback; a free P1 key is optional configuration.
 
 #### DNS over HTTPS
-- Publisher and official URL: Cloudflare `https://cloudflare-dns.com/dns-query` (JSON); Google Public DNS JSON API as fallback.
+- Publisher and official URL: P6 `<endpoint in the local provider map>` (JSON); P7 JSON API as fallback.
 - Access: per-query JSON, no key.
 - Fields: A (resolves), MX (receives email), SPF and DMARC TXT records (anti-spoofing set up).
 - Rows and coverage: 🟢 resolves 86%, MX 81%, SPF 71%, DMARC 57% of sample websites.
 - Size and speed: 🟢 p50 83 ms, p95 307 ms (four lookups in parallel).
-- Licence: Cloudflare: its general website terms; "security scanning use-cases ... may be rate limited" ([cloudflare.com](https://developers.cloudflare.com/1.1.1.1/infrastructure/network-operators/)). Google: Google APIs terms, no permanent copies. DNS answers are facts, not content. Verified 2026-11-19.
+- Licence: P6: its general website terms; "security scanning use-cases ... may be rate limited" (terms page in the local provider map). P7: its APIs terms, no permanent copies. DNS answers are facts, not content. Verified 2026-11-19.
 - Verdict: use. Query time, derived booleans.
 
-#### Wayback Machine CDX API
-- Publisher and official URL: Internet Archive `https://web.archive.org/cdx/search/cdx`; availability API `https://archive.org/wayback/available`.
+#### P8's capture-index API
+- Publisher and official URL: P8 `<endpoint in the local provider map>`; availability API `<endpoint in the local provider map>`.
 - Access: per-query JSON, no key.
 - Fields: capture timestamps (first capture, last capture, years with a capture), status codes, and a link to each snapshot.
 - Rows and coverage: 🟢 at least one capture for 95% of sample websites (20 of 21).
@@ -128,10 +128,10 @@ Council session 1, item 5, asked for these texts. Retrieved 2026-11-20. "Banner"
 - Legal constraints: respect `robots.txt` for anything beyond the homepage and the pages it links to (the agent fetches at most a handful of pages per site). No logins, no forms.
 - Verdict: use.
 
-#### Common Crawl index
-- Official URL: `https://index.commoncrawl.org/` (latest collection CC-MAIN-2026-43).
-- Licence: limited, non-sublicensable licence; crawled content "may be subject to separate terms"; "respect the copyrights" ([commoncrawl.org](https://commoncrawl.org/terms-of-use), 2024-03-07).
-- Verdict: skip for v1. Wayback covers the same question (is the site old?) with direct snapshot links.
+#### The web corpus P9's index
+- Official URL: `<endpoint in the local provider map>`.
+- Licence: limited, non-sublicensable licence; crawled content "may be subject to separate terms"; "respect the copyrights" (terms page in the local provider map, read 2024-03-07).
+- Verdict: skip for v1. P8 covers the same question (is the site old?) with direct snapshot links.
 
 #### Web search APIs
 - Options checked 2026-11-19:
@@ -144,23 +144,23 @@ Council session 1, item 5, asked for these texts. Retrieved 2026-11-20. "Banner"
 
 ### 1.2 News (S16)
 
-#### GDELT DOC 2.0 API
-- Publisher and official URL: The GDELT Project, `https://api.gdeltproject.org/api/v2/doc/doc`.
+#### P4 DOC 2.0 API
+- Publisher and official URL: P4, `<endpoint in the local provider map>`.
 - Access: per-query JSON, no key. `mode=artlist`, up to 250 records per query.
 - Fields: article URL, title, seen date, source domain, language, source country.
 - Rows and coverage: rolling last 3 months only. Lithuanian, Latvian and Estonian are in its language list. 🟢 32 queries: 13 answered, 8 of them empty, 5 with articles; 3 of those 5 were name collisions (articles in up to 15 unrelated languages). Exact-phrase search on a short or generic company name is not enough.
 - Freshness: updates every 15 minutes.
 - Size and speed: 🟢 p50 10.8 s, p95 14.2 s per query including the enforced wait; up to 109 KB for 250 articles. 🟢 Reliability from one IP shared with other research jobs: 41% of queries answered after 3 tries.
-- Licence: "available for unlimited and unrestricted use ... for any academic, commercial, or governmental use of any kind without fee"; "You may redistribute, rehost, republish, and mirror"; "must include a citation to the GDELT Project and a link" ([gdeltproject.org](https://www.gdeltproject.org/about.html)). Verified 2026-11-19. This covers GDELT's metadata; the articles stay the publishers'.
+- Licence: "available for unlimited and unrestricted use ... for any academic, commercial, or governmental use of any kind without fee"; "You may redistribute, rehost, republish, and mirror"; "must include a citation to the P4 Project and a link" (terms page in the local provider map). Verified 2026-11-19. This covers P4's metadata; the articles stay the publishers'.
 - Keys, limits, cost: free. 🟢 The API itself answers "Please limit requests to one every 5 seconds". One IP shares that limit across all investigations, so the tool queues requests globally.
 - Legal constraints: show title, source, date and link. The EU press publishers' right (Directive 2019/790 art. 15) exempts hyperlinks and "individual words or very short extracts"; Lithuania reportedly sets that at 125 characters (secondary source, the statute page returned 403). Quote no more than 125 characters from any press article.
 - Tested with: `news.mjs`.
-- Verdict: use with caveat, best effort. The only free, redistributable, multi-language news index, but unreliable. The news tool queries GDELT with the name plus the country (`sourcecountry:`) or the register's language, falls back to the provider's web search on news domains when GDELT fails, and the agent confirms each article is about the pinned company before citing it. Coverage text: "news from the last 3 months; may be incomplete".
+- Verdict: use with caveat, best effort. The only free, redistributable, multi-language news index, but unreliable. The news tool queries P4 with the name plus the country (`sourcecountry:`) or the register's language, falls back to the provider's web search on news domains when P4 fails, and the agent confirms each article is about the pinned company before citing it. Coverage text: "news from the last 3 months; may be incomplete".
 
 #### Baltic public broadcasters' RSS
 - Feeds: LRT `https://www.lrt.lt/?rss` (Lithuanian, about 50 items), LSM `https://www.lsm.lv/rss/?lang=lv&catid=14` (Latvian), ERR `https://news.err.ee/rss/news` (English) and `https://www.err.ee/rss` (Estonian).
 - Licence: LRT: no terms page, "all rights reserved". LSM: use "only with prior written permission"; sharing in full, unaltered form by hyperlink allowed ([lsm.lv](https://www.lsm.lv/lietosanas-noteikumi/)). ERR: no use without permission; headline plus up to five sentences may be summarised with a link ([err.ee](https://info.err.ee/982667/kasutustingimused-ja-kommenteerimine)). Verified 2026-11-19.
-- Coverage: each feed holds only the latest ~50 items, so matching a given company is rare; GDELT already indexes these outlets.
+- Coverage: each feed holds only the latest ~50 items, so matching a given company is rare; P4 already indexes these outlets.
 - Verdict: skip as a separate source in v1; link-only if ever used.
 
 #### US federal press releases and enforcement feeds
@@ -276,7 +276,7 @@ All lists downloaded 2026-11-19 with `sanctions.mjs`. Entries are distinct list 
 | Source | What it is | Licence | Verdict |
 |---|---|---|---|
 | Open aggregated sanctions and PEP dataset | the most complete open PEP data | CC BY-NC 4.0; "Compliance screening is a commercial use even though it generates no revenue"; API from €0.10 a query, 2,000 free credits for business email | connector only, user's own licence (legal rules 12-13) |
-| Wikidata | officeholders with positions and dates | CC0 | later: query-time lookup of a person's public offices, company context only; needs a legal read on PEP flags for EU persons |
+| P10 | officeholders with positions and dates | CC0 | later: query-time lookup of a person's public offices, company context only; needs a legal read on PEP flags for EU persons |
 | EU list of prominent public functions (OJ C/2023/724 and C/2023/611) | functions, not names | EU reuse decision | use as reference text for what PEP means per country |
 | Officials' declarations (LT, LV, EE, US) | LT needs API authentication; LV and EE search forms only; US federal disclosures may not be used "for any commercial purpose" or credit ratings (5 U.S.C. §13107(c)) | - | skip |
 
@@ -321,11 +321,11 @@ Sample sizes are small (7-9 per country). The rates below say what the agent can
 | S15 registrant code = register code | LV | sites known | 2 | 1 | 50% | .lv WHOIS `RegNr` |
 | S15 certificates in CT logs | all | sites known | 21 | 14 | 67% | 4 US queries failed (rate limit, HTTP 502/404); 3 dead EE domains have none |
 | S15 MX / SPF / DMARC | all | sites known | 21 | 17 / 15 / 12 | 81% / 71% / 57% | |
-| S15 archived in Wayback | all | sites known | 21 | 20 | 95% | |
+| S15 archived in P8 | all | sites known | 21 | 20 | 95% | |
 | S15 homepage reachable | all | sites known | 21 | 17 | 81% | |
 | S15 homepage states register code | all | sites known | 21 | 3 | 14% | LT 2/2, EE 1/9, LV 0/2 |
 | S16 social profile linked from own site | all | all | 32 | 13 | 41% | EE 5/9, US 4/8, LT 2/7, LV 2/8 |
-| S16 news articles, last 3 months (GDELT) | all | all | 32 | 5 | 16% | only 13 of 32 queries answered (41%): rate limits and connection timeouts despite 12 s spacing and 3 retries. Of the 5 hit sets, 3 are in languages with no tie to the company's country: name collisions |
+| S16 news articles, last 3 months (P4) | all | all | 32 | 5 | 16% | only 13 of 32 queries answered (41%): rate limits and connection timeouts despite 12 s spacing and 3 retries. Of the 5 hit sets, 3 are in languages with no tie to the company's country: name collisions |
 | S11 sanctions exact name hit | all | all | 32 | 0 | 0% | expected; see false-positive rates |
 | S11 regulator red-flag list hit | all | all | 32 | 0 | 0% | expected |
 | S12 EU-wide award notice won (TED) | EE | all sizes | 9 | 4 | 44% | live lookup by register code |
@@ -349,15 +349,15 @@ Sample sizes are small (7-9 per country). The rates below say what the agent can
 | S12 | LV | TED award notices (EU-wide) | A | 99% of winners keyed by register code; 25% of samples won one | API + bulk; licence verified Y; above-threshold contracts only |
 | S12 | LT | TED award notices (EU-wide) | A | 92% keyed; 43% of samples | API + bulk; licence verified Y |
 | S12 | EE | TED award notices (EU-wide) | A | 99% keyed; 44% of samples | API + bulk; licence verified Y |
-| S15 | EE | register website field → DNS, WHOIS, CT, Wayback, homepage | B | website 100% of sample (by selection); resolves 67% | per-query; licence verified Y (WHOIS: query time only); population share: see §2 |
-| S15 | LV | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates |
-| S15 | LT | web search → DNS, WHOIS, CT, Wayback, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code |
-| S15 | US | SAM.gov URL or web search → DNS, RDAP, CT, Wayback, homepage | B | website 100% of sample; RDAP date 100%; registrant 0% | per-query; licence verified Y |
+| S15 | EE | register website field → DNS, WHOIS, CT, P8, homepage | B | website 100% of sample (by selection); resolves 67% | per-query; licence verified Y (WHOIS: query time only); population share: see §2 |
+| S15 | LV | web search → DNS, WHOIS, CT, P8, homepage | C | website found 25% | per-query; licence verified Y; .lv WHOIS gives the register code, no dates |
+| S15 | LT | web search → DNS, WHOIS, CT, P8, homepage | C | website found 29% | per-query; licence verified Y; .lt WHOIS gives registrant name and dates, no code |
+| S15 | US | SAM.gov URL or web search → DNS, RDAP, CT, P8, homepage | B | website 100% of sample; RDAP date 100%; registrant 0% | per-query; licence verified Y |
 | S15.ALL.whois | LT | .lt WHOIS (port 43): creation date, registrar | C | date 2/2 sites | per-query; licence verified Y (§1.1a); legal: CAVEAT, one live lookup per investigation, no storage beyond the cited record |
 | S15.ALL.whois | LV | .lv WHOIS | X | date 0/2; code match 1/2 | per-query; licence verified Y (§1.1a); legal: LATER, purpose clause does not cover due diligence |
 | S15.ALL.whois | EE | .ee WHOIS | X | date 6/9; code match 4/9 | per-query; licence verified Y (§1.1a); legal: LATER, no field shown ("business ... or any other similar purposes", "in its entirety") |
-| S15.ALL.archive | all | Wayback CDX | X | 95% of sites known | per-query; licence verified Y (2014 text, §1.1a); legal: LATER, "scholarship and research purposes only" |
-| S16 | all | GDELT DOC 2.0 (news, last 3 months) | C | 16% raw hits; 41% of queries answered | API; licence verified Y; 1 request per 5 s per IP; titles + links only |
+| S15.ALL.archive | all | P8 CDX | X | 95% of sites known | per-query; licence verified Y (2014 text, §1.1a); legal: LATER, "scholarship and research purposes only" |
+| S16 | all | P4 DOC 2.0 (news, last 3 months) | C | 16% raw hits; 41% of queries answered | API; licence verified Y; 1 request per 5 s per IP; titles + links only |
 | S16 | US | SEC / DOJ / FTC press releases | A | not measured on the sample | bulk; licence verified Y (public) |
 | S16 | all | social profiles linked from the company's own website | C | 41% | per-query; licence verified Y (own site); links only, no platform data |
 | S16 | all | review platforms | D | - | paid or AI-restricted; licence verified Y; LATER |
@@ -375,7 +375,7 @@ The architecture (`docs/architecture.md` §7) fixes the runtime seams: a lead st
 | Registry and people | store reads (officers, owners, history) | none |
 | Money and tax | store reads (financials, taxes, arrears) | none |
 | Legal, insolvency and sanctions | store reads; `screen_sanctions` (local lists, second-identifier check); `check_regulator_lists` (bulk lists + query-time pages) | `fetch_page` on regulator warning pages (allowlist) |
-| Web, domain and news | `domain_report` (DNS, CT, US RDAP creation date, .lt WHOIS creation date and registrar, in one call, about 1-8 s; no .lv/.ee WHOIS and no web archive in v1), `homepage_facts`, `news_search` (GDELT, queued globally) | provider `web_search` (max 4 uses), `fetch_page` (allowlist + the subject's own domain) |
+| Web, domain and news | `domain_report` (DNS, CT, US RDAP creation date, .lt WHOIS creation date and registrar, in one call, about 1-8 s; no .lv/.ee WHOIS and no web archive in v1), `homepage_facts`, `news_search` (P4, queued globally) | provider `web_search` (max 4 uses), `fetch_page` (allowlist + the subject's own domain) |
 | Synthesis | none (reads findings) | none |
 
 Deterministic tools return compact JSON summaries, not raw responses: 🟢 the raw responses are 0.3-100 KB, the summaries under 1 KB. That keeps tokens low and keeps restricted raw text (WHOIS) out of the model's context.
@@ -385,7 +385,7 @@ Deterministic tools return compact JSON summaries, not raw responses: 🟢 the r
 | Data | Store (local SQLite) | Display | Never |
 |---|---|---|---|
 | Official sanctions and regulator lists | yes, bulk, daily, with source and licence | the matched entry, list name, date, link | "sanctioned" without a list entry (rule 8) |
-| GDELT article metadata | yes (title, URL, date, domain, language), with the GDELT citation | title, source, date, link; at most 125 characters quoted | article text |
+| P4 article metadata | yes (title, URL, date, domain, language), with the P4 citation | title, source, date, link; at most 125 characters quoted | article text |
 | WHOIS/RDAP results (.lt and US only in v1) | creation date and registrar in the investigation's cited record, with the retrieval date | the two facts with "source: <registry>, <date>" | .lv and .ee WHOIS; registrant name or contacts; bulk lookups; any shared table or export |
 | DNS, CT | derived facts in the investigation | yes | - |
 | Web archive | nothing in v1 | nothing (a user-opened link is a lawyer question) | captures, copies of archived pages |
@@ -394,7 +394,7 @@ Deterministic tools return compact JSON summaries, not raw responses: 🟢 the r
 | Social profiles | the link found on the company's own site | the link | anything read from the platform |
 | Reviews, platform data | nothing | nothing in v1 | - |
 
-**Fetch allowlist.** `fetch_page` fetches: the subject's own domain (from the register, or confirmed by an anchor in §4.3); government and regulator domains (`.gov`, `.gov.lv`, `.gov.lt`, `.ee` state hosts, EU institutions); news domains returned by GDELT. Everything else is shown as a link the human may open. The list is configuration, so self-hosters can extend it within their own terms. This also keeps commercial company-information portals, whose terms forbid scraping, out of the agents' reach without naming them in code.
+**Fetch allowlist.** `fetch_page` fetches: the subject's own domain (from the register, or confirmed by an anchor in §4.3); government and regulator domains (`.gov`, `.gov.lv`, `.gov.lt`, `.ee` state hosts, EU institutions); news domains returned by P4. Everything else is shown as a link the human may open. The list is configuration, so self-hosters can extend it within their own terms. This also keeps commercial company-information portals, whose terms forbid scraping, out of the agents' reach without naming them in code.
 
 ### 4.3 How agents cross-check each other
 
@@ -423,13 +423,13 @@ Limits: at most 3 questions per investigation and 1 per agent; a question blocks
 
 ### 4.5 Parallelism and latency
 
-🟢 Measured tool latencies (p50 / p95): DNS 83 / 307 ms; WHOIS/RDAP 84 / 129 ms; CT 458 ms / 7.5 s; Wayback 877 ms / 2.3 s; homepage 664 ms / 3.8 s; regulator list downloads 31-252 ms; GDELT about 10 s including the 5-second gate.
+🟢 Measured tool latencies (p50 / p95): DNS 83 / 307 ms; WHOIS/RDAP 84 / 129 ms; CT 458 ms / 7.5 s; P8 877 ms / 2.3 s; homepage 664 ms / 3.8 s; regulator list downloads 31-252 ms; P4 about 10 s including the 5-second gate.
 
 - `domain_report` runs its four lookups in parallel: about 1 s typical, 8 s worst.
 - 🔴 LLM turns are unmeasured (no key yet). Assumed 3-8 s per turn on a mid-tier model at medium effort.
-- 🟡 Specialists run in parallel (architecture default: 6 at once; v1 starts 4). Registry-backed specialists: about 4 turns, 15-35 s. The web specialist is the long pole: about 8 turns plus GDELT and fetches, 60-120 s.
+- 🟡 Specialists run in parallel (architecture default: 6 at once; v1 starts 4). Registry-backed specialists: about 4 turns, 15-35 s. The web specialist is the long pole: about 8 turns plus P4 and fetches, 60-120 s.
 - 🟡 **One investigation: about 1.5-3 minutes** wall time (lead 10-20 s, specialists in parallel, synthesis 15-30 s), plus the human's answer time if a question is asked.
-- Global limits the runtime must enforce across concurrent investigations: GDELT 1 request per 5 s; SEC 10 per second; WHOIS per-IP limits (one lookup per domain per investigation, cached for the investigation's lifetime); DOJ 4 per second; Cert Spotter 100 single-hostname queries per hour unauthenticated; TED 700 requests a minute.
+- Global limits the runtime must enforce across concurrent investigations: P4 1 request per 5 s; SEC 10 per second; WHOIS per-IP limits (one lookup per domain per investigation, cached for the investigation's lifetime); DOJ 4 per second; P1 100 single-hostname queries per hour unauthenticated; TED 700 requests a minute.
 - **Provider rate limits do not cap parallelism for one user** ([rate limits](https://platform.claude.com/docs/en/api/rate-limits), read 2026-11-20). The lowest standard tier ("Start") allows, per model, 4,000 requests, 2,000,000 uncached input tokens and 400,000 output tokens a minute for the current mid, small and top models; cached reads do not count toward the input limit. 🟡 One investigation uses about 96k uncached input and 20k output tokens over 1.5-3 minutes, so roughly 50 concurrent investigations fit before the limit. Two things can still return HTTP 429: new organisations may start in an "Evaluation" tier with lower, unpublished limits, and a "ramp limit" caps sudden jumps in usage. The runtime retries on 429 with `retry-after` and starts specialists a second apart. The Start tier also has a $500 monthly spend cap set by the provider; the app's own daily cap ($10) stays far below it.
 
 ### 4.6 Cost per investigation and the pre-run estimate
@@ -481,22 +481,22 @@ The web agent is about half of the cost at every tier; its search count and fetc
 | Registry and people | 15-35 s | the local store (4-6 sections) | $0.06 |
 | Money and tax | 15-35 s | the local store (3-4 sections) | $0.06 |
 | Legal, insolvency and sanctions | 15-35 s | 4 official sanctions lists, 3-8 regulator lists, the local store | $0.07 |
-| Web, domain and news | 60-120 s | DNS, CT, RDAP or .lt WHOIS, the homepage, GDELT, up to 4 searches and 3 fetched pages: 8-15 sources | $0.20 |
+| Web, domain and news | 60-120 s | DNS, CT, RDAP or .lt WHOIS, the homepage, P4, up to 4 searches and 3 fetched pages: 8-15 sources | $0.20 |
 | Verdict step | 15-30 s | the findings only | $0.05 |
 
-- **Excerpts, per web source** (13): the store-or-show rule is §4.2. In short: sanctions and regulator lists, GDELT metadata, TED notices and US federal releases may be stored and excerpted. The company's own pages: a quote of up to 300 characters with a link. Press articles: headline, source, date and link, quoting at most 125 characters. WHOIS: derived facts only, at query time. Wayback: dates and a link. Reviews and social platforms: link only, or nothing.
+- **Excerpts, per web source** (13): the store-or-show rule is §4.2. In short: sanctions and regulator lists, P4 metadata, TED notices and US federal releases may be stored and excerpted. The company's own pages: a quote of up to 300 characters with a link. Press articles: headline, source, date and link, quoting at most 125 characters. WHOIS: derived facts only, at query time. P8: dates and a link. Reviews and social platforms: link only, or nothing.
 - **Sanctions fields for the side-by-side card** (14): §1.6, "Which official identifiers the entries carry". Every list gives the name, aliases, list name, programme or regime, and listing date. Then, per list: OFAC adds registration and tax IDs, IMO, addresses, and date of birth, nationality and passport for persons. EU adds identification rows (type and number), birth dates and addresses. UK adds business registration number, IMO, date of birth, nationality and passport. UN adds date of birth, nationality and document numbers for persons only.
-- **Dates and deep links:** every list entry carries its own listing date. GDELT carries the date it saw the article. TED carries the publication date and a stable notice URL (`https://ted.europa.eu/en/notice/-/detail/{publication-number}`). Wayback snapshot URLs are stable. WHOIS has no deep link; cite the registry's web lookup page instead.
-- **Attribution text:** GDELT: a citation and a link to gdeltproject.org. EU sanctions and TED: "© European Union", with the source named. UK: "Contains public sector information licensed under the Open Government Licence v3.0". US federal sources: name the agency. Bank of Lithuania: name it as the source. ESMA: credit ESMA.
+- **Dates and deep links:** every list entry carries its own listing date. P4 carries the date it saw the article. TED carries the publication date and a stable notice URL (`https://ted.europa.eu/en/notice/-/detail/{publication-number}`). P8 snapshot URLs are stable. WHOIS has no deep link; cite the registry's web lookup page instead.
+- **Attribution text:** P4: a citation and a link to its home page (in the local provider map). EU sanctions and TED: "© European Union", with the source named. UK: "Contains public sector information licensed under the Open Government Licence v3.0". US federal sources: name the agency. Bank of Lithuania: name it as the source. ESMA: credit ESMA.
 
 ## 5. Facts the architecture needs (architect's question)
 
 | Source | Primary key | Joins (🟢 measured where stated) | Record IDs | Person identity |
 |---|---|---|---|---|
 | Domain WHOIS/RDAP | domain name (lowercase, IDNA) | .lv `RegNr` and .ee `org id` = register code: 5 of 21 sample sites; .lt and .com: none | none; derive from domain + retrieval date | natural persons hidden |
-| CT logs | certificate SHA-256 | domain | Cert Spotter `id`; crt.sh `id` | none |
-| Wayback | URL + 14-digit timestamp | domain | timestamp | none |
-| GDELT | article URL | name text only (no IDs) | URL | none |
+| CT logs | certificate SHA-256 | domain | P1 `id`; P5 `id` | none |
+| P8 | URL + 14-digit timestamp | domain | timestamp | none |
+| P4 | article URL | name text only (no IDs) | URL | none |
 | OFAC | `ent_num` (integer, stable) | registration or tax IDs in remarks (61% of entities) | `ent_num` + `alt_num` | name + DOB (99%), nationality, passport |
 | EU FSF | `Entity_LogicalId` | identification numbers per row | logical ID | name + birth date + identification |
 | UN SC | `DATAID`; reference number like `QDi.123` | none | `DATAID` | name + DOB (42%) |
@@ -514,7 +514,7 @@ No checksum applies to these IDs. Whether a list ever reuses an ID after a delis
 | Source | Env var | Unlocks |
 |---|---|---|
 | LLM provider (Anthropic) | `ANTHROPIC_API_KEY` | the measured cost run (§4.6) and every agent run, including the provider's web search and fetch. Human-task posted |
-| Cert Spotter | `CERTSPOTTER_API_KEY` (optional) | 10 full-domain and 100 single-hostname CT queries an hour, instead of an unstated unauthenticated quota |
+| P1 | none in v1 (H5: no keys) | the unauthenticated quota only; P5 is the fallback |
 | A map platform's places API | (not proposed for v1) | rating and review count for consumer-facing businesses; needs a billing account and a legal read |
 | Video platform Data API | (later) | official channel videos |
 | A commercial web-safety lookup | (later) | phishing and malware flags for a domain |
@@ -524,7 +524,7 @@ No paid service is needed for v1 beyond the LLM key. Web search runs on the same
 
 **Other open items**
 - **Legal (council S1 item 5):** the .lt, .lv and .ee WHOIS terms and the web archive's terms, quoted in full in §1.1a with one reading each: .lt looks compatible, .lv turns on its purpose clause, .ee's "business ... or any other similar purposes" and its "in its entirety" rule are the hardest, and the archive's "scholarship and research purposes only" needs a reading. Also: whether showing a map platform's rating and count without LLM processing is allowed; the UN list terms (403).
-- **data-osint, next round:** the US Consolidated Screening List bulk file (not downloaded); the LV FIU national list (download returned HTTP 500); a second GDELT run off-peak.
+- **data-osint, next round:** the US Consolidated Screening List bulk file (not downloaded); the LV FIU national list (download returned HTTP 500); a second P4 run off-peak.
 - **data-us:** the CFPB 403 (bot protection on the API and the bulk file).
 
 ## 7. Reproduce
@@ -539,4 +539,4 @@ LV_OFFICERS_CSV=<officers.csv> EE_SIMPLE_CSV=<lihtandmed.csv> node research/prob
 node research/probes/osint/ted.mjs                                                                          # TED volumes and joins
 ```
 
-Counts were taken on 2026-11-19 and 2026-11-20. Outputs: `research/.cache/osint/{fillrates,timings,screening,ted}.json`. Websites for LV, LT and US public samples were found by web search and written into `samples.json` (`website_source`); a rerun needs that step again. `REUSE=1` re-runs only the failed GDELT queries and the screening on cached profiles.
+Counts were taken on 2026-11-19 and 2026-11-20. Outputs: `research/.cache/osint/{fillrates,timings,screening,ted}.json`. Websites for LV, LT and US public samples were found by web search and written into `samples.json` (`website_source`); a rerun needs that step again. `REUSE=1` re-runs only the failed P4 queries and the screening on cached profiles.

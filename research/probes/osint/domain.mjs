@@ -1,8 +1,10 @@
 // Website and domain probes: registration data (RDAP, or port-43 WHOIS for ccTLDs without RDAP),
-// certificate transparency, DNS over HTTPS, the Wayback Machine, and the homepage itself.
+// certificate transparency, DNS over HTTPS, the web archive P8, and the homepage itself. The
+// endpoints of coded sources (P1, P5, P6, P8) come from the local provider map (providers.mjs, C15).
 // Each function returns { ok, ms, bytes, ...fields } so the reality check can compute fill rates.
 
 import { fetchJson, timedFetch, whois43, sleep } from "./lib.mjs";
+import { provider } from "./providers.mjs";
 
 const WHOIS_SERVERS = { lt: "whois.domreg.lt", lv: "whois.nic.lv", ee: "whois.tld.ee", eu: "whois.eu" };
 let bootstrap = null;
@@ -58,16 +60,16 @@ export async function registration(domain) {
   };
 }
 
-/** Certificate transparency via Cert Spotter (free, unauthenticated, rate limited); crt.sh as fallback. */
+/** Certificate transparency via P1 (free, unauthenticated, rate limited); P5 as fallback. */
 export async function certificates(domain) {
-  const url = `https://api.certspotter.com/v1/issuances?domain=${domain}&include_subdomains=true&expand=dns_names`;
+  const url = provider("P1").replaceAll("{domain}", domain);
   let r = await fetchJson(url);
-  let source = "certspotter";
+  let source = "P1";
   let certs = Array.isArray(r.json) ? r.json.map((c) => ({ notBefore: c.not_before, names: c.dns_names ?? [] })) : null;
   if (!certs) {
     await sleep(1000);
-    r = await fetchJson(`https://crt.sh/?q=${domain}&output=json`, { timeoutMs: 60000 });
-    source = "crt.sh";
+    r = await fetchJson(provider("P5").replaceAll("{domain}", domain), { timeoutMs: 60000 });
+    source = "P5";
     certs = Array.isArray(r.json) ? r.json.map((c) => ({ notBefore: c.not_before, names: String(c.name_value).split("\n") })) : null;
   }
   if (!certs) return { ok: false, ms: r.ms, bytes: r.bytes, source, error: r.error ?? `http ${r.status}` };
@@ -77,7 +79,7 @@ export async function certificates(domain) {
 }
 
 async function doh(name, type) {
-  const r = await fetchJson(`https://cloudflare-dns.com/dns-query?name=${name}&type=${type}`, {
+  const r = await fetchJson(provider("P6").replaceAll("{name}", name).replaceAll("{type}", type), {
     headers: { accept: "application/dns-json" },
   });
   return { r, answers: (r.json?.Answer ?? []).map((a) => String(a.data)) };
@@ -97,9 +99,9 @@ export async function dns(domain) {
   };
 }
 
-/** Wayback Machine: first capture, last capture, and the number of distinct years captured. */
+/** The web archive P8: first capture, last capture, and the number of distinct years captured. */
 export async function archive(domain) {
-  const base = `https://web.archive.org/cdx/search/cdx?url=${domain}&output=json&fl=timestamp`;
+  const base = provider("P8").replaceAll("{domain}", domain);
   const years = await fetchJson(`${base}&collapse=timestamp:4`, { timeoutMs: 60000 });
   if (!years.ok) return { ok: false, ms: years.ms, bytes: years.bytes, error: years.error ?? `http ${years.status}` };
   const stamps = (years.json ?? []).slice(1).map((row) => row[0]);

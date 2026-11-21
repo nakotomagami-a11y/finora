@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { CACHE, normaliseDomain, pool } from "./lib.mjs";
 import { registration, certificates, dns, archive, homepage } from "./domain.mjs";
-import { gdelt } from "./news.mjs";
+import { newsSearch } from "./news.mjs";
 import { download, loadEntries, screener, parseCsv } from "./sanctions.mjs";
 import { loadLists, check } from "./redflags.mjs";
 
@@ -63,7 +63,7 @@ async function profile(s, i) {
       registration(domain).then((r) => time("registration", r)),
       certificates(domain).then((r) => time(`ct`, r)),
       dns(domain).then((r) => time("dns", r)),
-      archive(domain).then((r) => time("wayback", r)),
+      archive(domain).then((r) => time("archive", r)),
       homepage(domain, { code: baltic ? s.code : null }).then((r) => time("homepage", r)),
     ]);
     p.registration = { ...reg, codeMatchesRegister: Boolean(reg.registrantCode && s.code && reg.registrantCode.replace(/\D/g, "") === String(s.code)) };
@@ -73,7 +73,7 @@ async function profile(s, i) {
 }
 
 async function finish(s, i, file, domain, p) {
-  if (!p.news?.ok) p.news = time("gdelt", await gdelt(s.name));
+  if (!p.news?.ok) p.news = time("news", await newsSearch(s.name));
   const hits = screen(s.name, "entity");
   p.sanctions = { exact: hits.exact.length, fuzzy: hits.fuzzy.length, lists: [...new Set([...hits.exact, ...hits.fuzzy].map((e) => e.list))] };
   p.redflags = check(lists, { domain, name: s.name });
@@ -100,11 +100,11 @@ const FIELDS = {
   "S15 MX record": (p) => Boolean(p.dns?.mx),
   "S15 SPF": (p) => Boolean(p.dns?.spf),
   "S15 DMARC": (p) => Boolean(p.dns?.dmarc),
-  "S15 archived in Wayback": (p) => (p.archive?.yearsCaptured ?? 0) > 0,
+  "S15 archived in P8": (p) => (p.archive?.yearsCaptured ?? 0) > 0,
   "S15 homepage reachable": (p) => Boolean(p.homepage?.ok),
   "S15 homepage states register code": (p) => Boolean(p.homepage?.statesRegistryCode),
   "S16 social profile linked from homepage": (p) => (p.homepage?.socialCount ?? 0) > 0,
-  "S16 news articles (GDELT, 3 months)": (p) => (p.news?.articles ?? 0) > 0,
+  "S16 news articles (P4, 3 months)": (p) => (p.news?.articles ?? 0) > 0,
   "S16 news query answered": (p) => Boolean(p.news?.ok),
   "S11 sanctions exact name hit": (p) => p.sanctions.exact > 0,
   "S11 sanctions fuzzy name hit": (p) => p.sanctions.fuzzy > 0,

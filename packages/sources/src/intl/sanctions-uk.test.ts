@@ -66,7 +66,7 @@ describe("uk-sanctions-list (sanctions.md §3)", () => {
   });
 
   it("fails on a missing report date line", async () => {
-    const text = new TextDecoder().decode(raw[0]!.bytes).replace(/^﻿?Report Date: [^\n]*\n/, "");
+    const text = new TextDecoder().decode(raw[0]!.bytes).replace(/^\uFEFF?Report Date: [^\n]*\n/, "");
     await expect(parseAll(ukSanctionsList, [{ ...raw[0]!, bytes: new TextEncoder().encode(text) }])).rejects.toThrow();
   });
 
