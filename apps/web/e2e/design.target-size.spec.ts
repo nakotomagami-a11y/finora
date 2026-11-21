@@ -11,6 +11,11 @@ test("every control on the gallery is at least 24 by 24 px at 390 px", async ({ 
   const tooSmall: string[] = [];
   for (const group of GROUPS) {
     await page.goto(`/en/design/${group}`);
+    // Wait for hydration. Until then the server-rendered page holds the invisible native input Radix draws beside a
+    // checkbox (13 by 13, aria-hidden, no pointer events), and a slow run measures it. Hydration removes it,
+    // because the gallery has no form around its checkbox.
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator('main input[aria-hidden="true"]'), `a leftover hidden input on ${group}`).toHaveCount(0);
     const found = await page.evaluate(() => {
       const selector =
         "main button, main input:not([type=hidden]), main select, main textarea, main [role=switch], main [role=checkbox], main [role=radio], main [role=tab], main [role=combobox], main a[data-button-link]";
