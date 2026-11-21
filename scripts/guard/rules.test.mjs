@@ -80,7 +80,7 @@ describe("personal data", () => {
 });
 
 describe("private denylist", () => {
-  const denylist = compileDenylist(["# private names", "", "Example Corp", "north wind"].join("\n"));
+  const denylist = compileDenylist(["# private names", "", "Example Corp", "fixture wind"].join("\n"));
 
   it("matches whole names case- and accent-insensitively", () => {
     assert.ok(rules("We beat EXAMPLE corp easily", denylist).includes("denylist:entry-1"));
@@ -88,9 +88,10 @@ describe("private denylist", () => {
   });
 
   it("matches across spacing, dots and hyphens, and inside domains", () => {
-    assert.ok(rules("see northwind.com", denylist).includes("denylist:entry-2"));
-    assert.ok(rules("north-wind data", denylist).includes("denylist:entry-2"));
-    assert.ok(rules("examplecorp.io", denylist).includes("denylist:entry-1"));
+    // Domains built from parts under the reserved .invalid TLD, so the tree holds no registrable name (H4).
+    assert.ok(rules(`see ${["fixturewind", "invalid"].join(".")}`, denylist).includes("denylist:entry-2"));
+    assert.ok(rules("fixture-wind data", denylist).includes("denylist:entry-2"));
+    assert.ok(rules(["examplecorp", "invalid"].join("."), denylist).includes("denylist:entry-1"));
   });
 
   it("does not match inside longer words", () => {

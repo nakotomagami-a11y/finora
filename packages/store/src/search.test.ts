@@ -12,7 +12,7 @@ beforeAll(() => {
   const put = (entity: EntityInput) =>
     writeRecord(db, { syncId: sync, sourceId: "lv-register", recordKey: entity.eid, hashInput: [JSON.stringify(entity)], entities: [entity] });
   put(company("lv-00000000001", "Ābeļu Dārzs SIA"));
-  put(company("lv-00000000002", "Nordic Timber Works SIA"));
+  put(company("lv-00000000002", "Fixture Timber Works SIA"));
   put(company("lv-00000000003", "Example Trading SIA"));
   put(company("lv-00000000004", "Example Logistics SIA"));
   put(company("lv-00000000005", "Rasma Example IK", { legalForm: "lv-ik" }));
@@ -60,7 +60,7 @@ describe("company search", () => {
   });
 
   it("finds a name with a one-letter typo", () => {
-    const [hit] = searchCompanies(db, "nordik timber");
+    const [hit] = searchCompanies(db, "fixtura timber");
     expect(hit).toMatchObject({ eid: "lv-00000000002", match: "fuzzy" });
   });
 
