@@ -21,23 +21,19 @@ const PAGES = [
   { name: "typography", path: "/en/design/typography" },
 ];
 
-for (const viewport of VIEWPORTS) {
-  for (const { name, path } of PAGES) {
-    test(`@visual ${name} at ${viewport.name} px, dark`, async ({ page }) => {
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await page.goto(`${path}${path.includes("design") ? "?theme=dark" : ""}`);
-      await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
-      await page.waitForLoadState("networkidle");
-      await expect(page).toHaveScreenshot(`${name}-${viewport.name}-dark.png`, { fullPage: true, animations: "disabled", maxDiffPixelRatio: 0.002 });
-    });
-  }
-}
+const THEMES = ["dark", "light"] as const;
 
-for (const name of ["buttons", "data"]) {
-  test(`@visual ${name} at 1280 px, light`, async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto(`/en/design/${name}?theme=light`);
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveScreenshot(`${name}-1280-light.png`, { fullPage: true, animations: "disabled", maxDiffPixelRatio: 0.002 });
-  });
+// Four widths, both themes, every page: 48 baselines.
+for (const theme of THEMES) {
+  for (const viewport of VIEWPORTS) {
+    for (const { name, path } of PAGES) {
+      test(`@visual ${name} at ${viewport.name} px, ${theme}`, async ({ page }) => {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+        await page.goto(`${path}${path.includes("design") ? `?theme=${theme}` : ""}`);
+        await page.waitForLoadState("networkidle");
+        await expect(page).toHaveScreenshot(`${name}-${viewport.name}-${theme}.png`, { fullPage: true, animations: "disabled", maxDiffPixelRatio: 0.002 });
+      });
+    }
+  }
 }
