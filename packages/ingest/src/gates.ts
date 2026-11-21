@@ -11,7 +11,6 @@ import {
   item,
   naturalPersonDrop,
   PERSON_EID,
-  eidKind,
   freeTextHoldsPersonalCode,
   isInternalEid,
   type DropReason,
@@ -60,7 +59,10 @@ export function partyProven(party: PartyRef, companyTypes: readonly string[], lo
   return false;
 }
 
-export function applyGates(record: ParsedRecord, options: { companyPartyTypes: readonly string[]; lookup: PartyLookup }): GateResult {
+export function applyGates(
+  record: ParsedRecord,
+  options: { companyPartyTypes: readonly string[]; lookup: PartyLookup; knownCompany?: (eid: string) => boolean },
+): GateResult {
   const rowRef = safeRowRef(record.rowRef);
   const drops: Drop[] = [];
   // Built field by field: a report entry is a known reason, a known property and a row-local
@@ -81,6 +83,7 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
   }
 
   const natural = new Set<string>();
+  const recordEids = new Set([...record.entities, ...parties].map((e) => e.eid));
   const entities = [...record.entities, ...parties].map((entity) => {
     const naturalPerson = isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null });
     if (naturalPerson) natural.add(entity.eid);
@@ -91,10 +94,10 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
         // A company's free text is scanned too (legal on S04i, SEC-1 scope): a name, an address or
         // a description never carries a personal code. Its own ids and references to other rows are not.
         if (COMPANY_ID_PROPS.has(s.prop)) return true;
-        // A reference is let through only when it has a row-id shape; anything else is scanned (qa on S04i).
-        // A sanctions eid carries the list's own id, which could be anything: it is scanned too (qa, legal on S06).
-        const kind = eidKind(s.value);
-        if (REFERENCE_PROPS.has(s.prop) && ((kind !== null && kind !== "sanctions") || isInternalEid(s.value))) return true;
+        // A reference passes unscanned only when it names a row for sure: a person or relationship row
+        // id, an entity of this record, or a company the store holds. Anything merely id-shaped
+        // (`lv-<code>`, `us-ca-<code>`, `sanc-x-<code>`) is scanned like free text (qa, legal on S04i, S06).
+        if (REFERENCE_PROPS.has(s.prop) && (isInternalEid(s.value) || recordEids.has(s.value) || options.knownCompany?.(s.value) === true)) return true;
         if (!leaksPerson(s.value)) return true;
         drop("personal_code", s.prop);
         withheld.push({ entityEid: entity.eid, prop: s.prop, reason: "personal_code" });

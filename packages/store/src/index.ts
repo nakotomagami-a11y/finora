@@ -39,6 +39,7 @@ export {
   entityByCode,
   failSync,
   holdsLease,
+  isCompanyEid,
   lastContentStorage,
   lastContentSync,
   liveCheckedAt,

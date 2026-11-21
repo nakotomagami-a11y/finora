@@ -379,3 +379,57 @@ describe("SEC-12: a worker that cannot run its source ends failed, never running
     expect(outcome).toMatchObject({ kind: "failed", report: { reason: "unknown_source" } });
   }, 60_000);
 });
+
+describe("qa, legal on S04i: an id-shaped prefix never hides a personal code", () => {
+  const overlapCode = () => {
+    for (let i = 0; i < 100000; i++) {
+      const first10 = `3800101${String(i).padStart(3, "0")}`;
+      const candidate = `${first10}${balticCheckDigit(first10)}`;
+      if (isBalticPersonalCode(candidate) && isValidRegisterCode("lv", candidate)) return candidate;
+    }
+    throw new Error("no candidate");
+  };
+
+  it("a person record refuses ee-, lt-, us-ca- and lv- prefixed codes in its key and line ids", async () => {
+    const db = memoryDb();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+    const code = eeLt();
+    const overlap = overlapCode();
+    const lines = [{ name: "A", role: "board_member", rowId: "1" }];
+    const records = [
+      { ...roleSetRecord(1, lines), recordKey: `lv-00000000001:officers:ee-${code}` },
+      roleSetRecord(1, [{ name: "A", role: "board_member", rowId: `lt-${code}` }]),
+      { ...roleSetRecord(1, lines), recordKey: `lv-00000000001:officers:us-ca-${code}` },
+      { ...roleSetRecord(1, lines), recordKey: `lv-00000000001:officers:lv-${overlap}` },
+    ];
+    const outcome = await sync(db, fakeSource({ id: "lv-officers", items: ["S03.LV.01"] }, { records }));
+    expect(outcome.report?.skipped).toEqual({ person_field: 4 });
+    expect(scanStore(db, [code, overlap])).toEqual([]);
+  });
+
+  it("still lets a role set's key name the company it is about", async () => {
+    const db = memoryDb();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+    const outcome = await sync(db, fakeSource({ id: "lv-officers", items: ["S03.LV.01"] }, { records: [roleSetRecord(1, [{ name: "A", role: "board_member", rowId: "1" }])] }));
+    expect(outcome.report).toMatchObject({ written: 1, skipped: {} });
+  });
+
+  it("a reference that is only id-shaped is scanned and refused; a company the store holds is kept", async () => {
+    const db = memoryDb();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(2)] }));
+    const lvCode = ["010190", "12345"].join("");
+    const code = eeLt();
+    const record = companyRecord(1, {
+      extra: [
+        { prop: "owner", value: `lv-${lvCode}`, itemId: "S01.LV.01" },
+        { prop: "owner", value: `us-ca-${code}`, itemId: "S01.LV.01" },
+        { prop: "owner", value: "lv-00000000002", itemId: "S01.LV.01" },
+      ],
+    });
+    const outcome = await sync(db, fakeSource({}, { records: [record] }));
+    expect(outcome.report?.dropped).toEqual({ personal_code: 2 });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM main.statements WHERE value = 'lv-00000000002'").get()).toEqual({ n: 1 });
+    expect(scanStore(db, [lvCode, code])).toEqual([]);
+  });
+});
+

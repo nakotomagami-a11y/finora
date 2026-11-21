@@ -72,6 +72,7 @@ describe("PS2: people exist only inside one company", () => {
       "heartbeat",
       "holdsLease",
       "intern",
+      "isCompanyEid",
       "largeTableRewrites",
       "lastContentStorage",
       "lastContentSync",

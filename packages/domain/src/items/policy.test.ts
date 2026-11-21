@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { fixtureRegisterCode, isValidRegisterCode } from "../ids/check-digits.ts";
 import { eidKind, isInternalEid } from "../ids/eid.ts";
 import { ITEMS } from "./items.generated.ts";
 import { HIDE_ITEM_IDS, isLoadable } from "./policy.ts";
@@ -22,5 +23,13 @@ describe("entity ids", () => {
     expect(isInternalEid("rel-12-3")).toBe(true);
     expect(isInternalEid("lv-00000000000")).toBe(false);
     expect(eidKind("nonsense")).toBeNull();
+  });
+
+  it("counts an LV eid only with a register check digit, valid or fixture (qa, legal on S04i)", () => {
+    const body = "4000300001";
+    const valid = Array.from({ length: 10 }, (_, d) => `${body}${d}`).find((c) => isValidRegisterCode("lv", c))!;
+    expect(eidKind(`lv-${valid}`)).toBe("lv");
+    expect(eidKind(`lv-${fixtureRegisterCode("lv", body)}`)).toBe("lv");
+    expect(eidKind(`lv-${["010190", "12345"].join("")}`)).toBeNull();
   });
 });

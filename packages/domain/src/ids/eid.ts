@@ -1,3 +1,5 @@
+import { isFixtureRegisterCode, isValidRegisterCode } from "./check-digits.ts";
+
 // Entity ids (architecture §3.4). Person and relationship rows have internal ids that never
 // leave the store; every other eid is public and stable across rebuilds.
 
@@ -19,7 +21,11 @@ export type EidKind = keyof typeof PUBLIC_EIDS | keyof typeof INTERNAL_EIDS;
 
 export function eidKind(eid: string): EidKind | null {
   for (const [kind, re] of Object.entries({ ...PUBLIC_EIDS, ...INTERNAL_EIDS })) {
-    if (re.test(eid)) return kind as EidKind;
+    if (!re.test(eid)) continue;
+    // An LV eid is 11 digits, the length of a personal code: it counts only with a register
+    // check digit, valid or the fixture variant (qa, legal on S04i).
+    if (kind === "lv" && !isValidRegisterCode("lv", eid.slice(3)) && !isFixtureRegisterCode("lv", eid.slice(3))) return null;
+    return kind as EidKind;
   }
   return null;
 }

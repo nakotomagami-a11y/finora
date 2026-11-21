@@ -273,3 +273,10 @@ export function recordIdsWithPrefix(db: DatabaseSync, sourceId: string, prefix: 
 export function recordKeyOf(db: DatabaseSync, id: number): string {
   return (db.prepare("SELECT record_key FROM main.records WHERE id = ?").get(id) as { record_key: string } | undefined)?.record_key ?? "";
 }
+
+/** Whether the store holds this eid as a non-Person entity: a reference to it names a company row. */
+export function isCompanyEid(db: DatabaseSync, eid: string): boolean {
+  return (
+    db.prepare("SELECT 1 FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ? AND s.name <> 'Person'").get(eid) !== undefined
+  );
+}

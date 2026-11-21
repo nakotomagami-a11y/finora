@@ -13,6 +13,7 @@ import {
   entityByCode,
   finishSync,
   heartbeat,
+  isCompanyEid,
   liveCheckedAt,
   markViewed,
   missSince,
@@ -74,7 +75,11 @@ export async function fetchOnView(
     syncId = beginSync(db, { sourceId: meta.id, licenceId: meta.licence, storage: "live-cached", parserVersion: loader.parserVersion, startedAt: at });
     const report = emptyReport("live-cached");
     const answers = await loader.fetchRecord({ fetcher: options.fetcher, keys: options.keys, now: at, lastToken: null }, view.recordKey);
-    const gateOptions = { companyPartyTypes: options.companyPartyTypes ?? [], lookup: (c: string, v: string) => entityByCode(db, c, v) };
+    const gateOptions = {
+      companyPartyTypes: options.companyPartyTypes ?? [],
+      lookup: (c: string, v: string) => entityByCode(db, c, v),
+      knownCompany: (eid: string) => isCompanyEid(db, eid),
+    };
 
     // Parse everything first: no write transaction is ever held across an await (SEC-4).
     const parsed = new Map<string, ParsedRecord[]>();
@@ -83,7 +88,7 @@ export async function fetchOnView(
       const records: ParsedRecord[] = [];
       for await (const raw of loader.parse(answer.artifacts ?? [], { now: at })) {
         report.read++;
-        const checked = validateRecord(raw);
+        const checked = validateRecord(raw, { knownCompany: gateOptions.knownCompany });
         if (checked.ok) records.push(checked.record);
         else report.skipped[checked.reason] = (report.skipped[checked.reason] ?? 0) + 1;
       }

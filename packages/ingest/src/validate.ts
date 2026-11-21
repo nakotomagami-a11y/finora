@@ -62,16 +62,29 @@ function keyLeaks(key: string, countries: ReadonlySet<string>): boolean {
   return PERSON_EID.test(key) || textHoldsPersonalCode(key, countries.has("lv") ? "lv" : null);
 }
 
-/** The public entity ids a key may hold by design: a country prefix and its code (§3.4). */
-const EID_TOKEN = /\b(?:lv|ee|lt)-\d{8,11}\b|\bus-cik-\d{10}\b|\bus-[a-z]{2}-[A-Za-z0-9]+\b|\borg-[0-9a-f]{20}\b|\blei-[A-Z0-9]{20}\b/g;
-
 /**
  * A record about people gets the strict any-country rule on everything it stores or hashes, after
- * removing only the entity id tokens a key is meant to hold (legal on S04i): a personal code that
- * also passes the LV register check digit is refused here, never read as a company code.
+ * removing only the exact eids of the companies the record holds or is about (legal on S04i). No
+ * token is removed by its shape: an id-shaped prefix on a personal code is scanned like any text.
  */
-function personKeyLeaks(key: string): boolean {
-  return PERSON_EID.test(key) || freeTextHoldsPersonalCode(key.replace(EID_TOKEN, " "));
+function personKeyLeaks(key: string, ownEids: readonly string[]): boolean {
+  let rest = key;
+  for (const eid of ownEids) rest = rest.split(eid).join(" ");
+  return PERSON_EID.test(rest) || freeTextHoldsPersonalCode(rest);
+}
+
+/**
+ * The eids a person record's keys may hold: its own non-Person entities, and the company it is
+ * about (the `organization` or `asset` of its relationship rows) when the store holds that company.
+ */
+function companyEidsOf(r: ParsedRecord, knownCompany: (eid: string) => boolean): string[] {
+  const all = [...r.entities, ...(r.parties ?? []).flatMap((p) => p.entities)];
+  const own = all.filter((e) => e.schema !== "Person" && !PERSON_EID.test(e.eid) && !/^rel-\d+-\d+$/.test(e.eid)).map((e) => e.eid);
+  const about = all
+    .flatMap((e) => e.statements.filter((s) => s.prop === "organization" || s.prop === "asset").map((s) => s.value))
+    .filter(knownCompany);
+  // Longest first, so one eid never leaves a fragment of a longer one behind.
+  return [...new Set([...own, ...about])].sort((a, b) => b.length - a.length);
 }
 
 /**
@@ -80,7 +93,7 @@ function personKeyLeaks(key: string): boolean {
  * record whose hash input or row reference does (PS6, qa S9): a loader bug must not get a code
  * into the store.
  */
-export function validateRecord(value: unknown): Validation {
+export function validateRecord(value: unknown, context: { knownCompany?: (eid: string) => boolean } = {}): Validation {
   const parsed = record.safeParse(value);
   if (!parsed.success) return { ok: false, reason: "invalid_record" };
   const r = parsed.data as ParsedRecord;
@@ -88,7 +101,8 @@ export function validateRecord(value: unknown): Validation {
   const stored = [r.recordKey, ...(r.lineIds ?? []).filter((x): x is string => x !== null)];
   const aboutPeople = r.entities.some((e) => e.schema === "Person") || (r.parties ?? []).some((p) => p.entities.some((e) => e.schema === "Person"));
   if (aboutPeople) {
-    if ([...stored, ...r.hashInput, r.rowRef ?? ""].some(personKeyLeaks)) return { ok: false, reason: "person_field" };
+    const own = companyEidsOf(r, context.knownCompany ?? (() => false));
+    if ([...stored, ...r.hashInput, r.rowRef ?? ""].some((k) => personKeyLeaks(k, own))) return { ok: false, reason: "person_field" };
   } else if (stored.some((k) => keyLeaks(k, countries))) {
     return { ok: false, reason: "person_field" };
   }

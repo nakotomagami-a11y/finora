@@ -17,6 +17,7 @@ import {
   finishSync,
   heartbeat,
   holdsLease,
+  isCompanyEid,
   lastContentStorage,
   lastContentSync,
   missingRecords,
@@ -234,6 +235,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     const gateOptions = {
       companyPartyTypes: options.companyPartyTypes ?? [],
       lookup: (country: string, code: string) => entityByCode(db, country, code),
+      knownCompany: (eid: string) => isCompanyEid(db, eid),
     };
     const day = startedAt.slice(0, 10);
     const periods = new Set<string>();
@@ -279,7 +281,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
         // Staged before validation: a record that fails validation is skipped, never purged (qa M4).
         const key = (raw as { recordKey?: unknown }).recordKey;
         if (storage === "store" && typeof key === "string" && key !== "" && (raw as { op?: unknown }).op !== "delete") stage(db, key);
-        const checked = validateRecord(raw);
+        const checked = validateRecord(raw, { knownCompany: gateOptions.knownCompany });
         if (!checked.ok) {
           bump(report.skipped, checked.reason);
           continue;
