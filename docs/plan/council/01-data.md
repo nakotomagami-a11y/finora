@@ -494,3 +494,26 @@ Council 7066895040 and 7066900211, legal 7066878390, 7066884362 and 7066891816, 
 | S10.US.02 federal dockets (P2) | CAVEAT, keyed API | **manual link**; `search_courts` runs on the keyless FJC civil index only |
 | US live states (NY, CO, CT, PA), FMCSA | optional state-portal token | no token; the shared pool with 429 backoff and "did not answer"; the six recorded state terms are still required before the live slice ships |
 | US public companies (SEC) | `SEC_USER_AGENT` | unchanged: an optional contact setting (C14); without it "needs the SEC contact setting" |
+
+### Web search out of v1 (2026-11-21)
+
+Legal 7067048486 and 7067060813 (P8: no model may read search snippets before Finora's filter; the CLI's search runs inside the CLI, and a URL-only search sub-run still has a model read the snippets), council 7067064662 and 7067073326, legal 7067067366 and 7067072824, cto 7067061298, qa 7067064581 and 7067079723.
+
+| Row | Now (v1) |
+|---|---|
+| S15.LT.01, S15.LV.02, S15.EE.02, S15.US.01 | CAVEAT "Checked from a known domain only; no web search in this version". A known domain is the one the user typed, one the register lists (the EE website field; LV and EE applicant or winner sites where loaded), or one Finora verified (below). Read through `cite_page` with the full filter: DNS, certificates, the homepage, US RDAP and the .lt registry date |
+| S16.ALL.01 | CAVEAT "Mentions the name; not confirmed" unless tied to the code or domain, from the keyless news source read only through `cite_page`; "Checked from a known domain only; no web search in this version" |
+| General web search | **not in v1.** It would need a search API Finora calls itself and filters before any model reads it, which needs a key (an exception to H5, the human's call; legal would read its terms first). The council's default is no exception |
+
+**Mitigations** (council; gated as shown):
+1. The Investigate sheet's optional field is relabelled "Company website or the domain on the offer", helper "The web check needs a domain; without one it can't run" (designer, frontend; gates S11).
+2. Check 11 runs on a known domain only. With none, the coverage line reads "Web check: not run, no website known (add one to check it)", never "none found"; the coverage line names how the site was found ("from the register", "from your input", "verified on the company's own page") (data-osint; gates S10).
+3. The web lane shows its real tasks (domain, certificates, homepage, news); the other lanes keep their registry, list and court tasks.
+4. No change to the "Not enough data" threshold: Baltic investigations still reach 6 or more checks from the instant checks.
+
+**Finora's own website discovery, measured before S10:**
+- **Route 1, domain candidates from the register's own company name** (legal: not web search, accepted). At most about 6 candidate hosts per company (the country TLD, then generic ones), from the company's own register name and country only, never for an entity with `natural_person = 1` and never from a person row. Fetched only through the polite fetcher and `cite_page` (private-address refusal after DNS, https only, a redirect to another registrable domain ends the candidate, a small size cap, no cookies, robots, per-host rate limit, a total budget per investigation). A site counts only on a registry-code or VAT match in the filtered page text; a miss reads "no website confirmed". An unconfirmed candidate is never stored or shown; a confirmed site is kept with its source, evidence and date.
+- **Route 2, an open knowledge base's website property** (coded P10): **not in v1** until its terms are read, quoted and lit by legal.
+- **The bar** (council 7067073326, on the phase-1 Baltic reality-check sample, aggregates only): 0 false matches (hard); at least 3 verified sites the register does not already list; at most 8 requests per company with robots and SSRF rules honoured, within the web lane's time budget; never for natural persons. Passing ships that route; failing leaves check 11 on known domains only.
+
+**Tests** (qa; S10 and S11): check 11 without web search names what ran and that web search did not run, never "no adverse findings" or a green state, in the verdict text, export and MCP too; a profile with no known website gives `not_run` with the reason; only news run shows partial coverage; the banned-term scan finds no "clean" or "nothing found". Route 1: a sole trader gives zero candidates and fetches; a private-address candidate is refused; a cross-domain redirect is refused; a name-only match is not accepted; a confirmed site carries its code-match evidence; the candidate count and budget hold.

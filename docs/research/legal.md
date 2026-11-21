@@ -36,7 +36,7 @@
 
 ## 2. US FCRA and state law
 
-- **Statute (verified).** 15 USC 1681a(d)(1): a consumer report is a communication by a consumer reporting agency bearing on credit worthiness, character, general reputation, personal characteristics or mode of living, used or expected to be used for (A) personal credit or insurance, (B) employment, or (C) another 1681b purpose. [LII](https://www.law.cornell.edu/uscode/text/15/1681a)
+- **Statute (verified).** 15 USC 1681a(d)(1): a consumer report is a communication by a consumer reporting agency bearing on credit worthiness, character, general reputation, personal characteristics or mode of living, used or expected to be used for (A) personal credit or insurance, (B) employment, or (C) another 1681b purpose. [US Code](https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title15-section1681a&num=0&edition=prelim)
 - **Consumer reporting agency (verified).** 15 USC 1681a(f): a person who, for fees, regularly assembles or evaluates information on consumers to furnish consumer reports to third parties.
 - **Business-only reports.** A 2011 FTC staff report (secondary summary) says a report on business history, prepared solely for business transactions, is not a consumer report. Primary text not read.
 - **Sole traders.** A 2001 OCC advisory says lenders may obtain consumer reports where an individual is personally liable on business credit, including a sole proprietor. A sole trader's report used for personal credit may therefore be a consumer report. **LAWYER.** [OCC advisory letter 2001-6](https://www.occ.gov/news-issuances/advisory-letters/2001/advisory-letter-2001-6.pdf)
@@ -122,10 +122,10 @@ Not legal advice. **LAWYER** marks items a licensed lawyer must settle.
 
 ### Answers
 
-1. **15 USC 1681b (permissible purposes).** A user may obtain a consumer report only under the listed circumstances "and no other": court orders, the consumer's written instructions, or reason to believe the report will be used for credit, employment, insurance underwriting, a government licence, investment, servicing of credit, or "another legitimate business need". [LII](https://www.law.cornell.edu/uscode/text/15/1681b)
+1. **15 USC 1681b (permissible purposes).** A user may obtain a consumer report only under the listed circumstances "and no other": court orders, the consumer's written instructions, or reason to believe the report will be used for credit, employment, insurance underwriting, a government licence, investment, servicing of credit, or "another legitimate business need". [US Code](https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title15-section1681b&num=0&edition=prelim)
    - Analysis from 15 USC 1681a(f): a free tool that never furnishes consumer reports to third parties is outside the consumer-reporting-agency definition on its face. Selling or furnishing reports on sole traders that bear on personal characteristics could bring it inside. **LAWYER.**
    - The product must block the listed purposes as uses: credit, employment, insurance, licensing, investment and credit servicing.
-2. **US public domain.** 17 USC 105: no copyright in any work of the US Government ([LII](https://www.law.cornell.edu/uscode/text/17/105)). Federal court opinions are government works (inference from the statute). PACER charges fees; litigation on free access is reported, with no settled outcome found. A nonprofit runs a free public mirror of court filings ([free.law](https://free.law/pacer-facts/), secondary; its reuse terms not checked). SEC filings are written by the filers, so their copyright status is **unchecked**. **LAWYER.**
+2. **US public domain.** 17 USC 105: no copyright in any work of the US Government ([US Code](https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title17-section105&num=0&edition=prelim)). Federal court opinions are government works (inference from the statute). PACER charges fees; litigation on free access is reported, with no settled outcome found. A nonprofit runs a free public mirror of court filings (the P2 court-data service, secondary; its reuse terms not checked). SEC filings are written by the filers, so their copyright status is **unchecked**. **LAWYER.**
 3. **Baltic DPAs on board and officer data.**
    - **LT (VDAI):** public availability does not waive the GDPR; each republisher needs its own legal basis. Manager data remains personal data; a company's own data is outside the GDPR. From a secondary Lithuanian source; VDAI decision 3R-1497 of 20 Aug 2026 was located but not read ([vdai.lrv.lt](https://vdai.lrv.lt/public/canonical/1787292327/1511/2026-08-20%20sprendimas%20Nr.%203R-1497%20(2.13-1.E).pdf)).
    - **LV (DVI):** no opinion on board-member data found. **Gap.**
@@ -136,7 +136,7 @@ Not legal advice. **LAWYER** marks items a licensed lawyer must settle.
 
 ### Round 2 source quality
 
-- **Verified on primary text:** 15 USC 1681b (via LII); 17 USC 105 (opening clause).
+- **Verified on primary text:** 15 USC 1681b (read via a university mirror; the citation now points to the official US Code); 17 USC 105 (opening clause).
 - **Not verified:** the Latvian court's site (no case listing); the official VDAI and AKI pages (mirror and secondary only); DVI; state privacy statutes; PACER and mirror terms; SEC filing copyright.
 - **Gaps:** the Latvian judgment text; a DVI opinion; the US state exemptions table.
 
@@ -215,7 +215,7 @@ A per-company pseudonym is still personal data; condition 1 keeps it out of the 
 ## US sources in the loader specs (phase 3, 2026-11-20)
 
 Not legal advice.
-1. **SAM.gov exclusions:** only the keyed Extracts API; a bulk or scraped pull falls under the ban on automated gathering, so the keyless route stays off. The "D&B Open Data" restriction on agency-entered exclusion fields is not verified: fields that might carry it are dropped until the terms are read (**LAWYER** if ever shown); addresses stay dropped.
+1. **SAM.gov exclusions:** only the keyed Extracts API; a bulk or scraped pull falls under the ban on automated gathering, so the keyless route stays off. The restriction on agency-entered exclusion fields (the clause limits use to a stated purpose and bars resale) is not verified: fields that might carry it are dropped until the terms are read (**LAWYER** if ever shown); addresses stay dropped.
 2. **FINRA BrokerCheck:** link-out only (`manual_lookup`). An LLM reading the result is automated access, and the terms are not verified to allow it; a compliance purpose does not settle the automation question.
 3. The organisation-only scope of the FJC court index and the US ≤ 1 GB budget raise no legal objection. The CO disclaimer and CT withdrawal tests are the right conditions.
 
