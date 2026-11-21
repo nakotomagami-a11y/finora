@@ -11,7 +11,7 @@ export const finoraVitest = {
     alias: { "server-only": fileURLToPath(new URL("./server-only.stub.mjs", import.meta.url)) },
   },
   test: {
-    include: ["{apps,packages}/*/{src,eslint}/**/*.test.{ts,tsx}"],
+    include: ["{apps,packages}/*/{src,eslint}/**/*.test.{ts,tsx}", "fixtures/*.test.ts", "fixtures/src/**/*.test.ts"],
     exclude: ["**/node_modules/**", "**/.next/**", "**/e2e/**"],
     environment: "node",
     // next-intl imports `next/server` without a file extension, which Node only resolves after Vite transforms it.

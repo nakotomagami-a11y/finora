@@ -58,3 +58,4 @@ export {
   type MissingRecord,
   type RecordLine,
 } from "./ingest-support.ts";
+export { BACKUPS_KEPT, writeBackup } from "./backup.ts";

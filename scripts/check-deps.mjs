@@ -31,7 +31,8 @@ export const ALLOWED = {
   "@finora/tooling": [],
   "@finora/server": SERVER_ALLOWED,
   "@finora/mcp": ["domain", "store", "agent-tools", "api-contract"],
-  "@finora/cli": ["domain", "store", "ingest"],
+  "@finora/cli": ["domain", "store", "ingest", "sources", "fixtures"],
+  "@finora/fixtures": ["domain", "sources", "ingest", "store"],
   "@finora/web": ["api-contract", "ui", "i18n", "domain", "server"],
 };
 
@@ -60,6 +61,8 @@ export function checkManifests(manifests) {
 
 export function workspaceManifests(root = ROOT) {
   const manifests = [];
+  const fixtures = join("fixtures", "package.json");
+  if (existsSync(join(root, fixtures))) manifests.push({ path: fixtures, pkg: JSON.parse(readFileSync(join(root, fixtures), "utf8")) });
   for (const group of ["apps", "packages"]) {
     const dir = join(root, group);
     if (!existsSync(dir)) continue;

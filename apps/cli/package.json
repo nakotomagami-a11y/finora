@@ -1,0 +1,25 @@
+{
+  "name": "@finora/cli",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "bin": {
+    "finora-cli": "./src/main.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@finora/domain": "workspace:*",
+    "@finora/fixtures": "workspace:*",
+    "@finora/ingest": "workspace:*",
+    "@finora/sources": "workspace:*",
+    "@finora/store": "workspace:*"
+  },
+  "devDependencies": {
+    "@finora/tooling": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

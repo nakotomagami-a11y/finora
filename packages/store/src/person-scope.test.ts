@@ -39,6 +39,7 @@ describe("PS2: people exist only inside one company", () => {
 
   it("exposes no repository call that takes a person id (a new export needs review here)", () => {
     expect(Object.keys(store).sort()).toEqual([
+      "BACKUPS_KEPT",
       "BACKUP_CLASSES",
       "BACKUP_FILTERS",
       "DeletionsLog",
@@ -100,6 +101,7 @@ describe("PS2: people exist only inside one company", () => {
       "tombstoneRecord",
       "transaction",
       "upsertSource",
+      "writeBackup",
       "writeFinoraEvent",
       "writeRecord",
     ]);

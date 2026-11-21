@@ -144,6 +144,37 @@ importers:
         specifier: 'catalog:'
         version: 5.1.1(@types/node@24.19.2)(jsdom@31.0.1)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0))
 
+  apps/cli:
+    dependencies:
+      '@finora/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@finora/fixtures':
+        specifier: workspace:*
+        version: link:../../fixtures
+      '@finora/ingest':
+        specifier: workspace:*
+        version: link:../../packages/ingest
+      '@finora/sources':
+        specifier: workspace:*
+        version: link:../../packages/sources
+      '@finora/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+    devDependencies:
+      '@finora/tooling':
+        specifier: workspace:*
+        version: link:../../packages/tooling
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.1(@types/node@24.19.2)(jsdom@31.0.1)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0))
+
   apps/server:
     dependencies:
       '@finora/api-contract':
@@ -253,6 +284,34 @@ importers:
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.5
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.1(@types/node@24.19.2)(jsdom@31.0.1)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0))
+
+  fixtures:
+    dependencies:
+      '@finora/domain':
+        specifier: workspace:*
+        version: link:../packages/domain
+      '@finora/sources':
+        specifier: workspace:*
+        version: link:../packages/sources
+    devDependencies:
+      '@finora/ingest':
+        specifier: workspace:*
+        version: link:../packages/ingest
+      '@finora/store':
+        specifier: workspace:*
+        version: link:../packages/store
+      '@finora/tooling':
+        specifier: workspace:*
+        version: link:../packages/tooling
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

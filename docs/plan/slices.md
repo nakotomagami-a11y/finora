@@ -167,7 +167,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
   1. `pnpm fixtures:gen` is byte-identical for the same seed; `fixtures/ids.test.ts` checks every fixture id (and every fixture ticker) against its rule.
   2. The fixture world loads in under 5 s on `dev-desktop-1` (recorded in `benchmarks.md`; relative budget in CI).
   3. `data status` shows each fixture source's sync report with drops by reason; `doctor` reports disk, `quick_check` and leases.
-- **Tests:** `fixtures/gen.test.ts`, `fixtures/ids.test.ts`, `cli/src/commands.test.ts`.
+- **Tests:** `fixtures/gen.test.ts`, `fixtures/ids.test.ts`, `fixtures/load.test.ts` (the whole profile, HIDE rows dropped, the relative load budget), `cli/src/commands.test.ts`.
 - **Demo:** `pnpm finora-cli data sync --profile fixtures`, then `pnpm finora-cli search "example compa"` prints ranked companies from all four countries.
 
 ### S04b API contracts and the demo responses

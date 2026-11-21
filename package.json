@@ -17,6 +17,8 @@
     "build": "pnpm -r --if-present build",
     "e2e": "pnpm -r --if-present e2e",
     "gen:items": "node scripts/gen-items.mjs",
+    "fixtures:gen": "pnpm --filter @finora/fixtures gen",
+    "finora-cli": "node apps/cli/src/main.ts",
     "check": "node scripts/check-deps.mjs && node scripts/check-tokens.mjs && node scripts/check-lawyer-register.mjs && node scripts/gen-items.mjs --check"
   },
   "devDependencies": {

@@ -62,3 +62,16 @@ All 1,422,706 Baltic company names, 25.8 characters on average.
 | FTS5 `trigram remove_diacritics 1` | 126 MB | 7.8 s | top 20, ranked (`order by rank`): p50 13 ms, p95 34 ms |
 
 The search API ranks, so the budget is about 40 ms p95 per index. (An unranked trigram query measured p50 0.18 ms; it is not comparable.)
+
+### Fixture world load (architect, S04f, 2026-11-21, `dev-desktop-1`)
+
+The `fixtures` profile (seed 20261121): 10 sources, 1,445 companies and 336 role sets, 2,337 entities and 9,302 statements, in memory, main thread.
+
+| Run | Load | Calibration units (CI budget) |
+|---|---|---|
+| 1 | 541 ms | 58 |
+| 2 | 487 ms | 53 |
+| 3 | 488 ms | 54 |
+
+Budget: under 5 s (S04f acceptance 2). CI holds the relative budget in `fixtures/load.test.ts`: under 400 units (1 unit = the calibration loop, about 9 ms here).
+

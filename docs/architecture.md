@@ -94,7 +94,8 @@ Each package may import only the packages in its row. The row **is** its `packag
 | `agents` | `domain`, `store`, `agent-tools` |
 | `apps/server` | all packages except `ui`, plus `apps/mcp` (its HTTP handler, mounted at `/mcp`) |
 | `apps/mcp` | `domain`, `store`, `agent-tools`, `api-contract` |
-| `apps/cli` | `domain`, `store`, `ingest` |
+| `apps/cli` | `domain`, `store`, `ingest`, `sources` (the core loaders), `fixtures` (the `fixtures` profile) |
+| `fixtures` | `domain`, `sources`; for its tests also `ingest`, `store` |
 | `apps/web` | `api-contract`, `ui`, `i18n`, `domain` (types and pure helpers only), `apps/server` (seam files only) |
 
 Lint rules on top of the graph:

@@ -7,6 +7,18 @@ export type { BannedLocale, BannedMatch } from "./config/banned-terms.ts";
 export { HIDE_ITEM_IDS, isLoadable, item } from "./items/policy.ts";
 export { CONCEPTS, isConcept, type Concept } from "./config/concepts.ts";
 export { eidKind, isInternalEid, type EidKind } from "./ids/eid.ts";
+export {
+  eeCheckDigit,
+  fixtureLei,
+  fixtureRegisterCode,
+  isFixtureLei,
+  isFixtureRegisterCode,
+  isValidLei,
+  isValidRegisterCode,
+  ltCheckDigit,
+  lvCheckDigit,
+  type BalticCountry,
+} from "./ids/check-digits.ts";
 export { COUNTRIES, isCountry, type Country } from "./config/countries.ts";
 export { LEGAL_FORMS, legalForm, type LegalForm } from "./config/legal-forms.ts";
 export {
