@@ -515,7 +515,7 @@ One web-standard handler, `handle(request: Request): Promise<Response>`, plus `b
 - **Errors are machine codes** (`snake_case`, listed once in `packages/domain/src/config/errors.ts`), never sentences: `{ "error": { "code": "entity_not_found", "detail"?: "..." } }`. The UI maps codes to localised text.
 - **Services return tagged results** (`{ ok: true, value } | { ok: false, code, status }`); routes map them to HTTP.
 - **Versioned:** `/api/v1/...`. A breaking change adds `/api/v2` routes.
-- **Usage** is an integer count of standard tokens (`st`, C16) in every DTO; no DTO carries a currency. Dates are ISO 8601 strings; times are UTC.
+- **Usage** has one shape everywhere (per lane, run, investigation and day; cto 7070446775): `usage { unit: "st", used, held, cap, extensionGranted, turns?, perModel? }`. `used` is settled st, `held` reserved and not yet settled, `cap` the cap in force including a granted extension. All values are integers, rounded down from the CLI's meter. The UI shows `(used + held) / cap` while running and `used / cap` once settled. `turns` and `perModel: { model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens }[]` are for the disclosure only. **No DTO carries a currency**, the CLI's `total_cost_usd` or `costUSD`: the st conversion happens in the server's ledger, and a contract test fails on any field of any `usage` schema matching `/usd|cost|price|eur/i`. `plan_limit`, `overage`, "Waiting: Claude is busy" and `runtime_unsafe` are states of the run or investigation, never `usage` fields. Dates are ISO 8601 strings; times are UTC.
 
 **Endpoints (v1).** Every schema lives in `packages/api-contract/src/<area>.ts` and lands in slice S04b, before the routes, so the UI builds against the real contract from day one.
 
@@ -532,7 +532,7 @@ One web-standard handler, `handle(request: Request): Promise<Response>`, plus `b
 | `POST /api/v1/purpose` | The UI's purpose session: `{ purposeId }` → an HTTP-only session cookie valid `PURPOSE_SESSION_HOURS` (12) or until restart (P2). The cookie is the only purpose store for the UI (never `sessionStorage`), so the server-component profile can read it. Blocked purposes do not exist in the list; a blocked id is `400 purpose_blocked` (P7) | `purpose.ts` |
 | `POST /api/v1/disputes` | Report a problem with a value or section: `{ companyEid, itemId, kind: "correction" \| "objection", note }`; the target is pinned by content hash (§3.3) | `disputes.ts` |
 | `GET /api/v1/sources` | Source registry: licence, attribution, storage class, freshness, last sync report | `sources.ts` |
-| `POST /api/v1/investigations/estimate` | `{ subject, roles[] }` → `{ low, typical, high, basis, drivers[], typicalSeconds: Record<Role, number>, capSt, dailyLeftSt, dailyResetsAt }` in st` (`agents.md` §8.3) | `investigations.ts` |
+| `POST /api/v1/investigations/estimate` | `{ subject, roles[] }` → `{ low, typical, high, basis, drivers[], typicalSeconds: Record<Role, number>, cap: usage, daily: usage, dailyResetsAt }`, every figure an integer in st` (`agents.md` §8.3) | `investigations.ts` |
 | `POST /api/v1/investigations` | Start: `{ subject: { eid, offerDomain? } \| { text, offerDomain? }, purposeId, locale }`. A second start while an investigation runs answers `409 investigation_running` (C18); with the backend `off` or no signed-in CLI it answers `agents_unavailable`. `offerDomain` is the domain on the offer or invoice the user received (council session 2, item 7): the web agent checks it against the register (DNS, certificates, homepage, the RDAP or .lt creation date) as well as the register-listed domain | `investigations.ts` |
 | `GET /api/v1/investigations` | Library: subject, country, eid, level, coverage, usage (st), status, started, finished | `investigations.ts` |
 | `GET /api/v1/investigations/:id` | Snapshot: plan, runs, tasks, findings, questions, verdict, usage, and `lastEventId` | `investigations.ts` |
@@ -546,7 +546,7 @@ One web-standard handler, `handle(request: Request): Promise<Response>`, plus `b
 | `GET /api/v1/markets/crash` | Crash monitor rows and tiles from the server cache (§8) | `markets.ts` |
 | `GET /api/v1/settings/status` | The agent backend and the CLI's state (`off`, not installed, not signed in, ready), the SEC contact setting's presence (never its value), which coded market providers the local provider map configures (codes only); data status; `SHARE_ALIKE_MODE`; the LAWYER switches in force | `settings.ts` |
 | `GET`/`PUT /api/v1/settings/startup` | The opt-in start at login (council item 15): `{ enabled }`; `PUT` creates or removes the per-user Task Scheduler entry on Windows (other systems: `not_supported` until built) and never enables it without the user's action | `settings.ts` |
-| `PUT /api/v1/settings/fund-slots` | The 13 fund-symbol slots (P12), validated `^[A-Z0-9.\-]{1,10}$` | `settings.ts` |
+| `GET /api/v1/agents/status` | `{ backend: "off" \| "cli" \| "local", cli: "ready" \| "missing" \| "signed_out" \| "unsafe" \| null, cliVersion?, provenVersion?, overage: "off" \| "permitted" \| "in_use" \| "unknown", running: investigationId \| null }` for the Investigate sheet's states (agents-off, cli-missing, cli-signed-out, busy, unsafe) and the C19 warning; cheap, cached briefly, never starts the core load or a model turn | `agents.ts` |
 
 There is deliberately **no person endpoint**, no person search and no bulk person list (L2, R4). Officers and owners appear only inside one company's sections.
 
@@ -826,7 +826,7 @@ type Envelope<T extends string, D> = { id: number; at: string; investigationId: 
 | `run.source` | `runId`, `documentId`, `domain`, `title`, `kind`, `sourcesRead` |
 | `finding` | the `Finding` |
 | `question`, `question.answered` | the question with options, `defaultOptionId`, `timeoutAt`, `blocks`, `cap?`; the answer with `by: "human" \| "default"` |
-| `usage` | `runId \| null`, `usedSt`, `heldSt`, `capSt` (standard tokens; never a currency) |
+| `usage` | `runId \| null` and the `usage` object (§5) |
 | `verdict` | the `Verdict` |
 | `error` | a machine code, `runId?` |
 
@@ -880,17 +880,16 @@ Per-role limits and timeouts are in `agents.md` §3.3; the architecture adds two
 `docs/plan/loaders/markets.md` (data-markets) is the data spec: series, sources, maths, settings, schedule and request budget. This section fixes the seams.
 
 - **Tables:** `market_series`, `market_obs`, `market_latest` (§3.8; DDL in `markets.md` §1.2), in `finora.db` for open sources and in `connector-cache.db` (same DDL) for licensed ones. Provenance through `sync_id` → `syncs`; no `records` row per observation. Values Finora computes (drawdown, value lost, the debt ticker, bitcoin supply) are `derived: true`.
-- **Licensed data (R17):** `redistribution = false` ⇒ `connector-cache`; a key is needed only where the source's `requires` lists one (some licensed sources are keyless or have optional keys). The connector cache is never exported, listed in bulk or served to another user; deleting a key deletes that source's rows.
+- **Licensed data (R17):** `redistribution = false` ⇒ `connector-cache`. v1 takes no keys (H5): every market source is keyless, and a coded provider is configured only through the local provider map (§15, C17); removing its entry stops its fetches, and its rows read `not_configured`. The connector cache is never exported, listed in bulk or served to another user.
 - **Cadence** (cto §7, `markets.md` §1.6): official series every 6 h; crypto quotes every 5 min while a Crash monitor client is connected and for 30 min after, otherwise hourly; stocks hourly in US trading hours only; never a 60 s upstream refresh. The page polls `GET /api/v1/markets/crash` (the server cache) every 60 s while visible, which also marks a client as connected. No FX in v1.
-- **Fund slots (P12):** 13 slots in local `settings`, never in the repo; fixtures use fictional tickers. Tiles without a symbol show "Choose a fund in settings" and no number.
+- **Tiles (H5):** M01, M03, M05, M06, M07 and M08. The fund slots, M02 and M04 have no keyless source and are LATER (Part G); a row with nothing to show is never drawn as 0%.
 - **The row DTO** (`markets.md` §1.4 plus frontend's additions):
 
 ```ts
 type MarketRow = {
-  itemId: ItemId; label: string; state: "loading" | "ok" | "stale" | "needs_key" | "needs_symbol" | "peak_unknown" | "error"; // loading: no sync has finished yet (fresh install), never "error"
+  itemId: ItemId; label: string; state: "loading" | "ok" | "stale" | "not_configured" | "peak_unknown" | "error"; // loading: no sync yet (fresh install), never "error"; not_configured: no provider-map entry, no number
   value?: number; unit: string; peak?: { value: number; date: string; basis: "since" | "all_time" | "seeded" };
   rowKey: string;                                        // stable per row, e.g. "M03.X.02:japan" (one item can have up to 7 rows)
-  symbol?: string;                                       // fund-slot rows only: "Via [your symbol]..."
   trackingSince?: string;                                // peak_unknown: "Peak not known yet: tracking since [date]"
   dayChangePct?: number;                                 // change since the previous close
   drawdownPct?: number; valueLostUsd?: number;          // whole US dollars as a float (micro-USD overflowed above ~$9 bn); only where the source's terms allow it
@@ -898,6 +897,7 @@ type MarketRow = {
   cadence: "quarterly" | "monthly" | "daily_exchange" | "daily_7d" | "live"; delayed: boolean;
   asOf: string; sources: SourceRef[];
 };
+type TileId = "M01" | "M03" | "M05" | "M06" | "M07" | "M08";
 type CrashResponse = { tiles: { tileId: TileId; rows: MarketRow[] }[];
   totalWiped?: { valueUsd: number; rowItemIds: ItemId[]; excludedItemIds: ItemId[]; oldestAsOf: string } };
 // totalWiped sums only rows whose tile config has countInTotal: true (US corporate equities, total crypto market);
@@ -969,7 +969,7 @@ Three rule sets apply, each rule with exactly one enforcement point and at least
 | P9 | Our own snapshots as events; cap `HISTORY_MAX_GB` warns, never deletes | §3.7; health check | `server/src/routes/v1/health/route.contract.test.ts` (warning above the cap), `ingest/src/history.test.ts` |
 | P10 | Store budgets and load times | §4.5, `docs/plan/benchmarks.md` | loader slice acceptance; `ingest/src/regression-budget.test.ts` (relative, CI) |
 | P11 | A state's live query is blocked until its licence is recorded (NY, CO, CT, PA on; OR, WA off) | licence invariant 4 (§4.2) | `sources/src/licences.test.ts` |
-| P12 | Fund tickers in local settings only | `settings` table; fixture tickers carry the reserved prefix `ZZFX` (`ZZFX01`-`ZZFX13`, as `markets.md` uses) and fail the settings symbol check outside fixture mode (the guard no longer blocks tickers, C12) | `markets/src/settings.test.ts`, `fixtures/ids.test.ts` (every ticker in `fixtures/` starts with `ZZFX`) |
+| P12 | No real ticker in the tree | v1 has no fund slots (H5); any ticker-shaped value in `fixtures/` uses the reserved prefix `ZZFX` (`ZZFX01`-`ZZFX99`), and the H4 sweep treats any other as a hit | `fixtures/ids.test.ts` (every ticker in `fixtures/` starts with `ZZFX`) |
 | P13 | LAWYER register: id, question, affected items, interim value, config key, test; CI fails on a `[pending: lawyer]` with no row | `docs/plan/lawyer-register.md` (legal owns the rows); `scripts/check-lawyer-register.mjs` | `scripts/check-lawyer-register.test.mjs` |
 | P14 | Snapshot-dependent rules read "Not evaluated: tracked since [date]" until our history covers the window | the check-level state `not_evaluated{trackedSince}` on `Check` (§7.2), not a section state; verdict rules treat it as not evaluated, never as clean | `domain/src/verdict/history-window.test.ts` (a 10-day-old install cannot report "no rename in 6 months") |
 
@@ -1139,7 +1139,7 @@ The CLI (`apps/cli`) runs as `pnpm finora-cli <command>`: `data sync [source|--p
 
   | Table | Class | What is copied |
   |---|---|---|
-  | `settings` (fund slots included) | backed_up | all |
+  | `settings` | backed_up | all |
   | `purpose_log` | backed_up | company eid, purpose id, surface, time |
   | `disputes` | backed_up | only disputes whose item is non-personal **and** whose entity has `natural_person = 0`; content hash, item, kind, status, dates (legal 1) |
   | `judgements` | backed_up | company pairs only: `eid_a`, `eid_b`, `decision`, `by`, `at`; no row where either entity is a natural person; no note column (legal 2) |
