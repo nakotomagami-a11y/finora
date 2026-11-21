@@ -1,0 +1,7 @@
+{
+  "backend": "cli",
+  "cli": "ready",
+  "overage": "off",
+  "running": "inv-fixture-1",
+  "cliVersion": "2.1.327"
+}

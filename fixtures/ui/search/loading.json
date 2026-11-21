@@ -1,0 +1,40 @@
+{
+  "groups": [
+    {
+      "id": "lv",
+      "kind": "bulk",
+      "country": "lv",
+      "state": "ready",
+      "results": [
+        {
+          "eid": "lv-00000000001",
+          "caption": "Example Company 1 SIA",
+          "code": "00000000001",
+          "country": "lv",
+          "legalForm": null,
+          "status": "active",
+          "match": "prefix",
+          "isNaturalPerson": false
+        },
+        {
+          "eid": "lv-00000000002",
+          "caption": "Example Company 2 SIA",
+          "code": "00000000002",
+          "country": "lv",
+          "legalForm": null,
+          "status": "active",
+          "match": "prefix",
+          "isNaturalPerson": false
+        }
+      ]
+    },
+    {
+      "id": "ee",
+      "kind": "bulk",
+      "country": "ee",
+      "state": "loading",
+      "percent": 62,
+      "results": []
+    }
+  ]
+}

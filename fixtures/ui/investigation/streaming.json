@@ -1,0 +1,189 @@
+{
+  "id": "inv-fixture-1",
+  "subject": {
+    "eid": "lv-00000000001",
+    "country": "lv",
+    "caption": "Example Company 1 SIA"
+  },
+  "status": "running",
+  "plan": [
+    {
+      "runId": "run-lead",
+      "role": "lead",
+      "dependsOn": []
+    },
+    {
+      "runId": "run-registry",
+      "role": "registry",
+      "dependsOn": []
+    },
+    {
+      "runId": "run-money",
+      "role": "money",
+      "dependsOn": []
+    },
+    {
+      "runId": "run-legal",
+      "role": "legal",
+      "dependsOn": []
+    },
+    {
+      "runId": "run-web",
+      "role": "web",
+      "dependsOn": []
+    },
+    {
+      "runId": "run-verdict",
+      "role": "verdict",
+      "dependsOn": []
+    }
+  ],
+  "runs": [
+    {
+      "id": "run-lead",
+      "role": "lead",
+      "status": "done",
+      "usage": {
+        "unit": "st",
+        "used": 0,
+        "held": 0,
+        "cap": 0,
+        "extensionGranted": false
+      },
+      "startedAt": null,
+      "endedAt": null
+    },
+    {
+      "id": "run-registry",
+      "role": "registry",
+      "status": "running",
+      "usage": {
+        "unit": "st",
+        "used": 60000,
+        "held": 20000,
+        "cap": 500000,
+        "extensionGranted": false
+      },
+      "startedAt": null,
+      "endedAt": null
+    },
+    {
+      "id": "run-money",
+      "role": "money",
+      "status": "running",
+      "usage": {
+        "unit": "st",
+        "used": 0,
+        "held": 0,
+        "cap": 0,
+        "extensionGranted": false
+      },
+      "startedAt": null,
+      "endedAt": null
+    },
+    {
+      "id": "run-legal",
+      "role": "legal",
+      "status": "running",
+      "usage": {
+        "unit": "st",
+        "used": 0,
+        "held": 0,
+        "cap": 0,
+        "extensionGranted": false
+      },
+      "startedAt": null,
+      "endedAt": null
+    },
+    {
+      "id": "run-web",
+      "role": "web",
+      "status": "running",
+      "usage": {
+        "unit": "st",
+        "used": 0,
+        "held": 0,
+        "cap": 0,
+        "extensionGranted": false
+      },
+      "startedAt": null,
+      "endedAt": null
+    },
+    {
+      "id": "run-verdict",
+      "role": "verdict",
+      "status": "queued",
+      "usage": {
+        "unit": "st",
+        "used": 0,
+        "held": 0,
+        "cap": 0,
+        "extensionGranted": false
+      },
+      "startedAt": null,
+      "endedAt": null
+    }
+  ],
+  "tasks": [
+    {
+      "runId": "run-lead",
+      "taskId": "t-lead-1",
+      "labelKey": "agents.tasks.resolve_company",
+      "params": {},
+      "status": "done",
+      "sourcesRead": 1
+    },
+    {
+      "runId": "run-registry",
+      "taskId": "t-reg-1",
+      "labelKey": "agents.tasks.read_register",
+      "params": {},
+      "status": "done",
+      "sourcesRead": 1
+    }
+  ],
+  "findings": [
+    {
+      "id": "f1",
+      "investigationId": "inv-fixture-1",
+      "runId": "run-registry",
+      "entityId": "lv-00000000001",
+      "checkId": 2,
+      "itemId": "S01.LV.01",
+      "kind": "signal",
+      "signalIds": [
+        "status_not_active"
+      ],
+      "severity": "point_to_check",
+      "statement": "The register lists the company as in liquidation.",
+      "citations": [
+        {
+          "kind": "statement",
+          "statementIds": [
+            "st-1"
+          ],
+          "snapshot": [
+            {
+              "itemId": "S01.LV.01",
+              "prop": "status",
+              "value": "liquidation",
+              "sourceId": "fx-lv-register",
+              "asOf": "2026-11-21"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ai"
+    }
+  ],
+  "questions": [],
+  "verdict": null,
+  "usage": {
+    "unit": "st",
+    "used": 120000,
+    "held": 80000,
+    "cap": 500000,
+    "extensionGranted": false
+  },
+  "lastEventId": 18
+}

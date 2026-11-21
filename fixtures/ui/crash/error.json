@@ -1,0 +1,19 @@
+{
+  "tiles": [
+    {
+      "tileId": "M06",
+      "rows": [
+        {
+          "rowKey": "m06-total",
+          "itemId": "M06.X.02",
+          "label": "Total crypto market",
+          "state": "error",
+          "unit": "usd_cap",
+          "cadence": "daily_exchange",
+          "delayed": false,
+          "sources": []
+        }
+      ]
+    }
+  ]
+}

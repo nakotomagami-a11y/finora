@@ -1,0 +1,33 @@
+{
+  "tiles": [
+    {
+      "tileId": "M06",
+      "rows": [
+        {
+          "rowKey": "m06-total",
+          "itemId": "M06.X.02",
+          "label": "Total crypto market",
+          "state": "peak_unknown",
+          "unit": "usd_cap",
+          "value": 2400000000000,
+          "asOf": "2026-11-22T08:00:00.000Z",
+          "trackingSince": "2026-11-01",
+          "cadence": "live",
+          "delayed": false,
+          "sources": [
+            {
+              "sourceId": "fx-markets",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-21",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

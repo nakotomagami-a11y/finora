@@ -1,0 +1,90 @@
+{
+  "tiles": [
+    {
+      "tileId": "M06",
+      "rows": [
+        {
+          "rowKey": "m06-total",
+          "itemId": "M06.X.02",
+          "label": "Total crypto market",
+          "state": "ok",
+          "unit": "usd_cap",
+          "value": 2400000000000,
+          "asOf": "2026-11-22T08:00:00.000Z",
+          "peak": {
+            "value": 3000000000000,
+            "date": "2026-03-01",
+            "basis": "since"
+          },
+          "drawdownPct": -20,
+          "valueLostUsd": 600000000000,
+          "cadence": "live",
+          "delayed": false,
+          "sources": [
+            {
+              "sourceId": "fx-markets",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-21",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        },
+        {
+          "rowKey": "m06-eth",
+          "itemId": "M06.X.01b",
+          "label": "Largest coin",
+          "state": "not_configured",
+          "unit": "usd_cap",
+          "cadence": "daily_exchange",
+          "delayed": false,
+          "sources": []
+        }
+      ]
+    },
+    {
+      "tileId": "M08",
+      "rows": [
+        {
+          "rowKey": "m08-debt",
+          "itemId": "M08.X.01",
+          "label": "US national debt",
+          "state": "ok",
+          "unit": "usd",
+          "value": 38000000000000,
+          "asOf": "2026-11-20",
+          "cadence": "daily_exchange",
+          "delayed": false,
+          "ticker": {
+            "total": 38000000000000,
+            "anchor": "2026-11-22T08:00:00.000Z",
+            "perSecond": 50000
+          },
+          "sources": [
+            {
+              "sourceId": "fx-markets",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-21",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "totalWiped": {
+    "valueUsd": 600000000000,
+    "rowItemIds": [
+      "M06.X.02"
+    ],
+    "excludedItemIds": [],
+    "oldestAsOf": "2026-11-22T08:00:00.000Z"
+  }
+}

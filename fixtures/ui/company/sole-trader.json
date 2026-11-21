@@ -1,0 +1,156 @@
+{
+  "header": {
+    "eid": "lv-00000000009",
+    "country": "lv",
+    "code": "00000000009",
+    "legalForm": "lv-ik",
+    "status": "active",
+    "caption": "Sole trader (IK) · 00000000009"
+  },
+  "isNaturalPerson": true,
+  "containsPersonalData": true,
+  "coverage": {
+    "ran": 11,
+    "total": 11,
+    "skipped": []
+  },
+  "checks": [
+    {
+      "checkId": 1,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 2,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 3,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 4,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 5,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 6,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 7,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 8,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 9,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 10,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    },
+    {
+      "checkId": 11,
+      "state": "ran",
+      "outcome": "none_found",
+      "signals": [],
+      "statementIds": []
+    }
+  ],
+  "sections": {
+    "S01": {
+      "state": "data",
+      "value": [
+        {
+          "value": {
+            "itemId": "S01.LV.01",
+            "prop": "name",
+            "value": "Example Company 1 SIA"
+          },
+          "sources": [
+            {
+              "sourceId": "fx-lv-register",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-21",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        }
+      ],
+      "freshness": "current",
+      "asOf": "2026-11-21",
+      "completeness": "full"
+    },
+    "S03": {
+      "state": "not_checked",
+      "reason": {
+        "reason": "needs_purpose",
+        "purposes": [
+          "counterparty_check"
+        ]
+      }
+    },
+    "S10": {
+      "state": "not_checked",
+      "reason": {
+        "reason": "manual_lookup",
+        "url": "https://manas.tiesas.lv/"
+      }
+    },
+    "S08": {
+      "state": "checked_none",
+      "source": {
+        "sourceId": "fx-lt-arrears",
+        "licenceId": "cc0-1.0",
+        "retrievedAt": "2026-11-22T08:00:00.000Z",
+        "asOf": "2026-11-21",
+        "asOfBasis": "in_file_field",
+        "checkedAt": "2026-11-22T08:00:00.000Z",
+        "accessTier": "open",
+        "derived": false
+      },
+      "checkedAt": "2026-11-22T08:00:00.000Z",
+      "asOf": "2026-11-21"
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "groups": [
+    {
+      "id": "lv",
+      "kind": "bulk",
+      "country": "lv",
+      "state": "ready",
+      "results": [
+        {
+          "eid": "lv-00000000001",
+          "caption": "Example Company 1 SIA",
+          "code": "00000000001",
+          "country": "lv",
+          "legalForm": null,
+          "status": "active",
+          "match": "prefix",
+          "isNaturalPerson": false
+        },
+        {
+          "eid": "lv-00000000002",
+          "caption": "Example Company 2 SIA",
+          "code": "00000000002",
+          "country": "lv",
+          "legalForm": null,
+          "status": "active",
+          "match": "prefix",
+          "isNaturalPerson": false
+        }
+      ]
+    },
+    {
+      "id": "ee",
+      "kind": "bulk",
+      "country": "ee",
+      "state": "ready",
+      "results": [
+        {
+          "eid": "ee-10000000",
+          "caption": "Placeholder Foods OÜ",
+          "code": "10000000",
+          "country": "ee",
+          "legalForm": null,
+          "status": "active",
+          "match": "prefix",
+          "isNaturalPerson": false
+        }
+      ]
+    },
+    {
+      "id": "lt",
+      "kind": "bulk",
+      "country": "lt",
+      "state": "ready",
+      "results": [
+        {
+          "eid": "lt-100000000",
+          "caption": "Sample Trading UAB",
+          "code": "100000000",
+          "country": "lt",
+          "legalForm": null,
+          "status": "active",
+          "match": "prefix",
+          "isNaturalPerson": false
+        }
+      ]
+    },
+    {
+      "id": "us-ny",
+      "kind": "live",
+      "country": "us",
+      "state": "error",
+      "results": []
+    }
+  ]
+}

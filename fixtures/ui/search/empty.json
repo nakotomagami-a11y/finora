@@ -1,0 +1,11 @@
+{
+  "groups": [
+    {
+      "id": "lv",
+      "kind": "bulk",
+      "country": "lv",
+      "state": "ready",
+      "results": []
+    }
+  ]
+}
