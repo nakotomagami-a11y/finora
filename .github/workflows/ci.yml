@@ -106,8 +106,10 @@ jobs:
           retention-days: 7
 
   visual:
-    # Screenshot comparison runs in the pinned Playwright image (fonts differ by system). With no baselines
-    # committed yet, the job makes them and uploads them as an artifact to review and commit.
+    # Screenshot comparison runs in the pinned Playwright image (fonts differ by system). The baselines are
+    # committed in apps/web/e2e/__screenshots__ and each one is recorded with `guard review`. An empty or missing
+    # directory fails the job: a lost baseline set must not pass. To change a baseline on purpose, run the job
+    # with the new design, download the `visual-actual` artifact, open each image, `guard review` it and commit it.
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.65.1-noble
@@ -115,9 +117,11 @@ jobs:
       HOME: /root
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - id: baselines
-        # hashFiles() is not allowed in a job-level `if`, so a step records whether baselines exist.
-        run: echo "present=${{ hashFiles('apps/web/e2e/__screenshots__/**') != '' }}" >> "$GITHUB_OUTPUT"
+      - name: Baselines are committed
+        run: |
+          count=$(find apps/web/e2e/__screenshots__ -name '*.png' 2>/dev/null | wc -l)
+          echo "baselines: $count"
+          test "$count" -gt 0
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -125,19 +129,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - if: steps.baselines.outputs.present == 'true'
-        run: pnpm --filter @finora/web e2e:visual
-      - if: steps.baselines.outputs.present != 'true'
-        run: pnpm --filter @finora/web exec playwright test --project=visual --update-snapshots
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: steps.baselines.outputs.present != 'true'
-        with:
-          name: visual-baselines
-          path: apps/web/e2e/__screenshots__
-          retention-days: 7
+      - run: pnpm --filter @finora/web e2e:visual
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
-          name: visual-diffs
+          name: visual-actual
           path: apps/web/test-results
           retention-days: 7
