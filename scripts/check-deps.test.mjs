@@ -27,6 +27,12 @@ test("@finora/tooling as a dev dependency and third-party packages are always al
   assert.deepEqual(checkManifests([manifest]), []);
 });
 
+test("fixtures may use ingest and store in its tests only", () => {
+  assert.deepEqual(checkManifests([pkg("@finora/fixtures", {}, { devDependencies: { "@finora/ingest": "workspace:*", "@finora/store": "workspace:*" } })]), []);
+  const [problem] = checkManifests([pkg("@finora/fixtures", { "@finora/store": "workspace:*" })]);
+  assert.match(problem, /may use @finora\/store in its tests only/);
+});
+
 test("@finora/tooling as a runtime dependency fails", () => {
   const [problem] = checkManifests([pkg("@finora/domain", { "@finora/tooling": "workspace:*" })]);
   assert.match(problem, /@finora\/tooling is a dev dependency only/);

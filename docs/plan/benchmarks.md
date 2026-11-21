@@ -74,5 +74,13 @@ The `fixtures` profile (seed 20261121): 10 sources, 1,445 companies and 336 role
 | 2 | 487 ms | 53 |
 | 3 | 488 ms | 54 |
 
-Budget: under 5 s (S04f acceptance 2). CI holds the relative budget in `fixtures/load.test.ts`: under 400 units (1 unit = the calibration loop, about 9 ms here).
+The shipped path (qa F3 on S04f): `finora-cli data sync --profile fixtures` into a fresh on-disk data dir, one worker thread per source, process start included.
+
+| Run | Load | Peak RSS |
+|---|---|---|
+| 1 | 2,963 ms | 149 MB |
+| 2 | 3,231 ms | 150 MB |
+| 3 | 2,610 ms | 149 MB |
+
+Budget: under 5 s (S04f acceptance 2), met by the shipped path with about 2 s to spare. CI holds the relative budget in `fixtures/load.test.ts` on the in-memory path: under 400 units (1 unit = the calibration loop, about 9 ms here).
 

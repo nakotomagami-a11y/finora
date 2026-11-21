@@ -2,7 +2,7 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { openStore } from "@finora/store";
+import { openStore, suppressItem } from "@finora/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { backup, dataStatus, dataSync, doctor, search, show, type Io } from "./commands.ts";
 import { loadCliEnv, repoRoot } from "./env.ts";
@@ -63,6 +63,18 @@ describe("finora-cli (S04f)", () => {
     expect(show(io(), sole)).toBe(0);
     expect(lines[0]).toMatch(/^IK \d{11} \(lv-\d{11}\)$/);
     expect(lines.join("\n")).not.toMatch(/Sample Trader/);
+  });
+
+  it("show leaves out an item suppressed for the company, and says so (L5, qa F1)", () => {
+    search(io(), "example company 2");
+    const eid = /\((lv-\d{11})\)/.exec(lines.find((l) => l.includes("lv-")) ?? "")?.[1];
+    const store = openStore({ dataDir: dir });
+    suppressItem(store.db, eid!, "S01.LV.01", "2026-11-21T10:00:00.000Z");
+    store.close();
+    expect(show(io(), eid!)).toBe(0);
+    const text = lines.join("\n");
+    expect(text).toContain("S01.LV.01: hidden at your request");
+    expect(text).not.toMatch(/ name: | address: | registrationNumber: | capital: /);
   });
 
   it("doctor reports disk, quick_check and leases", () => {

@@ -87,6 +87,8 @@ export type SyncOptions = {
   liveViewHeld?: boolean;
   /** Called on every successful heartbeat: a worker's parent watches it to spot a hung sync. */
   onProgress?: () => void;
+  /** Called with the sync row this run opened, so a watcher can close exactly that row (qa on S04i). */
+  onStart?: (syncId: number) => void;
 };
 
 export function effectiveStorage(loader: SourceLoader, mode: SyncOptions["shareAlikeMode"]): StorageClass {
@@ -165,6 +167,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
   const startedAt = started.toISOString();
   upsertSource(db, { id: meta.id, storage, purgeScope: meta.purgeScope }, startedAt);
   const syncId = beginSync(db, { sourceId: meta.id, licenceId: meta.licence, storage, parserVersion: loader.parserVersion, startedAt });
+  options.onStart?.(syncId);
   const report = emptyReport(storage);
   const finish = (kind: Exclude<SyncKind, "already_running">, extra: { reason?: string; upstreamAsOf?: string | null; asOfBasis?: string | null } = {}): SyncOutcome => {
     report.durationMs = now().getTime() - started.getTime();

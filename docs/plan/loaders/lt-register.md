@@ -147,7 +147,7 @@ Counts on 2026-11-19: 231,716 / 2,308 / 1,794 / 58 / 579 / 316,076.
 
 ### Check digit (`ja_kodas`)
 
-Digits d1..d9. s = (1·d1 + 2·d2 + ... + 8·d8) mod 11; if s = 10, s = (3·d1 + 4·d2 + ... + 9·d7 + 1·d8) mod 11; if still 10, s = 0. Valid when s = d9. All 552,531 codes in the two files pass. Shared helper: `packages/domain/src/ids/lt.ts` (`isValidLtCode`, `ltFixtureCode`).
+Digits d1..d9. s = (1·d1 + 2·d2 + ... + 8·d8) mod 11; if s = 10, s = (3·d1 + 4·d2 + ... + 9·d7 + 1·d8) mod 11; if still 10, s = 0. Valid when s = d9. All 552,531 codes in the two files pass. Shared helper: `packages/domain/src/ids/check-digits.ts` (`isValidRegisterCode("lt", code)`, `fixtureRegisterCode("lt", body)`, `ltCheckDigit`).
 
 ## Party gate
 

@@ -7,7 +7,7 @@ import { isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { FIXTURE_PROFILE } from "@finora/fixtures";
 import { runSyncInWorker, type SyncReport } from "@finora/ingest";
 import { LOADERS } from "@finora/sources";
-import { openStore, searchCompanies, sourceRefForStatement, writeBackup, type Store } from "@finora/store";
+import { companyValues, openStore, searchCompanies, sourceRefForStatement, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
 
 export type Io = { env: CliEnv; out: (line: string) => void; now?: () => Date };
@@ -136,16 +136,13 @@ export function show(io: Io, eid: string): number {
     }
     io.out(`${entity.caption} (${entity.eid})`);
     io.out(`  ${entity.country}, ${entity.legal_form ?? "form unknown"}, ${entity.status ?? "status unknown"}${entity.tombstone_since ? `, not in the register's open data since ${entity.tombstone_since}` : ""}`);
-    const rows = db
-      .prepare(
-        `SELECT st.id, p.name AS prop, st.value FROM main.statements st JOIN main.props p ON p.id = st.prop_id
-         WHERE st.entity_id = ? ORDER BY p.name, st.id`,
-      )
-      .all(entity.id) as { id: number; prop: string; value: string }[];
-    for (const row of rows) {
-      const ref = sourceRefForStatement(db, row.id);
+    // L5: suppressed items stay hidden here too (qa F1 on S04f).
+    const { values, hiddenItems } = companyValues(db, entity.eid) ?? { values: [], hiddenItems: [] };
+    for (const row of values) {
+      const ref = sourceRefForStatement(db, row.statementId);
       io.out(`  ${row.prop}: ${row.value}  [${ref.sourceId}, ${ref.licenceId}, retrieved ${ref.retrievedAt.slice(0, 10)}]`);
     }
+    for (const itemId of hiddenItems) io.out(`  ${itemId}: hidden at your request`);
     for (const w of db
       .prepare("SELECT p.name AS prop FROM main.withheld w JOIN main.props p ON p.id = w.prop_id WHERE w.entity_id = ?")
       .all(entity.id) as { prop: string }[]) {
@@ -186,7 +183,13 @@ export function doctor(io: Io): number {
       io.out(`${log}: ${present ? "present" : "MISSING (repairs refuse until it is restored)"}`);
     }
     const raw = join(io.env.dataDir, "raw");
-    const size = existsSync(raw) ? readdirSync(raw, { recursive: true }).reduce((n, f) => n + (statSync(join(raw, String(f))).isFile() ? statSync(join(raw, String(f))).size : 0), 0) : 0;
+    let size = 0;
+    if (existsSync(raw)) {
+      for (const f of readdirSync(raw, { recursive: true })) {
+        const stat = statSync(join(raw, String(f)));
+        if (stat.isFile()) size += stat.size;
+      }
+    }
     io.out(`raw cache: ${(size / 1024 ** 2).toFixed(1)} MB`);
     return problems === 0 ? 0 : 1;
   });

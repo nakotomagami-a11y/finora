@@ -4,7 +4,7 @@
 // or crashed worker ends as a failed sync, never a `running` row (SEC-12).
 import { parentPort, Worker, workerData } from "node:worker_threads";
 import { politeFetch, type SourceLoader } from "@finora/sources";
-import { failRunningSyncs, openStore, releaseLease } from "@finora/store";
+import { failSync, openStore, releaseLease } from "@finora/store";
 import { liveView, setLiveView, type LiveView } from "./live-views.ts";
 import { runSync, type SyncOptions, type SyncOutcome } from "./pipeline.ts";
 
@@ -17,6 +17,7 @@ export type WorkerJob = {
 
 type WorkerMessage =
   | { type: "progress" }
+  | { type: "started"; syncId: number }
   | { type: "live"; sourceId: string; view: LiveView }
   | { type: "done"; outcome: SyncOutcome }
   | { type: "error"; error: string };
@@ -44,6 +45,7 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
       fetcher,
       onLiveView: (sourceId, view) => post({ type: "live", sourceId, view }),
       onProgress: () => post({ type: "progress" }),
+      onStart: (syncId) => post({ type: "started", syncId }),
     });
     result = { type: "done", outcome };
   } catch (error) {
@@ -74,6 +76,7 @@ export function runSyncInWorker(entry: URL, job: WorkerJob, options: { timeoutMs
   return new Promise((resolve) => {
     const worker = new Worker(entry, { workerData: data });
     let settled = false;
+    let syncId: number | null = null;
     const settle = (outcome: SyncOutcome, cleanUp: boolean) => {
       if (settled) return;
       settled = true;
@@ -82,7 +85,8 @@ export function runSyncInWorker(entry: URL, job: WorkerJob, options: { timeoutMs
       const close = () => {
         const store = openStore({ dataDir: job.dataDir });
         try {
-          failRunningSyncs(store.db, job.sourceId, new Date().toISOString(), outcome.report?.reason ?? "worker_failed");
+          // Only the row this worker opened: another process may be running a healthy sync of the source.
+          if (syncId !== null) failSync(store.db, syncId, new Date().toISOString(), outcome.report?.reason ?? "worker_failed");
           releaseLease(store.db, { resource: `sync:${job.sourceId}`, holder, expiresAt: 0 });
         } finally {
           store.close();
@@ -101,7 +105,8 @@ export function runSyncInWorker(entry: URL, job: WorkerJob, options: { timeoutMs
     const timer = setTimeout(() => settle(failed("worker_timeout"), true), options.timeoutMs ?? 6 * 3_600_000);
     let watchdog = setTimeout(() => settle(failed("worker_hung"), true), options.startupMs ?? Math.max(ttl, 30_000));
     worker.on("message", (message: WorkerMessage) => {
-      if (message.type === "progress") {
+      if (message.type === "started") syncId = message.syncId;
+      else if (message.type === "progress") {
         clearTimeout(watchdog);
         watchdog = setTimeout(() => settle(failed("worker_hung"), true), ttl);
       } else if (message.type === "live") setLiveView(message.sourceId, message.view);

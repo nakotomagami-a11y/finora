@@ -1,6 +1,6 @@
 // Regression tests for the S04i review (docs/plan/reviews/slices/S04i.md): qa M1-M5, S4, S5, S8,
 // S9 and security SEC-1 to SEC-4, each reproduced first.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { balticCheckDigit, isBalticPersonalCode, isFixtureRegisterCode, isValidRegisterCode } from "@finora/domain";
 import { openStore, scanStore } from "@finora/store";
@@ -10,6 +10,7 @@ import { clearLiveView, liveView } from "./live-views.ts";
 import { runSync } from "./pipeline.ts";
 import { companies, companyRecord, fakeSource, noNetwork, roleSetRecord } from "./testing/fake-source.ts";
 import { count, memoryDb, records, sync, tempDir } from "./test-helpers.ts";
+import { LIVE_SENTINEL } from "./testing/sentinels.ts";
 import { runSyncInWorker } from "./worker.ts";
 
 const SENTINEL = "SENTINEL-VALUE-91c2";
@@ -157,10 +158,22 @@ describe("qa M1: a live-no-store view reaches the process that serves it", () =>
   it("a worker sync posts the view back to its parent", async () => {
     const data = dir();
     openStore({ dataDir: data }).close();
-    clearLiveView("fake-live");
-    const outcome = await runSyncInWorker(new URL("./testing/test-sync-worker.ts", import.meta.url), { dataDir: data, sourceId: "fake-live", userAgent: "test", options: {} });
+    clearLiveView("fake-live-sentinel");
+    const outcome = await runSyncInWorker(new URL("./testing/test-sync-worker.ts", import.meta.url), {
+      dataDir: data,
+      sourceId: "fake-live-sentinel",
+      userAgent: "test",
+      options: { rawCacheDir: join(data, "raw") },
+    });
     expect(outcome.kind).toBe("content");
-    expect(liveView("fake-live")?.rows).toHaveLength(4);
+    expect(liveView("fake-live-sentinel")?.rows.map((r) => r.value)).toEqual([LIVE_SENTINEL]);
+    // Legal condition 1: the rows crossed the message channel only. No file under the data dir,
+    // the raw cache included, holds the sentinel's bytes.
+    const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
+    const files = walk(data);
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) expect(readFileSync(file).includes(Buffer.from(LIVE_SENTINEL)), file).toBe(false);
+    expect(existsSync(join(data, "raw"))).toBe(false);
   }, 60_000);
 
   it("without a view held, an unchanged token is not enough: the file is read again", async () => {

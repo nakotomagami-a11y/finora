@@ -36,6 +36,11 @@ export const ALLOWED = {
   "@finora/web": ["api-contract", "ui", "i18n", "domain", "server"],
 };
 
+/** Edges a package may declare only as devDependencies: its tests use them, its code never does. */
+export const DEV_ONLY = {
+  "@finora/fixtures": ["ingest", "store"],
+};
+
 /** Returns one message per problem in the given manifests: [{ path, pkg }]. */
 export function checkManifests(manifests) {
   const problems = [];
@@ -50,6 +55,9 @@ export function checkManifests(manifests) {
     const allowed = new Set(ALLOWED[name].map((short) => `@finora/${short}`));
     const runtime = { ...pkg.dependencies, ...pkg.peerDependencies };
     if ("@finora/tooling" in runtime) problems.push(`${path}: @finora/tooling is a dev dependency only`);
+    for (const short of DEV_ONLY[name] ?? []) {
+      if (`@finora/${short}` in runtime) problems.push(`${path}: ${name} may use @finora/${short} in its tests only (devDependencies)`);
+    }
     const declared = { ...runtime, ...pkg.devDependencies };
     for (const dep of Object.keys(declared)) {
       if (dep === "@finora/tooling" || dep === name || !dep.startsWith("@finora/")) continue;

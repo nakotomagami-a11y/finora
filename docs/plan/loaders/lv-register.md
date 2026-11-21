@@ -184,7 +184,7 @@ Not applicable to the identity rows: `register.csv` is the register itself, and 
   - Tests (architect's S04i test, LV cases): a fixture LV sole trader whose 11-digit register code happens to pass the EE/LT check loads; one whose id has the `DDMMYY` or `32…` shape is refused.
 
 - **Entity id.** `lv-<11-digit regcode>`.
-- **Check digit.** Weights `9,1,4,8,3,10,2,5,7,6` over the first 10 digits, check digit = `(3 − Σ) mod 11`. A result of 10 means no valid code exists for that prefix. All 456,256 eleven-digit codes in the 2026-11-19 file pass. The implementation is `domain/src/ids/lv.ts`, shared with every LV loader.
+- **Check digit.** Weights `9,1,4,8,3,10,2,5,7,6` over the first 10 digits, check digit = `(3 − Σ) mod 11`. A result of 10 means no valid code exists for that prefix. All 456,256 eleven-digit codes in the 2026-11-19 file pass. The implementation is `domain/src/ids/check-digits.ts` (`lvCheckDigit`, `isValidRegisterCode("lv", code)`), shared with every LV loader.
 - **Join keys.** Other LV sources join by the same code: the tax authority (`Registracijas_kods`, 98.6% found), annual reports (100%), officers and members (100%), insolvency (100%). The VAT number is `LV` + code, embedded (`lv-tax.md`). LEIs are linked by `gleif.md` via `registeredAs` = code, authority `RA000423`.
 - **A failed join** (a code in another LV file that is not in `register.csv`) is a counted skip `code_not_in_register` in that file's sync. It never creates an entity.
 - **Load order.** `lv-ur-register` must have a `content` sync before any other LV source writes. A dependent source whose register sync is older than its own artifact still loads, and its unknown codes are counted.
@@ -257,7 +257,7 @@ The LV total across the five LV specs is ≈ 1.25 GB of rows, ≈ 1.6 GB with se
   - one renamed company with two name-history rows;
   - a liquidation of each type, a merger with both sides, an equity row in LVL, a memorandum row with year 0119.
 - **Names:** obviously fictional: "Example Timber SIA", "Sample Bakery AS", "Demo Logistics SIA", and for sole traders "IK Test Person A".
-- **Codes:** fixture-only codes. Pick 11-digit codes with prefixes `40003`, `40103`, `40203`, `50003` and `90000`. Compute the true check digit `c`, skip prefixes where `c = 10`, and write `(c + 1) mod 10`. `fixtures/ids.test.ts` asserts every fixture code fails `domain/src/ids/lv.ts` and passes its fixture variant.
+- **Codes:** fixture-only codes. Pick 11-digit codes with prefixes `40003`, `40103`, `40203`, `50003` and `90000`. Compute the true check digit `c`, skip prefixes where `c = 10`, and write `(c + 1) mod 10`. `fixtures/ids.test.ts` asserts every fixture code fails `isValidRegisterCode("lv", …)` in `domain/src/ids/check-digits.ts` and passes its fixture variant.
 - **Size:** < 50 KB, committed.
 
 ## Tests

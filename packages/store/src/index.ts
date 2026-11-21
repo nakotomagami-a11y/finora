@@ -37,7 +37,7 @@ export {
   deleteRecords,
   endStaging,
   entityByCode,
-  failRunningSyncs,
+  failSync,
   holdsLease,
   lastContentStorage,
   lastContentSync,
@@ -64,3 +64,4 @@ export {
   type RecordLine,
 } from "./ingest-support.ts";
 export { BACKUPS_KEPT, writeBackup } from "./backup.ts";
+export { companyValues, type CompanyValue } from "./values.ts";

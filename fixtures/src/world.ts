@@ -173,7 +173,9 @@ export function generateWorld(seed = DEFAULT_SEED): World {
   // Raw-layout rows for every HIDE item: no real loader ever fetches these files; the fixture
   // HIDE loader proves each one is dropped at load and counted (§10.4).
   const hide: HideRow[] = HIDE_ITEM_IDS.map((itemId) => {
-    const owner = companies.find((c) => c.country === (itemId.split(".")[1]?.toLowerCase() === "all" ? "lv" : itemId.split(".")[1]?.toLowerCase()) ) ?? companies[0]!;
+    const itemCountry = itemId.split(".")[1]?.toLowerCase();
+    const country = itemCountry === "all" ? "lv" : itemCountry;
+    const owner = companies.find((c) => c.country === country) ?? companies[0]!;
     return {
       itemId,
       columns: ["company_code", "holder_name", "share", "date_from"],

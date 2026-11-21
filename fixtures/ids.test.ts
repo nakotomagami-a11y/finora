@@ -47,6 +47,16 @@ describe("every fixture id follows its fixture rule (§3.4, qa #9)", () => {
     expect(tickers).toEqual(Array.from({ length: 13 }, (_, i) => `ZZFX${String(i + 1).padStart(2, "0")}`));
   });
 
+  it("the refused sole-trader id has the LV personal-code shape but fails its checksum, so it is nobody's code", () => {
+    const refused = world.companies.filter((c) => c.registrationNumber !== c.code);
+    expect(refused).toHaveLength(1);
+    const v = refused[0]!.registrationNumber;
+    expect(v).toMatch(/^\d{11}$/);
+    const weights = [1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+    const check = (1101 - weights.reduce((sum, w, i) => sum + w * Number(v[i]), 0)) % 11;
+    expect(check).not.toBe(Number(v[10]));
+  });
+
   it("role-row ids are row-local numbers, never code-shaped", () => {
     for (const r of world.roleSets) for (const l of r.lines) expect(l.rowId).toMatch(/^\d{4}$/);
   });

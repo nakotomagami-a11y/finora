@@ -19,7 +19,7 @@ Also in the world:
 - fixture LEIs, which fail mod 97 by design;
 - the tickers `ZZFX01` to `ZZFX13`, which no real listing can match;
 - one LV sole trader whose id has a personal-code shape, to prove the refusal;
-- a raw-layout file for every HIDE item.
+- a file for every HIDE item. These rows arrive already tagged with the HIDE item id, so they prove the item gate again and nothing more (qa F2 on S04f). The real proof is per source: each loader slice from S05 on commits its source's raw layout with every HIDE column and proves its field map never reads them (`slices.md`, S05, S13, S14).
 
 ```sh
 pnpm fixtures:gen [seed]     # writes fixtures/.generated/world-<seed>.json (gitignored)

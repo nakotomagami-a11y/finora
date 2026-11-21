@@ -254,12 +254,12 @@ export function holdsLease(db: DatabaseSync, resource: string, holder: string, n
   return row !== undefined && row.holder === holder && row.expires_at > now;
 }
 
-/** Closes a sync a crashed worker left `running` (SEC-12): it ends failed, with the reason. */
-export function failRunningSyncs(db: DatabaseSync, sourceId: string, at: string, reason: string): number {
-  return Number(
+/** Closes one sync a crashed or hung worker left `running` (SEC-12); a finished row is left alone. */
+export function failSync(db: DatabaseSync, syncId: number, at: string, reason: string): boolean {
+  return (
     db
-      .prepare("UPDATE main.syncs SET kind = 'failed', finished_at = ?, report_json = ? WHERE source_id = ? AND kind = 'running'")
-      .run(at, JSON.stringify({ reason }), sourceId).changes,
+      .prepare("UPDATE main.syncs SET kind = 'failed', finished_at = ?, report_json = ? WHERE id = ? AND kind = 'running'")
+      .run(at, JSON.stringify({ reason }), syncId).changes === 1
   );
 }
 
