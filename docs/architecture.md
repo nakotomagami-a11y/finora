@@ -866,18 +866,19 @@ Per-role limits and timeouts are in `agents.md` §3.3; the architecture adds two
 
 ```ts
 type MarketRow = {
-  itemId: ItemId; label: string; state: "ok" | "stale" | "needs_key" | "needs_symbol" | "peak_unknown" | "error";
+  itemId: ItemId; label: string; state: "loading" | "ok" | "stale" | "needs_key" | "needs_symbol" | "peak_unknown" | "error"; // loading: no sync has finished yet (fresh install), never "error"
   value?: number; unit: string; peak?: { value: number; date: string; basis: "since" | "all_time" | "seeded" };
   rowKey: string;                                        // stable per row, e.g. "M03.X.02:japan" (one item can have up to 7 rows)
   symbol?: string;                                       // fund-slot rows only: "Via [your symbol]..."
   trackingSince?: string;                                // peak_unknown: "Peak not known yet: tracking since [date]"
   dayChangePct?: number;                                 // change since the previous close
-  drawdownPct?: number; valueLostMicroUsd?: number;     // value lost only where the source's terms allow it
+  drawdownPct?: number; valueLostUsd?: number;          // whole US dollars as a float (micro-USD overflowed above ~$9 bn); only where the source's terms allow it
+  ticker?: { total: number; anchor: string; perSecond: number }; // M08 only: the client ticks the estimate from these
   cadence: "quarterly" | "monthly" | "daily_exchange" | "daily_7d" | "live"; delayed: boolean;
   asOf: string; sources: SourceRef[];
 };
 type CrashResponse = { tiles: { tileId: TileId; rows: MarketRow[] }[];
-  totalWiped?: { valueMicroUsd: number; rowItemIds: ItemId[]; excludedItemIds: ItemId[]; oldestAsOf: string } };
+  totalWiped?: { valueUsd: number; rowItemIds: ItemId[]; excludedItemIds: ItemId[]; oldestAsOf: string } };
 // totalWiped sums only rows whose tile config has countInTotal: true (US corporate equities, total crypto market);
 // a counted row with no value is named in excludedItemIds, never replaced by adding its parts (markets.md step 8).
 ```
