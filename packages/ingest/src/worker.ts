@@ -1,23 +1,25 @@
 // Runs syncs in a worker thread (architecture §4.5). The worker never imports a module named in its
 // job: its entry module fixes the registry and resolves each source id against it (SEC-11). A
-// live-no-store view is posted back to the process that serves it (qa M1), and a hung or crashed
-// worker ends as a failed sync, never a `running` row (SEC-12). One worker runs a batch of sources
-// in order, each under its own lease: starting and stopping many short-lived worker isolates
+// live-no-store view and a person list (sanctions.md §7a) are posted back to the process that
+// serves them (qa M1), and a hung or crashed worker ends as a failed sync, never a `running` row
+// (SEC-12). One worker runs a batch of sources in order, each under its own lease: starting and stopping many short-lived worker isolates
 // occasionally crashed V8 on Windows (a JIT page check), so a CLI run uses one worker.
 import { parentPort, Worker, workerData } from "node:worker_threads";
+import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
 import { politeFetch, type SourceLoader } from "@finora/sources";
 import { failSync, openStore, releaseLease } from "@finora/store";
 import { liveView, setLiveView, type LiveView } from "./live-views.ts";
 import { runSync, type SyncOptions, type SyncOutcome } from "./pipeline.ts";
 
-type JobOptions = Omit<SyncOptions, "fetcher" | "signal" | "logger" | "now" | "onLiveView">;
+type JobOptions = Omit<SyncOptions, "fetcher" | "signal" | "logger" | "now" | "onLiveView" | "onPersonList">;
 export type WorkerJob = { dataDir: string; sourceId: string; userAgent: string; options: JobOptions };
-export type WorkerBatch = { dataDir: string; sourceIds: string[]; userAgent: string; options: JobOptions; liveViewsHeld?: string[] };
+export type WorkerBatch = { dataDir: string; sourceIds: string[]; userAgent: string; options: JobOptions; liveViewsHeld?: string[]; personListsHeld?: string[] };
 
 type WorkerMessage =
   | { type: "progress" }
   | { type: "started"; sourceId: string; syncId: number }
   | { type: "live"; sourceId: string; view: LiveView }
+  | { type: "persons"; sourceId: string; list: PersonList }
   | { type: "result"; sourceId: string; outcome: SyncOutcome }
   | { type: "done" };
 
@@ -46,12 +48,15 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
           officialHosts: loader.meta.officialHosts,
           userAgent: batch.userAgent,
           ...(loader.meta.limits.requestsPerSecond ? { requestsPerSecond: loader.meta.limits.requestsPerSecond } : {}),
+          ...(loader.meta.limits.maxBytes ? { maxBytes: loader.meta.limits.maxBytes } : {}),
         });
         outcome = await runSync(store.db, loader, {
           ...batch.options,
           liveViewHeld: (batch.liveViewsHeld ?? []).includes(sourceId),
+          personListHeld: (batch.personListsHeld ?? []).includes(sourceId),
           fetcher,
           onLiveView: (id, view) => post({ type: "live", sourceId: id, view }),
+          onPersonList: (id, list) => post({ type: "persons", sourceId: id, list }),
           onProgress: () => post({ type: "progress" }),
           onStart: (syncId) => post({ type: "started", sourceId, syncId }),
         });
@@ -81,6 +86,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: { time
     ...batch,
     options: { ...batch.options, holder },
     liveViewsHeld: batch.liveViewsHeld ?? batch.sourceIds.filter((id) => liveView(id) !== null),
+    personListsHeld: batch.personListsHeld ?? batch.sourceIds.filter((id) => personListHeld(id)),
   };
   return new Promise((resolve) => {
     const worker = new Worker(entry, { workerData: data });
@@ -117,6 +123,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: { time
         clearTimeout(watchdog);
         watchdog = setTimeout(() => settle("worker_hung"), ttl);
       } else if (message.type === "live") setLiveView(message.sourceId, message.view);
+      else if (message.type === "persons") setPersonList(message.sourceId, message.list);
       else if (message.type === "result") {
         outcomes.set(message.sourceId, message.outcome);
         if (current?.sourceId === message.sourceId) current = null;

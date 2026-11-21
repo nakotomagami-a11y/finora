@@ -72,9 +72,12 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
   const refused: string[] = [];
 
   const parties: ParsedEntity[] = [];
+  const partyEvents: NonNullable<ParsedRecord["events"]> = [];
   for (const party of record.parties ?? []) {
-    if (partyProven(party, options.companyPartyTypes, options.lookup)) parties.push(...party.entities);
-    else drop("party_not_proven");
+    if (partyProven(party, options.companyPartyTypes, options.lookup)) {
+      parties.push(...party.entities);
+      partyEvents.push(...(party.events ?? []));
+    } else drop("party_not_proven");
   }
 
   const natural = new Set<string>();
@@ -118,7 +121,7 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
     if (byRule) return void drop(byRule as DropReason), false;
     return true;
   });
-  const events = (record.events ?? [])
+  const events = [...(record.events ?? []), ...partyEvents]
     .filter((e) => {
       const byItem = itemDrop(e.itemId);
       if (byItem) return void drop(byItem), false;

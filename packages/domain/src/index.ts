@@ -21,7 +21,7 @@ export {
   type BalticCountry,
 } from "./ids/check-digits.ts";
 export { COUNTRIES, isCountry, type Country } from "./config/countries.ts";
-export { LEGAL_FORMS, legalForm, type LegalForm } from "./config/legal-forms.ts";
+export { LEGAL_FORM_TOKENS, LEGAL_FORMS, legalForm, namesCompany, type LegalForm } from "./config/legal-forms.ts";
 export {
   BLOCKED_PURPOSES,
   isBlockedPurpose,

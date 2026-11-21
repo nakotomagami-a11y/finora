@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// finora-cli: `data sync`, `data status`, `search`, `show`, `doctor`, `backup` (S04f).
-import { backup, dataStatus, dataSync, doctor, search, show, type Io } from "./commands.ts";
+// finora-cli: `data sync`, `data status`, `search`, `show`, `resolve --sanctions` (S06), `doctor`, `backup` (S04f).
+import { backup, dataStatus, dataSync, doctor, resolveSanctions, search, show, type Io } from "./commands.ts";
 import { loadCliEnv } from "./env.ts";
 
 const USAGE = `usage: finora-cli <command>
@@ -8,6 +8,7 @@ const USAGE = `usage: finora-cli <command>
   data status
   search <query> [--country lv|ee|lt|us]
   show <eid>
+  resolve --sanctions <name|eid>
   doctor
   backup`;
 
@@ -29,6 +30,7 @@ async function main(argv: string[]): Promise<number> {
     return search(io, words.join(" "), flag(rest, "--country"));
   }
   if (command === "show" && sub) return show(io, sub);
+  if (command === "resolve" && sub === "--sanctions" && rest.length > 0) return resolveSanctions(io, rest.join(" "));
   if (command === "doctor") return doctor(io);
   if (command === "backup") return backup(io);
   process.stderr.write(`${USAGE}\n`);

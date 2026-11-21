@@ -17,6 +17,7 @@ const entity = z.strictObject({
   statements: z.array(statement),
 });
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}/);
+const event = z.strictObject({ entityEid: text, type: text, date: isoDate, data: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).optional(), itemId: text });
 
 const record = z.strictObject({
   recordKey: text,
@@ -36,15 +37,14 @@ const record = z.strictObject({
       }),
     )
     .optional(),
-  events: z
-    .array(z.strictObject({ entityEid: text, type: text, date: isoDate, data: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).optional(), itemId: text }))
-    .optional(),
+  events: z.array(event).optional(),
   parties: z
     .array(
       z.strictObject({
         type: z.string().nullish(),
         code: z.strictObject({ country: text, value: text }).nullish(),
         entities: z.array(entity),
+        events: z.array(event).optional(),
       }),
     )
     .optional(),

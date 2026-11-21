@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AGENT_ONLY_LISTS } from "./intl/sanctions/agent-only.ts";
 import { checkSource, LICENCES } from "./licences.ts";
 import { LOADERS } from "./registry.ts";
 import type { FieldMap, SourceMeta } from "./types.ts";
@@ -81,5 +82,23 @@ describe("licence invariants (R12, R13, P1, P11)", () => {
 
   it("holds for every shipped loader", () => {
     for (const loader of LOADERS) expect(checkSource(loader.meta, loader.fieldMap), loader.meta.id).toEqual([]);
+  });
+
+  it("gives each sanctions list its licence and storage (sanctions.md)", () => {
+    const of = (id: string) => LOADERS.find((l) => l.meta.id === id)?.meta;
+    expect([of("eu-fsf")?.licence, of("eu-fsf")?.storage]).toEqual(["eu-reuse-2011-833", "store"]);
+    expect([of("us-ofac-sdn")?.licence, of("us-ofac-cons")?.licence]).toEqual(["us-public-domain", "us-public-domain"]);
+    expect([of("uk-sanctions-list")?.licence, of("esma-ncasp")?.licence, of("lv-fid-frozen")?.licence]).toEqual(["ogl-uk-3.0", "esma-reuse-notice", "cc0-1.0"]);
+  });
+
+  it("keeps the live-only lists agent-only: none of them can be stored", () => {
+    expect(AGENT_ONLY_LISTS.map((l) => l.meta.id).sort()).toEqual(["ee-fi-alerts", "ee-mfa", "ee-ttja", "lt-fntt", "lt-gambling", "lt-lb-sites", "lv-bank-warnings", "lv-ptac", "un-sc"]);
+    for (const { meta, fieldMap } of AGENT_ONLY_LISTS) {
+      expect(checkSource(meta, fieldMap), meta.id).toEqual([]);
+      for (const storage of ["store", "share-alike-store", "live-cached"] as const) {
+        expect(checkSource({ ...meta, storage }, fieldMap).join(), `${meta.id} as ${storage}`).toMatch(/needs agent-only/);
+      }
+    }
+    expect(LOADERS.some((l) => l.meta.id === "un-sc")).toBe(false);
   });
 });

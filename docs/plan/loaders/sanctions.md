@@ -26,7 +26,21 @@ The register's own sanctions-links file (S11.LV.01) is in `lv-risk.md`. The US e
 | S11.LT.01, S11.LT.02, S11.LV.03, S11.EE.01, S11.EE.02 | CAVEAT | Checked live at query time; a match needs a second identifier and your review | AGENT / CN | live-only lists (§9) |
 | S11.ALL.04 (PEP, aggregated dataset) | LATER | - | KEY | no spec (connector only, CC BY-NC) |
 
-**How the lists are used** (architecture §6, `packages/resolve/src/sanctions/`): `screenSanctions` matches a company against the stored entries, and, behind the purpose gate, its current officers against the in-memory person index (§7a; listed individuals are never stored). A match on an official identifier gives `status: "listed"`; a name match gives `status: "possible_match"` (R8, legal rule 8). The instant profile's check 9 and the legal agent's `screen_sanctions` task both call it. Matching rules are in §7.
+**How the lists are used** (architecture §6, `packages/resolve/src/sanctions.ts`): `screenSanctions` matches a company against the stored entries, and, behind the purpose gate, its current officers against the in-memory person index (§7a; listed individuals are never stored). A match on an official identifier gives `status: "listed"`; a name match gives `status: "possible_match"` (R8, legal rule 8). The instant profile's check 9 and the legal agent's `screen_sanctions` task both call it. Matching rules are in §7.
+
+---
+
+## Build notes (S06)
+
+What the build changed against the sections below, and where things are:
+
+- **Code:** `packages/sources/src/intl/sanctions/` (`eu-fsf.ts`, `ofac.ts`, `uk.ts`, `esma.ts`, `shared.ts`, `countries.ts`, `agent-only.ts`), `packages/sources/src/lv/fid/fid.ts`, the readers in `packages/sources/src/formats/` (CSV, zip with the archive limits, XLSX, XML), screening in `packages/resolve/src/` (`sanctions.ts`, `person-index.ts`, `names.ts`).
+- **Tests:** `sources/src/intl/sanctions-{eu,ofac,uk,esma,no-persons}.test.ts`, `sources/src/intl/raw-cache.test.ts`, `sources/src/lv/fid/fid.test.ts`, `sources/src/formats/formats.test.ts`, `sources/src/licences.test.ts` (each list's licence; the live-only lists can never be stored), `resolve/src/sanctions.test.ts` (the 13 named cases of §7), `resolve/src/sanctions.noise.test.ts`, `resolve/src/person-index.test.ts`, `ingest/src/person-list.test.ts`, `store/src/search.test.ts` (no `sanc-*` entry in search or identifier lookups).
+- **Person view:** a loader with `meta.personIndex` hands each individual to `ParseContext.onPerson` and yields no record; the pipeline counts it `person_entry`, sets the list in the person index when the parse completes, and a worker posts it to its parent. A sync parses again when the serving process holds no list for the source.
+- **Not loaded:** vessels, aircraft and ships (`subject_out_of_scope`): no schema, and no company screening rule needs them. The UK `Parent company` column is not read.
+- **OFAC:** parsed entity block by entity block over the bytes, no XML dependency; the signed redirect goes to one fixed storage host, which is listed in `officialHosts`.
+- **Props:** stored with FtM names: `weakAlias` (low-quality aliases), `previousName` (F.K.A.), `authorityId` (the list's reference, EU `EU.FX.n`, OFSI group id), `unscId`, `listingDate`. Identifier rows are `Identification` entities `sanc-<list>-<id>-i<n>` with `holder`, `type` (`registration`, `tax`, `lei`, `imo`, `swift`, `other`), `number` and `country`.
+- **Not built yet:** `finora.frozen_assets_cleared` on a delisting (§4 Refresh) and website matching against ESMA entries; the S11 render cases belong to `domain/src/report/items.test.ts` (report slice).
 
 ---
 
@@ -100,7 +114,7 @@ None for the builder.
 
 ### Source
 - Publisher: US Department of the Treasury, Office of Foreign Assets Control. Portal: `https://ofac.treasury.gov/sanctions-list-service`.
-- Artifacts: `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN_ENHANCED.XML` (110.9 MB, 2026-11-20) and `.../CONS_ENHANCED.XML`. Each answers with a 302 to a signed, one-hour storage URL: follow it. `officialHosts`: `ofac.treasury.gov`, `sanctionslistservice.ofac.treas.gov`, `sanctionssearch.ofac.treas.gov`, plus a redirect-only rule: the one redirect hop from `sanctionslistservice.ofac.treas.gov` may go to any host, is fetched with the same SSRF checks, and its host is recorded on the sync; no other request may go there.
+- Artifacts: `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN_ENHANCED.XML` (110.9 MB, 2026-11-20) and `.../CONS_ENHANCED.XML`. Each answers with a 302 to a signed, one-hour storage URL: follow it. `officialHosts`: `ofac.treasury.gov`, `sanctionslistservice.ofac.treas.gov`, `sanctionssearch.ofac.treas.gov` and the one storage host the redirect goes to, `wc2h-sls-prod-public-published.s3.us-gov-west-1.amazonaws.com` (checked 2026-11-21; S06 lists it instead of an any-host redirect rule, which is stricter: a redirect anywhere else fails `host_not_official`).
 - Why the enhanced XML and not the CSV: it carries identity documents with a type and an issuing country, entity type, and dated features (birth date, nationality, establishment date) as structured elements. The CSV puts them in one free-text remarks column.
 - Licence id `us-public-domain` (17 U.S.C. §105, US government work; a current Treasury licence page was not found; verified 2026-11-19 at `https://ofac.treasury.gov/sanctions-list-service`, recorded as `verifiedOn` with that URL and the basis 17 U.S.C. §105). Attribution: "Source: US Department of the Treasury, Office of Foreign Assets Control (OFAC)".
 - `storage`: `store`. `cadence`: `daily` (OFAC publishes on change days; schedule 22:00 UTC). `asOf`: `[in_file_field]`: `/sanctionsData/publicationInfo/dataAsOf`.
@@ -108,7 +122,7 @@ None for the builder.
 - `maxPurgeShare`: 0.02 (SDN, measured: two pulls a day apart, 19,595 entries, 0 removed; the non-SDN list is **interim** at the same value and the 5-record floor). `purgeScope`: `full`.
 
 ### Record unit and parsing
-- Streamed with a SAX parser (a dependency such as `saxes`; the file does not fit a DOM comfortably). The response is capped at 300 MB on the wire (`limits`) and parsed as a stream; entity and alias text is scanned for personal-code patterns like any person property before an entity row is written (SEC-1). Namespace `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML`.
+- Scanned entity by entity over the bytes (S06: no XML dependency; each `<entity>` block is decoded on its own, so the 111 MB file is never one string or a DOM). The response is capped at 300 MB on the wire (`limits.maxBytes`); entity and alias text is scanned for personal-code patterns like any person property before an entity row is written (SEC-1). Namespace `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ENHANCED_XML`.
 - `referenceValues` are read first and kept as an id → value map (for `type refId` lookups).
 - **Record unit: one `<entity id>`** element. `recordKey`: the `id` attribute. Order: file order; no sort assumption.
 - `hashInput`: the mapped fields of the entity, de-duplicated and sorted lexicographically (as §1), so a reordering inside the XML is not a change.
@@ -118,7 +132,7 @@ None for the builder.
 |---|---|---|---|---|---|
 | `publicationInfo/dataAsOf` | datetime | sync `upstream_as_of` | - | no | date part |
 | `entity/@id` | int | `recordKey`; eid `sanc-ofac-<id>` | S11.ALL.02 | no | digits |
-| `generalInfo/entityType` | enum | `Entity` → `Organization`, `Vessel` → `Vessel`, `Aircraft` → `Airplane` (stored); `Individual` → the entry goes to the in-memory person index (§7a), nothing stored | S11.ALL.02 | no | other → `skip unknown_subject_type` |
+| `generalInfo/entityType` | enum | `Entity` → `Organization` (stored); `Vessel`, `Aircraft` → not loaded, counted `subject_out_of_scope` (S06: no company screening needs them and the store has no schema for them); `Individual` → the entry goes to the in-memory person index (§7a), nothing stored | S11.ALL.02 | no | other → `skip unknown_subject_type` |
 | `sanctionsLists/sanctionsList` (+ `@datePublished`) | text | `Sanction.authority` ("SDN List", ...), `Sanction.startDate` | S11.ALL.02 | no | |
 | `sanctionsPrograms/sanctionsProgram` | text | `Sanction.program` (repeated) | S11.ALL.02 | no | |
 | `names/name` with `isPrimary` | text | `name` (primary), `alias` (others; `aliasType` A.K.A. / F.K.A. / N.K.A. kept as alias kind); script: Latin translations only, other scripts as `alias` with `lang`; individuals: **not stored**: routed to the in-memory person index (§7a) | S11.ALL.02 | no (entities only stored) | `formattedFullName`; `isLowQuality = true` aliases are kept but flagged `weak` and never produce a `possible_match` alone (§7) |
@@ -173,7 +187,7 @@ None for the builder.
 | line 1 | sync `upstream_as_of` | - | no | parse `DD-Mon-YYYY` |
 | `Unique ID` | `recordKey`; eid `sanc-uk-<id>` | S11.ALL.02 | no | trim |
 | `OFSI Group ID`, `UN Reference Number` | `Sanction.listingId` (extension props `ofsiGroupId`, `unId`) | S11.ALL.02 | no | trim |
-| `Designation Type` | `Entity` → `Organization`, `Ship` → `Vessel` (stored); `Individual` → the in-memory person index (§7a), nothing stored | S11.ALL.02 | no | other → skip |
+| `Designation Type` | `Entity` → `Organization` (stored); `Ship` → not loaded, counted `subject_out_of_scope` (as §2); `Individual` → the in-memory person index (§7a), nothing stored | S11.ALL.02 | no | other → skip |
 | `Name 6`, `Name 1`-`Name 5`, `Name type` | `name` for "Primary name" (case-insensitive), else `alias`; individuals: **not stored**: routed to the in-memory person index (§7a) | S11.ALL.02 | no (entities only stored) | `Name 1`..`Name 5` then `Name 6` joined with spaces; `Name type` normalised case-insensitively ("ALias" seen) |
 | `Name non-latin script` | `alias` with `lang` from `Non-latin script language`; individuals: in-memory only | S11.ALL.02 | no | |
 | `Regime Name` | `Sanction.program` | S11.ALL.02 | no | |
@@ -184,7 +198,7 @@ None for the builder.
 | `IMO number` | `Identification {type: "imo"}` | S11.ALL.02 | no | ships and entities |
 | `Address Country` | `country` | S11.ALL.02 | no | ISO |
 | `Website` | `website` | S11.ALL.02 | no | host only |
-| `Parent company` | `Sanction.parentName` (extension) | S11.ALL.02 | no | shown as text only; never linked to a register entity at load |
+| `Parent company` | not read (S06: it can name a person, and no screening rule uses it) | - | - | |
 | `National Identifier number`, `Passport number` and their notes | dropped (`person_document`) | - | - | |
 | `UK Statement of Reasons`, `Other Information`, addresses, phone, email, gender, position, town and country of birth, ship details | dropped, never read | - | - | data minimisation; statements of reasons often describe individuals |
 
@@ -237,7 +251,7 @@ As §1. None.
 | 10 "Datums, kad FID pirmo reizi publicējis ..." | event `date` | S11.LV.02 | no | ISO |
 
 ### Party gate
-Through `ingest/src/party-gate.ts`. A row loads only if column 2 is an LV register code that resolves to a register entity with a non-natural-person legal form (the event attaches to that company, `lv-<code>`), or a foreign party whose column 1 name carries a legal-form token (`domain/config/legal-forms.ts`, the same list as the court-party masking: Ltd, LLC, AO, OOO, GmbH, AS, SIA, ...), stored as an `Organization` `sanc-lvfid-<recordKey>` for screening, like §1. Every other row is dropped: column 2 is a birth date (`natural_person`); an LV code that does not resolve (`code_unresolved`); a foreign row without a legal-form token, even with an identifier, because a foreign number proves nothing under the party gate and could be a person's id (`unproven_party`). `registrationNumber` values of loaded foreign rows are scanned for personal-code patterns like person properties (P3). 🟢 Measured on the 185 rows: 97% carry a birth date or a registration number.
+Through `ingest/src/party-gate.ts`. A row loads only if column 2 is an LV register code that resolves to a register entity with a non-natural-person legal form (the event attaches to that company, `lv-<code>`), or a foreign party whose column 1 name carries a legal-form token (`domain/config/legal-forms.ts`, the same list as the court-party masking: Ltd, LLC, AO, OOO, GmbH, AS, SIA, ...), stored as an `Organization` `sanc-lvfid-<recordKey>` for screening, like §1. Every other row is dropped: column 2 is a birth date (`person_entry`); an LV code that does not resolve (`party_not_proven`, counted by the shared gate); a foreign row without a legal-form token, even with an identifier, because a foreign number proves nothing under the party gate and could be a person's id (`unproven_party`). `registrationNumber` values of loaded foreign rows are scanned for personal-code patterns like person properties (P3). 🟢 Measured on the 185 rows: 97% carry a birth date or a registration number.
 
 ### Identity and joins
 Direct: the LV code is the company's eid. This is the only list that names Baltic companies by register code in a field (FNTT does too, but is agent-only). A row on this list is shown on the company's S11 as a fact from the register of frozen assets, not as a name match.
@@ -249,7 +263,7 @@ Full file. A row that disappears is a delisting: the event is deleted (purge), a
 ≤ 200 events; < 1 MB. Download < 100 KB.
 
 ### Fixtures
-Generated at test time by `fixtures/sources/lv-fid/write-xlsx.ts` (an XLSX is a binary, so it is not committed): both sheets, the real column numbering, rows for a fixture LV company (fixture check-digit rule), a foreign company, and a natural person with a birth date (must be dropped).
+Generated at test time by `sources/src/testing/lv-fid-fixture.ts` (exported as `@finora/sources/testing`) (an XLSX is a binary, so it is not committed): both sheets, the real column numbering, rows for a fixture LV company (fixture check-digit rule), a foreign company, and a natural person with a birth date (must be dropped).
 
 ### Tests
 `sources/src/lv/fid/fid.test.ts` (header detection by column number; party gate: LV company loaded; foreign company with a form token loaded; foreign row with an id but no form token dropped `unproven_party`; person dropped; unresolved code dropped; column 6 never stored), `ingest/src/party-gate.test.ts` (shared), the licence test.
@@ -299,7 +313,7 @@ As §1. None.
 
 | Row | Schema | eid | Props (only these) |
 |---|---|---|---|
-| list subject (stored) | `Organization`, `Vessel` or `Airplane`; **never `Person`** | `sanc-<list>-<id>` | `name`, `alias` (with kind and `weak`), `country`, `website`, `leiCode`, `Identification[]`, `incorporationDate` |
+| list subject (stored) | `Organization`; **never `Person`** (vessels and aircraft are not loaded) | `sanc-<list>-<id>` | `name`, `alias` (with kind and `weak`), `country`, `website`, `leiCode`, `Identification[]`, `incorporationDate` |
 | sanction | `Sanction` | `sanc-<list>-<id>-s` | `entity` (→ subject), `authority`, `program`, `startDate`, `listingId`, `unId`, `sourceUrl`, `reason` (ESMA only) |
 
 - Every statement's `item_id` is the list's S11 item. No stored statement is personal: listed individuals are never stored (§7a).
@@ -308,7 +322,7 @@ As §1. None.
 
 ---
 
-## 7. Screening (`packages/resolve/src/sanctions/`)
+## 7. Screening (`packages/resolve/src/sanctions.ts`)
 
 Built once per sync into an in-memory index (and rebuilt after each content sync of any list).
 
@@ -333,12 +347,12 @@ Tests: `resolve/src/sanctions.test.ts`, one named case per rule: `listed-by-regi
 Legal (7030162985, `LAW-SANCTIONS-PERSONS`): listed natural persons may be used for screening **live only**. No natural-person row is stored.
 
 - **At parse:** every individual entry is dropped from the store with drop reason `person_entry` (counted in the sync report) and handed to the index instead.
-- **What:** for every individual on the EU, OFAC (SDN and non-SDN) and UK lists: entry id, list, normalised name and aliases, programme, listing date, birth year (when given) and nationality. Held in the server process's memory (`packages/resolve/src/sanctions/person-index.ts`), never written to the store, a cache file, a log line or an export. It is a `live-no-store` view (architecture §3.5) of the same artifacts the entity loaders parse.
+- **What:** for every individual on the EU, OFAC (SDN and non-SDN) and UK lists: entry id, list, normalised name and aliases, programme, listing date, birth year (when given) and nationality. Held in the server process's memory (`packages/resolve/src/person-index.ts`), never written to the store, a cache file, a log line or an export. It is a `live-no-store` view (architecture §3.5) of the same artifacts the entity loaders parse.
 - **Built:** in the same parse as the entity loaders (one download per list per day). On boot, the index is empty until the next sync or an on-demand download completes (about 1 minute for the three lists). Until then, officer screening reports "Officers not screened yet: lists loading" and check 9 says so in its coverage note.
 - **Raw cache:** the three list sources keep **no raw artifact** on disk (`rawCache: false`), because the files contain the individuals. A new `parserVersion` re-downloads (25 + 111 + 50 MB, daily anyway).
 - **Used by:** `screenSanctions` for a company's current officers, only behind the purpose gate (P2), in the instant profile's check 9 and the legal agent's `screen_sanctions` task.
 - **What is kept from a match:** in an investigation, a finding cites `{ list, entryId, listDate }` and the status (`possible_match`); no name, birth date or nationality from the list is stored with it. The instant profile stores nothing.
-- **Tests:** `resolve/src/sanctions/person-index.test.ts` (sentinel names and birth dates never reach the store, the filesystem or the logger, spied; a match yields only the citation fields; empty-index state), `ingest/src/raw-cache.test.ts` (no artifact kept for the three list sources).
+- **Tests:** `resolve/src/person-index.test.ts` (sentinel names and birth dates never reach the store, the filesystem or the logger, spied; a match yields only the citation fields; empty-index state), `sources/src/intl/raw-cache.test.ts` and `ingest/src/person-list.test.ts` (no artifact kept for the three list sources; a sync with no list held parses again).
 
 ## 8. Questions answered by legal
 

@@ -29,10 +29,16 @@ export type SourceMeta = {
   deepLink: string | null;
   /** Default true; false for files that hold natural persons who are never stored. */
   rawCache?: boolean;
+  /**
+   * The parse hands listed individuals to the in-memory person index (sanctions.md §7a) through
+   * `ParseContext.onPerson`; a sync must parse again when the serving process does not hold them.
+   */
+  personIndex?: boolean;
   orderUrl: string | null;
   cacheTtl?: { refetchHours: number; purgeUnviewedDays: number };
   requires: string[];
-  limits: { requestsPerSecond?: number; dailyRequests?: number };
+  /** `maxBytes` caps one response on the wire (the fetcher's default otherwise). */
+  limits: { requestsPerSecond?: number; dailyRequests?: number; maxBytes?: number };
   /** Every item the source fills; must equal the item ids of its field map. */
   items: string[];
 };
@@ -61,6 +67,8 @@ export type EventInput = { entityEid: string; type: string; date: string; data?:
 
 /** A party row (member, debtor, insolvency subject, sanctions link): loaded only if proven a company. */
 export type PartyRef = {
+  /** Events about the party (LV frozen assets), loaded with it only when it is proven a company. */
+  events?: EventInput[];
   /** The register's own party type value, when it has one (LV `LEGAL_ENTITY`, EE `J`). */
   type?: string | null;
   /** The party's register code, when the row has one; resolved against the store. */
@@ -101,7 +109,27 @@ export type FetchContext = {
   lastToken: string | null;
 };
 export type FetchResult = { unchanged: true; token?: string } | { unchanged?: false; artifacts: RawArtifact[]; token?: string };
-export type ParseContext = { now: string };
+/**
+ * A listed individual, for the in-memory person index only (sanctions.md §7a; LAW-SANCTIONS-PERSONS):
+ * never a record, never written, logged or cached.
+ */
+export type PersonEntry = {
+  list: string;
+  entryId: string;
+  names: string[];
+  program: string | null;
+  listDate: string | null;
+  birthYear: number | null;
+  nationalities: string[];
+};
+
+export type ParseContext = {
+  now: string;
+  /** Receives every listed individual of a `personIndex` source; the entry yields no record. */
+  onPerson?: (entry: PersonEntry) => void;
+  /** Counts a whole entry dropped at parse that yields no record (an individual, a vessel). */
+  onDrop?: (reason: DropReason) => void;
+};
 
 export type PoliteFetch = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ status: number; headers: Record<string, string>; bytes: Uint8Array }>;
 

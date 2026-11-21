@@ -4,7 +4,8 @@
 // never overlap.
 import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import type { ParsedRecord, PoliteFetch, RawArtifact, SourceLoader, StorageClass } from "@finora/sources";
+import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
+import type { ParsedRecord, PersonEntry, PoliteFetch, RawArtifact, SourceLoader, StorageClass } from "@finora/sources";
 import {
   acquireLease,
   beginStaging,
@@ -85,6 +86,10 @@ export type SyncOptions = {
   onLiveView?: (sourceId: string, view: LiveView) => void;
   /** Whether the serving process holds this source's live view; without one, never "unchanged". */
   liveViewHeld?: boolean;
+  /** The person view of a `personIndex` source (sanctions.md §7a), for the process that serves it. */
+  onPersonList?: (sourceId: string, list: PersonList) => void;
+  /** Whether the serving process holds this source's person list; without one, never "unchanged". */
+  personListHeld?: boolean;
   /** Called on every successful heartbeat: a worker's parent watches it to spot a hung sync. */
   onProgress?: () => void;
   /** Called with the sync row this run opened, so a watcher can close exactly that row (qa on S04i). */
@@ -191,7 +196,10 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     const keepRaw = meta.rawCache !== false && storage !== "live-no-store" && options.rawCacheDir;
     // A live-no-store source with no view held in the serving process must parse again: an
     // "unchanged" answer would leave it serving nothing (qa M1).
-    const mustParse = classChanged || (storage === "live-no-store" && !(options.liveViewHeld ?? liveView(meta.id) !== null));
+    const mustParse =
+      classChanged ||
+      (storage === "live-no-store" && !(options.liveViewHeld ?? liveView(meta.id) !== null)) ||
+      (meta.personIndex === true && !(options.personListHeld ?? personListHeld(meta.id)));
 
     let fetched = await loader.fetch({ fetcher: options.fetcher, keys: options.keys ?? {}, now: startedAt, lastToken: mustParse ? null : lastToken(db, meta.id) });
     assertLease();
@@ -248,8 +256,15 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     };
 
     let lastYield = Date.now();
+    // Listed individuals: memory only, handed to the person index once the parse completes (§7a).
+    const persons: PersonEntry[] = [];
+    const parseContext = {
+      now: startedAt,
+      ...(meta.personIndex === true ? { onPerson: (entry: PersonEntry) => void persons.push(entry) } : {}),
+      onDrop: (reason: Drop["reason"]) => countDrops(report, [{ reason }]),
+    };
     try {
-      for await (const raw of loader.parse(artifacts, { now: startedAt })) {
+      for await (const raw of loader.parse(artifacts, parseContext)) {
         // A parse loop yields at least once a second, so the heartbeat timer can fire (cto on S04i).
         if (!db.isTransaction && Date.now() - lastYield > 1000) {
           await new Promise((r) => setImmediate(r));
@@ -307,6 +322,11 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     }
     commit();
 
+    if (meta.personIndex === true && complete) {
+      const list: PersonList = { asOf, loadedAt: startedAt, entries: persons };
+      setPersonList(meta.id, list);
+      options.onPersonList?.(meta.id, list);
+    }
     if (!complete) {
       if (storage === "store") endStaging(db);
       return finish("partial", { upstreamAsOf: previous?.upstreamAsOf ?? null, reason: report.reason ?? "interrupted" });

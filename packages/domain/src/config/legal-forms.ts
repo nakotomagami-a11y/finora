@@ -1,4 +1,5 @@
 import type { Country } from "./countries.ts";
+import { normalizeText } from "../text/normalize.ts";
 
 export type LegalForm = {
   code: string;
@@ -40,4 +41,28 @@ const BY_CODE = new Map(LEGAL_FORMS.map((form) => [form.code, form]));
 
 export function legalForm(code: string): LegalForm | undefined {
   return BY_CODE.get(code);
+}
+
+/**
+ * Company-form words as they appear in names, after `normalizeText`: the forms above and the
+ * foreign forms the sanctions lists use. Screening drops them before comparing names (sanctions.md
+ * §7); the LV frozen-assets party gate loads a foreign row only if its name carries one (§4).
+ */
+export const LEGAL_FORM_TOKENS: ReadonlySet<string> = new Set([
+  "sia", "as", "ks", "ps", "ou", "tu", "uu", "uab", "ab", "mb", "llc", "inc", "corp", "corporation", "co", "company",
+  "ltd", "limited", "plc", "lp", "llp", "gmbh", "ag", "kg", "ooo", "ao", "oao", "zao", "pao", "jsc", "ojsc", "cjsc",
+  "pjsc", "tov", "pat", "prat", "bv", "nv", "sa", "sas", "sarl", "srl", "spa", "sl", "sro", "kft", "zrt", "doo",
+  "ad", "ood", "eood", "fze", "fzco", "fzc", "fzllc", "dmcc", "pte", "pty", "bhd", "sdn", "lda", "ltda", "oy",
+  "oyj", "aps", "asa", "ооо", "ао", "оао", "зао", "пао", "тоо", "тов", "ат", "пат",
+]);
+
+/**
+ * Whether a name carries a company-form word of three letters or more. Two-letter forms (AS, AO,
+ * SA) also occur in personal names, so they never prove a company on their own: a row they would
+ * have admitted is dropped, the safe side of the party gate.
+ */
+export function namesCompany(name: string): boolean {
+  return normalizeText(name)
+    .split(" ")
+    .some((token) => token.length >= 3 && LEGAL_FORM_TOKENS.has(token));
 }

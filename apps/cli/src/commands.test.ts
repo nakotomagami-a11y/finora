@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { openStore, suppressItem } from "@finora/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { backup, dataStatus, dataSync, doctor, search, show, type Io } from "./commands.ts";
+import { backup, dataStatus, dataSync, doctor, resolveSanctions, search, show, type Io } from "./commands.ts";
 import { loadCliEnv, repoRoot } from "./env.ts";
 
 let dir: string;
@@ -23,9 +23,9 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 describe("finora-cli (S04f)", () => {
   it("data sync loads every fixture source, and a second run is unchanged", async () => {
     expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
-    expect(lines).toHaveLength(11);
+    expect(lines).toHaveLength(16);
     expect(lines.at(-1)).toMatch(/^peak RSS: \d+ MB$/);
-    for (const line of lines.filter((l) => l.startsWith("fx-") && !l.startsWith("fx-lt-arrears"))) expect(line).toMatch(/: unchanged/);
+    for (const line of lines.filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged/);
     expect(await dataSync(io(), { profile: "fixtures", source: "fx-hide" })).toBe(0);
     expect(lines).toHaveLength(2);
     expect(await dataSync(io(), { profile: "nope" })).toBe(2);
@@ -75,6 +75,21 @@ describe("finora-cli (S04f)", () => {
     const text = lines.join("\n");
     expect(text).toContain("S01.LV.01: hidden at your request");
     expect(text).not.toMatch(/ name: | address: | registrationNumber: | capital: /);
+  });
+
+  it("resolve --sanctions: a fixture name is a possible match with the entry's identifiers; a company eid is listed by its code (S06)", () => {
+    expect(resolveSanctions(io(), "Example Company 1")).toBe(0);
+    expect(lines[0]).toBe('possible match, needs review: eu-fsf sanc-eu-900001 "Example Company 1" (name exact)');
+    expect(lines[1]).toBe("  entry identifiers: registration 40003000018 (lv)");
+    expect(resolveSanctions(io(), "lv-40003000018")).toBe(0);
+    expect(lines[0]).toMatch(/^listed: eu-fsf sanc-eu-900001 \(registration\)$/);
+    expect(lines.join("\n")).toMatch(/lists checked: eu-fsf as of 2026-11-20/);
+    expect(resolveSanctions(io(), "lv-40103000014")).toBe(0);
+    expect(lines.join("\n")).toContain("listed: lv-fid-frozen lv-40103000014 (frozen assets)");
+    expect(resolveSanctions(io(), "Sentinel Personone Alpha")).toBe(0);
+    expect(lines).toEqual(["no match on the stored lists (organisations only)"]);
+    search(io(), "example company 1");
+    expect(lines.join("\n")).not.toContain("sanc-");
   });
 
   it("doctor reports disk, quick_check and leases", () => {

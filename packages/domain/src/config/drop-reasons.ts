@@ -42,6 +42,11 @@ export const DROP_REASONS = [
   "consolidated_report",
   "conflicting_value",
   "conflicting_line",
+  // sanctions lists (sanctions.md)
+  "unknown_subject_type",
+  "subject_out_of_scope",
+  "unproven_party",
+  "listed_person_name",
   "other",
 ] as const;
 

@@ -281,10 +281,10 @@ function upsertEntity(db: DatabaseSync, entity: EntityInput, syncId: number): nu
 export function refreshEntity(db: DatabaseSync, entityId: number): void {
   const entity = db
     .prepare(
-      `SELECT e.id, e.natural_person, e.legal_form, e.code, s.name AS schema FROM main.entities e
+      `SELECT e.id, e.eid, e.natural_person, e.legal_form, e.code, s.name AS schema FROM main.entities e
        JOIN main.schemas s ON s.id = e.schema_id WHERE e.id = ?`,
     )
-    .get(entityId) as { id: number; natural_person: number; legal_form: string | null; code: string | null; schema: string };
+    .get(entityId) as { id: number; eid: string; natural_person: number; legal_form: string | null; code: string | null; schema: string };
   const names = (
     db
       .prepare(
@@ -294,7 +294,8 @@ export function refreshEntity(db: DatabaseSync, entityId: number): void {
       .all(entityId, ...NAME_PROPS) as { value: string }[]
   ).map((r) => r.value);
 
-  const searchable = entity.natural_person === 0 && (ORGANISATION_SCHEMAS as readonly string[]).includes(entity.schema);
+  // Sanctions list entries are reachable only through screening, never search (sanctions.md §6).
+  const searchable = entity.natural_person === 0 && (ORGANISATION_SCHEMAS as readonly string[]).includes(entity.schema) && !entity.eid.startsWith("sanc-");
   const caption =
     entity.natural_person === 1
       ? naturalPersonCaption({ legalForm: entity.legal_form, code: entity.code ?? "" })

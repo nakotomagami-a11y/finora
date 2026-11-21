@@ -1,7 +1,9 @@
 // The `fixtures` load profile (architecture §4.6): one fake loader per storage class over the
 // seeded world. Each is a named export, so a sync worker can import it by module URL; each
 // regenerates the same world from the seed, so no file is ever needed.
-import type { AsOfStrategy, ParsedEntity, ParsedRecord, RawArtifact, SourceLoader, SourceMeta, StorageClass } from "@finora/sources";
+import { readFileSync } from "node:fs";
+import { esmaNcasp, euFsf, lvFidFrozen, ukSanctionsList, usOfacSdn, type AsOfStrategy, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
+import { lvFidXlsx } from "@finora/sources/testing";
 import { DEFAULT_SEED, generateWorld, type FixtureCompany, type World } from "./world.ts";
 
 export const FIXTURE_AS_OF = "2026-11-20";
@@ -179,6 +181,24 @@ export const fxHide = jsonLoader(meta("fx-hide", "intl", "store", []), () =>
   }),
 );
 
+/**
+ * The real sanctions loaders over the committed fixture files (fixtures/sources, sanctions.md):
+ * same ids, parsers and field maps; only the fetch reads a file instead of the network.
+ */
+function fromFiles(loader: SourceLoader, files: () => { name: string; bytes: Uint8Array }[]): SourceLoader {
+  return { ...loader, fetch: async (ctx) => ({ artifacts: files().map((f) => ({ ...f, fetchedAt: ctx.now })) }) };
+}
+const file = (path: string) => ({ name: path.split("/").at(-1) ?? path, bytes: new Uint8Array(readFileSync(new URL(`../sources/${path}`, import.meta.url))) });
+
+export const fxEuFsf = fromFiles(euFsf, () => [file("eu-fsf/csvFullSanctionsList_1_1.csv")]);
+export const fxOfacSdn = fromFiles(usOfacSdn, () => [file("us-ofac/SDN_ENHANCED.XML")]);
+export const fxUkSanctions = fromFiles(ukSanctionsList, () => [file("uk-sanctions-list/UK-Sanctions-List.csv")]);
+export const fxEsma = fromFiles(esmaNcasp, () => [file("esma-ncasp/NCASP.csv")]);
+export const fxLvFid = fromFiles(lvFidFrozen, () => [
+  { name: "sankciju_subjekti.xlsx", bytes: lvFidXlsx() },
+  { name: "resource.json", bytes: new TextEncoder().encode(JSON.stringify({ lastModified: "2026-11-16T08:00:00" })) },
+]);
+
 /** Every bulk loader of the profile, in load order: registers first, so the others can join. */
 export const FIXTURE_PROFILE: readonly { exportName: string; loader: SourceLoader }[] = [
   { exportName: "fxLvRegister", loader: fxLvRegister },
@@ -191,6 +211,11 @@ export const FIXTURE_PROFILE: readonly { exportName: string; loader: SourceLoade
   { exportName: "fxEeTax", loader: fxEeTax },
   { exportName: "fxLtArrears", loader: fxLtArrears },
   { exportName: "fxHide", loader: fxHide },
+  { exportName: "fxEuFsf", loader: fxEuFsf },
+  { exportName: "fxOfacSdn", loader: fxOfacSdn },
+  { exportName: "fxUkSanctions", loader: fxUkSanctions },
+  { exportName: "fxEsma", loader: fxEsma },
+  { exportName: "fxLvFid", loader: fxLvFid },
 ];
 
 

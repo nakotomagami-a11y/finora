@@ -6,7 +6,7 @@
  * against the schema files of the upstream repository on 2026-11-21.
  */
 export const FTM_UPSTREAM = {
-  Thing: ["name", "alias", "previousName", "country", "address", "sourceUrl", "notes"],
+  Thing: ["name", "alias", "previousName", "weakAlias", "country", "address", "sourceUrl", "notes"],
   LegalEntity: [
     "registrationNumber", "idNumber", "taxNumber", "vatCode", "leiCode", "incorporationDate",
     "dissolutionDate", "status", "legalForm", "jurisdiction", "website", "email", "cikCode",
@@ -21,7 +21,7 @@ export const FTM_UPSTREAM = {
   Ownership: ["owner", "asset", "percentage", "sharesCount", "sharesValue"],
   Membership: ["member", "organization"],
   Representation: ["agent", "client"],
-  Sanction: ["entity", "authority", "program", "listingDate", "reason"],
+  Sanction: ["entity", "authority", "authorityId", "unscId", "program", "listingDate", "reason"],
   Security: ["isin", "ticker", "issuer"],
   Identification: ["holder", "number", "type"],
 } as const;

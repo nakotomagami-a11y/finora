@@ -9,7 +9,8 @@ const PUBLIC_EIDS = {
   sec: /^us-cik-\d{10}$/,
   usState: /^us-[a-z]{2}-[A-Za-z0-9]+$/,
   lei: /^lei-[A-Z0-9]{20}$/,
-  sanctions: /^sanc-[a-z0-9]+-[A-Za-z0-9.]+$/,
+  /** A list subject `sanc-<list>-<id>`, its sanction `-s` and its identifiers `-i<n>` (sanctions.md §6). */
+  sanctions: /^sanc-[a-z0-9]+-[A-Za-z0-9.]+(?:-s|-i\d+)?$/,
 } as const;
 
 const INTERNAL_EIDS = { person: /^p-\d+-\d+$/, relationship: /^rel-\d+-\d+$/ } as const;

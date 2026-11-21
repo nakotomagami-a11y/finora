@@ -16,6 +16,7 @@ export type {
   ParsedRecord,
   ParsedStatement,
   PartyRef,
+  PersonEntry,
   PoliteFetch,
   PurgeScope,
   RawArtifact,
@@ -25,3 +26,11 @@ export type {
 } from "./types.ts";
 export { personFieldProblems } from "./person-fields.ts";
 export { LOADERS } from "./registry.ts";
+export { parserVersion } from "./parser-version.ts";
+export { AGENT_ONLY_LISTS } from "./intl/sanctions/agent-only.ts";
+export { normalizeId, type Identifier, type IdentifierType } from "./intl/sanctions/shared.ts";
+export { euFsf } from "./intl/sanctions/eu-fsf.ts";
+export { usOfacCons, usOfacSdn } from "./intl/sanctions/ofac.ts";
+export { ukSanctionsList } from "./intl/sanctions/uk.ts";
+export { esmaNcasp } from "./intl/sanctions/esma.ts";
+export { lvFidFrozen } from "./lv/fid/fid.ts";

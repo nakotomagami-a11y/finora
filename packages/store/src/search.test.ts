@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { beforeAll, describe, expect, it } from "vitest";
 import { writeRecord, type EntityInput } from "./registry.ts";
-import { searchCompanies } from "./search.ts";
+import { findByIdentifier, searchCompanies } from "./search.ts";
 import { company, contentSync, memoryStore, writeRoleSet } from "./test-helpers.ts";
 
 let db: DatabaseSync;
@@ -16,6 +16,25 @@ beforeAll(() => {
   put(company("lv-00000000003", "Example Trading SIA"));
   put(company("lv-00000000004", "Example Logistics SIA"));
   put(company("lv-00000000005", "Rasma Example IK", { legalForm: "lv-ik" }));
+  // A sanctions list entry named like a company, with an LEI: reachable by screening only (sanctions.md §6).
+  const lists = contentSync(db, "eu-fsf", "2026-11-01T00:00:00.000Z");
+  writeRecord(db, {
+    syncId: lists,
+    sourceId: "eu-fsf",
+    recordKey: "900001",
+    hashInput: ["900001"],
+    entities: [
+      {
+        eid: "sanc-eu-900001",
+        schema: "Organization",
+        country: "intl",
+        statements: [
+          { prop: "name", value: "Example Trading Listed", itemId: "S11.ALL.01" },
+          { prop: "leiCode", value: "FX00000000000000SANC", itemId: "S11.ALL.01" },
+        ],
+      },
+    ],
+  });
   writeRoleSet(db, contentSync(db, "lv-officers", "2026-11-01T00:00:00.000Z"), "lv-00000000003", [
     { name: "Ilze Example", role: "board_member", startDate: "2020-01-01" },
   ]);
@@ -24,6 +43,12 @@ beforeAll(() => {
 const eids = (query: string) => searchCompanies(db, query).map((h) => h.eid);
 
 describe("company search", () => {
+  it("never returns a sanctions list entry, by name or by identifier", () => {
+    expect(eids("example trading listed")).not.toContain("sanc-eu-900001");
+    expect(eids("example")).not.toContain("sanc-eu-900001");
+    expect(findByIdentifier(db, "leiCode", "FX00000000000000SANC")).toEqual([]);
+  });
+
   it("finds a diacritic name by its ASCII form", () => {
     const [hit] = searchCompanies(db, "abelu darzs");
     expect(hit).toMatchObject({ eid: "lv-00000000001", caption: "Ābeļu Dārzs SIA", match: "prefix" });

@@ -31,7 +31,7 @@ pnpm fixtures:gen [seed]     # writes fixtures/.generated/world-<seed>.json (git
 
 | Storage class | Loaders |
 |---|---|
-| `store` | the four registers, LV and EE officers, financials, and the HIDE files |
+| `store` | the four registers, LV and EE officers, financials, the HIDE files, and the sanctions lists (the real EU, OFAC, UK, ESMA and LV frozen-assets loaders over `fixtures/sources/`; the XLSX is built at run time) |
 | `share-alike-store` | EE taxes paid |
 | `live-no-store` | the LT arrears list |
 | `live-cached` | a US state register, read through `fetchOnView` |

@@ -31,7 +31,7 @@ export const ALLOWED = {
   "@finora/tooling": [],
   "@finora/server": SERVER_ALLOWED,
   "@finora/mcp": ["domain", "store", "agent-tools", "api-contract"],
-  "@finora/cli": ["domain", "store", "ingest", "sources", "fixtures"],
+  "@finora/cli": ["domain", "store", "ingest", "sources", "resolve", "fixtures"],
   "@finora/fixtures": ["domain", "sources", "ingest", "store"],
   "@finora/web": ["api-contract", "ui", "i18n", "domain", "server"],
 };

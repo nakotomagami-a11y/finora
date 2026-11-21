@@ -1,0 +1,4 @@
+﻿ae_competentAuthority,ae_homeMemberState,ae_lei_name,ae_lei,ae_lei_cou_code,ae_commercial_name,ae_website,ae_infrigment,ae_reason,ae_decision_date,ae_comments,ae_lastupdate
+Fixture Authority LV,LV,Test Energy 7,FX000000000000000723,LV,TE7 Exchange,https://te7.example,Unauthorised crypto-asset services,No authorisation,01/10/2026,Sentinel comment naming a person,12/11/2026
+Fixture Authority EE,EE,,,,Mock Coin Desk,https://mock-coin-desk.example,Unauthorised crypto-asset services,Website offers services,05/10/2026,,18/11/2026
+Fixture Authority LT,LT,Demo Token House,NOT-A-LEI,LT,,,Unauthorised crypto-asset services,,07/10/2026,,15/11/2026

@@ -3,9 +3,10 @@
 // command prints a person row, a personal code or an internal hash (PS5).
 import { existsSync, readdirSync, statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { isInternalEid, naturalPersonCaption } from "@finora/domain";
+import { eidKind, isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { FIXTURE_PROFILE } from "@finora/fixtures";
 import { runSyncsInWorker, type SyncReport } from "@finora/ingest";
+import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { LOADERS } from "@finora/sources";
 import { companyValues, openStore, searchCompanies, sourceRefForStatement, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
@@ -158,6 +159,49 @@ export function show(io: Io, eid: string): number {
         .get(entity.eid) as { n: number }
     ).n;
     if (people > 0) io.out(`  people: ${people} role lines, shown in the app after you state a purpose`);
+    return 0;
+  });
+}
+
+const STATUS_WORDS: Record<SanctionsHit["status"], string> = { listed: "listed", possible_match: "possible match, needs review", ruled_out: "ruled out" };
+const COMPANY_EIDS = new Set(["lv", "ee", "lt", "org", "sec", "usState", "lei"]);
+
+function hitLines(io: Io, hits: readonly SanctionsHit[]): void {
+  for (const h of hits) {
+    io.out(`${STATUS_WORDS[h.status]}: ${h.sourceId} ${h.entryEid}${h.matchedName ? ` "${h.matchedName}"` : ""} (${h.basis.replace(/_/g, " ")})`);
+    const ids = h.identifiers.map((i) => `${i.type} ${i.number}${i.country ? ` (${i.country})` : ""}`);
+    io.out(`  entry identifiers: ${ids.length > 0 ? ids.join("; ") : "none"}`);
+    if (h.ruledOutBy) io.out(`  ruled out by: ${h.ruledOutBy.type} ${h.ruledOutBy.number} (${h.ruledOutBy.country ?? "-"})`);
+    io.out(`  programmes: ${h.programs.join(", ") || "-"}; listed ${h.listingDate ?? "-"}; list as of ${h.asOf ?? "-"}`);
+  }
+}
+
+const listsLine = (lists: readonly ListState[]) =>
+  `lists checked: ${lists.map((l) => `${l.sourceId} ${l.asOf ? `as of ${l.asOf}` : "not loaded"}`).join(", ")}`;
+
+/**
+ * `resolve --sanctions <name|eid>`: a company eid is screened by its identifiers and names; any
+ * other text by name against the stored organisation entries only, never the person index
+ * (sanctions.md §7 rule 10).
+ */
+export function resolveSanctions(io: Io, query: string): number {
+  return withStore(io, ({ db }) => {
+    const kind = eidKind(query);
+    if (kind !== null && COMPANY_EIDS.has(kind)) {
+      const result = screenCompany(db, query);
+      if (!result) {
+        io.out(`no company ${query}`);
+        return 1;
+      }
+      if (result.naturalPerson) io.out("A natural person: facts only, no list level. Open it in the app with a stated purpose.");
+      else if (result.hits.length === 0) io.out("no match on the stored lists");
+      hitLines(io, result.hits);
+      io.out(listsLine(result.lists));
+      return 0;
+    }
+    const hits = screenName(db, query);
+    if (hits.length === 0) io.out("no match on the stored lists (organisations only)");
+    hitLines(io, hits);
     return 0;
   });
 }
