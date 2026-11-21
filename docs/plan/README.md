@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01 and S04a **accepted**; S02 `e401c22`: qa, security and legal closed, web-qa pending; S03 `e401c22`: designer signed off, qa closed except the baselines commit, web-qa pending; S04i `4ee5b41` landed, not accepted: qa M1-M5, security SEC-1..3 and cto's lease fencing open; legal accepted with conditions; S04f next | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a and S04f **accepted**; S04i open on 2 legal MUSTs (person-record keys stripped by shape, reference shapes) plus cto's per-country worker pool before S05; S06 and S22 cleared by qa and legal, security review running; S04b next (architect); H5 (agents on the local CLI, no keys) and the outside-names tree rule being applied | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
@@ -119,8 +119,9 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | # | Question | Recommendation | Asked | Answer |
 |---|---|---|---|---|
 | H1 | Code licence (and docs licence) | AGPL-3.0 for code, CC BY 4.0 for docs | 2026-11-19 | **Yes** (2026-11-19): code AGPL-3.0, docs and research text CC BY 4.0, data keeps its source licence. `LICENSE` added |
-| H2 | Paid per-use services for the agents: an LLM API and, if no free option is good enough, a web search API | Yes, bring-your-own-key, with a per-investigation cost cap enforced in code | 2026-11-19 | **Yes** (2026-11-19): own keys from a local `.env`, estimated cost shown before an investigation, per-investigation cap enforced in code, CI and tests on recorded fixtures only |
-| H4 | Two real ticker symbols in an early probe commit: fix forward, or rewrite branch history | Fix forward; symbols added to the private denylist; the code fix is a new commit | 2026-11-20 | |
+| H2 | Paid per-use services for the agents: an LLM API and, if no free option is good enough, a web search API | Yes, bring-your-own-key, with a per-investigation cost cap enforced in code | 2026-11-19 | **Yes** (2026-11-19), **superseded by H5** (2026-11-21) |
+| H4 | Two real ticker symbols in an early probe commit: fix forward, or rewrite branch history | Fix forward; symbols added to the private denylist; the code fix is a new commit | 2026-11-20 | **1, fix forward** (2026-11-21). History does not matter: this repo is later replaced by a fresh public repo; the tree does. **Tree rule:** no mention of any outside company in the current tree (competitors; real companies used as samples, tests, fixtures or tickers; commercial data providers). Public files use coded aliases (like provider C1); real names live only in the main checkout's `.local/`. Public bodies, official registries and open standards may stay named. qa adds a check that runs before every slice is accepted |
+| H5 | Paid agent services (detail for H2: cost per investigation, caps, web search) | (H2 as asked) | 2026-11-21 | **Settled** (2026-11-21): **no paid services and no API keys.** Agents run on the local Claude Code CLI under the user's subscription. "Cost" means subscription usage, not money: show the estimated usage before an investigation, and keep a per-investigation cap enforced in code |
 | H3 | Keys and accounts (human-task) | See the hub post | 2026-11-19 | Deferred to a separate key-testing round (human's hub reply). See "Keys: what each unlocks" below |
 
 ### By the coordinator
@@ -138,11 +139,16 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 | C10 | The one-shot "allow up to $0.50 more" at the per-investigation cap is within H2: the cap is still enforced in code, the extension is offered once per investigation (not per agent run), never past the daily cap, and the person who clicks is the person whose key pays | Council decision 4 guardrail 1; no separate human question needed |
 | C11 | No outreach to the OR and WA open-data teams for v1. Their live queries stay LATER (licence verified partial); v1's US live states are NY, CO, CT and PA. Trigger: a readable terms page, or the human chooses to email them | Emailing a state is outreach outside the repo in the human's name; four states cover the counterparty job |
 | C12 | The fund ticker added to the private denylist on 2026-11-20 is removed again: it is also a common English word for a test double and blocked ordinary test code. P12 (fund tickers only in local settings) is enforced by fixtures with fictional symbols and by qa review; the two company tickers stay on the denylist. qa's proposal for a lint rule that reads the guard's denylist goes to the S01 slice | Friction in every test file outweighed the protection for one symbol |
+| C13 | S02, S03 and S04f accepted (2026-11-21): no open MUST-FIX from qa, web-qa (UI), the designer (S03), legal or security (S02) | Records in `reviews/slices/` |
+| C14 | How the tree rule (H4) is read: software tools and dependencies the code runs on (runtimes, frameworks, libraries, the git host, CI, the agent CLI) are not "outside companies" for this rule; competitors, sample companies and commercial data providers are. `SEC_USER_AGENT` is a contact header the SEC requires, not a key or account, so it stays an optional local setting under H5; without it US public companies have no profile | The rule lists competitors, samples and data providers; tools are needed by name to run the code. The human can override |
 | C6 | The early `DESIGN.md` v0, `docs/architecture.md` and `docs/plan/slices.md` drafts stay on the branch but are frozen until phase 3 opens | Not reverted (no harm, saves work); revised against session 1's decisions |
 
 ### Open items for later phases
 - Guard test cleanup (`scripts/guard/guard.test.mjs`, the worktree test) should run in `finally`, so a failed assert can't leave a denylist behind (qa NIT). Fix in the foundation slice.
 - The frontend seat's proposed UI stack goes to the architect as input for the phase 3 slice plan; nothing is decided yet.
+
+- **S12 boot refusals** (cto, accepted by legal and qa): `scripts/finora.mjs` refuses every heap, inspect and report flag in `NODE_OPTIONS` and `execArgv`, the worker's `execArgv` included; `--report-exclude-env` is the only exception. Each has a test. `docs/running.md` notes the V8 `jit_page_` check (many short-lived worker isolates), its trigger and the Node version, and the roughly 178 MB the sanctions lists download at each start.
+- **Edge instrumentation warnings** (S22): `apps/web/src/instrumentation.ts` guards its server import with `NEXT_RUNTIME === "nodejs"`; frontend owns the file, the architect reviews the env-lint allowance.
 
 - **Native review of the `lt`, `lv` and `et` texts** (legal, S02): the Baltic UI and terms texts are drafted by the frontend seat and listed in `packages/i18n/REVIEW.md`; no seat is a native speaker. They ship marked as drafts, and native review goes to the session 3 agenda (the human may know a reviewer, or accept drafts for v1). Legal reviews the terms texts as a second pass after native review.
 
@@ -175,7 +181,7 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 
 ## Keys: what each unlocks
 
-For the key-testing round. Nothing here blocks phase 1. Values live only in the main checkout's `.env`.
+**Superseded by H5 (2026-11-21): v1 uses no API keys.** Every key-gated item below runs on its keyless fallback or stays off; the agents run on the local CLI under the user's subscription instead of `ANTHROPIC_API_KEY`. `SEC_USER_AGENT` is not a key (C14) and stays an optional local setting. The table is kept as the record of what a key would unlock. Values, if ever set, live only in the main checkout's `.env`.
 
 | Env var | Account | Unlocks | Areas waiting on it |
 |---|---|---|---|
