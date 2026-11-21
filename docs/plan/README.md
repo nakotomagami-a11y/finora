@@ -146,6 +146,8 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 
 - **Native review of the `lt`, `lv` and `et` texts** (legal, S02): the Baltic UI and terms texts are drafted by the frontend seat and listed in `packages/i18n/REVIEW.md`; no seat is a native speaker. They ship marked as drafts, and native review goes to the session 3 agenda (the human may know a reviewer, or accept drafts for v1). Legal reviews the terms texts as a second pass after native review.
 
+- **S12, install keyed on the lockfile** (cto, after qa found a stale `node_modules`): `pnpm finora` writes `node_modules/.finora-install` with the lockfile's sha256 only after a successful frozen install, and installs whenever the marker is missing or differs, so a `git pull` that changes the lockfile, or an interrupted install, never leaves a stale install. Tests in `scripts/finora.test.mjs`. Owner: architect.
+
 ### By the council
 Session 1 (`docs/plan/council/01-data.md`): per-country v1 promise (LT is a money-and-status check, names `paid_only`; US public needs `SEC_USER_AGENT`); a fixed 11-check verdict scale with "Not enough data" rules and arrears thresholds; calls for all 147 items (155 rows after splits and new S15 ids: SHOW 41, CAVEAT 56, LATER 53, HIDE 5 after the phase 3 calls on Sodra and Baltic courts; .lt WHOIS CAVEAT, .lv and .ee WHOIS and the web archive LATER); the policy table P1-P14; the proven-company gate for every party row; US live states NY, CO, CT, PA that session 2 checks; S05 and S12 LATER; social and reviews LATER, news a CAVEAT sub-task.
 
