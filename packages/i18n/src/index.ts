@@ -31,4 +31,4 @@ export async function loadMessages(locale: Locale): Promise<Messages> {
   }
 }
 
-export { formatDate, formatNumber } from "./format.ts";
+export { formatDate, formatDateTime, formatNumber, formatRelative, formatTime } from "./format.ts";
