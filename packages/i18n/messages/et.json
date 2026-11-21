@@ -52,12 +52,17 @@
     "draft": "Need tingimused on mustand, kuni jurist on need üle vaadanud."
   },
   "errors": {
+    "agents_unavailable": "Uurimised ei ole selles paigalduses praegu saadaval.",
     "bad_request": "Päring ei kehti.",
+    "entity_not_found": "Laaditud registrites ei ole selle registrikoodiga ettevõtet.",
     "forbidden": "Päring lükati tagasi.",
     "host_not_allowed": "Finora vastab ainult seal arvutis, kus ta töötab.",
     "internal_error": "Meie poolel läks midagi valesti.",
+    "investigation_running": "Teine uurimine juba käib.",
     "method_not_allowed": "Seda tüüpi päring ei ole siin lubatud.",
     "not_found": "Sellel aadressil ei leitud midagi.",
+    "not_implemented": "See Finora osa ei ole veel valmis.",
+    "purpose_blocked": "Finora ei toeta seda eesmärki.",
     "notFoundTitle": "Lehte ei leitud",
     "notFoundAction": "Mine avalehele"
   }

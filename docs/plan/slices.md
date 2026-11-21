@@ -176,7 +176,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Acceptance:**
   1. Every schema has a valid and an invalid fixture; an empty `data` value array is rejected; `generatedBy: "ai"` is required on findings and explanations (R9); `coverage.total` can only be 11.
   2. `docs/api/openapi.json` is generated and current.
-- **Tests:** `api-contract/src/*.test.ts` (one per schema file), `api-contract/src/openapi.test.ts`.
+- **Tests:** `api-contract/src/common.test.ts`, `report.test.ts`, `investigations.test.ts`, `areas.test.ts` (one valid and one invalid sample per remaining schema file), `openapi.test.ts`; `server/src/contract-routes.test.ts` (every contract route exists, validates its input, answers 501 `not_implemented` until its service lands, and in `FINORA_DEMO` returns a body valid against its own schema).
 - **Demo:** `FINORA_DEMO=1 pnpm dev`, `curl http://127.0.0.1:3000/api/v1/companies/<fixture eid>` returns a schema-valid fixture profile.
 
 ### S04u UI fixtures and client plumbing (U2)

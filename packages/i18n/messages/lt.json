@@ -52,12 +52,17 @@
     "draft": "Šios sąlygos yra projektas, kol jų neperžiūrėjo teisininkas."
   },
   "errors": {
+    "agents_unavailable": "Tyrimai šioje įdiegtyje šiuo metu negalimi.",
     "bad_request": "Užklausa neteisinga.",
+    "entity_not_found": "Įkeltuose registruose nėra įmonės su šiuo kodu.",
     "forbidden": "Užklausa atmesta.",
     "host_not_allowed": "Finora atsako tik tame kompiuteryje, kuriame veikia.",
     "internal_error": "Mūsų pusėje įvyko klaida.",
+    "investigation_running": "Jau vyksta kitas tyrimas.",
     "method_not_allowed": "Šio tipo užklausa čia neleidžiama.",
     "not_found": "Šiuo adresu nieko nerasta.",
+    "not_implemented": "Ši Finora dalis dar nesukurta.",
+    "purpose_blocked": "Finora nepalaiko šio tikslo.",
     "notFoundTitle": "Puslapis nerastas",
     "notFoundAction": "Eiti į pradžios puslapį"
   }

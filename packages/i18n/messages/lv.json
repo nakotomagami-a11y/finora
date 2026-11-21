@@ -52,12 +52,17 @@
     "draft": "Šie noteikumi ir melnraksts, līdz tos pārskata jurists."
   },
   "errors": {
+    "agents_unavailable": "Izmeklēšanas šajā instalācijā pašlaik nav pieejamas.",
     "bad_request": "Pieprasījums nav derīgs.",
+    "entity_not_found": "Ielādētajos reģistros nav uzņēmuma ar šo reģistrācijas numuru.",
     "forbidden": "Pieprasījums tika noraidīts.",
     "host_not_allowed": "Finora atbild tikai tajā datorā, kurā darbojas.",
     "internal_error": "Mūsu pusē radās kļūda.",
+    "investigation_running": "Jau notiek cita izmeklēšana.",
     "method_not_allowed": "Šāda veida pieprasījums šeit nav atļauts.",
     "not_found": "Šajā adresē nekas netika atrasts.",
+    "not_implemented": "Šī Finora daļa vēl nav izveidota.",
+    "purpose_blocked": "Finora neatbalsta šo mērķi.",
     "notFoundTitle": "Lapa nav atrasta",
     "notFoundAction": "Doties uz sākumlapu"
   }

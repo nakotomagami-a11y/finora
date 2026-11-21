@@ -887,12 +887,17 @@
                                       "code": {
                                         "type": "string",
                                         "enum": [
+                                          "agents_unavailable",
                                           "bad_request",
+                                          "entity_not_found",
                                           "forbidden",
                                           "host_not_allowed",
                                           "internal_error",
+                                          "investigation_running",
                                           "method_not_allowed",
-                                          "not_found"
+                                          "not_found",
+                                          "not_implemented",
+                                          "purpose_blocked"
                                         ]
                                       }
                                     },
@@ -1453,12 +1458,17 @@
                                     "code": {
                                       "type": "string",
                                       "enum": [
+                                        "agents_unavailable",
                                         "bad_request",
+                                        "entity_not_found",
                                         "forbidden",
                                         "host_not_allowed",
                                         "internal_error",
+                                        "investigation_running",
                                         "method_not_allowed",
-                                        "not_found"
+                                        "not_found",
+                                        "not_implemented",
+                                        "purpose_blocked"
                                       ]
                                     }
                                   },
@@ -5452,12 +5462,17 @@
                             "code": {
                               "type": "string",
                               "enum": [
+                                "agents_unavailable",
                                 "bad_request",
+                                "entity_not_found",
                                 "forbidden",
                                 "host_not_allowed",
                                 "internal_error",
+                                "investigation_running",
                                 "method_not_allowed",
-                                "not_found"
+                                "not_found",
+                                "not_implemented",
+                                "purpose_blocked"
                               ]
                             },
                             "runId": {
@@ -6791,12 +6806,17 @@
                     "code": {
                       "type": "string",
                       "enum": [
+                        "agents_unavailable",
                         "bad_request",
+                        "entity_not_found",
                         "forbidden",
                         "host_not_allowed",
                         "internal_error",
+                        "investigation_running",
                         "method_not_allowed",
-                        "not_found"
+                        "not_found",
+                        "not_implemented",
+                        "purpose_blocked"
                       ]
                     },
                     "detail": {

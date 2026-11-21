@@ -52,12 +52,17 @@
     "draft": "These terms are a draft until a lawyer has reviewed them."
   },
   "errors": {
+    "agents_unavailable": "Investigations are not available on this install right now.",
     "bad_request": "The request was not valid.",
+    "entity_not_found": "No company with this registry code is in the loaded registers.",
     "forbidden": "This request was refused.",
     "host_not_allowed": "Finora only answers on the machine it runs on.",
     "internal_error": "Something went wrong on our side.",
+    "investigation_running": "Another investigation is already running.",
     "method_not_allowed": "This request type is not allowed here.",
     "not_found": "Nothing was found at this address.",
+    "not_implemented": "This part of Finora is not built yet.",
+    "purpose_blocked": "Finora does not support this purpose.",
     "notFoundTitle": "Page not found",
     "notFoundAction": "Go to the start page"
   }

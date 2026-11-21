@@ -14,7 +14,9 @@ describe("route table", () => {
   });
 
   it("lists the routes under /api/v1", () => {
-    expect(ROUTE_TABLE.map((entry) => entry.pattern)).toEqual(["/api/v1/about", "/api/v1/health", "/api/v1/markets/crash"]);
+    // Every pattern is under /api/v1; contract-routes.test.ts holds the table equal to API_ROUTES (S04b).
+    expect(ROUTE_TABLE.length).toBeGreaterThan(3);
+    for (const entry of ROUTE_TABLE) expect(entry.pattern).toMatch(/^\/api\/v1\//);
   });
 
   it("turns a dynamic folder into a path parameter", () => {

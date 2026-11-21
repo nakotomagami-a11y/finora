@@ -45,3 +45,8 @@ export function getEnv(): Env {
   cached ??= loadEnv(process.env);
   return cached;
 }
+
+/** Tests that switch `FINORA_DEMO` read the environment afresh. */
+export function clearEnvCache(): void {
+  cached = undefined;
+}
