@@ -306,7 +306,7 @@ Applied on top of Parts B-E after legal's review and cto's notes. Gate 1 decided
 
 ## Part G: the item table, one row per `item_id` (final, confirmed)
 
-Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and four new S15 ids, so 155 rows. No id is missing or unknown. Counts: SHOW 40, CAVEAT 55, LATER 55, HIDE 5 (after the H5 amendments of 2026-11-21: S10.US.02 and S11.US.01 to LATER with MANUAL). **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
+Expanded from Part D, then updated with Part H and the council's and cto's final row lists. Every one of the 147 `item_id`s in `docs/research/display-matrix.md` appears exactly once, plus four splits and four new S15 ids, so 155 rows. No id is missing or unknown. Counts: SHOW 40, CAVEAT 50, LATER 60, HIDE 5 (after the H5 amendments of 2026-11-21: S10.US.02 and S11.US.01 to LATER with MANUAL; M01.X.02, M02.X.01, M03.X.02, M04.X.01 and M05.X.02b to LATER). **Part G is the authoritative table; Part D is the council's rule form. Confirmed by `council` and `cto` on 2026-11-20.**
 
 **New ids:** `S15.LT.whois`, `S15.LV.whois`, `S15.EE.whois` and `S15.ALL.archive` (Part H, item 5 and the WHOIS ruling). **Split ids:** `S01.US.03a` (PA) and `S01.US.03b` (OR); `S08.EE.01a` (tax debtors) and `S08.EE.01b` (taxes paid); `M05.X.02a` (oracle) and `M05.X.02b` (user key); `M06.X.01a` (O5 oracle) and `M06.X.01b` (O3 supply + X4 candles).
 
@@ -451,14 +451,14 @@ Expanded from Part D, then updated with Part H and the council's and cto's final
 | S18.EE.01 | SHOW | - | NC per check |
 | S18.US.01 | CAVEAT | The US has no public tax-debt or payment-default data | NC per check |
 | M01.X.01 | CAVEAT | Quarterly; includes non-listed equity | NC |
-| M01.X.02 | CAVEAT | Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index | KEY / "Choose a fund in settings" |
-| M02.X.01 | CAVEAT | Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index | KEY / "Choose a fund in settings" |
+| M01.X.02 | LATER | - | — (H5: no keyless source; was the fund proxy with the user's key) |
+| M02.X.01 | LATER | - | — (H5: no keyless source; was the fund proxy with the user's key) |
 | M03.X.01 | CAVEAT | Peak seeded once from a cited official figure, if legal clears it | NC / "Peak not known yet: tracking since [date]" (no %, never 0%) |
-| M03.X.02 | CAVEAT | Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index | KEY / "Choose a fund in settings" |
-| M04.X.01 | CAVEAT | Via [your symbol], a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index | KEY / "Choose a fund in settings" |
+| M03.X.02 | LATER | - | — (H5: no keyless source; was the fund proxy with the user's key) |
+| M04.X.01 | LATER | - | — (H5: no keyless source; was the fund proxy with the user's key) |
 | M05.X.01 | CAVEAT | Monthly average | NC |
 | M05.X.02a (oracle) | LATER | - | — |
-| M05.X.02b (user key) | CAVEAT | With your own key; personal use | NC / KEY |
+| M05.X.02b (user key) | LATER | - | — (H5: no key) |
 | M06.X.01b (O3 supply + X4 candles) | CAVEAT | Self-hosted, personal use | NC |
 | M06.X.01a (O5 oracle) | LATER | - | — |
 | M06.X.02 | CAVEAT | Personal use; attribution | NC |

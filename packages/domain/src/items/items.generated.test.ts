@@ -11,8 +11,8 @@ describe("the generated item list (architecture §3.6)", () => {
     const count = (call: string) => ITEMS.filter((item) => item.call === call).length;
     expect({ show: count("show"), caveat: count("caveat"), later: count("later"), hide: count("hide") }).toEqual({
       show: 40,
-      caveat: 55,
-      later: 55,
+      caveat: 50,
+      later: 60,
       hide: 5,
     });
   });
