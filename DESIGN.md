@@ -279,7 +279,7 @@ Agents run on the local Claude Code CLI under the user's own Claude plan. Usage 
   | Claude reports | Finora shows |
   |---|---|
   | paid extra usage **in use** | every run interrupted at once; a `Rule-based` pause card, **"Paid extra usage is on in your Claude account. Turn it off to continue."** (`?state=overage`) |
-  | paid extra usage **permitted and a window used up** (rejected, or 100%) | the same pause, **before** the first paid request (`?state=overage&why=limit`) |
+  | paid extra usage **permitted and a window used up** (rejected, or 100%) | the same pause, **before** the first paid request (`?state=overage&row=limit`); the header and lanes read "Paused: paid extra usage is on in your Claude account" / "paused: paid extra usage is on", true for both pause rows |
   | paid extra usage **permitted**, every window still inside the plan | a non-blocking warning, "Paid extra usage is on in your Claude account; Finora will stop before using it", on the pre-run sheet, under the run header and next to Claude Code's status in Settings → Connections (`?overage=enabled`, `settings.html?state=overage-enabled`) |
   | no event | nothing: the one-time notice only, never a claim either way |
 
