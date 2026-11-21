@@ -102,7 +102,7 @@ apps/web/
   src/app/[locale]/(tools)/crash/page.tsx
   src/app/[locale]/design/...                  state gallery (demo and test builds only)
   src/components/
-    shell/        AppShell, ToolRail, BottomBar (with a "More" overflow when a tool count exceeds five), TopBar (command bar trigger, SpendPill, ThemeToggle), CommandBar, CatchUpBanner, Footer
+    shell/        AppShell, ToolRail, BottomBar (with a "More" overflow when a tool count exceeds five), TopBar (command bar trigger, UsagePill, ThemeToggle), CommandBar, CatchUpBanner, Footer
     search/       SearchBox, SearchResults, CountryGroup, NoMatch
     field/        FieldRow, SourceChip, AiLabel, DerivedChip, Quote, PersonDisclaimer, PurposeGate, ReportProblem
     company/      CompanyHeader, CoverageLine, SectionIndex, SectionCard, KeyFigureTable, RoleTable, HolderTable, EventList, CheckLine, ChecksAside
@@ -110,8 +110,8 @@ apps/web/
     report/       VerdictBlock, FactsOnlyBlock, ChecksList, KeyFinding, EvidenceGroup, FindingItem, CitationViewer, FollowUpDock, AttributionFooter
     network/      NetworkGraph, NetworkList, NodeCard, EdgeCard
     library/      LibraryList, LibraryItem, LibraryFilters
-    crash/        CrashGrid, CrashTile, DrawdownStrip, DebtTicker, WipedSummary, ConnectorPrompt, FundSymbolField
-    settings/     KeyStatusRow, ConnectorSheet, DataStatus
+    crash/        CrashGrid, CrashTile, DrawdownStrip, DebtTicker, WipedSummary, SetupHelp
+    settings/     ConnectionRow, UsageCaps, DataStatus
     sources/      SourcesTable
   src/state/investigation.ts         pure reducer, selectors
   src/lib/       api.ts (typed client), sse.ts, format.ts, fixture-mode.ts (server-only), shortcuts.ts, purpose.ts
@@ -199,7 +199,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 |---|---|---|---|
 | `AppShell` | Left `ToolRail` (≥ 768 px), `TopBar`, main region, `BottomBar` (< 768 px), skip link first in the tab order | - | `Tab` order: skip link, rail, top bar, main |
 | `ToolRail`, `BottomBar` | 72 px rail with icon and label. Built from the tool manifests (`id, navKey, href, icon, enabled`): Explorer, Library, Crash monitor, then **Sources** and **Settings** pinned at the bottom. The bottom bar shows the same five. Active entry `aria-current="page"` | `active`, `disabled` (tool flagged off) | `Tab` moves through the entries in order |
-| `TopBar` | The command bar trigger (field-shaped button with the `/` hint), `SpendPill` ("today $1.84 of $10.00", hidden under 768 px; turns `--warn` from 80% of the daily cap), `ThemeToggle` | - | `/` and `Ctrl/Cmd+K` open the command bar |
+| `TopBar` | The command bar trigger (field-shaped button with the `/` hint), `UsagePill` ("today 18% of daily cap", hidden under 768 px; turns `--warn` from 80% of the daily cap), `ThemeToggle` | - | `/` and `Ctrl/Cmd+K` open the command bar |
 | `CommandBar` | `/` or `Ctrl/Cmd+K` anywhere (acceptance: Up, Down and Enter move through and open results; the list has `listbox` and `option` roles with `aria-selected` and `aria-activedescendant`; Esc returns focus to the control that opened it, or to the top-bar trigger). Search companies across four jurisdictions, jump to a tool, open a past investigation. Built on `Combobox` in a `Dialog` | `idle` (recent items), `typing`, `loading`, `country-loading`, `no-match`, `error` | §8 |
 | `ThemeToggle` | Three-way theme (system, dark, light) in the top bar. The language choice (four locales) is in Settings | - | Arrow keys on the group |
 | `CatchUpBanner` | Shown after the app starts while refreshes missed when it was closed are still running ("Updating {n} sources that changed while Finora was closed"); values from those sources show the Stale state with their as-of date until it ends. Polite live region, no focus move | `running`, `done` (disappears), `error` ("Some sources did not update: see Settings") | - |
@@ -237,9 +237,9 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | Component | Purpose | States | Keyboard |
 |---|---|---|---|
 | `InvestigateSheet` | Opens from Investigate. An optional field "Company website or the domain on the offer" (helper: "The web check needs a domain; without one it can't run") (`subject: {eid, offerDomain?}`): the web agent checks it against the register (DNS, certificates, homepage, domain creation date). The field is also offered on "Investigate this text". Without it a borrowed company name and code would get a reassuring profile. Shows the usage estimate in standard tokens and as a share of the cap, the daily allowance left, the per-agent breakdown behind a disclosure, the purpose line and **Start investigation**. Wording and states: see H5 above. | `estimating`, `ready`, `agents-off`, `cli-missing`, `cli-signed-out`, `busy`, `unsafe`, `daily-cap` (spend, reset time), `estimate-error` | Dialog rules; focus lands on **Start** when ready |
-| `AgentPanel` | The aside beside the content (below it under 1024 px). Titled "Agents" with the run spend ("$0.27 of $1.50") and a meter, then the lanes in order: Lead (resolve and plan), Registry and people, Money and tax, Legal, insolvency and sanctions, Web, domain and news, Verdict | §6 | `Tab` through lanes |
-| `RunStats` | In the page header: `Investigating · 4 agents · 23 tasks · 31 sources · $0.27 of $1.50` in mono, with a meter, then **Stop and write the report** and **Skip to report**. "4 agents" counts the four specialists; the lead and the verdict are lanes but not counted | `planning`, `running`, `waiting`, `paused-at-cap`, `synthesising`, `done`, `stopped`, `failed`, `reconnecting` | The two actions are buttons |
-| `AgentLane` | One lane: status as word and dot (`DONE`, `RUNNING`, `WAITING`, `QUEUED`, `FAILED`, `STOPPED`), name, then `elapsed · usually {typical} · $cost` in mono, the current step (`› reading the news index (query 2 of 4)`), and its `TaskRow`s. A waiting lane has an amber border, a failed lane a red one. The lead lane ends with "Pinned to registration no. {code}". The typical time comes from the estimate DTO (`typicalSeconds` per role) | `queued`, `running`, `waiting`, `done`, `failed`, `stopped`, `budget_exceeded`. The running dot pulses 1.6 s, and not under reduced motion | Lanes are not tab stops; their action buttons (Re-run, link to the question) are |
+| `AgentPanel` | The aside beside the content (below it under 1024 px). Titled "Agents" with the run's usage ("18% of the cap") and a meter, then the lanes in order: Lead (resolve and plan), Registry and people, Money and tax, Legal, insolvency and sanctions, Web, domain and news, Verdict | §6 | `Tab` through lanes |
+| `RunStats` | In the page header: `Investigating · 4 agents · 23 tasks · 31 sources · 18% of the cap` in mono, with a meter, then **Stop and write the report** and **Skip to report**. "4 agents" counts the four specialists; the lead and the verdict are lanes but not counted | `planning`, `running`, `waiting`, `paused-at-cap`, `synthesising`, `done`, `stopped`, `failed`, `reconnecting` | The two actions are buttons |
+| `AgentLane` | One lane: status as word and dot (`DONE`, `RUNNING`, `WAITING`, `QUEUED`, `FAILED`, `STOPPED`), name, then `elapsed · usually {typical} · {share} of the cap` in mono, the current step (`› reading the news index (query 2 of 4)`), and its `TaskRow`s. A waiting lane has an amber border, a failed lane a red one. The lead lane ends with "Pinned to registration no. {code}". The typical time comes from the estimate DTO (`typicalSeconds` per role) | `queued`, `running`, `waiting`, `done`, `failed`, `stopped`, `budget_exceeded`. The running dot pulses 1.6 s, and not under reduced motion | Lanes are not tab stops; their action buttons (Re-run, link to the question) are |
 | `TaskRow` | A source task inside a lane: icon (check, spinner, clock for queued, x for failed, skip), label, then "{n} src", "queued" or "skipped" in mono | `queued`, `running`, `done`, `failed`, `skipped` | - |
 | `ActivityLine` | One line in mono: what the agent is doing now, from `stepKey` + `params` | - | - |
 | `QuestionCard` | Pinned at the top of the primary column (`id="question"`, after the coverage line), amber border on an amber tint: "Needs you", the asking agent, an H2 question in the serif, the options, a footer naming the waiting agents and what happens if nobody answers. Variants: `EntityChoice`, `SanctionsMatch`, `Scope`, `CapReached`, `FreeText`. Shows which lanes wait on it (§5.6) | `pending`, `submitting`, `answered`, `timed-out` (not for entity choice) | §8 |
@@ -251,12 +251,12 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 |---|---|---|---|
 | `VerdictBlock` | Level, coverage line, the rules that fired, then the AI-written explanation as a separate child (§5.5) | `no_concerns_found`, `points_to_check`, `serious_concerns`, `not_enough_data`, `not-confirmed` (entity not confirmed) | - |
 | `FactsOnlyBlock` | "Facts only: no verdict is given on a private individual" | one | - |
-| `ChecksList` | The fixed list of 11 checks (ids 1-11). Each check is `ran` (with a finding rating: `none_found`, `point_to_check` or `concern`), `not_run` (with its coverage reason: `run_failed`, `stopped`, `budget_exceeded`, `needs_key`), `not_possible` ("not possible in {country}", the not-published case) or `not_evaluated` (P14, `trackedSince`). Same four states as architecture §7.2 | all four, and each `ran` rating | - |
+| `ChecksList` | The fixed list of 11 checks (ids 1-11). Each check is `ran` (with a finding rating: `none_found`, `point_to_check` or `concern`), `not_run` (with its coverage reason: `run_failed`, `stopped`, `budget_exceeded`, `needs_source`), `not_possible` ("not possible in {country}", the not-published case) or `not_evaluated` (P14, `trackedSince`). Same four states as architecture §7.2 | all four, and each `ran` rating | - |
 | `KeyFinding` list | The report shows up to three key findings, chosen by the runtime in this order: concerns first, then points to check, then by check number. A finding that is inferred, name-only or context-only is never a key finding, and fewer than three show when fewer qualify. The UI renders the order it is given and never re-ranks | `0 to 3` | - |
 | `KeyFinding`, `FindingItem` | One finding: severity (icon + word), statement, `ConfidenceBadge`, citation chips, `AiLabel`, overflow menu (Report an error or object). Renders nothing without a citation (R7) | per severity | `j/k`, `Enter` |
 | `EvidenceGroup` | Findings grouped by agent, with "Dig deeper" and "Re-run" | `empty`, `full` | - |
 | `CitationViewer` | Popover or sheet with the `Quote` and the source link | `open`, `closed`, `source-gone` ("The source no longer shows this text") | `Esc` |
-| `FollowUpDock` | Chat docked right, a sheet below 1024 px. Cost shown, cap $0.25 per follow-up | `idle`, `asking`, `answered`, `cap`, `error`, `no-key` | Input; `Esc` closes the sheet |
+| `FollowUpDock` | Chat docked right, a sheet below 1024 px. Usage shown as a share of the cap; each question is capped at 85k standard tokens | `idle`, `asking`, `answered`, `cap`, `error`, `agents-off`, `cli-missing`, `cli-signed-out` | Input; `Esc` closes the sheet |
 | `AttributionFooter` | Each cited source's attribution line, deduplicated, plus the source-code link and the disclaimer where needed | - | links |
 
 ### 4.6 Network, library, Crash monitor, settings
@@ -267,12 +267,11 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `NetworkList` | The same data grouped by relation (shared address, corporate member). Default view under 768 px | the same five | list keyboard |
 | `NodeCard`, `EdgeCard` | A company node with its facts, or an edge with its relation and `SourceChip` | `open` | `Esc` |
 | `LibraryList`, `LibraryItem`, `LibraryFilters` | Past investigations: subject, country, verdict level and coverage, date, cost, status. Filter by level, country, text | `empty`, `list`, `filtered`, `no-match`, `error` | `Arrow` keys move between items, `Enter` opens |
-| `CrashGrid`, `CrashTile` | One tile per M id (§5.9) | `live`, `delayed`, `coarse` (official, finer with a key), `needs-key`, `choose-fund`, `peak-unknown`, `stale`, `error`, `loading` | Tiles are not focusable unless they hold an action; actions are links or buttons |
+| `CrashGrid`, `CrashTile` | One tile per M id (§5.9) | `live`, `delayed`, `coarse` (official), `not_configured`, `peak-unknown`, `stale`, `error`, `loading` | Tiles are not focusable unless they hold an action; actions are links or buttons |
 | `DrawdownStrip` | "Distance from peak" card: one row per market sorted by drop, a bar plus a signed percentage with an arrow; "Add your key" or "peak not known yet" in place of a bar where needed. Peak definition in the card header ("peak = highest daily close since 1 Jan 2025") | `full`, `with-gaps` | rows with actions are links |
 | `DebtTicker` | M08: the ticking estimate with an `estimate` tag, the official figure and its date, the 30-day change. The ticking digits are `aria-hidden`; a static text carries "Estimate {x}; official {y} as of {date}" | `live`, `error` (shows the official figure only) | - |
-| `ConnectorPrompt` | "Add your key" inside a tile and the settings sheet that explains where the key goes | `closed`, `open` | Dialog rules |
-| `FundSymbolField` | Settings input for a fund symbol (P12: stored locally only) | `empty`, `set`, `invalid` | Input |
-| `KeyStatusRow` | Settings: presence of each key (names and "set / not set" only) | `set`, `not-set`, `checking` | "Check again" button |
+| `SetupHelp` | "How to set it up" for a `not_configured` row or a `needs_source` check: what to add to the local provider file or the local settings, in words, then "Check again". One rendering for both | `closed`, `open` | Dialog rules |
+| `ConnectionRow` | Settings → Connections: Claude Code (`ready`, `missing`, `signed_out`, `unsafe`, with its version), the backend switch, the optional SEC contact header ("set" or "not set") | `ready`, `missing`, `signed-out`, `unsafe`, `checking` | "Check again" button |
 | `DataStatus` | Per-source last sync, rows, history size against `HISTORY_MAX_GB` (warn, never delete silently) | `ok`, `warn`, `error` | - |
 
 ---
@@ -297,7 +296,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `not_checked.error` | `triangle-alert` | "Not checked: {reason}", where the reason is the catalogue text for the error `code` (for example "the register did not answer") | **Retry** |
 | `not_checked.skipped` | `minus` | "Not checked: skipped in this run" | - |
 | `not_checked.paid_only` | `euro` | "Available as a paid register extract" | link "Order from {host}" **only** when `orderUrl` is not null (the host of the official register page is the link text; the allowlist check is the server's) |
-| `not_checked.needs_key` | `key-round` | "Add your key to check" | opens `ConnectorSheet` |
+| `not_checked.needs_source` | `setup` | "Not configured: add provider [code] to your local provider file" | "How to set it up" (the same rendering as the Crash `not_configured` row) |
 | `not_checked.needs_purpose` | none | the `PurposeGate` well itself, never "Not checked" | choose a purpose |
 | `not_checked.restricted` | `lock` | "Not shown in {country}: restricted by {basis}" | link to the policy section of the Sources page |
 | `not_checked.agent_only` | `bot` | "Not checked here: {agent} checks this when you investigate" | **Investigate** (opens the sheet) |
@@ -359,7 +358,7 @@ Structure (top to bottom), as separate children so no wrapper can cover the leve
 4. **Explanation**: the AI-written sentences, each with its citation chips, under an `AiLabel`. `VerdictText` drops any sentence with no citation (R7). If nothing is left, it shows "No written explanation for this report" (the same single fallback line as the banned-term case).
 5. The `ChecksList` (the fixed 11 checks, ids 1-11), then key findings, each linked to its evidence.
 
-Fired rules render through the catalogue (`rules.<ruleId>`, for example `rules.arrears_serious`), never from model text. Coverage is `{ran, total: 11, skipped[]}` (no `applicable`). Coverage skip reasons (`not_possible_in_country`, `run_failed`, `stopped`, `budget_exceeded`, `needs_key`) each have their own catalogue line. If the explanation is `null` (reason `banned_term_fallback`), the block shows the fired rules and findings with the line "No written explanation for this report" and nothing else; the level is unaffected.
+Fired rules render through the catalogue (`rules.<ruleId>`, for example `rules.arrears_serious`), never from model text. Coverage is `{ran, total: 11, skipped[]}` (no `applicable`). Coverage skip reasons (`not_possible_in_country`, `run_failed`, `stopped`, `budget_exceeded`, `needs_source`) each have their own catalogue line. If the explanation is `null` (reason `banned_term_fallback`), the block shows the fired rules and findings with the line "No written explanation for this report" and nothing else; the level is unaffected.
 
 Variants: `not_enough_data` (muted `?`, the "why" is the reason list: not pinned, status not current, fewer than 6 of 11 ran, neither money check ran); `not-confirmed` ("Not enough data: company not confirmed"); `facts-only` for natural persons and sole traders: no verdict block at all ("Facts only: no verdict is given on a private individual") plus the disclaimer.
 
@@ -374,7 +373,7 @@ All question cards pin to the top of `AgentPanel`, are announced once (§6.5), a
 | `entity_choice` | Asked by the lead; up to 5 cards: registry code, legal form, status, city, registered date, and **None of these**. Lithuanian name collisions are common, so the distinguishing facts are always shown | **No default and no countdown.** After 30 minutes the investigation ends and the report shows "Not enough data: company not confirmed". Blocks every lane |
 | `sanctions_match` | Asked by the legal agent. Side-by-side records. Rows appear only where at least one side has a value, marked match, differs or not on the list; official identifier rows come first. Buttons: Same entity, Different, Not sure. Outcome wording: "Confirmed: same registration number" (rule-based), "Confirmed by you" (with who and when), "Possible match, needs review". The word "sanctioned" renders only for `status: listed` | "Not sure" after 30 minutes, shown as "answered by default"; it blocks only the legal lane |
 | `scope` | Asked by the web agent when a candidate website has no anchor to the company: the site and why it is uncertain, then "Yes, it's theirs" / "No" / "Not sure" | "Not sure" after the timeout, marked "answered by default"; the site then stays "linked by name only" |
-| `cap_reached` | "Stop here and write the report" (default, the primary button) or "Allow up to $0.50 more", clipped to what is left of the daily cap. Offered once per investigation. Second time: only the stop button and "Extension already used for this investigation". Nothing left today: no option and the daily-cap text | stop, after 10 minutes. Every lane shows `waiting` with `waitingOn: "cap"` and the header says "Paused at cap" (architecture §7: no separate run status) |
+| `cap_reached` | "Stop here and write the report" (default, the primary button) or "Allow up to a third more of the cap (170k standard tokens)", clipped to what is left of the daily cap. Offered once per investigation. Second time: only the stop button and "Extension already used for this investigation". Nothing left today: no option and the daily-cap text | stop, after 10 minutes. Every lane shows `waiting` with `waitingOn: "cap"` and the header says "Paused at cap" (architecture §7: no separate run status) |
 | `free_text` | Asked by the lead when free text names no country and the name exists in several registers: one text input with the candidate countries as quick replies | no default; times out like `entity_choice` |
 
 Keyboard: the card is a landmark region labelled with the question; options are a radio group (arrow keys), `Enter` submits, `Esc` does nothing (a question is never dismissed). The panel shows the timeout as plain text ("The default applies at 14:32") for kinds that have one.
@@ -406,7 +405,7 @@ Text over the limit is cut at the limit with "Read at source". Quotes are the on
 
 **Page anatomy** (`crash.html`): overline and serif H1 ("How far markets are from their peaks") with the "Updated 2 min ago" line and the cadence note; a `Banner` when running on official data only ("10 of 20 series work without a key ... Add a key"); the **Distance from peak** strip beside the **US national debt** card; tiles M01 to M07; "How it's calculated" and the attribution lines at the end. Fund symbols and key data stay on this machine, and the page says so.
 
-One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`MarketRow` in architecture §8, defined in `docs/plan/loaders/markets.md` §1.4): M03 holds up to seven markets, M01 three. Each row shows its name, the value and drawdown, a sparkline, the as-of time, the source and its attribution line, and has its own state. The row's DTO state (`ok | peak_unknown | needs_key | needs_symbol | stale | error | loading`) maps to the display states below; `live`, `delayed` and `coarse` are `ok` rows told apart by the row's cadence and lag. State by row (the council's Part C):
+One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`MarketRow` in architecture §8, defined in `docs/plan/loaders/markets.md` §1.4): M03 holds up to seven markets, M01 three. Each row shows its name, the value and drawdown, a sparkline, the as-of time, the source and its attribution line, and has its own state. The row's DTO state (`ok | peak_unknown | not_configured | stale | error | loading`) maps to the display states below; `live`, `delayed` and `coarse` are `ok` rows told apart by the row's cadence and lag. State by row (the council's Part C):
 
 | State | When | What shows |
 |---|---|---|
@@ -414,7 +413,7 @@ One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`Mark
 | `delayed` | the source is delayed | the same, plus "15 min delayed" or the lag, in the chip |
 | `coarse` | official-only value, finer with a key (M01 quarterly, M05 monthly) | the coarse value, "Quarterly · as of Q2 2026" and "Add a key for daily" inside the tile; never claims to be live |
 | `needs-key` | row with a symbol (or a key-only source) and no key | the row's shape with no number, "Add your key to check" |
-| `choose-fund` | fund-proxy row with no symbol set (`needs_symbol`) | "Choose a fund in settings", no number |
+| `not_configured` | a row whose provider is not in the local provider file | "Not configured: add provider [code] to your local provider file", "How to set it up"; no number, never 0% |
 | `proxy` | fund proxy with a symbol | title "[Region], in USD" and the caveat "Via {symbol}, a US-listed fund. In US dollars: includes currency moves and fund fees. Not the index." |
 | `peak-unknown` | history does not reach the peak start | "Peak not known yet: tracking since {date}". **No drawdown percentage, never 0%** |
 | `stale` | as-of older than twice its cadence | the value stays, the as-of chip turns `--warn`: "as of {time}, older than its usual refresh" |
@@ -543,7 +542,7 @@ The question announcement does not move focus. A shortcut and a link take the us
 - **Host or origin refused** (`403`): a plain page "This app only answers on the machine it runs on" (local mode).
 - **Offline**: the shell shows a banner "You are offline"; cached pages stay readable.
 - **No LLM key**: the explorer works fully. **Investigate** stays visible and opens the "Add your key to run agents" sheet. Never a disabled button with no reason.
-- **No SEC contact setting**: US public profiles show `needs_key` rows ("needs the SEC contact setting") and promise nothing.
+- **No SEC contact setting**: US public profiles show `needs_source` rows ("needs the SEC contact setting") and promise nothing.
 - **Daily cap reached**: Investigate opens the spend and reset-time sheet. The instant profile keeps working.
 - **404 and 500**: `not-found.tsx` and `error.tsx` per tool, with the search box and a link home.
 
@@ -673,7 +672,7 @@ Other rules:
 | `verdict` (with `state=report`) | `insufficient`, `not-confirmed` |
 | `subject` | `sole-trader` (facts-only variant) |
 | `purpose` | `none`, `set` (person sections locked or open) |
-| `markets` (Crash monitor) | `nokey`, `mixed`, `live`, `delayed`, `stale`, `error`, `peak-unknown` |
+| `markets` (Crash monitor) | `not-configured`, `mixed`, `live`, `delayed`, `stale`, `error`, `peak-unknown` |
 | `network` | `graph`, `list`, `empty`, `too-large`, `error` |
 
 **Files.** `fixtures/ui/<screen>/<state>.json`. A test (`fixtures.test.ts`) validates every file against the `api-contract` schema and checks that every state in the table above has a file. Event scripts for streaming states are `fixtures/agents/<scenario>.json` (data-osint and architect own the format; the UI plays them with a scripted clock in tests so timing is deterministic).
@@ -764,7 +763,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 ### U3 Shell, search and the command bar
 
-- **Scope:** `AppShell`, `ToolRail`, `BottomBar` and `TopBar` (with `SpendPill` and `ThemeToggle`) from the manifests, skip link, `Footer` with the source-code link, `CommandBar`, the home page ("Who are we looking into?", the search box, one status card per country with its promise and "loaded {date, time}", and Recent investigations), the search results page (§5.4), `Combobox`, no-match and error states.
+- **Scope:** `AppShell`, `ToolRail`, `BottomBar` and `TopBar` (with `UsagePill` and `ThemeToggle`) from the manifests, skip link, `Footer` with the source-code link, `CommandBar`, the home page ("Who are we looking into?", the search box, one status card per country with its promise and "loaded {date, time}", and Recent investigations), the search results page (§5.4), `Combobox`, no-match and error states.
 - **Acceptance:**
   1. `/` and `Ctrl/Cmd+K` open the command bar from any page; `Esc` closes it and focus returns to the previous element; the listbox follows the ARIA 1.2 pattern; the result count is announced.
   2. Typing is debounced 120 ms; changing the query aborts the earlier request; a late response for an older query is ignored.
@@ -777,7 +776,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   9. The footer source-code link is on every page (rule 18).
   10. Switching locale (in Settings) keeps path and query.
   11. The home page shows one card per country with its promise ("full check", "money and status check; no names", "registration and filings") and its load time; a country still loading shows its percent; Recent lists the last investigations with code and time.
-  12. The `SpendPill` shows today's spend against the daily cap, turns `--warn` from 80%, and is hidden under 768 px.
+  12. The `UsagePill` shows today's spend against the daily cap, turns `--warn` from 80%, and is hidden under 768 px.
   13. At 390 px the status pill sits under the name and the name takes at least 60% of the row width.
 - **Tests:** `ui/src/primitives/combobox/combobox.test.tsx`, `web/src/components/search/*.test.tsx`, `web/e2e/search.spec.ts`, `web/e2e/command-bar.spec.ts`, `web/e2e/shell.spec.ts`, `web/e2e/shell.responsive.spec.ts`, `web/e2e/locale.spec.ts`.
 - **Demo:** press `/`, type part of an example name, arrow to a result, open it, switch to `lt`.
@@ -807,7 +806,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 ### U5 Investigate and live agents
 
-- **Scope:** `InvestigateSheet` (estimate, no-key, daily-cap), `AgentPanel`, `RunHeader`, `AgentLane`, `TaskRow`, `ActivityLine`, findings landing in sections, the question cards (§5.6) including `SanctionsMatchCard`, stop, reconnect and failure states, the live region, the small-screen sheet and summary bar.
+- **Scope:** `InvestigateSheet` (estimate, first-run, agents-off, cli-missing, cli-signed-out, busy, unsafe, daily-cap), `AgentPanel`, `RunHeader`, `AgentLane`, `TaskRow`, `ActivityLine`, findings landing in sections, the question cards (§5.6) including `SanctionsMatchCard`, stop, reconnect and failure states, the live region, the small-screen sheet and summary bar.
 - **Acceptance:**
   1. The sheet shows the estimate (typical, high, basis), the cap and the spend left today before Start; with no key it shows the steps to add one; at the daily cap it shows spend and reset time. **Investigate** is never a disabled button without a reason.
   2. An event reaches the DOM within 500 ms of arrival (e2e with the fake provider and a scripted clock); renders are batched to one per frame (unit).
@@ -817,17 +816,17 @@ Slices that depend only on fixtures start before the real API lands (the archite
   6. A question card pins at the top of the primary column; lanes it blocks show "Waiting for your answer" and link to it; other lanes keep running; answering resumes the lane.
   7. Entity choice: shows code, legal form, status, city, registered date and "None of these"; has no default and no countdown; on timeout the report shows "Not enough data: company not confirmed".
   8. Sanctions card: rows only where a side has a value, match marks, official-ID rows first; three outcome wordings; "sanctioned" appears only for `listed`.
-  9. Cap reached: first time offers stop (default) or "Allow up to $0.50 more" clipped to the daily remainder; after use only stop with the reason; with nothing left, only the daily-cap text.
+  9. Cap reached: first time offers stop (default) or "Allow up to a third more of the cap (170k standard tokens)" clipped to the daily remainder; after use only stop with the reason; with nothing left, only the daily-cap text.
   10. **Stop** shows "Stopping" and ends in `stopped` lanes; the panel offers "Write the report from what was found".
   11. A reload mid-run restores an identical state: the DOM text after reload equals the DOM text before it, apart from elapsed timers.
   12. Losing the connection shows the banner after 3 s, keeps the content and recovers without a duplicate finding.
   13. At most one announcement per lane status change, none per step; the question and the verdict announce once each.
-  14. At 1024 and below the panel sits under the content (tested at 1024, 1023, 768 and 390), and a compact lane list right under the page header (one line per lane with status, step, time and cost, plus a link to all tasks) and the sticky run bar ("4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents") keep the run visible while the user scrolls the sections (confirmed by the designer: it reads "4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel).
+  14. At 1024 and below the panel sits under the content (tested at 1024, 1023, 768 and 390), and a compact lane list right under the page header (one line per lane with status, step, time and usage, plus a link to all tasks) and the sticky run bar ("4 agents · 2 running · 18% of the cap", "Needs you" or "Reconnecting", with "Show agents") keep the run visible while the user scrolls the sections (confirmed by the designer: it reads "4 agents · 2 running · 18% of the cap", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel).
   15. A lane step with an unknown key renders "Working"; no model text reaches a lane (type and unit test).
   16. Reduced motion: no pulse, no wash; counters still change.
   17. The lead lane reads "Lead: resolve and plan" and ends with "Pinned to registration no. {code}"; the verdict lane is queued until the specialists end; "4 agents" in the header counts the four specialists; free text that matches no registry record ends with "Not found in the loaded registers", no lanes start, and the page says no web search ran on an unpinned name.
   18. A failed lane offers "Re-run {agent}" and a `budget_exceeded` lane says which checks did not run (coverage reasons have their own text).
-- **Tests:** `web/src/components/investigate/*.test.tsx`, `web/src/components/investigate/sanctions-match.test.tsx`, `web/e2e/investigation.flow.spec.ts`, `web/e2e/investigation.question.spec.ts`, `web/e2e/investigation.cap.spec.ts`, `web/e2e/investigation.stop.spec.ts`, `web/e2e/investigation.reload.spec.ts`, `web/e2e/investigation.reconnect.spec.ts`, `web/e2e/investigation.live-region.spec.ts`, `web/e2e/investigation.latency.spec.ts`, `web/e2e/investigation.visual.spec.ts`, `web/e2e/investigation.a11y.spec.ts`, `web/e2e/no-key.spec.ts`.
+- **Tests:** `web/src/components/investigate/*.test.tsx`, `web/src/components/investigate/sanctions-match.test.tsx`, `web/e2e/investigation.flow.spec.ts`, `web/e2e/investigation.question.spec.ts`, `web/e2e/investigation.cap.spec.ts`, `web/e2e/investigation.stop.spec.ts`, `web/e2e/investigation.reload.spec.ts`, `web/e2e/investigation.reconnect.spec.ts`, `web/e2e/investigation.live-region.spec.ts`, `web/e2e/investigation.latency.spec.ts`, `web/e2e/investigation.visual.spec.ts`, `web/e2e/investigation.a11y.spec.ts`, `web/e2e/agents-off.spec.ts`.
 - **Demo:** `pnpm finora --demo`, open an example company, press Investigate, watch four lanes tick, answer the which-company question, press Stop on a second run.
 
 ### U6 Verdict and report
@@ -882,7 +881,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 
 ### U9 Crash monitor
 
-- **Scope:** the `crash` route, `CrashGrid`, `CrashTile` in every state of §5.9, `DrawdownStrip`, `DebtTicker`, `WipedSummary`, `Sparkline`, `ConnectorPrompt`, the 60 s poll with visibility pause, attribution footers, the fund-symbol settings link.
+- **Scope:** the `crash` route, `CrashGrid`, `CrashTile` in every state of §5.9, `DrawdownStrip`, `DebtTicker`, `WipedSummary`, `Sparkline`, the 60 s poll with visibility pause, attribution footers (text only, never HTML), the "Not covered in v1" footer line.
 - **Acceptance:**
   1. Each M01-M08 tile renders every state of §5.9 in the gallery and with `?markets=` on the real route.
   2. A coarse tile shows its cadence and never claims to be live; a key-only tile shows its shape with no number; a fund proxy with no symbol shows "Choose a fund in settings" and no number.
@@ -897,23 +896,23 @@ Slices that depend only on fixtures start before the real API lands (the archite
   11. A `peak_unknown` row (it carries `trackingSince`) never shows a percentage; the total-crypto row says "All-time high"; the value-lost summary lists the rows it sums, names the oldest as-of date and names any counted row it had to leave out.
   12. A fund slot with no symbol says "Choose a fund in settings" and links to its settings field; with a symbol and no key it says "Add your key to check".
 - **Tests:** `web/src/components/crash/*.test.tsx`, `web/e2e/crash.spec.ts`, `web/e2e/crash.refresh.spec.ts`, `web/e2e/crash.states.spec.ts`, `web/e2e/crash.visual.spec.ts`, `web/e2e/crash.a11y.spec.ts`.
-- **Demo:** `pnpm finora --demo`, open `/en/crash`, watch a tile update, switch `?markets=nokey` in fixture mode.
+- **Demo:** `pnpm finora --demo`, open `/en/crash`, watch a tile update, switch `?state=not-configured` in fixture mode.
 
 ### U10 Settings and connectors
 
-- **Scope:** the Settings page: language, the current purpose with Change, key status (names and presence only; the optional market keys and the SEC contact setting included), the `ConnectorSheet` with how to add a key (edit the local `.env`, restart, "Check again"), default cost cap display, the 13 fund-symbol slots, theme and locale, the shortcuts switch, `DataStatus`. Also: the opt-in **Start Finora at login** switch (Windows first; the app still binds 127.0.0.1; S25 owns the mechanism and the security review), month-to-date and today's spend, and an "out of credit" key state (no retries, the message says to add credit).
+- **Scope:** the Settings page (H5): language; the current purpose with Change; **Connections** (Claude Code found or signed in, its version, **Check again**, the backend switch On or Off, the optional SEC contact header, and the paid-extra-usage line when the status says `permitted`); **Usage** (the three caps in standard tokens, today's share of the daily cap, the one-time notice repeated); theme and locale; the shortcuts switch; `DataStatus`. Also the opt-in **Start Finora at login** switch (Windows first; the app still binds 127.0.0.1; S25 owns the mechanism and the security review). No key rows, no fund slots, no currency.
 - **Acceptance:**
-  1. A key's value never appears in the HTML, an API response or a client chunk; a planted canary key is absent from all three.
-  2. Key rows show "set" or "not set" and a "Check again" button; the app never accepts a key through the browser in v1.
-  3. Each of the 13 fund-symbol slots saves to local settings only; a symbol that fails the pattern shows an error line; changing a slot's symbol shows "Refetching" until the first value arrives; a saved symbol turns a `choose-fund` row into a proxy row.
+  1. No secret reaches the HTML, an API response or a client chunk: the build's contact-header sentinel is absent from all three.
+  2. The Connections rows come from `GET /api/v1/agents/status` (`backend`, `cli`, `cliVersion`, `overage`): each state shows its one step and **Check again**. The app accepts no key and no secret through the browser in v1.
+  3. The optional SEC contact header shows "set" or "not set" and how to set it locally (edit the local settings, restart, "Check again"). Nothing else is configurable here.
   4. The shortcuts switch disables the single-character shortcuts at once.
-  5. The AI key row has a `rejected` state ("The AI key was rejected") driven by the `model_auth` code; the Investigate sheet shows the same message.
+  5. `cli: unsafe` shows the `runtime_unsafe` banner text from the catalogue with **Check the connection**; the Investigate sheet shows the same state.
   6. `DataStatus` shows each source's last sync and rows, and the history size against its cap with a warning, never a silent deletion.
   7. Every control has a label; the page passes axe at both themes.
   8. The **Start at login** switch shows its state from `GET /settings/status`, explains what it does ("Finora starts in the background when you sign in and answers only on this machine"), and is off by default. **[pending: architect, S25 defines the setting and its route]**
-  9. Month-to-date and today's spend show against the daily cap; an "out of credit" key state shows the provider's message and stops retries.
+  9. **Usage** shows the three caps, today's share of the daily cap and when it resets, in standard tokens, never a currency; the one-time notice is repeated and links to the Claude account setting.
 - **Tests:** `web/src/components/settings/*.test.tsx`, `web/e2e/settings.spec.ts`, `web/e2e/settings.shortcuts.spec.ts`, `web/e2e/settings.a11y.spec.ts`.
-- **Demo:** open Settings, see which keys are set, add a fund symbol, open Crash monitor and see the proxy tile.
+- **Demo:** open Settings, see the Claude Code status and the three caps, switch the backend state in fixture mode, open Crash monitor and see a `not_configured` row.
 
 ---
 
@@ -973,7 +972,7 @@ web-qa swept the mockups (commit `7dc2e76`, 448 renders). These findings are bui
 
 **Designer: all answered (2026-11-20, commit `319a123`).**
 - The runtime wins every conflict: `scope` is "Is {domain} this company's website?" (Yes / No / Not sure, default "Not sure" after 30 min); the cap extension is once per investigation and its question defaults after 10 min; six lanes, four counted; sole traders have no Investigate, Network or agent rows; the purpose list comes from the API as radio buttons.
-- **Mobile run view:** below 1024 px a sticky bar under the top bar reads "4 agents · 2 running · $0.27 of $1.50", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel. Question cards always render inline at the top.
+- **Mobile run view:** below 1024 px a sticky bar under the top bar reads "4 agents · 2 running · 18% of the cap", "Needs you" or "Reconnecting", with "Show agents" jumping to the panel. Question cards always render inline at the top.
 - Language switch is in Settings. The home page's per-country "loaded {date}" and the library DTO come from the API.
 - Banned words in LT, LV and ET are word stems (the languages inflect), drafted in DESIGN.md §4 and marked for native review: until then the locale test warns and the English test fails the build.
 - A `?` shortcuts dialog is in DESIGN.md §14.
