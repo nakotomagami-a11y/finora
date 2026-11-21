@@ -34,6 +34,8 @@ const TLDS = "com|net|org|io|co|ai|dev|app|info|biz|eu|lv|lt|ee|us|uk|gov|edu|in
 const LABEL = String.raw`[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?`;
 const BARE_HOST = new RegExp(String.raw`(?<![\w.$-])((?:${LABEL}\.)+[a-z]{2,24})(?![\w-]|\.[a-z0-9])`, "g");
 /** A host written in brand case (`Name.gov`, `NameSpending.gov`) still counts when its TLD is a lower-case strong one. */
+/** A string literal whose whole value is a host (optional scheme and path): any TLD counts, as in `officialHosts` (qa 7071031499). */
+const QUOTED_HOST = /(["'])(?:[a-z][a-z0-9+.-]*:\/\/)?((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24})(?:[/?#][^"'\s]*)?\1/g;
 const MIXED_HOST = /(?<![\w.$-])((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+(?:gov|com|org|net|edu))(?![\w-]|\.[a-z0-9])/g;
 /** Date formats in prose (`dd.mm`, `dd.mm.yyyy`) are not hosts. */
 const DATE_FORMAT = /^(dd|mm|yy|yyyy)(\.(dd|mm|yy|yyyy))+$/;
@@ -116,6 +118,13 @@ export function scanText(path, text, { allow = [], stems = [] } = {}) {
   text.split(/\r?\n/).forEach((line, i) => {
     const at = i + 1;
     const hit = (cls, matched, kind = "phrase") => findings.push({ line: at, cls, kept: allowedAs(allow, matched, kind) });
+    // One finding per host per line, whichever rule saw it first.
+    const hostsOnLine = new Set();
+    const hitHost = (host) => {
+      if (hostsOnLine.has(host)) return;
+      hostsOnLine.add(host);
+      hit("host", host, "host");
+    };
     // A regex-escaped host (`name\.com` in a pattern) is still a host.
     const text = line.replace(/\\\./g, ".");
     const anchoredSpans = [];
@@ -124,7 +133,7 @@ export function scanText(path, text, { allow = [], stems = [] } = {}) {
       const tld = host.split(".").at(-1) ?? "";
       anchoredSpans.push([m.index, m.index + m[0].length]);
       if (!/^[a-z]{2,24}$/.test(tld) || FILE_EXT.has(tld) || RESERVED_HOST(host)) continue;
-      hit("host", host, "host");
+      hitHost(host);
     }
     // Backtick spans in prose hold code (`meta.id`), so the any-ccTLD rule stops at them.
     const codeSpans = prose ? [...text.matchAll(/`[^`]*`/g)].map((m) => [m.index, m.index + m[0].length]) : [];
@@ -141,12 +150,20 @@ export function scanText(path, text, { allow = [], stems = [] } = {}) {
       const known = (KNOWN_TLDS.has(tld) && (!GENERIC_TLDS.has(tld) || www)) || anyCountry;
       if (!known) continue;
       if (labels.length === 2 && !www && (labels[0].length < 2 || !(BARE_TLDS.has(tld) || anyCountry))) continue;
-      hit("host", host, "host");
+      hitHost(host);
+    }
+    // In code only, and only on a real TLD (a country code or the known list): `"run.status"` is a key.
+    for (const m of prose ? [] : text.matchAll(QUOTED_HOST)) {
+      const host = m[2];
+      const tld = host.split(".").at(-1) ?? "";
+      if (!(tld.length === 2 || KNOWN_TLDS.has(tld))) continue;
+      if (RESERVED_HOST(host) || ITEM_ID.test(host) || FILE_EXT.has(tld) || DATE_FORMAT.test(host)) continue;
+      hitHost(host);
     }
     for (const m of text.matchAll(MIXED_HOST)) {
       if (!/[A-Z]/.test(m[1]) || inside(anchoredSpans, m.index)) continue;
       const host = m[1].toLowerCase();
-      if (!RESERVED_HOST(host)) hit("host", host, "host");
+      if (!RESERVED_HOST(host)) hitHost(host);
     }
     for (const m of line.matchAll(ORG)) {
       // A fictional word in the phrase, or earlier on the same line, marks the whole name as invented.

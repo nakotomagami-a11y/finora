@@ -88,6 +88,13 @@ describe("check-outside-names: qa's gaps and false positives (7070905192)", () =
     assert.deepEqual(scanText("x.md", "an id of 30000000001"), []);
   });
 
+  it("counts a string literal whose whole value is a host on any TLD, as officialHosts are written (qa 7071031499)", () => {
+    const hosts = ["de", "io", "com", "lv"].map((tld, i) => `"${j("zyx", ["prices", "api", "data", "reg"][i])}.${tld}"`);
+    const line = `officialHosts: [${hosts.join(", ")}], homepage: "https://${j("zyx", "home")}.at/start"`;
+    assert.deepEqual(classes(scanText("x.ts", line)), ["host", "host", "host", "host", "host"]);
+    assert.deepEqual(scanText("x.ts", 'const file = "global.json"; const a = "rpc.invalid";'), []);
+  });
+
   it("skips code that reads like a host: upper-case members, word TLDs and file names", () => {
     for (const text of ["FX.LV.register", "COUNTS.us + LOCAL.us", "e.urls.global", 'name: "global.json"', "see slices.md and data.csv"]) {
       assert.deepEqual(scanText("x.ts", text), [], text);
