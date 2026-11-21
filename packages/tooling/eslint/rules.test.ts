@@ -24,6 +24,20 @@ describe("the shared ESLint config (architecture §2)", () => {
     expect(await ruleIds(code, "apps/server/src/env.ts")).not.toContain("no-restricted-properties");
   });
 
+  it("rejects the other ways to reach process.env outside env.ts", async () => {
+    const forms = [
+      'export const port = process["env"].PORT;\n',
+      "const { env } = process;\nexport const port = env.PORT;\n",
+      "let env;\n({ env } = process);\nexport const port = env.PORT;\n",
+      'import { env } from "node:process";\nexport const port = env.PORT;\n',
+      'import { env as e } from "process";\nexport const port = e.PORT;\n',
+    ];
+    for (const code of forms) {
+      expect(await ruleIds(code, "apps/server/src/sample.ts"), code).toContain("no-restricted-syntax");
+      expect(await ruleIds(code, "apps/server/src/env.ts"), code).not.toContain("no-restricted-syntax");
+    }
+  });
+
   it("rejects Node built-ins in packages/domain, prefixed or bare", async () => {
     for (const source of ["node:fs", "fs", "path"]) {
       const code = `import x from "${source}";\nexport default x;\n`;

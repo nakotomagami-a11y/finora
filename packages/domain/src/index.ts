@@ -1,5 +1,5 @@
-export { ITEMS } from "./items/items.generated.ts";
-export type { Item, ItemCall, ItemId } from "./items/items.generated.ts";
+export { EMPTY_STATE_KEYS, ITEM_CAVEATS_EN, ITEMS } from "./items/items.generated.ts";
+export type { EmptyStateKey, Item, ItemCall, ItemId } from "./items/items.generated.ts";
 export { ERROR_CODES, isErrorCode } from "./config/errors.ts";
 export type { ErrorCode } from "./config/errors.ts";
 export { BANNED_STEMS, BANNED_WORDS_EN, findBannedTerms } from "./config/banned-terms.ts";

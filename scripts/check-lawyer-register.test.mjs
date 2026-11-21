@@ -36,6 +36,21 @@ test("a register row missing from the S01 test map fails", () => {
   assert.match(problem, /LAW-TWO has no enforcing test/);
 });
 
+test("an id only mentioned in the section, outside the map, is not mapped", () => {
+  const prose = "### S01 x\nLAW-ONE is mentioned in passing, with no test file.\n| LAW-TWO | `b.test.ts` |\n### S02 y\n";
+  const [problem] = checkRegister({ registerText: register, slicesText: prose, files: [] });
+  assert.match(problem, /LAW-ONE has no enforcing test/);
+});
+
+test("a map row with no test file and no 'no surface in v1' marker is not mapped", () => {
+  const rows = "### S01 x\n| LAW-ONE | a later slice will add one |\n| LAW-TWO | no surface in v1: nothing shows it |\n### S02 y\n";
+  assert.deepEqual([...mappedIds(rows)], ["LAW-TWO"]);
+});
+
+test("a row may map several ids to one test", () => {
+  assert.deepEqual([...mappedIds("### S01 x\n| LAW-ONE, LAW-TWO | `web/e2e/x.spec.ts` |\n### S02 y\n")], ["LAW-ONE", "LAW-TWO"]);
+});
+
 test("the real register is fully mapped in S01", () => {
   const ids = registerIds(readFileSync(join(ROOT, "docs/plan/lawyer-register.md"), "utf8"));
   const mapped = mappedIds(readFileSync(join(ROOT, "docs/plan/slices.md"), "utf8"));

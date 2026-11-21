@@ -304,14 +304,15 @@ type Item = {
   section: SectionId;               // "S08"
   country: "lt" | "lv" | "ee" | "us" | "all" | "x";
   call: "show" | "caveat" | "later" | "hide";
-  caveatKey: string | null;         // i18n key for the caveat line
-  emptyState: EmptyStateKey;        // NP | CN | NC | PAID | LOCK | KEY | MANUAL | AGENT | none
+  caveatKey: string | null;         // "items.<id>.caveat", the i18n key for the caveat line
+  emptyStates: EmptyStateKey[];     // in Part G order; [] = none (the field does not render when absent)
   personal: boolean;                // natural-person data: purpose gate, disclaimer, TTL
   accessTier: "open" | "purpose";
 };
+type EmptyStateKey = "NP" | "CN" | "NC" | "PAID" | "LOCK" | "KEY" | "MANUAL" | "AGENT" | "PURPOSE"; // PURPOSE = needs_purpose
 ```
 
-A test fails when the generated file is stale against `01-data.md`. Items marked `personal` and the restricted-section rules (country, legal form, section, legal basis key) live next to it in `packages/domain/src/items/policy.ts`, hand-written, reviewed by legal. Consumers:
+Part G's empty-state cell often names more than one state (`AGENT / CN`, `needs_purpose; then NP`), so the generator keeps every key in order and drops the quoted copy. `personal` is true exactly where Part G gives `needs_purpose`, and `accessTier` follows it. The English caveat lines are generated beside the items as `ITEM_CAVEATS_EN`, the source of the `items.<id>.caveat` catalogue keys. A test fails when the generated file is stale against `01-data.md`. The restricted-section rules (country, legal form, section, legal basis key) live next to it in `packages/domain/src/items/policy.ts`, hand-written, reviewed by legal, and land with the report assembly in S09a. Consumers:
 - `ingest`: a field map entry whose target item is `hide` or `later` fails `sources/src/field-maps.test.ts`; every target must be a `show`/`caveat` item or a resolution key.
 - `domain/report`: section states and caveats come from the item (`assembleReport`).
 - the rendered-field registry: every UI value renders through `FieldRow itemId=...`; `web/src/field-registry.test.ts` compares the ids rendered on `/design` and the fixture pages with the `show`/`caveat` ids (qa checklist 9).
@@ -597,7 +598,7 @@ Adding a tool means: a manifest, a route group, its API routes and contract sche
 | Client component calling `/api/v1` | Anything interactive or live: search-as-you-type, live state groups, the purpose prompt, starting and watching an investigation (SSE), answering questions, the 60 s Crash monitor poll, follow-ups, disputes |
 | Server actions | Not used. Every mutation goes through the API, so MCP, the CLI and the UI share one contract and one CSRF rule |
 
-The render seam returns the same DTOs as the API. Seam files in `apps/web` (lint-enforced, each starting with `import "server-only"`): `app/api/[...path]/route.ts`, `app/mcp/route.ts`, `instrumentation.ts`, `lib/server-data.ts`.
+The render seam returns the same DTOs as the API. Seam files in `apps/web` (lint-enforced, each starting with `import "server-only"`): `app/api/[...path]/route.ts`, `app/mcp/route.ts`, `instrumentation.ts`, `lib/server-data.ts`, and `proxy.ts`, which imports only `@finora/server/env` and `@finora/server/guard` (the Host and Origin guard and the security headers, S02). Server components read the render seam through `lib/server-data.ts`, never by importing `@finora/server` themselves.
 
 **Components (ui-build-plan D1-D4, accepted).**
 - `packages/ui`: presentation primitives with no DTO knowledge (Button, Input, Combobox, Dialog, Popover, Tooltip, Tabs, Skeleton, StatusLine, Chip, ...). It may import only `i18n` types and receives finished strings as props.
@@ -1067,7 +1068,7 @@ The `security-engineer` review runs on the slices that add the API, the agent ru
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `FINORA_DATA_DIR` | `./.data` (gitignored) | SQLite files, raw cache, install key |
+| `FINORA_DATA_DIR` | `./.data` (gitignored), resolved against the repository root, not the working directory | SQLite files, raw cache, install key |
 | `FINORA_PORT` | `3000` | port, bound to 127.0.0.1 |
 | `FINORA_DEMO` | unset | `1` = `fake` provider and fixture data |
 | `SEC_USER_AGENT` | none | required for SEC sources ("app name contact-email", SEC policy) |

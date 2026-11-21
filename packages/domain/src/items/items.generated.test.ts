@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ITEMS } from "./items.generated.ts";
+import { EMPTY_STATE_KEYS, ITEM_CAVEATS_EN, ITEMS } from "./items.generated.ts";
 
 describe("the generated item list (architecture §3.6)", () => {
   it("holds every Part G row once", () => {
@@ -28,6 +28,13 @@ describe("the generated item list (architecture §3.6)", () => {
   });
 
   it("gives every CAVEAT item its caveat text", () => {
-    for (const item of ITEMS.filter((i) => i.call === "caveat")) expect(item.caveat, item.id).toBeTruthy();
+    for (const item of ITEMS.filter((i) => i.call === "caveat")) {
+      expect(item.caveatKey, item.id).toBe(`items.${item.id}.caveat`);
+      expect(ITEM_CAVEATS_EN[item.id], item.id).toBeTruthy();
+    }
+  });
+
+  it("uses only EmptyStateKey members", () => {
+    for (const item of ITEMS) for (const key of item.emptyStates) expect(EMPTY_STATE_KEYS).toContain(key);
   });
 });

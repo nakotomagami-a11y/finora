@@ -22,9 +22,14 @@ test("a forbidden edge in devDependencies fails too", () => {
   assert.match(checkManifests([manifest])[0], /may not depend on @finora\/store/);
 });
 
-test("@finora/tooling and third-party packages are always allowed", () => {
+test("@finora/tooling as a dev dependency and third-party packages are always allowed", () => {
   const manifest = pkg("@finora/domain", { zod: "^4" }, { devDependencies: { "@finora/tooling": "workspace:*" } });
   assert.deepEqual(checkManifests([manifest]), []);
+});
+
+test("@finora/tooling as a runtime dependency fails", () => {
+  const [problem] = checkManifests([pkg("@finora/domain", { "@finora/tooling": "workspace:*" })]);
+  assert.match(problem, /@finora\/tooling is a dev dependency only/);
 });
 
 test("a package missing from the table fails", () => {

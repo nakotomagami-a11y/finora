@@ -12,6 +12,7 @@ export const finoraPlugin = {
 };
 
 const BARE_BUILTINS = builtinModules.filter((name) => !name.startsWith("_") && !name.startsWith("node:"));
+const ENV_MESSAGE = "Read the environment through apps/server/src/env.ts, validated once at boot (architecture §2).";
 
 export function finoraConfig() {
   return defineConfig(
@@ -61,8 +62,16 @@ export function finoraConfig() {
           {
             object: "process",
             property: "env",
-            message: "Read the environment through apps/server/src/env.ts, validated once at boot (architecture §2).",
+            message: ENV_MESSAGE,
           },
+        ],
+        // The forms no-restricted-properties cannot see (qa S01 #4).
+        "no-restricted-syntax": [
+          "error",
+          { selector: "MemberExpression[object.name='process'][computed=true]", message: ENV_MESSAGE },
+          { selector: "VariableDeclarator[init.name='process'] > ObjectPattern", message: ENV_MESSAGE },
+          { selector: "AssignmentExpression[right.name='process'] > ObjectPattern", message: ENV_MESSAGE },
+          { selector: "ImportDeclaration[source.value=/^(node:)?process$/] > ImportSpecifier[imported.name='env']", message: ENV_MESSAGE },
         ],
       },
     },

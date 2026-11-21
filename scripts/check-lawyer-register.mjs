@@ -19,11 +19,27 @@ export function registerIds(registerText) {
   return new Set([...registerText.matchAll(/^\|\s*(LAW-[A-Z0-9-]+)\s*\|/gm)].map((m) => m[1]));
 }
 
+const TEST_FILE = /`[^`]*\.(?:test|spec)\.[cm]?[jt]sx?`/;
+const NO_SURFACE = /^no surface in v1\b/;
+
+/**
+ * The register ids the S01 test map holds. A row counts only if its second cell names a
+ * `*.test.*` or `*.spec.*` file in backticks, or starts with "no surface in v1"; an id merely
+ * mentioned in the section does not count.
+ */
 export function mappedIds(slicesText) {
   const start = slicesText.indexOf("### S01");
   const end = slicesText.indexOf("### S02", start);
   if (start < 0 || end < 0) throw new Error(`${SLICES} has no S01 section`);
-  return new Set(slicesText.slice(start, end).match(/LAW-[A-Z0-9-]+/g) ?? []);
+  const mapped = new Set();
+  for (const line of slicesText.slice(start, end).split(/\r?\n/)) {
+    const cells = line.trim().split("|").map((c) => c.trim());
+    if (cells.length < 4 || cells[0] !== "") continue;
+    const ids = cells[1].match(/LAW-[A-Z0-9-]+/g);
+    if (!ids || cells[1].replace(/LAW-[A-Z0-9-]+|[,\s]/g, "") !== "") continue;
+    if (TEST_FILE.test(cells[2]) || NO_SURFACE.test(cells[2])) for (const id of ids) mapped.add(id);
+  }
+  return mapped;
 }
 
 /** files: [{ path, text }]. Returns one message per problem. */
@@ -67,4 +83,4 @@ function main() {
   console.log("check-lawyer-register: every marker has a row, and every row has a test.");
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

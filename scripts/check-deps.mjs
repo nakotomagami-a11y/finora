@@ -46,12 +46,13 @@ export function checkManifests(manifests) {
     }
     if (pkg.license !== LICENSE) problems.push(`${path}: license must be "${LICENSE}"`);
     if (pkg.private !== true) problems.push(`${path}: must be "private": true`);
-    const allowed = new Set(["@finora/tooling", ...ALLOWED[name].map((short) => `@finora/${short}`)]);
-    const declared = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies };
+    const allowed = new Set(ALLOWED[name].map((short) => `@finora/${short}`));
+    const runtime = { ...pkg.dependencies, ...pkg.peerDependencies };
+    if ("@finora/tooling" in runtime) problems.push(`${path}: @finora/tooling is a dev dependency only`);
+    const declared = { ...runtime, ...pkg.devDependencies };
     for (const dep of Object.keys(declared)) {
-      if (dep.startsWith("@finora/") && dep !== name && !allowed.has(dep)) {
-        problems.push(`${path}: ${name} may not depend on ${dep} (architecture §2)`);
-      }
+      if (dep === "@finora/tooling" || dep === name || !dep.startsWith("@finora/")) continue;
+      if (!allowed.has(dep)) problems.push(`${path}: ${name} may not depend on ${dep} (architecture §2)`);
     }
   }
   return problems;
@@ -83,4 +84,4 @@ function main() {
   console.log("check-deps: every package follows the dependency table.");
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

@@ -4,6 +4,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+// Reaches out of the package on purpose: the guard rules are the one source of truth, and
+// @finora/tooling is a private dev package that is never published.
 import { compileDenylist, normalize } from "../../../../scripts/guard/rules.mjs";
 
 function git(args) {
