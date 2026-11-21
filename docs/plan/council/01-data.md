@@ -507,7 +507,7 @@ Legal 7067048486 and 7067060813 (P8: no model may read search snippets before Fi
 
 **Mitigations** (council; gated as shown):
 1. The Investigate sheet's optional field is relabelled "Company website or the domain on the offer", helper "The web check needs a domain; without one it can't run" (designer, frontend; gates S11).
-2. Check 11 runs on a known domain only. With none, the coverage line reads "Web check: not run, no website known (add one to check it)", never "none found"; the coverage line names how the site was found ("from the register", "from your input", "verified on the company's own page") (data-osint; gates S10).
+2. Check 11 runs on a known domain only. With none, the coverage line reads "Web check: not run, no website known (add one to check it)", never "none found"; the coverage line reads "Web check: run on a domain you gave / the register lists / Finora verified", or "not run, no website known" (council 7067084394) (data-osint; gates S10).
 3. The web lane shows its real tasks (domain, certificates, homepage, news); the other lanes keep their registry, list and court tasks.
 4. No change to the "Not enough data" threshold: Baltic investigations still reach 6 or more checks from the instant checks.
 
