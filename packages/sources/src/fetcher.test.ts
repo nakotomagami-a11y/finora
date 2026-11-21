@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
-import { FetchError, isPrivateAddress, politeFetch, type Transport, type TransportResponse } from "./fetcher.ts";
+import { FetchError, isPrivateAddress, politeFetch, retryAfterMs, type Transport, type TransportResponse } from "./fetcher.ts";
 
 const ok = (body = "ok", headers: Record<string, string> = {}): TransportResponse => ({ status: 200, headers, bytes: new TextEncoder().encode(body) });
 const publicDns = async () => [{ address: "93.184.216.34", family: 4 }];
@@ -105,5 +105,72 @@ describe("the polite fetcher", () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe("the polite fetcher, after the S04i security review", () => {
+  it("classifies IPv6 transition forms and special-use IPv4 ranges by the address they carry (SEC-5)", () => {
+    for (const a of ["::ffff:7f00:1", "::ffff:a00:1", "64:ff9b::a00:1", "2002:a00:1::", "2001:0::1", "fec0::1", "100::1", "2001:db8::1", "::127.0.0.1", "::", "198.51.100.7", "203.0.113.9", "192.0.0.8", "240.0.0.1"]) {
+      expect(isPrivateAddress(a), a).toBe(true);
+    }
+    for (const a of ["::ffff:808:808", "::ffff:8.8.8.8", "2a00:1450:4001::", "8.8.8.8"]) expect(isPrivateAddress(a), a).toBe(false);
+  });
+
+  it("refuses a redirect from https to http, and drops credentials when the host changes (SEC-6)", async () => {
+    const down = fake([{ status: 302, headers: { location: "http://data.example.lv/plain" }, bytes: new Uint8Array() }]);
+    const fetch = politeFetch({ officialHosts: ["data.example.lv"], userAgent: "x", transport: down.transport, resolve: publicDns, sleep: down.sleep });
+    await expect(fetch("https://data.example.lv/")).rejects.toMatchObject({ code: "insecure_redirect" });
+
+    const hop = fake([{ status: 302, headers: { location: "https://files.example.lv/a" }, bytes: new Uint8Array() }, ok("a")]);
+    const fetch2 = politeFetch({ officialHosts: ["data.example.lv", "files.example.lv"], userAgent: "Finora", transport: hop.transport, resolve: publicDns, sleep: hop.sleep });
+    await fetch2("https://data.example.lv/", { headers: { authorization: "Bearer KEY-SENTINEL", "x-api-key": "KEY-SENTINEL" } });
+    expect(hop.calls[0]?.headers.authorization).toBe("Bearer KEY-SENTINEL");
+    expect(JSON.stringify(hop.calls[1]?.headers)).not.toContain("KEY-SENTINEL");
+    expect(hop.calls[1]?.headers["user-agent"]).toBe("Finora");
+  });
+
+  it("caps Retry-After at 5 minutes and reads the HTTP-date form (SEC-7)", () => {
+    const now = Date.parse("2026-11-21T10:00:00Z");
+    expect(retryAfterMs("7", now)).toBe(7000);
+    expect(retryAfterMs("86400", now)).toBe(300_000);
+    expect(retryAfterMs("Sat, 21 Nov 2026 10:00:30 GMT", now)).toBe(30_000);
+    expect(retryAfterMs("soon", now)).toBeNull();
+    expect(retryAfterMs(undefined, now)).toBeNull();
+  });
+
+  it("stops a slow drip at the total deadline, however often a byte arrives (SEC-7, the real transport)", async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200);
+      const timer = setInterval(() => res.write("x"), 50);
+      res.on("close", () => clearInterval(timer));
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const fetch = politeFetch({ officialHosts: ["files.example.lv"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, deadlineMs: 400, retries: 0 });
+      const started = Date.now();
+      await expect(fetch(`http://files.example.lv:${port}/drip`)).rejects.toMatchObject({ code: "deadline" });
+      expect(Date.now() - started).toBeLessThan(3000);
+    } finally {
+      server.closeAllConnections();
+      server.close();
+    }
+  });
+
+  it("keeps the rate under concurrent calls: each reserves its slot before waiting (qa S1)", async () => {
+    let clock = 0;
+    const starts: number[] = [];
+    const transport: Transport = async () => {
+      starts.push(clock);
+      return ok();
+    };
+    const sleep = async (ms: number) => {
+      await new Promise((r) => setTimeout(r, 0));
+      clock = Math.max(clock, ms + clock);
+    };
+    const fetch = politeFetch({ officialHosts: ["www.sec.example"], userAgent: "x", transport, resolve: publicDns, sleep, now: () => clock, requestsPerSecond: 10 });
+    await Promise.all(Array.from({ length: 5 }, () => fetch("https://www.sec.example/")));
+    expect(starts).toHaveLength(5);
+    expect(new Set(starts).size).toBe(5);
   });
 });

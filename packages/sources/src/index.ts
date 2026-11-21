@@ -1,6 +1,6 @@
 export { checkFieldMap } from "./field-maps.ts";
-export { FetchError, isPrivateAddress, nodeTransport, politeFetch, type PoliteFetchOptions, type Resolver, type Transport } from "./fetcher.ts";
-export { checkSource, LICENCES, type Licence } from "./licences.ts";
+export { FetchError, isPrivateAddress, nodeTransport, politeFetch, retryAfterMs, type PoliteFetchOptions, type Resolver, type Transport } from "./fetcher.ts";
+export { checkSource, LICENCES, SOURCE_ID, type Licence } from "./licences.ts";
 export type {
   AsOfStrategy,
   Cadence,

@@ -26,8 +26,22 @@ describe("no install key and no person pseudonym in v1 (PERSON_ROWS=names_no_id;
       rawCacheDir: join(dir.path, "raw"),
     });
     store.close();
-    const names = walk(dir.path).map((f) => f.slice(dir.path.length).toLowerCase());
-    expect(names.filter((n) => /key|secret|pseudonym|hmac/.test(n))).toEqual([]);
+    // Legal condition 1: the exact file set, so no key file can hide under another name.
+    const names = walk(dir.path)
+      .map((f) => f.slice(dir.path.length + 1).split("\\").join("/"))
+      .filter((n) => !/-(wal|shm|journal)$/.test(n))
+      .sort();
+    expect(names).toEqual([
+      "deletions.log",
+      "finora-sa.db",
+      "finora-user.db",
+      "finora.db",
+      "raw/lv-officers/000.gz",
+      "raw/lv-officers/000.json",
+      "raw/lv-register/000.gz",
+      "raw/lv-register/000.json",
+      "restrictions.log",
+    ]);
   });
 
   it("computes no HMAC anywhere in the ingest code", () => {

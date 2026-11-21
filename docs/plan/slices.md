@@ -224,6 +224,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
   7. A dispute suppresses the value at the next read and survives a reload (R10).
   8. No route has a person path (L2); HIDE and canary suites pass on the API.
   9. `GET /companies/:eid` p95 within the relative budget on the fixture world; absolute number recorded for the LV `core` load in `benchmarks.md`.
+  11. A field refused at load (`main.withheld`, reason `personal_code`: the fixture LV sole trader's id) renders as not loaded on every surface, never as empty and never with a value (legal on S04i, condition 2).
 - **Tests:** `domain/src/report/assemble.test.ts`, `domain/src/report/section-result.test.ts`, `domain/src/report/restricted.test.ts`, `domain/src/report/facts-only.test.ts`, `domain/src/report/sole-trader-lock.test.ts`, `domain/src/checks/coverage-copy.test.ts`, `domain/src/report/items.test.ts`, `domain/src/checks/checks.test.ts`, `domain/src/verdict/history-window.test.ts`, `domain/src/export/export.test.ts`, `domain/src/export/canary.test.ts`, `domain/src/export/hide.negative.test.ts`, `server/src/routes/v1/**/route.contract.test.ts`, `server/src/field-registry.test.ts`, `server/src/hide.negative.test.ts`, `server/src/canary.contract.test.ts`, `server/src/perf/report.perf.test.ts`.
 - **Demo:** `curl "http://127.0.0.1:3000/api/v1/search?q=<LV name>"`, then `curl .../companies/lv-<code>`; `curl .../sections/S03` shows `needs_purpose`, then again after `POST /purpose`.
 

@@ -7,8 +7,10 @@ import {
   idIsPersonalCode,
   isLoadable,
   isNaturalPerson,
+  isProp,
   item,
   naturalPersonDrop,
+  PERSON_EID,
 } from "@finora/domain";
 import type { ParsedEntity, ParsedRecord, PartyRef } from "@finora/sources";
 
@@ -19,7 +21,13 @@ export type GateResult = {
   events: NonNullable<ParsedRecord["events"]>;
   withheld: { entityEid: string; prop: string; reason: string }[];
   drops: Drop[];
+  /** Values refused as personal codes: masked in the record's hash input, so no hash covers them. */
+  refused: string[];
 };
+
+/** A drop reason is a short snake_case word; anything else from a loader reports as "other" (SEC-2). */
+const reasonOf = (reason: string) => (/^[a-z][a-z0-9_]{0,39}$/.test(reason) ? reason : "other");
+const leaksPerson = (value: string) => findPersonalCodes(value).length > 0 || PERSON_EID.test(value);
 
 export type PartyLookup = (country: string, code: string) => { naturalPerson: boolean } | null;
 
@@ -50,14 +58,19 @@ export function partyProven(party: PartyRef, companyTypes: readonly string[], lo
 
 export function applyGates(record: ParsedRecord, options: { companyPartyTypes: readonly string[]; lookup: PartyLookup }): GateResult {
   const rowRef = safeRowRef(record.rowRef);
-  const drops: Drop[] = (record.dropped ?? []).map((d) => ({ ...d, ...(rowRef ? { rowRef } : {}) }));
-  const drop = (reason: string, prop?: string) => drops.push({ reason, ...(prop ? { prop } : {}), ...(rowRef ? { rowRef } : {}) });
+  const drops: Drop[] = [];
+  // Built field by field: a report entry is a known reason, a known property and a row-local
+  // reference, never a loader's free text and never a value (SEC-2).
+  const drop = (reason: string, prop?: string) =>
+    drops.push({ reason: reasonOf(reason), ...(prop !== undefined && isProp(prop) ? { prop } : {}), ...(rowRef ? { rowRef } : {}) });
+  for (const d of record.dropped ?? []) drop(d.reason, d.prop);
   const withheld: GateResult["withheld"] = [];
+  const refused: string[] = [];
 
   const parties: ParsedEntity[] = [];
   for (const party of record.parties ?? []) {
     if (partyProven(party, options.companyPartyTypes, options.lookup)) parties.push(...party.entities);
-    else drop("party_not_proven", party.type ?? undefined);
+    else drop("party_not_proven");
   }
 
   const natural = new Set<string>();
@@ -74,6 +87,7 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
       const leaks = ownId ? idIsPersonalCode(entity.country, s.value) : findPersonalCodes(s.value).length > 0;
       if (leaks) {
         drop("personal_code", s.prop);
+        refused.push(s.value);
         if (ownId) withheld.push({ entityEid: entity.eid, prop: s.prop, reason: "personal_code" });
         return false;
       }
@@ -89,12 +103,28 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
     if (byRule) return void drop(byRule), false;
     return true;
   });
-  const events = (record.events ?? []).filter((e) => {
-    const byItem = itemDrop(e.itemId);
-    if (byItem) return void drop(byItem), false;
-    const byRule = natural.has(e.entityEid) ? naturalPersonDrop({ prop: "", itemId: e.itemId }) : null;
-    if (byRule) return void drop(byRule), false;
-    return true;
-  });
-  return { entities, reports, events, withheld, drops };
+  const events = (record.events ?? [])
+    .filter((e) => {
+      const byItem = itemDrop(e.itemId);
+      if (byItem) return void drop(byItem), false;
+      const byRule = natural.has(e.entityEid) ? naturalPersonDrop({ prop: "", itemId: e.itemId }) : null;
+      if (byRule) return void drop(byRule), false;
+      return true;
+    })
+    .map((e) => {
+      // P3 for every value, not only a person's statements: an event's data (an administrator's
+      // field, a free-text note) never carries a personal code or a person row id (SEC-1).
+      if (!e.data) return e;
+      const data: Record<string, string | number | null> = {};
+      for (const [key, value] of Object.entries(e.data)) {
+        if (typeof value === "string" && leaksPerson(value)) {
+          drop("personal_code");
+          refused.push(value);
+          continue;
+        }
+        data[key] = value;
+      }
+      return { ...e, data };
+    });
+  return { entities, reports, events, withheld, drops, refused };
 }

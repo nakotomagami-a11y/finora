@@ -1,6 +1,7 @@
 // One sync of one source (architecture §4.4): fetch, as-of check, parse and gate, stage, write in
 // time-bounded transactions, purge under the guard, history, report. Runs under the source's
-// `sync:<id>` lease, so two syncs of one source never overlap.
+// `sync:<id>` lease, kept alive by a heartbeat for the whole sync, so two syncs of one source
+// never overlap.
 import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { ParsedRecord, PoliteFetch, RawArtifact, SourceLoader, StorageClass } from "@finora/sources";
@@ -14,6 +15,7 @@ import {
   entityByCode,
   finishSync,
   heartbeat,
+  holdsLease,
   lastContentStorage,
   lastContentSync,
   missingRecords,
@@ -24,18 +26,19 @@ import {
   releaseLease,
   replaceShareAlike,
   setContentHash,
+  shareAlikeRecords,
   stage,
+  StoreError,
   tombstoneRecord,
   upsertSource,
   writeFinoraEvent,
   writeRecord,
-  type Lease,
 } from "@finora/store";
 import { applyGates, type Drop, type GateResult } from "./gates.ts";
 import { snapshot, writeHistory } from "./history.ts";
-import { clearLiveView, setLiveView } from "./live-views.ts";
+import { clearLiveView, liveView, setLiveView, type LiveView } from "./live-views.ts";
 import { dropRaw, loadRaw, saveRaw } from "./raw-cache.ts";
-import { validRecord } from "./validate.ts";
+import { validateRecord } from "./validate.ts";
 
 export type SyncKind = "content" | "unchanged" | "stale_skipped" | "partial" | "failed" | "already_running";
 
@@ -78,6 +81,10 @@ export type SyncOptions = {
   logger?: Logger;
   /** Register type values that prove a party is a company (LV LEGAL_ENTITY, EE J). */
   companyPartyTypes?: readonly string[];
+  /** A live-no-store view, for the process that serves it (a worker posts it to the app; qa M1). */
+  onLiveView?: (sourceId: string, view: LiveView) => void;
+  /** Whether the serving process holds this source's live view; without one, never "unchanged". */
+  liveViewHeld?: boolean;
 };
 
 export function effectiveStorage(loader: SourceLoader, mode: SyncOptions["shareAlikeMode"]): StorageClass {
@@ -100,6 +107,15 @@ function lastToken(db: DatabaseSync, sourceId: string): string | null {
 
 const bump = (counts: Record<string, number>, key: string, n = 1) => (counts[key] = (counts[key] ?? 0) + n);
 
+/** Thrown inside a sync when its lease was lost: everything in flight rolls back. */
+class LeaseLost extends Error {}
+
+/** Every string a value of `refused` appears in is masked, so no row hash covers a personal code. */
+function masked(hashInput: readonly string[], refused: readonly string[]): string[] {
+  if (refused.length === 0) return [...hashInput];
+  return hashInput.map((h) => refused.reduce((text, value) => (value ? text.split(value).join("[withheld]") : text), h));
+}
+
 export async function runSync(db: DatabaseSync, loader: SourceLoader, options: SyncOptions): Promise<SyncOutcome> {
   const { meta } = loader;
   const now = options.now ?? (() => new Date());
@@ -111,11 +127,26 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     throw new Error(`${meta.id}: a ${storage} source is never synced in bulk`);
   }
 
-  const lease = acquireLease(db, `sync:${meta.id}`, holder, ttl, now().getTime());
+  const resource = `sync:${meta.id}`;
+  const lease = acquireLease(db, resource, holder, ttl, now().getTime());
   if (!lease) {
     logger.info("sync already running", { sourceId: meta.id });
     return { kind: "already_running", syncId: null, report: null };
   }
+  // Heartbeat from acquisition to release (SEC-3, qa M2): a long download or parse keeps the
+  // lease; a lease taken over by another holder stops this sync before it writes again.
+  let lost = false;
+  const beat = () => {
+    if (!lost && !db.isTransaction && !heartbeat(db, lease, ttl, now().getTime())) lost = true;
+  };
+  const timer = setInterval(beat, Math.max(10, Math.floor(ttl / 3)));
+  const assertLease = () => {
+    if (lost || !holdsLease(db, resource, holder, now().getTime())) {
+      lost = true;
+      throw new LeaseLost();
+    }
+  };
+
   const started = now();
   const startedAt = started.toISOString();
   upsertSource(db, { id: meta.id, storage, purgeScope: meta.purgeScope }, startedAt);
@@ -141,25 +172,29 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     const previousStorage = lastContentStorage(db, meta.id);
     const classChanged = previousStorage !== null && previousStorage !== storage;
     const keepRaw = meta.rawCache !== false && storage !== "live-no-store" && options.rawCacheDir;
+    // A live-no-store source with no view held in the serving process must parse again: an
+    // "unchanged" answer would leave it serving nothing (qa M1).
+    const mustParse = classChanged || (storage === "live-no-store" && !(options.liveViewHeld ?? liveView(meta.id) !== null));
 
-    let fetched = await loader.fetch({ fetcher: options.fetcher, keys: options.keys ?? {}, now: startedAt, lastToken: lastToken(db, meta.id) });
+    let fetched = await loader.fetch({ fetcher: options.fetcher, keys: options.keys ?? {}, now: startedAt, lastToken: mustParse ? null : lastToken(db, meta.id) });
+    assertLease();
     if (fetched.token) report.token = fetched.token;
     let artifacts: RawArtifact[] | null = fetched.unchanged ? null : fetched.artifacts;
     const sameParser = previous?.parserVersion === loader.parserVersion;
     if (artifacts === null) {
-      if (sameParser && !classChanged) return finish("unchanged", { upstreamAsOf: previous?.upstreamAsOf ?? null });
+      if (sameParser && !mustParse) return finish("unchanged", { upstreamAsOf: previous?.upstreamAsOf ?? null });
       artifacts = keepRaw ? loadRaw(options.rawCacheDir as string, meta.id) : null;
       if (artifacts === null) {
         fetched = await loader.fetch({ fetcher: options.fetcher, keys: options.keys ?? {}, now: startedAt, lastToken: null });
+        assertLease();
         if (fetched.unchanged) return finish("failed", { reason: "raw_cache_missing" });
         artifacts = fetched.artifacts;
       }
     }
     const hash = contentHash(artifacts);
-    if (previous && previous.contentHash === hash && sameParser && !classChanged) {
+    if (previous && previous.contentHash === hash && sameParser && !mustParse) {
       return finish("unchanged", { upstreamAsOf: previous.upstreamAsOf });
     }
-    if (keepRaw) saveRaw(options.rawCacheDir as string, meta.id, artifacts);
 
     const dates = loader.asOf(artifacts);
     const basis = meta.asOf.find((s) => typeof dates[s] === "string" && dates[s] !== "");
@@ -168,6 +203,8 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     if (previous?.upstreamAsOf && asOf < previous.upstreamAsOf && !classChanged) {
       return finish("stale_skipped", { upstreamAsOf: previous.upstreamAsOf, reason: "older_than_last_sync" });
     }
+    // Only a file that passed the as-of check replaces the cached one (qa M5).
+    if (keepRaw) saveRaw(options.rawCacheDir as string, meta.id, artifacts);
 
     const gateOptions = {
       companyPartyTypes: options.companyPartyTypes ?? [],
@@ -177,6 +214,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     const periods = new Set<string>();
     const deletes: string[] = [];
     const memory: { eid: string; prop: string; value: string; itemId: string }[] = [];
+    let memoryRecords = 0;
     let complete = true;
 
     if (storage === "store") beginStaging(db);
@@ -184,14 +222,12 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     let maxRecords = options.batch?.maxRecords ?? 5000;
     let inBatch = 0;
     let batchStart = 0;
-    let inTransaction = false;
     const commit = () => {
-      if (!inTransaction) return;
+      if (!db.isTransaction) return;
       db.exec("COMMIT");
-      inTransaction = false;
       // A slow disk shrinks the batch, so the write lock is never held long (qa session 2).
       if (Date.now() - batchStart > maxMs && maxRecords > 50) maxRecords = Math.max(50, Math.floor(maxRecords / 2));
-      heartbeat(db, lease as Lease, ttl, now().getTime());
+      beat();
     };
 
     try {
@@ -202,21 +238,29 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
           break;
         }
         report.read++;
-        if (!validRecord(raw)) {
-          bump(report.skipped, "invalid_record");
+        // Staged before validation: a record that fails validation is skipped, never purged (qa M4).
+        const key = (raw as { recordKey?: unknown }).recordKey;
+        if (storage === "store" && typeof key === "string" && key !== "" && (raw as { op?: unknown }).op !== "delete") stage(db, key);
+        const checked = validateRecord(raw);
+        if (!checked.ok) {
+          bump(report.skipped, checked.reason);
           continue;
         }
-        if (raw.op === "delete") {
-          deletes.push(raw.recordKey);
+        const record = checked.record;
+        if (record.op === "delete") {
+          // Explicit deletes belong to change feeds only (qa S8).
+          if (meta.purgeScope === "none") deletes.push(record.recordKey);
+          else bump(report.skipped, "delete_not_allowed");
           continue;
         }
-        if (raw.period) periods.add(raw.period);
-        const gated = applyGates(raw, gateOptions);
+        if (record.period) periods.add(record.period);
+        const gated = applyGates(record, gateOptions);
         countDrops(report, gated.drops);
 
         if (storage !== "store") {
           // Share-alike and live-no-store rows stay keyed on the public eid; a fact is kept as
           // `<concept>@<period end>` until the share-alike loader slice (S07) shapes its own tables.
+          memoryRecords++;
           for (const e of gated.entities) for (const s of e.statements) memory.push({ eid: e.eid, prop: s.prop, value: s.value, itemId: s.itemId });
           for (const r of gated.reports) {
             for (const f of r.facts) memory.push({ eid: r.entityEid, prop: `${f.concept}@${r.periodEnd}`, value: String(f.value), itemId: r.itemId });
@@ -224,17 +268,17 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
           continue;
         }
 
-        stage(db, raw.recordKey);
-        if (!inTransaction) {
+        if (!db.isTransaction) {
+          assertLease();
           db.exec("BEGIN IMMEDIATE");
-          inTransaction = true;
           batchStart = Date.now();
           inBatch = 0;
         }
-        writeParsed(db, { syncId, sourceId: meta.id, day }, raw, gated, report);
+        writeParsed(db, { syncId, sourceId: meta.id, day }, { ...record, hashInput: masked(record.hashInput, gated.refused) }, gated, report);
         if (++inBatch >= maxRecords || Date.now() - batchStart > maxMs) commit();
       }
     } catch (error) {
+      if (error instanceof LeaseLost) throw error;
       complete = false;
       report.reason = "parse_error";
       logger.warn("parse failed", { sourceId: meta.id, error: error instanceof Error ? error.name : "unknown" });
@@ -247,15 +291,33 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     }
 
     if (storage === "share-alike-store") {
+      // The purge guard holds here too: a short or empty file never empties the store (qa M3).
+      const before = shareAlikeRecords(db, meta.id);
+      const removed = before === null ? 0 : Math.max(0, before - memoryRecords);
+      if (before !== null && removed > Math.max(Math.ceil(meta.maxPurgeShare * before), 5) && options.allowMassPurge !== true) {
+        return finish("partial", { upstreamAsOf: asOf, asOfBasis: basis, reason: "purge_guard" });
+      }
+      assertLease();
       db.exec("BEGIN IMMEDIATE");
-      replaceShareAlike(db, { sourceId: meta.id, licenceId: meta.licence, startedAt, upstreamAsOf: asOf }, memory);
+      replaceShareAlike(db, { sourceId: meta.id, licenceId: meta.licence, startedAt, upstreamAsOf: asOf, records: memoryRecords }, memory);
       db.exec("COMMIT");
-      report.written = memory.length;
+      report.written = memoryRecords;
+      report.deleted = removed;
     } else if (storage === "live-no-store") {
-      setLiveView(meta.id, { asOf, loadedAt: startedAt, rows: memory });
-      report.written = memory.length;
+      const view: LiveView = { asOf, loadedAt: startedAt, rows: memory };
+      setLiveView(meta.id, view);
+      options.onLiveView?.(meta.id, view);
+      report.written = memoryRecords;
     } else {
-      const purged = purge(db, loader, { deletes, periods, allowMassPurge: options.allowMassPurge === true, day, windowStart: loader.windowStart?.(artifacts) ?? null });
+      const purged = purge(db, loader, {
+        deletes,
+        periods,
+        allowMassPurge: options.allowMassPurge === true,
+        day,
+        windowStart: loader.windowStart?.(artifacts) ?? null,
+        assertLease,
+        maxMs,
+      });
       endStaging(db);
       report.deleted = purged.deleted;
       report.tombstoned = purged.tombstoned;
@@ -270,11 +332,19 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     if (storage !== "live-no-store") setContentHash(db, syncId, hash);
     return finish("content", { upstreamAsOf: asOf, asOfBasis: basis });
   } catch (error) {
-    logger.warn("sync failed", { sourceId: meta.id, error: error instanceof Error ? error.name : "unknown" });
     if (db.isTransaction) db.exec("ROLLBACK");
-    return finish("failed", { reason: error instanceof Error && "code" in error ? String((error as { code: unknown }).code) : "error" });
+    if (storage === "store") endStaging(db);
+    if (error instanceof LeaseLost) {
+      logger.warn("sync lost its lease", { sourceId: meta.id });
+      return finish("partial", { reason: "lease_lost" });
+    }
+    // The error's name and code only: a message could carry a value (qa S7).
+    const code = error instanceof StoreError ? error.code : error instanceof Error && "code" in error ? String((error as { code: unknown }).code) : "error";
+    logger.warn("sync failed", { sourceId: meta.id, error: error instanceof Error ? error.name : "unknown", code });
+    return finish("failed", { reason: code });
   } finally {
-    releaseLease(db, lease);
+    clearInterval(timer);
+    if (!lost) releaseLease(db, lease);
   }
 }
 
@@ -315,7 +385,7 @@ export function writeParsed(
     };
     report.events += writeHistory(db, before, after, sync.day, itemOf);
   } catch (error) {
-    bump(report.skipped, error instanceof Error && /which it does not write/.test(error.message) ? "entity_missing" : "write_refused");
+    bump(report.skipped, error instanceof StoreError && error.code === "entity_missing" ? "entity_missing" : "write_refused");
   }
 }
 
@@ -345,11 +415,12 @@ function moveOutOf(db: DatabaseSync, sourceId: string, from: StorageClass, to: S
  * Step 6 with the purge guard (A2): a sync may delete at most max(ceil(share x records), 5)
  * records. Window sources expect the records that aged out of the window; periods_in_file
  * sources purge only periods present in the file; change feeds guard their explicit deletes.
+ * Deletes run in time-bounded batches, each re-checking the lease first (qa S6, SEC-3).
  */
 function purge(
   db: DatabaseSync,
   loader: SourceLoader,
-  run: { deletes: string[]; periods: Set<string>; allowMassPurge: boolean; day: string; windowStart: string | null },
+  run: { deletes: string[]; periods: Set<string>; allowMassPurge: boolean; day: string; windowStart: string | null; assertLease: () => void; maxMs: number },
 ): { deleted: number; tombstoned: number; events: number; guard: boolean } {
   const { meta } = loader;
   const total = countRecords(db, meta.id);
@@ -366,23 +437,30 @@ function purge(
   }
   if (counted > allowed && !run.allowMassPurge) return { deleted: 0, tombstoned: 0, events: 0, guard: true };
 
-  db.exec("BEGIN IMMEDIATE");
   let events = 0;
   let tombstoned = 0;
-  const deleteIds: number[] = [];
-  for (const record of candidates) {
-    if (meta.onRemoval === "tombstone") {
-      tombstoneRecord(db, record.id, run.day);
-      tombstoned++;
-      continue;
+  let deleted = 0;
+  for (let i = 0; i < candidates.length; ) {
+    run.assertLease();
+    db.exec("BEGIN IMMEDIATE");
+    const start = Date.now();
+    const batch: number[] = [];
+    for (; i < candidates.length && Date.now() - start <= run.maxMs; i++) {
+      const record = candidates[i]!;
+      if (meta.onRemoval === "tombstone") {
+        tombstoneRecord(db, record.id, run.day);
+        tombstoned++;
+        continue;
+      }
+      // A removed role set leaves only role_ended events, with no name and no id (P4).
+      for (const line of recordLines(db, record.id)) {
+        if (writeFinoraEvent(db, { entityEid: line.companyEid, type: "finora.role_ended", date: run.day, itemId: line.itemId, data: { role: line.role } })) events++;
+      }
+      batch.push(record.id);
     }
-    // A removed role set leaves only role_ended events, with no name and no id (P4).
-    for (const line of recordLines(db, record.id)) {
-      if (writeFinoraEvent(db, { entityEid: line.companyEid, type: "finora.role_ended", date: run.day, itemId: line.itemId, data: { role: line.role } })) events++;
-    }
-    deleteIds.push(record.id);
+    deleteRecords(db, batch);
+    deleted += batch.length;
+    db.exec("COMMIT");
   }
-  deleteRecords(db, deleteIds);
-  db.exec("COMMIT");
-  return { deleted: deleteIds.length, tombstoned, events, guard: false };
+  return { deleted, tombstoned, events, guard: false };
 }

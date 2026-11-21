@@ -273,6 +273,12 @@ export const MIGRATIONS: readonly Migration[] = [
       ) STRICT, WITHOUT ROWID;
     `,
   },
+  {
+    // qa S04i M3: the share-alike store gets the purge guard, which needs the last record count.
+    target: "sa",
+    name: "share-alike records",
+    sql: `ALTER TABLE sa.sa_syncs ADD COLUMN records INTEGER;`,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */

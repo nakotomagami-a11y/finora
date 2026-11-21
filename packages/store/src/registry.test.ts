@@ -65,6 +65,24 @@ describe("the sole-trader id guard is country-aware (lv-register.md, legal's S04
 });
 
 describe("writeRecord", () => {
+  it("refuses a personal code in an event's data, the second line behind the gate (SEC-1)", () => {
+    const { db } = memoryStore();
+    const syncId = contentSync(db, "lv-register", "2026-11-01T00:00:00.000Z");
+    const first10 = ["3000", "1010", "00"].join("");
+    const entity = company("lv-00000000001", "Example SIA");
+    expect(() =>
+      writeRecord(db, {
+        syncId,
+        sourceId: "lv-register",
+        recordKey: entity.eid,
+        hashInput: ["1"],
+        entities: [entity],
+        events: [{ entityEid: entity.eid, type: "register.note", date: "2026-10-01", itemId: "S09.LV.01", data: { note: `${first10}${balticCheckDigit(first10)}` } }],
+      }),
+    ).toThrow(/personal_code_refused/);
+    expect(count(db, "main.records")).toBe(0);
+  });
+
   it("is atomic on its own: a failure mid-write leaves nothing, inside or outside a transaction", () => {
     const { db } = memoryStore();
     const syncId = contentSync(db, "lv-register", "2026-11-01T00:00:00.000Z");

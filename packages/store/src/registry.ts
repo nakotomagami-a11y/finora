@@ -16,7 +16,7 @@ import {
 } from "@finora/domain";
 
 /** Store-internal refusals; the API maps them to `internal_error` or its own codes. */
-export type StoreErrorCode = "unknown_prop" | "item_not_loadable" | "personal_code_refused" | "purpose_blocked";
+export type StoreErrorCode = "unknown_prop" | "item_not_loadable" | "personal_code_refused" | "purpose_blocked" | "entity_missing";
 
 export class StoreError extends Error {
   readonly code: StoreErrorCode;
@@ -123,6 +123,10 @@ export function rowHash(hashInput: string[]): Buffer {
 function refuse(input: RecordInput): void {
   for (const event of input.events ?? []) {
     if (!isLoadable(event.itemId)) throw new StoreError("item_not_loadable", event.itemId);
+    // The second line behind the ingest gate (SEC-1): no personal code in any event's data.
+    for (const value of Object.values(event.data ?? {})) {
+      if (typeof value === "string" && findPersonalCodes(value).length > 0) throw new StoreError("personal_code_refused", "event data");
+    }
   }
   for (const entity of input.entities) {
     const naturalPerson = isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null });
@@ -205,7 +209,7 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
   }
   const entityId = (eid: string): number => {
     const row = db.prepare("SELECT id FROM main.entities WHERE eid = ?").get(eid) as { id: number } | undefined;
-    if (!row) throw new Error(`record ${input.recordKey} refers to ${eid}, which it does not write`);
+    if (!row) throw new StoreError("entity_missing");
     return row.id;
   };
   for (const report of input.reports ?? []) {

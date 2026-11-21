@@ -193,7 +193,6 @@ export const FIXTURE_PROFILE: readonly { exportName: string; loader: SourceLoade
   { exportName: "fxHide", loader: fxHide },
 ];
 
-export const FIXTURE_LOADERS_MODULE = new URL("./loaders.ts", import.meta.url).href;
 
 /** A live-cached US state register: answers one company at a time, per dataset (§3.5). */
 export const fxUsState = Object.assign(jsonLoader(meta("fx-us-state", "us", "live-cached", ["S01.US.02", "S03.US.03"], { cacheTtl: { refetchHours: 24, purgeUnviewedDays: 30 } }), () => []), {

@@ -142,14 +142,14 @@ export function entityByCode(db: DatabaseSync, country: string, code: string): {
 /** P1: a share-alike source's rows live in finora-sa.db only, keyed on the public eid. */
 export function replaceShareAlike(
   db: DatabaseSync,
-  sync: { sourceId: string; licenceId: string; startedAt: string; upstreamAsOf: string | null },
+  sync: { sourceId: string; licenceId: string; startedAt: string; upstreamAsOf: string | null; records: number },
   rows: readonly { eid: string; prop: string; value: string; itemId: string }[],
 ): number {
   purgeShareAlike(db, sync.sourceId);
   const syncId = Number(
     db
-      .prepare("INSERT INTO sa.sa_syncs (source_id, licence_id, started_at, upstream_as_of) VALUES (?, ?, ?, ?)")
-      .run(sync.sourceId, sync.licenceId, sync.startedAt, sync.upstreamAsOf).lastInsertRowid,
+      .prepare("INSERT INTO sa.sa_syncs (source_id, licence_id, started_at, upstream_as_of, records) VALUES (?, ?, ?, ?, ?)")
+      .run(sync.sourceId, sync.licenceId, sync.startedAt, sync.upstreamAsOf, sync.records).lastInsertRowid,
   );
   const insert = db.prepare("INSERT INTO sa.sa_statements (eid, prop, value, item_id, sync_id) VALUES (?, ?, ?, ?, ?)");
   for (const r of rows) insert.run(r.eid, r.prop, r.value, r.itemId, syncId);
@@ -240,4 +240,36 @@ export function setLiveChecked(db: DatabaseSync, sourceId: string, recordKey: st
     `INSERT INTO main.live_cache_checks (source_id, record_key, checked_at) VALUES (?, ?, ?)
      ON CONFLICT (source_id, record_key) DO UPDATE SET checked_at = excluded.checked_at`,
   ).run(sourceId, recordKey, at);
+}
+
+/** The record count of a share-alike source's current rows, for its purge guard; null if none. */
+export function shareAlikeRecords(db: DatabaseSync, sourceId: string): number | null {
+  const row = db.prepare("SELECT records FROM sa.sa_syncs WHERE source_id = ? ORDER BY id DESC LIMIT 1").get(sourceId) as { records: number | null } | undefined;
+  return row?.records ?? null;
+}
+
+/** True while `holder` still holds `resource` and it has not expired (re-checked before a purge). */
+export function holdsLease(db: DatabaseSync, resource: string, holder: string, now: number): boolean {
+  const row = db.prepare("SELECT holder, expires_at FROM main.leases WHERE resource = ?").get(resource) as { holder: string; expires_at: number } | undefined;
+  return row !== undefined && row.holder === holder && row.expires_at > now;
+}
+
+/** Closes a sync a crashed worker left `running` (SEC-12): it ends failed, with the reason. */
+export function failRunningSyncs(db: DatabaseSync, sourceId: string, at: string, reason: string): number {
+  return Number(
+    db
+      .prepare("UPDATE main.syncs SET kind = 'failed', finished_at = ?, report_json = ? WHERE source_id = ? AND kind = 'running'")
+      .run(at, JSON.stringify({ reason }), sourceId).changes,
+  );
+}
+
+/** The records of a source whose key starts with a prefix (a live-cached record's datasets). */
+export function recordIdsWithPrefix(db: DatabaseSync, sourceId: string, prefix: string): number[] {
+  return (
+    db.prepare("SELECT id FROM main.records WHERE source_id = ? AND substr(record_key, 1, ?) = ? ORDER BY id").all(sourceId, prefix.length, prefix) as { id: number }[]
+  ).map((r) => r.id);
+}
+
+export function recordKeyOf(db: DatabaseSync, id: number): string {
+  return (db.prepare("SELECT record_key FROM main.records WHERE id = ?").get(id) as { record_key: string } | undefined)?.record_key ?? "";
 }

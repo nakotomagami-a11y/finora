@@ -29,7 +29,9 @@ describe("history: our own snapshots (§3.7; LAW-RETENTION-ROLES interim)", () =
     loader.state.asOf = { in_file_field: "2026-11-02" };
     await sync(db, loader);
     expect(events(db)).toEqual([]);
-    expect(JSON.stringify(db.prepare("SELECT * FROM main.events").all())).not.toContain("Old Trader Name");
+    const all = JSON.stringify(db.prepare("SELECT * FROM main.events").all());
+    expect(all).not.toContain("Old Trader Name");
+    expect(all).not.toContain("New Trader Name");
   });
 
   it("a role that disappears leaves only finora.role_ended, with no name and no person id anywhere", async () => {

@@ -48,6 +48,8 @@ export const LICENCES: Readonly<Record<string, Licence>> = {
   },
 };
 
+export const SOURCE_ID = /^[a-z0-9][a-z0-9-]{1,63}$/;
+
 const SHARE_ALIKE_OK: StorageClass[] = ["share-alike-store", "live-no-store"];
 const RESTRICTED_OK: StorageClass[] = ["agent-only", "live-no-store", "connector-cache"];
 
@@ -65,6 +67,8 @@ function host(url: string): string | null {
  */
 export function checkSource(meta: SourceMeta, fieldMap: FieldMap, fetchHosts: readonly string[] = []): string[] {
   const problems: string[] = [];
+  // The id names files and directories (raw cache, leases), so it is never a path (SEC-8).
+  if (!SOURCE_ID.test(meta.id)) problems.push(`${meta.id}: a source id matches ${SOURCE_ID}`);
   const licence = LICENCES[meta.licence];
   if (!licence) return [`${meta.id}: licence ${meta.licence} is not in LICENCES`];
   if (meta.storage === "store" && (licence.shareAlike || licence.nonCommercial || !licence.redistribution)) {

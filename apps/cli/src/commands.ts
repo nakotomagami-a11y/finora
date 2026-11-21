@@ -4,7 +4,7 @@
 import { existsSync, readdirSync, statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { isInternalEid, naturalPersonCaption } from "@finora/domain";
-import { FIXTURE_LOADERS_MODULE, FIXTURE_PROFILE } from "@finora/fixtures";
+import { FIXTURE_PROFILE } from "@finora/fixtures";
 import { runSyncInWorker, type SyncReport } from "@finora/ingest";
 import { LOADERS } from "@finora/sources";
 import { openStore, searchCompanies, sourceRefForStatement, writeBackup, type Store } from "@finora/store";
@@ -13,6 +13,7 @@ import type { CliEnv } from "./env.ts";
 export type Io = { env: CliEnv; out: (line: string) => void; now?: () => Date };
 
 const COMPANY_PARTY_TYPES = ["LEGAL_ENTITY", "FOREIGN_ENTITY", "J"];
+const SYNC_WORKER = new URL("./sync-worker.ts", import.meta.url);
 
 function withStore<T>(io: Io, fn: (store: Store) => T): T {
   const store = openStore({ dataDir: io.env.dataDir });
@@ -47,11 +48,10 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     return 2;
   }
   let failed = 0;
-  for (const { exportName, loader } of chosen) {
-    const outcome = await runSyncInWorker({
+  for (const { loader } of chosen) {
+    const outcome = await runSyncInWorker(SYNC_WORKER, {
       dataDir: io.env.dataDir,
-      loaderModule: FIXTURE_LOADERS_MODULE,
-      loaderExport: exportName,
+      sourceId: loader.meta.id,
       userAgent: io.env.secUserAgent ?? "Finora (fixtures)",
       options: {
         shareAlikeMode: io.env.shareAlikeMode,

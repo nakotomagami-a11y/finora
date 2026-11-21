@@ -13,21 +13,16 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     const dir = tempDir();
     dirs.push(dir);
     const watcher = openStore({ dataDir: dir.path });
-    const job = {
-      dataDir: dir.path,
-      loaderModule: new URL("./testing/slow-source.ts", import.meta.url).href,
-      loaderExport: "slowSource",
-      userAgent: "Finora test",
-      options: {},
-    };
+    const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
+    const job = { dataDir: dir.path, sourceId: "fake-slow", userAgent: "Finora test", options: {} };
     const hold = join(dir.path, "hold");
     writeFileSync(hold, "");
-    const first = runSyncInWorker(job);
+    const first = runSyncInWorker(entry, job);
     // Start the second sync only once the first holds the source's lease.
     const leased = () => (watcher.db.prepare("SELECT COUNT(*) AS n FROM main.leases WHERE resource = 'sync:fake-slow'").get() as { n: number }).n === 1;
     for (let i = 0; i < 3000 && !leased(); i++) await new Promise((r) => setTimeout(r, 10));
     expect(leased()).toBe(true);
-    const second = await runSyncInWorker(job);
+    const second = await runSyncInWorker(entry, job);
     rmSync(hold);
     const outcomes = [await first, second];
     expect(outcomes.map((o) => o.kind)).toEqual(["content", "already_running"]);

@@ -1,6 +1,5 @@
 export {
   FIXTURE_AS_OF,
-  FIXTURE_LOADERS_MODULE,
   FIXTURE_PROFILE,
   companyEntity,
   fxEeOfficers,
