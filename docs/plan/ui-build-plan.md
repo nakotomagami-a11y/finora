@@ -54,7 +54,7 @@ Agents run on the local CLI under the user's own subscription. There are no doll
 | US federal exclusions, court dockets | `manual_lookup`: the official link, no request made |
 | DTO `cost { spentMicroUsd, ... }` | `usage` (see above) |
 
-Gallery fixtures already use this wording ("Estimated usage: about 120,000 tokens", "This run uses your subscription."). Money still appears where it is the data itself (a company's revenue in EUR, a market quoted in USD). Order of work is unchanged: U1 is accepted; these states belong to U5 and U6 (S11) and U9 (S23), and the unit popover and the one-time notice **gate S11**.
+Gallery fixtures use this wording (cto's estimate line, "each question is capped at 85k standard tokens", "This run uses your subscription."). Money still appears where it is the data itself (a company's revenue in EUR, a market quoted in USD). Order of work is unchanged: U1 is accepted; these states belong to U5 and U6 (S11) and U9 (S23), and the unit popover and the one-time notice **gate S11**.
 
 ## 1. Decisions
 

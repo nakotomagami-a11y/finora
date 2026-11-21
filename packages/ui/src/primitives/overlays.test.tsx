@@ -19,7 +19,7 @@ function DialogHarness({ dismissible = true, sheet = false }: { dismissible?: bo
         open={open}
         onOpenChange={setOpen}
         title="Start investigation"
-        description="Estimated usage: about 120,000 tokens"
+        description="About 150k standard tokens of your subscription"
         closeLabel="Close"
         dismissible={dismissible}
         footer={<button type="button" data-autofocus>Start</button>}
@@ -39,7 +39,7 @@ describe.each([
     render(<DialogHarness sheet={sheet} />);
     await userEvent.click(screen.getByRole("button", { name: "Open" }));
     const dialog = await screen.findByRole("dialog", { name: "Start investigation" });
-    expect(dialog).toHaveAccessibleDescription("Estimated usage: about 120,000 tokens");
+    expect(dialog).toHaveAccessibleDescription("About 150k standard tokens of your subscription");
   });
 
   it("closes with Esc and returns focus to the button that opened it", async () => {

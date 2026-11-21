@@ -215,7 +215,7 @@ function OverlaysGroup({ open }: { open: string | undefined }) {
             open={dialog}
             onOpenChange={setDialog}
             title="Start investigation"
-            description="Estimated usage: about 120,000 tokens, at most 240,000. The cap for this run is 400,000 tokens."
+            description="About 150k standard tokens of your subscription, up to about 310k. Cap 500k. Today: 2.9M of 3.3M left."
             closeLabel="Close"
             footer={
               <>
@@ -232,7 +232,7 @@ function OverlaysGroup({ open }: { open: string | undefined }) {
         <Row label="sheet">
           <Button onClick={() => setSheet(true)}>Open sheet</Button>
           <Sheet open={sheet} onOpenChange={setSheet} title="Ask about this report" closeLabel="Close">
-            <p className="text-ink-2">Answers cite the findings; the cap is 60,000 tokens per question.</p>
+            <p className="text-ink-2">Answers cite the findings; each question is capped at 85k standard tokens.</p>
             <Input label="Your question" />
           </Sheet>
         </Row>
