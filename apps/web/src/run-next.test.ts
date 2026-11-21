@@ -31,6 +31,11 @@ describe("childEnv", () => {
     expect(Object.keys(env).sort()).toEqual(["NODE_ENV", "PATH"]);
   });
 
+  it("passes no API key, whatever its name", () => {
+    const keys = { SOME_API_KEY: "k", SOME_SERVICE_TOKEN: "t", API_SECRET: "s" };
+    expect(Object.keys(childEnv("start", { ...keys, PATH: "/bin" })).sort()).toEqual(["NODE_ENV", "PATH"]);
+  });
+
   it("keeps what Finora and the system need", () => {
     const wanted = {
       PATH: "/bin",
@@ -39,8 +44,8 @@ describe("childEnv", () => {
       USERPROFILE: "profile-dir",
       FINORA_PORT: "3100",
       FINORA_DATA_DIR: "./.data",
-      ANTHROPIC_API_KEY: "k",
-      NEXT_PUBLIC_ANTHROPIC_API_KEY: "k",
+      SEC_USER_AGENT: "contact",
+      NEXT_PUBLIC_EXAMPLE: "x",
       NODE_OPTIONS: "--max-old-space-size=4096",
       LANG: "en_GB.UTF-8",
     };

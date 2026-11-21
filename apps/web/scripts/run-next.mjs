@@ -15,13 +15,14 @@ const NODE_ENV_FOR = { dev: "development", build: "production", start: "producti
  * What the Next.js child may inherit. A list of what is wanted, not of what is feared: a shell can carry the
  * internals of another app (`__NEXT_PRIVATE_*`, `NEXT_RUNTIME`, `NEXT_DEPLOYMENT_ID`, `PORT`, `HOSTNAME`,
  * `TURBOPACK`) that point Next.js at that app's folders, and a denylist would need a new entry for each. Names
- * are matched ignoring case, because Windows does. Finora's own settings and the keys the server reads pass.
+ * are matched ignoring case, because Windows does. Finora's own settings and the contact header pass.
  */
 const INHERITED = [
-  // Finora's settings, the keys and contact string the server reads, and the public prefix Next.js inlines.
+  // Finora's own settings, the contact header, and the public prefix Next.js inlines. v1 has no API keys (H5):
+  // none is passed, so a key left in the shell never reaches the server.
   /^FINORA_/iu,
   /^NEXT_PUBLIC_/iu,
-  /^(?:ANTHROPIC_API_KEY|SEC_USER_AGENT|SOCRATA_APP_TOKEN|COURTLISTENER_TOKEN|CERTSPOTTER_API_KEY|SAM_GOV_API_KEY)$/iu,
+  /^SEC_USER_AGENT$/iu,
   /^NEXT_TELEMETRY_DISABLED$/iu,
   // What a process needs to run and to find things, on Windows, macOS and Linux.
   /^(?:PATH|PATHEXT|HOME|HOMEDRIVE|HOMEPATH|USER|USERNAME|USERDOMAIN|USERPROFILE|LOGNAME|SHELL|TMP|TEMP|TMPDIR)$/iu,
