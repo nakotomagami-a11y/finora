@@ -6,6 +6,7 @@ A builder reading this file, `DESIGN.md` and the mockups should never have to gu
 
 ## Contents
 
+0. [Usage, not money (H5)](#h5-usage-not-money-human-ruling-h5-2026-11-21-outranks-the-text-below)
 1. [Decisions](#1-decisions)
 2. [Where code goes](#2-where-code-goes)
 3. [Tokens and themes](#3-tokens-and-themes)
@@ -26,6 +27,25 @@ A builder reading this file, `DESIGN.md` and the mockups should never have to gu
 17. [Council session 2: what changed](#17-council-session-2-what-changed-in-this-plan)
 
 ---
+
+## H5. Usage, not money (human ruling H5, 2026-11-21; outranks the text below)
+
+Agents run on the local CLI under the user's own subscription. There are no dollars and no API keys in v1. Wherever this file says "cost", "spend", "$" or "key", read it as follows. The exact unit (tokens, turns or both) and the caps come from the cto's ruling; every place below takes the unit from the estimate DTO, so a change of unit is a catalogue change.
+
+| Was | Is |
+|---|---|
+| `SpendPill` "today $1.84 of $10.00" | `UsagePill` "today 1.2M of 4M tokens" (hidden under 768 px; `--warn` from 80% of the daily cap) |
+| Estimate "typically $0.46, up to $0.92", the cap, spend left today | "Estimated usage: about 120,000 tokens, at most 240,000", the per-investigation cap, the daily allowance left. Same disclosure for the per-agent breakdown |
+| `InvestigateSheet` state `no-key` (steps to add `ANTHROPIC_API_KEY`) | `cli-missing` (the local CLI was not found: how to install it) and `cli-signed-out` (sign in to the CLI, then "Check again"). Same rule: **Investigate** is never a disabled button without a reason |
+| `RunStats` / `AgentPanel` "$0.27 of $1.50" | "31,000 of 400,000 tokens" with the same meter |
+| `AgentLane` `$cost` | the lane's usage in the same unit |
+| `FollowUpDock` "cap $0.25" | the follow-up cap in the same unit |
+| `cap_reached` "Allow up to $0.50 more" | "Allow up to N more tokens", clipped to what is left of the daily allowance. Once per investigation, as before |
+| Library "cost" column | "usage" |
+| Settings: key status, "out of credit" | "Local CLI" status (found, signed in, version); the market keys and the SEC contact setting stay as optional local settings only where the data seats keep them. "Out of credit" becomes "Usage limit reached": no retries, the message says when the allowance resets |
+| DTO `cost: { spentMicroUsd, heldMicroUsd, capMicroUsd }` | `usage: { used, held, cap, unit }` (architect's contract) |
+
+Gallery fixtures already use this wording (`Estimated usage: about 120,000 tokens`, `This run uses your subscription.`). No surface shows a currency symbol for agent work. Money still appears where it is the data itself (a company's revenue in EUR, a fund quoted in USD).
 
 ## 1. Decisions
 
