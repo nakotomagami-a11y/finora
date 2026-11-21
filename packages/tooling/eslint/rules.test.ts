@@ -24,6 +24,12 @@ describe("the shared ESLint config (architecture §2)", () => {
     expect(await ruleIds(code, "apps/server/src/env.ts")).not.toContain("no-restricted-properties");
   });
 
+  it("lets only apps/web/src/instrumentation.ts read process.env, for NEXT_RUNTIME", async () => {
+    const code = "export const edge = process.env.NEXT_RUNTIME !== 'nodejs';\n";
+    expect(await ruleIds(code, "apps/web/src/instrumentation.ts")).not.toContain("no-restricted-properties");
+    expect(await ruleIds(code, "apps/web/src/other.ts")).toContain("no-restricted-properties");
+  });
+
   it("rejects the other ways to reach process.env outside env.ts", async () => {
     const forms = [
       'export const port = process["env"].PORT;\n',

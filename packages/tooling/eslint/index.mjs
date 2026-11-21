@@ -55,7 +55,8 @@ export function finoraConfig() {
     },
     {
       files: ["apps/**/*.{ts,tsx}", "packages/**/*.{ts,tsx}"],
-      ignores: ["**/env.ts", "**/*.test.{ts,tsx}", "packages/tooling/**"],
+      // instrumentation.ts reads NEXT_RUNTIME, which Next.js inlines only as a literal `process.env.NEXT_RUNTIME`.
+      ignores: ["**/env.ts", "apps/web/src/instrumentation.ts", "**/*.test.{ts,tsx}", "packages/tooling/**"],
       rules: {
         "no-restricted-properties": [
           "error",
