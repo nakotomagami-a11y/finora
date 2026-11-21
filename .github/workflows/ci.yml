@@ -100,8 +100,8 @@ jobs:
           retention-days: 7
 
   visual:
-    # Screenshot comparison runs in the pinned Playwright image (fonts differ by system), once baselines exist.
-    # hashFiles() is not allowed in a job-level `if`, so the first step decides and the rest follow it.
+    # Screenshot comparison runs in the pinned Playwright image (fonts differ by system). With no baselines
+    # committed yet, the job makes them and uploads them as an artifact to review and commit.
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.65.1-noble
@@ -110,20 +110,25 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - id: baselines
+        # hashFiles() is not allowed in a job-level `if`, so a step records whether baselines exist.
         run: echo "present=${{ hashFiles('apps/web/e2e/__screenshots__/**') != '' }}" >> "$GITHUB_OUTPUT"
-      - if: steps.baselines.outputs.present == 'true'
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - if: steps.baselines.outputs.present == 'true'
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
-      - if: steps.baselines.outputs.present == 'true'
-        run: pnpm install --frozen-lockfile
-      - if: steps.baselines.outputs.present == 'true'
-        run: pnpm build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - if: steps.baselines.outputs.present == 'true'
         run: pnpm --filter @finora/web e2e:visual
+      - if: steps.baselines.outputs.present != 'true'
+        run: pnpm --filter @finora/web exec playwright test --project=visual --update-snapshots
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.baselines.outputs.present != 'true'
+        with:
+          name: visual-baselines
+          path: apps/web/e2e/__screenshots__
+          retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
