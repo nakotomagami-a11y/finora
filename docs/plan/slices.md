@@ -5,7 +5,7 @@
 ## How slices work
 
 - A slice is one vertical, demoable piece. It lands as **one commit** on the hub branch (more only if the guard or a review forces a split), with its tests.
-- **Done means:** every acceptance criterion holds; `pnpm lint`, `pnpm typecheck`, `pnpm test` and (from S02) `pnpm e2e` are green locally and in CI; qa has reviewed the commit range with no open MUST-FIX; UI slices also have a web-qa pass with no open MUST-FIX; the security-engineer review has no open finding on the slices marked **security**; the demo step works for someone who only reads this file.
+- **Done means:** every acceptance criterion holds; `pnpm lint`, `pnpm typecheck`, `pnpm test` and (from S02) `pnpm e2e` are green locally and in CI; qa has reviewed the commit range with no open MUST-FIX; UI slices also have a web-qa pass with no open MUST-FIX; the security-engineer review has no open finding on the slices marked **security**; the demo step works for someone who only reads this file; and the tree holds no outside company (H4): `node scripts/guard/guard.mjs tree` is clean at the slice's head, and `scripts/check-outside-names.mjs` over the slice's range has 0 unresolved hits (until that script lands, qa's manual sweep of hostnames, organisation names, tickers and real-shaped ids), recorded by qa as one counts-only line in the slice's review record.
 - **Tests are named.** Each slice lists its test files (package-relative: `store/src/x.test.ts` is `packages/store/src/x.test.ts`; `web/e2e/x.spec.ts` is `apps/web/e2e/x.spec.ts`; `server/` and `mcp/` are under `apps/`). A criterion with no test next to it is not done.
 - **Loader slices** implement their specs in `docs/plan/loaders/` exactly; the spec's Tests and Size-and-time sections are part of the slice's acceptance. Each reports records per source, bytes per record, statements, facts and events, and its P10 budget share in `docs/plan/benchmarks.md`.
 - **Every SHOW and CAVEAT item** in Part G is mapped to a data slice, a UI slice and an acceptance test in the appendix. Every HIDE item has negative tests on every surface (architecture §10.4), built in S04 and extended by each loader slice's fixtures.
@@ -93,7 +93,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-SANCTIONS-PERSONS | `resolve/src/person-index.test.ts`, `sources/src/intl/sanctions-no-persons.test.ts` (no listed person stored; a match keeps only list, entry id, list date and status) |
      | LAW-UN-LIVE | `agent-tools/src/check-live-list.test.ts`, `sources/src/licences.test.ts` (never stored) |
      | LAW-COURTS-LT, LAW-COURTS-LV | `agents/src/items.agent.test.ts` (no Baltic court portal is queried; MANUAL link rendered) |
-     | LAW-SAM | `sources/src/us/sam-exclusions.test.ts` (fields dropped, keyed extract only) |
+     | LAW-SAM | `agents/src/items.agent.test.ts` (S11.US.01; v1: manual link only, no SAM.gov request; the keyed loader is not built, H5) |
      | LAW-FINRA | `agent-tools/src/check-live-list.test.ts` (link-out, no request) |
      | LAW-CO-DISCLAIMER | `web/e2e/co-disclaimer.spec.ts` |
      | LAW-SHARE-ALIKE | `ingest/src/share-alike.test.ts`, `ingest/src/live-no-store.test.ts` |
@@ -208,7 +208,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Scope:** the stored official lists (EU, OFAC, UK, LV FIU) per `sanctions.md`; `screen_sanctions` in `packages/resolve` with the second-identifier rule (R8); the live-only lists as `agent-only` sources (fetched by S10's `check_live_list`, never stored).
 - **Acceptance:** the spec's Tests; plus a name-only match is `possible_match`, an official-ID match is `listed`, a different id is no match; the UN list and the national lists without a licence are never stored (licence invariants); S11.ALL.01-03 and S11.LV.01-02 render with their dates (`items.test.ts`).
 - **Tests:** `resolve/src/sanctions.test.ts`, `resolve/src/person-index.test.ts`, `sources/src/intl/sanctions-*.test.ts` (per spec), `sources/src/intl/sanctions-no-persons.test.ts`, `sources/src/intl/raw-cache.test.ts`, `sources/src/licences.test.ts` rows for each list.
-- **Demo:** `pnpm finora-cli data sync --source sanctions-eu`, then `pnpm finora-cli resolve --sanctions "<fixture name>"` shows a possible match with the entry's identifiers.
+- **Demo:** `pnpm finora-cli data sync --source eu-fsf`, then `pnpm finora-cli resolve --sanctions "<fixture name>"` shows a possible match with the entry's identifiers.
 
 ### S07 Report assembly, checks and the read API
 - **Owner:** architect · **Depends on:** S04b, S04f, S05, S06 · **security**
@@ -357,7 +357,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Scope:** `docs/plan/loaders/us-sec.md`: submissions, company facts, the tickers list (S14.US.02), Forms 3/4/5 quarterly sets (S14.US.01), Form D related persons (S03.US.02), Schedules 13D/G (S04.US.01), 8-K item 5.02 events, insiders in company context only (the reporting owner's CIK is dropped, PS6), `needs_key` without the contact setting.
 - **Acceptance:** the spec's Tests; every SEC SHOW/CAVEAT item renders; without `SEC_USER_AGENT` the US public profile is `needs_key` and no SEC request is made; ≤ 10 requests/s (R14).
 - **Tests:** the spec's named tests under `sources/src/us/sec-*`, `sources/src/us/sec-user-agent.test.ts`.
-- **Demo:** set `SEC_USER_AGENT`, open a US public company, see filings, financials and insider trades behind the purpose gate.
+- **Demo:** set the SEC contact setting `SEC_USER_AGENT` (a contact header, not a key: C14), open a US public company, see filings, financials and insider trades behind the purpose gate.
 
 ### S17 US state registries, live, with fan-out search
 - **Owner:** data-us · **with:** architect, frontend · **Depends on:** S15r · **security** · **web-qa**
@@ -368,10 +368,10 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 
 ### S18 US federal sources
 - **Owner:** data-us · **with:** data-osint · **Depends on:** S16
-- **Scope:** `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (FJC stored where the spec says; CourtListener through the legal agent with `COURTLISTENER_TOKEN`).
-- **Acceptance:** each spec's Tests; each item renders (stored) or has its agent case (live); bank-only and carrier-only rows appear only for those entities; without `SAM_GOV_API_KEY` (keyed extract only, `LAW-SAM`) S11.US.01 is `needs_key` and no request is made; FINRA is link-out only (`manual_lookup`, `LAW-FINRA`).
+- **Scope:** `us-fdic.md`, `us-fmcsa.md`, `us-sam-exclusions.md`, `us-enforcement.md`, `us-courts.md` (FJC stored where the spec says). Off in v1 under H5 (no keys): the SAM.gov exclusions loader and the keyed docket search; S11.US.01 and S10.US.02 render `not_checked{reason: "manual_lookup"}` with the official link.
+- **Acceptance:** each spec's Tests; each item renders (stored) or has its agent case (live); bank-only and carrier-only rows appear only for those entities; S11.US.01 renders the manual SAM.gov link ("Check federal exclusions on SAM.gov") and no SAM.gov request is ever made (`LAW-SAM`); S10.US.02 renders the manual docket-search link (`us-courts.md`) and `search_courts` queries the FJC index only; FINRA is link-out only (`manual_lookup`, `LAW-FINRA`).
 - **Tests:** the specs' named tests under `sources/src/us/`, `agents/src/items.agent.test.ts` cases for S10.US and S11.US.03-04.
-- **Demo:** open a fixture bank and a fixture carrier and see their federal rows; without `SAM_GOV_API_KEY` the exclusions row reads "Add your key to check"; investigate a US company and see the court search lane.
+- **Demo:** open a fixture bank and a fixture carrier and see their federal rows; the exclusions row reads "Check federal exclusions on SAM.gov" with the official link; investigate a US company and see the court search lane.
 
 ### S19 MCP server
 - **Owner:** architect · **Depends on:** S07, S09a · **security**

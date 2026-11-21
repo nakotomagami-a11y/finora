@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { beginSync, openStore, upsertSource } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { tempDir } from "./test-helpers.ts";
-import { runSyncInWorker } from "./worker.ts";
+import { runSyncInWorker, runSyncsInWorker } from "./worker.ts";
 
 const dirs: { remove(): void }[] = [];
 afterEach(() => dirs.splice(0).forEach((d) => d.remove()));
@@ -60,6 +60,26 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     expect(store.db.prepare("SELECT kind FROM main.syncs").all()).toEqual([{ kind: "failed" }]);
     store.close();
     expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", options: {} })).kind).toBe("content");
+  }, 60_000);
+
+  it("a worker past its heap cap fails its own sync; the parent and another lane run on (SEC-1, qa on S06)", async () => {
+    const dir = tempDir();
+    dirs.push(dir);
+    openStore({ dataDir: dir.path }).close();
+    const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
+    const [oom, other] = await Promise.all([
+      runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-oom", "fake-slow"], userAgent: "t", options: {} }, { maxHeapMb: 128 }),
+      runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-slow"], userAgent: "t", options: {} }),
+    ]);
+    expect(oom.map((o) => o.report?.reason)).toEqual(["worker_out_of_memory", "worker_out_of_memory"]);
+    expect(other.map((o) => o.kind)).toEqual(["content"]);
+    const store = openStore({ dataDir: dir.path });
+    expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
+    expect(store.db.prepare("SELECT source_id, kind FROM main.syncs ORDER BY source_id").all()).toEqual([
+      { source_id: "fake-oom", kind: "failed" },
+      { source_id: "fake-slow", kind: "content" },
+    ]);
+    store.close();
   }, 60_000);
 
   it("a timed-out worker closes only the sync it opened and releases its own lease (qa on S04i)", async () => {

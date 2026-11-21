@@ -72,6 +72,10 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
   post({ type: "done" });
 }
 
+/** A sync worker's old-generation heap cap: P10's 1 GB per worker, enforced (architecture §4.5). */
+export const SYNC_WORKER_HEAP_MB = 1024;
+export type WorkerLimits = { timeoutMs?: number; startupMs?: number; maxHeapMb?: number };
+
 let started = 0;
 /** How many sync workers this process has started: the lane test counts them (cto on S04i). */
 export const workerStartCount = () => started;
@@ -86,7 +90,7 @@ export const laneOf = (loader: SourceLoader) => loader.meta.lane ?? loader.meta.
  * and every source not yet run end `failed`, the row that worker opened is closed and its lease is
  * released by holder, never another process's (cto, qa on S04i).
  */
-export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: { timeoutMs?: number; startupMs?: number } = {}): Promise<SyncOutcome[]> {
+export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: WorkerLimits = {}): Promise<SyncOutcome[]> {
   const holder = batch.options.holder ?? `worker-${process.pid}-${Math.random().toString(36).slice(2)}`;
   const ttl = batch.options.leaseTtlMs ?? 60_000;
   const data: WorkerBatch = {
@@ -96,7 +100,9 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: { time
     personListsHeld: batch.personListsHeld ?? batch.sourceIds.filter((id) => personListHeld(id)),
   };
   return new Promise((resolve) => {
-    const worker = new Worker(entry, { workerData: data });
+    // A heap cap per worker: a loader or reader that runs away ends its own lane's sync as failed,
+    // never the parent process (SEC-1 on S06, qa).
+    const worker = new Worker(entry, { workerData: data, resourceLimits: { maxOldGenerationSizeMb: options.maxHeapMb ?? SYNC_WORKER_HEAP_MB } });
     started++;
     const outcomes = new Map<string, SyncOutcome>();
     let current: { sourceId: string; syncId: number } | null = null;
@@ -139,13 +145,13 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: { time
         watchdog = setTimeout(() => settle("worker_hung"), Math.max(ttl, 30_000));
       } else settle(null);
     });
-    worker.once("error", () => settle("worker_crashed"));
+    worker.once("error", (error: Error & { code?: string }) => settle(error.code === "ERR_WORKER_OUT_OF_MEMORY" ? "worker_out_of_memory" : "worker_crashed"));
     worker.once("exit", (code) => settle(`worker_exit_${code}`));
   });
 }
 
 /** One source in its own worker. */
-export async function runSyncInWorker(entry: URL, job: WorkerJob, options: { timeoutMs?: number; startupMs?: number } = {}): Promise<SyncOutcome> {
+export async function runSyncInWorker(entry: URL, job: WorkerJob, options: WorkerLimits = {}): Promise<SyncOutcome> {
   const { sourceId, ...rest } = job;
   const [outcome] = await runSyncsInWorker(entry, { ...rest, sourceIds: [sourceId] }, options);
   return outcome ?? failed("not_run");

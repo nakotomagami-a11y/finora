@@ -30,4 +30,11 @@ crashSource.parse = function* () {
   process.exit(3);
 };
 
-await serveSyncWorker((sourceId) => [slowSource, liveSource, sentinelSource, stuckSource, hungSource, crashSource].find((l) => l.meta.id === sourceId));
+/** Allocates without bound once it parses, as a reader with no row cap would (SEC-1 on S06). */
+const oomSource = fakeSource({ id: "fake-oom" }, { records: companies(1, 3) });
+oomSource.parse = function* () {
+  const held: number[][] = [];
+  for (;;) held.push(Array.from({ length: 1_000_000 }, (_, i) => i));
+};
+
+await serveSyncWorker((sourceId) => [slowSource, liveSource, sentinelSource, stuckSource, hungSource, crashSource, oomSource].find((l) => l.meta.id === sourceId));
