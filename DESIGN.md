@@ -316,7 +316,7 @@ No keys in v1 (H5): every tile runs on a keyless source or is not drawn. Commerc
   - **Value below peaks** summary at the top of the drawdown card (`totalWiped`): "≈ $X trillion" (market value, not usage), then a sentence naming every row it sums with its as-of, "Peaks fall on different dates; the oldest figure is from [as-of]", and the Derived by Finora badge. Bitcoin and ether are inside the crypto total and are never added on top of it.
   - A failed source hides its value ("Last good value 07:40, hidden rather than shown as current"); a stale one shows amber dates and a banner.
   - **`not_configured`** (C15 provider map): a coded source with no entry in the local provider file shows the tile's shape with "Not configured: add providers [codes] to your local provider file", "No number is shown until then, never 0%", and a "How to set it up" link (`crash.html?state=not-configured`). It replaces `choose-fund`, `needs_key` and `needs_symbol`.
-- "How it's calculated" and the attribution lines close the page; providers are named by their codes. Personal-use series stay on this machine and are never exported.
+- "How it's calculated" and the attribution lines close the page. Each row carries its `attribution` from the local provider file (data-markets), and the running app shows that line in the tile footer and the page's source list; the mockups show only the codes, because real provider names never enter the tree (H4). Personal-use series stay on this machine and are never exported.
 
 ## 13. Components
 
