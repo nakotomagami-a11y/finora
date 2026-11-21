@@ -3,11 +3,11 @@ import { companyRoleLines } from "./lines.ts";
 import { sourceRefForStatement } from "./provenance.ts";
 import { readPurposeSection } from "./purpose.ts";
 import { writeRecord } from "./registry.ts";
-import { company, contentSync, memoryStore, statementIdOf, writeRoleSet } from "./test-helpers.ts";
+import { company, contentSync, memoryStore, statementIdOf, testLogs, writeRoleSet } from "./test-helpers.ts";
 
 const EID = "lv-00000000001";
-const A = { name: "Officer Alpha", role: "board_member", startDate: "2019-03-01" };
-const B = { name: "Officer Beta", role: "chair", startDate: "2026-11-01" };
+const A = { name: "Officer Alpha", role: "board_member", startDate: "2019-03-01", rowId: "4711" };
+const B = { name: "Officer Beta", role: "chair", startDate: "2026-11-01", rowId: "4712" };
 
 describe("stable targets: nothing that must survive a reload points at a person row", () => {
   it("resolves an existing citation and line target after the people source reloads", () => {
@@ -25,12 +25,13 @@ describe("stable targets: nothing that must survive a reload points at a person 
     expect(db.prepare("SELECT eid FROM main.entities WHERE eid LIKE 'p-%'").all()).not.toEqual(personBefore);
     expect(sourceRefForStatement(db, statementIdOf(db, EID))).toEqual(citation);
     const after = companyRoleLines(db, EID, ["S03.LV.01"]);
-    expect(after.find((l) => l.hash === before?.hash)?.name).toBe("Officer Alpha");
+    expect(after.find((l) => JSON.stringify(l.target) === JSON.stringify(before?.target))?.name).toBe("Officer Alpha");
   });
 
   it("logs the company eid, never a person id", () => {
     const { db } = memoryStore();
     writeRoleSet(db, contentSync(db, "lv-officers", "2026-11-01T00:00:00.000Z"), EID, [A]);
+    const logs = testLogs();
     readPurposeSection(db, {
       companyEid: EID,
       section: "S03",
@@ -39,7 +40,8 @@ describe("stable targets: nothing that must survive a reload points at a person 
       surface: "api",
       actor: "local",
       now: "2026-11-01T01:00:00.000Z",
-    });
+    }, logs.restrictions);
+    logs.remove();
     const row = db.prepare("SELECT * FROM user.purpose_log").get();
     expect(row).toMatchObject({ company_eid: EID });
     expect(JSON.stringify(row)).not.toMatch(/\bp-\d+-\d+\b/);

@@ -9,7 +9,7 @@ export type BackupClass =
 
 /** The filters legal set on backed-up user tables (council session 2). */
 export const BACKUP_FILTERS = {
-  company_lines_only: "only disputes on a non-personal item of an entity with natural_person = 0",
+  company_lines_only: "only disputes with personal = 0, on a non-personal item of an entity with natural_person = 0 (person-line disputes live in restrictions.log)",
   company_level_only: "only suppressions on a non-personal item of an entity with natural_person = 0",
   company_pairs_only: "only judgements where neither entity has natural_person = 1",
 } as const;
@@ -44,7 +44,7 @@ export const BACKUP_CLASSES: Record<string, BackupClass> = {
   },
   "user.disputes": {
     class: "backed_up",
-    columns: ["id", "company_eid", "source_id", "item_id", "line_hash", "personal", "kind", "status", "opened_at", "resolved_at"],
+    columns: ["id", "company_eid", "source_id", "item_id", "line_hash", "source_row_id", "role", "personal", "kind", "status", "opened_at", "resolved_at"],
     filter: "company_lines_only",
   },
   "user.suppressions": {

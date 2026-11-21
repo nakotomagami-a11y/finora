@@ -2,6 +2,7 @@
 // successful sync, content or unchanged, so live officers never expire while a file is unchanged
 // (qa N1). Live-cached entities not viewed for the TTL are purged.
 import type { DatabaseSync } from "node:sqlite";
+import { dropIfOrphan } from "./registry.ts";
 
 const DAY_MS = 86_400_000;
 
@@ -29,29 +30,45 @@ export function runRetention(
         )
         .all(source.id) as { id: number }[]
     ).map((r) => r.id);
-    for (const recordId of records) {
-      for (const row of db.prepare("SELECT DISTINCT entity_id FROM main.statements WHERE record_id = ?").all(recordId) as { entity_id: number }[]) {
-        touched.add(row.entity_id);
-      }
-      personStatements += Number(db.prepare("DELETE FROM main.statements WHERE record_id = ?").run(recordId).changes);
-      db.prepare("DELETE FROM main.records WHERE id = ?").run(recordId);
-    }
+    personStatements += expireRecords(db, records, touched);
   }
-  for (const id of touched) {
-    if (db.prepare("SELECT 1 FROM main.statements WHERE entity_id = ? LIMIT 1").get(id)) continue;
-    dropEntity(db, id);
-  }
+
+  // A live-cached company not viewed for the TTL goes with every record that wrote it, hashes
+  // included, so the next fetch writes it again instead of matching a stale hash (qa S04a Q-1).
   const expired = (
     db.prepare("SELECT entity_id FROM main.live_cache_views WHERE viewed_at < ?").all(cutoff) as { entity_id: number }[]
   ).map((r) => r.entity_id);
-  for (const id of expired) dropEntity(db, id);
+  for (const id of expired) {
+    const records = (
+      db
+        .prepare(
+          `SELECT record_id AS id FROM main.statements WHERE entity_id = ?1
+           UNION SELECT record_id FROM main.fact_reports WHERE entity_id = ?1
+           UNION SELECT record_id FROM main.events WHERE entity_id = ?1 AND record_id IS NOT NULL`,
+        )
+        .all(id) as { id: number }[]
+    ).map((r) => r.id);
+    expireRecords(db, records, touched);
+    db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(id);
+    db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(id);
+    db.prepare("DELETE FROM main.entities WHERE id = ?").run(id);
+    touched.delete(id);
+  }
+  for (const id of touched) dropIfOrphan(db, id);
   return { personStatements, liveCacheEntities: expired.length };
 }
 
-function dropEntity(db: DatabaseSync, id: number): void {
-  db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(id);
-  db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(id);
-  db.prepare("DELETE FROM main.entities WHERE id = ?").run(id);
+/** Deletes whole records (their statements, facts, events and links cascade); returns the statements removed. */
+function expireRecords(db: DatabaseSync, recordIds: number[], touched: Set<number>): number {
+  let statements = 0;
+  for (const recordId of recordIds) {
+    for (const row of db.prepare("SELECT DISTINCT entity_id FROM main.statements WHERE record_id = ?").all(recordId) as { entity_id: number }[]) {
+      touched.add(row.entity_id);
+    }
+    statements += Number(db.prepare("DELETE FROM main.statements WHERE record_id = ?").run(recordId).changes);
+    db.prepare("DELETE FROM main.records WHERE id = ?").run(recordId);
+  }
+  return statements;
 }
 
 export function markViewed(db: DatabaseSync, eid: string, now: string): void {

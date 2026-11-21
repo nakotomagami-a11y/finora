@@ -33,6 +33,26 @@ export function findPersonalCodes(text: string): PersonalCodeHit[] {
   return hits;
 }
 
+/**
+ * Whether a sole trader's own register id has the shape of a personal code of its country
+ * (docs/plan/loaders/lv-register.md, legal's S04a condition). Country-aware on purpose: about 6%
+ * of LV register codes happen to pass the EE/LT check, and no LV register code fits the LV shapes.
+ */
+export function idIsPersonalCode(country: string, value: string): boolean {
+  const digits = value.replace(/[\s-]/g, "");
+  if (country === "lv") {
+    if (LV_CODE.test(value)) return true;
+    if (!/^\d{11}$/.test(digits)) return false;
+    if (digits.startsWith("32")) return true;
+    const day = Number(digits.slice(0, 2));
+    const month = Number(digits.slice(2, 4));
+    return day >= 1 && day <= 31 && month >= 1 && month <= 12;
+  }
+  if (country === "ee" || country === "lt") return /^\d{11}$/.test(digits) && isBalticPersonalCode(digits);
+  if (country === "us") return US_SSN.test(value) || /^\d{9}$/.test(digits);
+  return findPersonalCodes(value).length > 0;
+}
+
 /** A company's own identifiers, never scanned as personal codes (qa #20). */
 export const COMPANY_ID_PROPS: ReadonlySet<string> = new Set(["registrationNumber", "vatCode", "taxNumber", "leiCode", "idNumber", "cikCode"]);
 

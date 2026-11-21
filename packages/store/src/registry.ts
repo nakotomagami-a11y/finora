@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import {
   COMPANY_ID_PROPS,
+  idIsPersonalCode,
   findPersonalCodes,
   isLoadable,
   isNaturalPerson,
@@ -27,6 +28,11 @@ export class StoreError extends Error {
 }
 
 const internCache = new WeakMap<DatabaseSync, Map<string, number>>();
+
+/** Drops the cached intern ids of a connection; any rollback must call it, or a rolled-back id stays cached. */
+export function forgetInterned(db: DatabaseSync): void {
+  internCache.delete(db);
+}
 
 /** Integer id for a repeated string in one of the intern tables. */
 export function intern(db: DatabaseSync, table: "schemas" | "props" | "items" | "concepts" | "event_types", name: string): number {
@@ -80,17 +86,44 @@ export type EntityInput = {
   code?: string | null;
   statements: StatementInput[];
 };
-export type RecordInput = { syncId: number; sourceId: string; recordKey: string; hashInput: string[]; entities: EntityInput[] };
+export type RecordInput = {
+  syncId: number;
+  sourceId: string;
+  recordKey: string;
+  hashInput: string[];
+  entities: EntityInput[];
+  /**
+   * A role set's line identities in line order: the source's own row-local role-row id, or null
+   * where it has none (architecture §3.3). Internal: never output, logged or exported.
+   */
+  lineIds?: (string | null)[];
+};
 
 /** sha256 truncated to 16 bytes (architecture §3.2). */
 export function rowHash(hashInput: string[]): Buffer {
   return createHash("sha256").update(JSON.stringify(hashInput)).digest().subarray(0, 16);
 }
 
+function refuse(input: RecordInput): void {
+  for (const entity of input.entities) {
+    const naturalPerson = isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null });
+    for (const s of entity.statements) {
+      if (!isProp(s.prop)) throw new StoreError("unknown_prop", s.prop);
+      if (!isLoadable(s.itemId)) throw new StoreError("item_not_loadable", s.itemId);
+      if (!naturalPerson) continue;
+      // A sole trader's own register id is checked against its own country's personal-code shape only.
+      const ownId = entity.schema !== "Person" && COMPANY_ID_PROPS.has(s.prop);
+      const leaks = ownId ? idIsPersonalCode(entity.country, s.value) : findPersonalCodes(s.value).length > 0;
+      if (leaks) throw new StoreError("personal_code_refused", `${entity.schema}.${s.prop}`);
+    }
+  }
+}
+
 /**
  * Writes one source record: replaces its statements when the hash changed, does nothing when it
  * did not. Returns whether anything was written. Refuses a HIDE or LATER item (load rule 2) and a
- * personal-code value on a person (P3).
+ * personal-code value on a natural person (P3). Atomic on its own (a savepoint), inside or outside
+ * the caller's transaction.
  */
 export function writeRecord(db: DatabaseSync, input: RecordInput): { changed: boolean } {
   const hash = rowHash(input.hashInput);
@@ -98,19 +131,23 @@ export function writeRecord(db: DatabaseSync, input: RecordInput): { changed: bo
     .prepare("SELECT id, row_hash FROM main.records WHERE source_id = ? AND record_key = ?")
     .get(input.sourceId, input.recordKey) as { id: number; row_hash: Uint8Array } | undefined;
   if (existing && Buffer.from(existing.row_hash).equals(hash)) return { changed: false };
-
-  for (const entity of input.entities) {
-    const naturalPerson = isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null });
-    for (const s of entity.statements) {
-      if (!isProp(s.prop)) throw new StoreError("unknown_prop", s.prop);
-      if (!isLoadable(s.itemId)) throw new StoreError("item_not_loadable", s.itemId);
-      const companyId = entity.schema !== "Person" && COMPANY_ID_PROPS.has(s.prop);
-      if (naturalPerson && !companyId && findPersonalCodes(s.value).length > 0) {
-        throw new StoreError("personal_code_refused", `${entity.schema}.${s.prop}`);
-      }
-    }
+  refuse(input);
+  db.exec("SAVEPOINT write_record");
+  try {
+    write(db, input, hash, existing?.id);
+    db.exec("RELEASE write_record");
+  } catch (error) {
+    db.exec("ROLLBACK TO write_record");
+    db.exec("RELEASE write_record");
+    forgetInterned(db);
+    throw error;
   }
+  return { changed: true };
+}
 
+function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: number | undefined): void {
+  const lineIds = input.lineIds ? JSON.stringify(input.lineIds) : null;
+  const existing = existingId === undefined ? undefined : { id: existingId };
   let recordId: number;
   let previousEntities: number[] = [];
   if (existing) {
@@ -118,14 +155,19 @@ export function writeRecord(db: DatabaseSync, input: RecordInput): { changed: bo
     previousEntities = (
       db.prepare("SELECT DISTINCT entity_id FROM main.statements WHERE record_id = ?").all(recordId) as { entity_id: number }[]
     ).map((r) => r.entity_id);
-    db.prepare("UPDATE main.records SET row_hash = ?, last_changed_sync_id = ? WHERE id = ?").run(hash, input.syncId, recordId);
+    db.prepare("UPDATE main.records SET row_hash = ?, last_changed_sync_id = ?, line_ids = ? WHERE id = ?").run(
+      hash,
+      input.syncId,
+      lineIds,
+      recordId,
+    );
     db.prepare("DELETE FROM main.statements WHERE record_id = ?").run(recordId);
   } else {
     const result = db
       .prepare(
-        `INSERT INTO main.records (source_id, record_key, row_hash, first_sync_id, last_changed_sync_id) VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO main.records (source_id, record_key, row_hash, first_sync_id, last_changed_sync_id, line_ids) VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(input.sourceId, input.recordKey, hash, input.syncId, input.syncId);
+      .run(input.sourceId, input.recordKey, hash, input.syncId, input.syncId, lineIds);
     recordId = Number(result.lastInsertRowid);
   }
 
@@ -140,13 +182,27 @@ export function writeRecord(db: DatabaseSync, input: RecordInput): { changed: bo
     refreshEntity(db, entityId);
   }
   // An entity left with no statement (a person whose role ended, PS4) keeps nothing, not even its row.
-  const orphan = db.prepare("DELETE FROM main.entities WHERE id = ? AND NOT EXISTS (SELECT 1 FROM main.statements WHERE entity_id = ?)");
-  for (const id of previousEntities) {
-    if (orphan.run(id, id).changes === 0) continue;
-    db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(id);
-    db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(id);
-  }
-  return { changed: true };
+  for (const id of previousEntities) dropIfOrphan(db, id);
+}
+
+/**
+ * Deletes an entity that nothing refers to any more, with its search rows. An entity that still
+ * has facts, events or links from another source is kept (qa S04a Q-4).
+ */
+export function dropIfOrphan(db: DatabaseSync, entityId: number): boolean {
+  const deleted = db
+    .prepare(
+      `DELETE FROM main.entities WHERE id = ?1
+         AND NOT EXISTS (SELECT 1 FROM main.statements WHERE entity_id = ?1)
+         AND NOT EXISTS (SELECT 1 FROM main.fact_reports WHERE entity_id = ?1)
+         AND NOT EXISTS (SELECT 1 FROM main.events WHERE entity_id = ?1)
+         AND NOT EXISTS (SELECT 1 FROM main.links WHERE entity_a = ?1 OR entity_b = ?1)`,
+    )
+    .run(entityId).changes;
+  if (deleted === 0) return false;
+  db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
+  db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
+  return true;
 }
 
 function upsertEntity(db: DatabaseSync, entity: EntityInput, syncId: number): number {

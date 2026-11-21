@@ -56,4 +56,23 @@ describe("P4, P5: natural-person data expires (LAW-CACHE-TTL interim)", () => {
     expect(searchCompanies(db, "sample", { country: "us" }).map((h) => h.eid)).toEqual(["us-ny-FX0002"]);
     expect(db.prepare("SELECT COUNT(*) AS n FROM main.entities_trigram").get()).toEqual({ n: 2 });
   });
+
+  it("writes a purged live-cached company again on an unchanged re-fetch (qa Q-1)", () => {
+    const db = setUp();
+    const eid = "us-ny-FX0003";
+    const record = (syncId: number) => ({
+      syncId,
+      sourceId: "us-ny-register",
+      recordKey: eid,
+      hashInput: [eid],
+      entities: [company(eid, "Sample Three Holdings LLC", { country: "us", legalForm: "us-llc" })],
+    });
+    writeRecord(db, record(contentSync(db, "us-ny-register", DAY0)));
+    markViewed(db, eid, DAY0);
+    expect(runRetention(db, { now: day(31), personTtlDays: TTL }).liveCacheEntities).toBe(1);
+    expect(count(db, "SELECT COUNT(*) AS n FROM main.records WHERE source_id = 'us-ny-register'")).toBe(0);
+
+    expect(writeRecord(db, record(contentSync(db, "us-ny-register", day(32)))).changed).toBe(true);
+    expect(searchCompanies(db, "sample three", { country: "us" }).map((h) => h.eid)).toEqual([eid]);
+  });
 });

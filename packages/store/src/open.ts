@@ -1,17 +1,32 @@
-import { mkdirSync } from "node:fs";
+import { closeSync, mkdirSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { DeletionsLog } from "./deletions-log.ts";
 import { migrate } from "./migrations.ts";
+import { forgetInterned } from "./registry.ts";
+import { RestrictionsLog } from "./restrictions-log.ts";
 
 export type Store = {
   db: DatabaseSync;
   paths: { main: string; user: string; sa: string };
+  /** The two fail-closed logs beside the store files; null for an in-memory store. */
+  logs: { deletions: DeletionsLog; restrictions: RestrictionsLog } | null;
   close(): void;
 };
 
+/** Creates an empty log only if none exists, so an existing one is never truncated. */
+function createLog(path: string): void {
+  try {
+    closeSync(openSync(path, "wx"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  }
+}
+
 /**
  * Opens the three store files and attaches them as `main`, `user` and `sa` (architecture §3.5,
- * §16). `dataDir: null` opens all three in memory, for tests.
+ * §16). `dataDir: null` opens all three in memory, for tests. The logs are created with a new
+ * user file only: a log missing beside an existing store is damage, and reads and repairs refuse.
  */
 export function openStore(options: { dataDir: string | null }): Store {
   const paths = options.dataDir
@@ -31,8 +46,16 @@ export function openStore(options: { dataDir: string | null }): Store {
   }
   db.exec("PRAGMA foreign_keys = ON");
   db.exec("PRAGMA busy_timeout = 5000");
+  const fresh = (db.prepare("PRAGMA user.user_version").get() as { user_version: number }).user_version === 0;
   migrate(db);
-  return { db, paths, close: () => db.close() };
+  let logs: Store["logs"] = null;
+  if (options.dataDir) {
+    const deletions = join(options.dataDir, "deletions.log");
+    const restrictions = join(options.dataDir, "restrictions.log");
+    if (fresh) for (const path of [deletions, restrictions]) createLog(path);
+    logs = { deletions: new DeletionsLog(deletions), restrictions: new RestrictionsLog(restrictions) };
+  }
+  return { db, paths, logs, close: () => db.close() };
 }
 
 /** Runs fn in one transaction. */
@@ -44,6 +67,7 @@ export function transaction<T>(db: DatabaseSync, fn: () => T, mode: "DEFERRED" |
     return result;
   } catch (error) {
     db.exec("ROLLBACK");
+    forgetInterned(db);
     throw error;
   }
 }

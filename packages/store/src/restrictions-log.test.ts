@@ -1,6 +1,7 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { openStore } from "./open.ts";
 import { RestrictionsLog, type RestrictionEntry } from "./restrictions-log.ts";
 import { personalCodeSamples, tempDir } from "./test-helpers.ts";
 
@@ -12,8 +13,8 @@ const newLog = () => {
   return new RestrictionsLog(join(d.path, "restrictions.log"));
 };
 
-const LV: RestrictionEntry = { op: "suppress", companyEid: "lv-00000000001", itemId: "S03.LV.01", sourceRowId: "4711", at: "2026-11-20T00:00:00.000Z" };
-const US: RestrictionEntry = { op: "suppress", companyEid: "us-ct-FX0001", itemId: "S03.US.03", role: "principal", at: "2026-11-20T00:00:00.000Z" };
+const LV: RestrictionEntry = { op: "suppress", reason: "suppression", companyEid: "lv-00000000001", itemId: "S03.LV.01", sourceRowId: "4711", at: "2026-11-20T00:00:00.000Z" };
+const US: RestrictionEntry = { op: "suppress", reason: "dispute", companyEid: "us-ct-FX0001", itemId: "S03.US.03", role: "principal", at: "2026-11-20T00:00:00.000Z" };
 
 describe("restrictions.log", () => {
   it("keeps a line restriction by source row id and a US one by role", () => {
@@ -33,19 +34,29 @@ describe("restrictions.log", () => {
       expect(Object.keys(JSON.parse(line) as object).sort()).toEqual(
         expect.arrayContaining(["at", "companyEid", "itemId", "op"]),
       );
-      expect(Object.keys(JSON.parse(line) as object).length).toBe(5);
+      expect(Object.keys(JSON.parse(line) as object).length).toBe(6);
     }
 
     const bad: Record<string, unknown>[] = [
       { ...LV, lineHash: "ab".repeat(32) },
       { ...LV, name: "Officer Alpha" },
       { ...LV, role: "board_member" },
+      { ...LV, reason: "other" },
       { op: "suppress", companyEid: LV.companyEid, itemId: LV.itemId, at: LV.at },
       { ...LV, sourceRowId: "p-12-0" },
       ...Object.values(personalCodeSamples()).map((code) => ({ ...LV, sourceRowId: code })),
     ];
     for (const entry of bad) expect(() => log.append(entry as RestrictionEntry), JSON.stringify(Object.keys(entry))).toThrow();
     expect(readFileSync(log.path, "utf8")).toBe(text);
+  });
+
+  it("keeps a dispute and a suppression on one line apart", () => {
+    const log = newLog();
+    const dispute: RestrictionEntry = { ...LV, reason: "dispute" };
+    log.append(LV);
+    log.append(dispute);
+    log.append({ ...dispute, op: "lift", at: "2026-11-21T00:00:00.000Z" });
+    expect(log.active()).toEqual([LV]);
   });
 
   it("removes lifted entries on compaction", () => {
@@ -59,6 +70,19 @@ describe("restrictions.log", () => {
     expect(text).not.toContain("4711");
     expect(text).not.toContain('"lift"');
     expect(log.active()).toEqual([US]);
+  });
+
+  it("is created with a new store, and never re-created beside an existing one", () => {
+    const d = tempDir();
+    dirs.push(d);
+    const first = openStore({ dataDir: d.path });
+    expect(first.logs?.restrictions.active()).toEqual([]);
+    expect(first.logs?.deletions.entries()).toEqual([]);
+    first.close();
+    rmSync(join(d.path, "restrictions.log"));
+    const again = openStore({ dataDir: d.path });
+    expect(() => again.logs?.restrictions.active()).toThrow();
+    again.close();
   });
 
   it("fails closed: a missing or corrupt file throws, and so does a failed append", () => {

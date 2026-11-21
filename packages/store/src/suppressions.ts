@@ -2,6 +2,8 @@
 // line go to restrictions.log instead (restrictions-log.ts), never to this table or a backup.
 import type { DatabaseSync } from "node:sqlite";
 import type { DeletionsLog } from "./deletions-log.ts";
+import type { RoleLine } from "./lines.ts";
+import type { RestrictionEntry, RestrictionsLog } from "./restrictions-log.ts";
 
 export function suppressItem(db: DatabaseSync, companyEid: string, itemId: string, now: string): void {
   db.prepare(
@@ -17,4 +19,18 @@ export function liftSuppression(db: DatabaseSync, log: DeletionsLog, companyEid:
   if (!row) return;
   log.append({ table: "suppressions", id: String(row.id), deletedAt: now });
   db.prepare("DELETE FROM user.suppressions WHERE id = ?").run(row.id);
+}
+
+function personTarget(line: RoleLine): Pick<RestrictionEntry, "sourceRowId" | "role"> {
+  if (!line.personal || line.target.kind === "hash") throw new Error("only a person's line is suppressed by line; hide a company's item instead");
+  return line.target.kind === "row" ? { sourceRowId: line.target.rowId } : { role: line.target.role };
+}
+
+/** Hides one person's line (by row id) or a role's lines (US people sources) until "Show again" (L5). */
+export function suppressPersonLine(restrictions: RestrictionsLog, companyEid: string, line: RoleLine, now: string): void {
+  restrictions.append({ op: "suppress", reason: "suppression", companyEid, itemId: line.itemId, ...personTarget(line), at: now });
+}
+
+export function liftPersonLine(restrictions: RestrictionsLog, companyEid: string, line: RoleLine, now: string): void {
+  restrictions.append({ op: "lift", reason: "suppression", companyEid, itemId: line.itemId, ...personTarget(line), at: now });
 }

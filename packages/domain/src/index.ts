@@ -18,7 +18,7 @@ export {
   type PurposeId,
 } from "./config/purposes.ts";
 export { isNaturalPerson, naturalPersonCaption } from "./policy/persons.ts";
-export { balticCheckDigit, COMPANY_ID_PROPS, findPersonalCodes, isBalticPersonalCode, PERSON_EID, type PersonalCodeHit } from "./policy/personal-codes.ts";
+export { balticCheckDigit, COMPANY_ID_PROPS, findPersonalCodes, idIsPersonalCode, isBalticPersonalCode, PERSON_EID, type PersonalCodeHit } from "./policy/personal-codes.ts";
 export {
   FINORA_EXTENSIONS,
   FTM_UPSTREAM,

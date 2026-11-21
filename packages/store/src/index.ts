@@ -1,7 +1,8 @@
 export { openStore, transaction, type Store } from "./open.ts";
-export { LARGE_TABLES, largeTableRewrites, migrate, MIGRATIONS, type Migration, type Target } from "./migrations.ts";
+export { IDENTIFIER_INDEX_WHERE, IDENTIFIER_PROPS, LARGE_TABLES, largeTableRewrites, migrate, MIGRATIONS, type Migration, type Target } from "./migrations.ts";
 export {
   beginSync,
+  dropIfOrphan,
   finishSync,
   intern,
   refreshEntity,
@@ -15,13 +16,13 @@ export {
   type StoreErrorCode,
   type SyncStart,
 } from "./registry.ts";
-export { searchCompanies, type MatchKind, type SearchHit } from "./search.ts";
+export { findByIdentifier, searchCompanies, type MatchKind, type SearchHit } from "./search.ts";
 export { sourceRefForStatement } from "./provenance.ts";
 export { acquireLease, heartbeat, releaseLease, type Lease } from "./leases.ts";
-export { companyRoleLines, lineHash, type RoleLine } from "./lines.ts";
+export { companyRoleLines, lineHash, type LineTarget, type RoleLine } from "./lines.ts";
 export { readPurposeSection, type PurposeRead, type PurposeSession } from "./purpose.ts";
 export { openDispute, resolveDispute } from "./disputes.ts";
-export { liftSuppression, suppressItem } from "./suppressions.ts";
+export { liftPersonLine, liftSuppression, suppressItem, suppressPersonLine } from "./suppressions.ts";
 export { markViewed, runRetention } from "./retention.ts";
 export { scanStore, type CanaryHit } from "./canary.ts";
 export { BACKUP_CLASSES, BACKUP_FILTERS, type BackupClass } from "./backup-classes.ts";

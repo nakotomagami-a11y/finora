@@ -1,8 +1,10 @@
 // Suppressions of a person's line (council session 2 addenda, LAW-BACKUP-RETENTION). The record
 // must survive a repair, but no derived value of the person's data may be written anywhere:
-//   with a source row id    { op, companyEid, itemId, sourceRowId, at }   that line stays hidden
-//   without one (US people) { op, companyEid, itemId, role, at }          that role's lines stay hidden
+//   with a source row id    { op, reason, companyEid, itemId, sourceRowId, at }   that line stays hidden
+//   without one (US people) { op, reason, companyEid, itemId, role, at }          that role's lines stay hidden
 //   sole traders            no entry; their personal items stay hidden after a repair
+// `reason` is "suppression" (L5) or "dispute" (R10): an open dispute on a person's line lives here
+// too, so a repair never shows it again (legal on S04a Q-3).
 // Append-only and fsynced before the suppression is acknowledged; never in a backup; a daily
 // compaction keeps active entries only.
 import { closeSync, fsyncSync, openSync, readFileSync, renameSync, writeSync } from "node:fs";
@@ -10,6 +12,7 @@ import { findPersonalCodes, PERSON_EID } from "@finora/domain";
 
 export type RestrictionEntry = {
   op: "suppress" | "lift";
+  reason: "suppression" | "dispute";
   companyEid: string;
   itemId: string;
   sourceRowId?: string;
@@ -17,12 +20,13 @@ export type RestrictionEntry = {
   at: string;
 };
 
-const ALLOWED_KEYS = new Set(["op", "companyEid", "itemId", "sourceRowId", "role", "at"]);
+const ALLOWED_KEYS = new Set(["op", "reason", "companyEid", "itemId", "sourceRowId", "role", "at"]);
 
 function validate(entry: RestrictionEntry): void {
   for (const key of Object.keys(entry)) {
     if (!ALLOWED_KEYS.has(key)) throw new Error(`restrictions.log takes no "${key}" field`);
   }
+  if (entry.reason !== "suppression" && entry.reason !== "dispute") throw new Error("a restriction names its reason");
   if ((entry.sourceRowId === undefined) === (entry.role === undefined)) {
     throw new Error("a restriction names exactly one of sourceRowId or role");
   }
@@ -33,7 +37,7 @@ function validate(entry: RestrictionEntry): void {
   }
 }
 
-const target = (e: RestrictionEntry) => JSON.stringify([e.companyEid, e.itemId, e.sourceRowId ?? null, e.role ?? null]);
+const target = (e: RestrictionEntry) => JSON.stringify([e.reason, e.companyEid, e.itemId, e.sourceRowId ?? null, e.role ?? null]);
 
 function writeDurably(path: string, text: string, flag: "a" | "w"): void {
   const fd = openSync(path, flag);
@@ -54,7 +58,7 @@ export class RestrictionsLog {
 
   append(entry: RestrictionEntry): void {
     validate(entry);
-    const ordered: RestrictionEntry = { op: entry.op, companyEid: entry.companyEid, itemId: entry.itemId, at: entry.at };
+    const ordered: RestrictionEntry = { op: entry.op, reason: entry.reason, companyEid: entry.companyEid, itemId: entry.itemId, at: entry.at };
     if (entry.sourceRowId !== undefined) ordered.sourceRowId = entry.sourceRowId;
     if (entry.role !== undefined) ordered.role = entry.role;
     writeDurably(this.path, `${JSON.stringify(ordered)}\n`, "a");
@@ -71,7 +75,11 @@ export class RestrictionsLog {
     return [...live.values()];
   }
 
-  /** Rewrites the file with active entries only, so no lifted entry persists (legal's condition). */
+  /**
+   * Rewrites the file with active entries only, so no lifted entry persists (legal's condition).
+   * The rename is not followed by an fsync of the directory (Windows has none); a crash at that
+   * moment leaves the old file, which still holds every active entry.
+   */
   compact(): void {
     const text = this.active().map((e) => `${JSON.stringify(e)}\n`).join("");
     const temp = `${this.path}.compact`;

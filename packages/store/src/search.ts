@@ -2,6 +2,7 @@
 // natural persons and sole traders are found by registry code only (L2, L3).
 import type { DatabaseSync } from "node:sqlite";
 import { normalizeText } from "@finora/domain";
+import { IDENTIFIER_INDEX_WHERE, IDENTIFIER_PROPS } from "./migrations.ts";
 
 export type MatchKind = "code" | "prefix" | "substring" | "fuzzy";
 export type SearchHit = {
@@ -94,4 +95,20 @@ export function searchCompanies(db: DatabaseSync, query: string, options: { coun
     })
     .sort((a, b) => TIER[a.match] - TIER[b.match] || b.score - a.score || a.caption.localeCompare(b.caption) || a.eid.localeCompare(b.eid))
     .slice(0, limit);
+}
+
+/**
+ * Companies holding an identifier value (LEI, VAT, CIK, ...). The query repeats the partial
+ * index's own predicate, which is the only way SQLite will use it. Never returns a person.
+ */
+export function findByIdentifier(db: DatabaseSync, prop: keyof typeof IDENTIFIER_PROPS, value: string): string[] {
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT e.eid FROM main.statements st
+       JOIN main.entities e ON e.id = st.entity_id JOIN main.schemas s ON s.id = e.schema_id
+       WHERE st.prop_id = ? AND st.value = ? AND ${IDENTIFIER_INDEX_WHERE} AND s.name <> 'Person'
+       ORDER BY e.eid`,
+    )
+    .all(IDENTIFIER_PROPS[prop], value) as { eid: string }[];
+  return rows.map((r) => r.eid);
 }

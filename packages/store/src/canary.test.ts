@@ -4,7 +4,7 @@ import { companyRoleLines } from "./lines.ts";
 import { openDispute } from "./disputes.ts";
 import { readPurposeSection } from "./purpose.ts";
 import { writeRecord, type EntityInput } from "./registry.ts";
-import { company, contentSync, memoryStore, personalCodeSamples, roleSetEntities, writeRoleSet } from "./test-helpers.ts";
+import { company, contentSync, memoryStore, personalCodeSamples, roleSetEntities, testLogs, writeRoleSet } from "./test-helpers.ts";
 
 const EID = "lv-00000000001";
 
@@ -16,8 +16,9 @@ function loaded() {
   put(company(EID, "Example Trading SIA"));
   put(company("lv-00000000002", "Rasma Example IK", { legalForm: "lv-ik" }));
   writeRoleSet(db, contentSync(db, "lv-officers", "2026-11-01T00:00:00.000Z"), EID, [
-    { name: "Officer Alpha", role: "board_member", startDate: "2019-03-01" },
+    { name: "Officer Alpha", role: "board_member", startDate: "2019-03-01", rowId: "4711" },
   ]);
+  const logs = testLogs();
   const read = readPurposeSection(db, {
     companyEid: EID,
     section: "S03",
@@ -26,9 +27,10 @@ function loaded() {
     surface: "ui",
     actor: "local",
     now: "2026-11-01T01:00:00.000Z",
-  });
+  }, logs.restrictions);
   const [line] = companyRoleLines(db, EID, ["S03.LV.01"]);
-  if (line) openDispute(db, { companyEid: EID, line, kind: "objection", personal: true, now: "2026-11-02T00:00:00.000Z" });
+  if (line) openDispute(db, logs.restrictions, { companyEid: EID, line, kind: "objection", now: "2026-11-02T00:00:00.000Z" });
+  logs.remove();
   return { db, read };
 }
 

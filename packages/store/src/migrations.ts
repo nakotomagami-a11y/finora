@@ -3,6 +3,8 @@
 //   user  finora-user.db  what cannot be re-derived: purposes, disputes, suppressions, judgements, settings
 //   sa    finora-sa.db    share-alike rows, keyed on the public eid only (P1, A6)
 // Each file tracks how many of its migrations ran in its own PRAGMA user_version.
+// Until the first release (the M1 demo) the initial migration of a file may still change in place,
+// because no store exists outside test runs; from then on every change is a new migration.
 
 import type { DatabaseSync } from "node:sqlite";
 
@@ -132,7 +134,12 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE VIRTUAL TABLE main.entities_trigram USING fts5(search_text, tokenize = 'trigram remove_diacritics 1');
       CREATE INDEX main.statements_entity ON statements(entity_id);
       CREATE INDEX main.statements_record ON statements(record_id);
-      CREATE INDEX main.statements_prop_value ON statements(prop_id, value);
+      -- Identifier props sit at fixed ids so one partial index serves every ID lookup (cto M1 health
+      -- check: a full (prop_id, value) index costs 29 B of every statement). IDENTIFIER_PROPS mirrors this.
+      INSERT INTO main.props (id, name) VALUES
+        (1, 'registrationNumber'), (2, 'vatCode'), (3, 'taxNumber'), (4, 'leiCode'),
+        (5, 'idNumber'), (6, 'cikCode'), (7, 'isinCode'), (8, 'ticker');
+      CREATE INDEX main.statements_identifier ON statements(prop_id, value) WHERE prop_id BETWEEN 1 AND 8;
       CREATE INDEX main.entities_code ON entities(country, code);
       CREATE INDEX main.syncs_source ON syncs(source_id, kind, started_at);
     `,
@@ -184,6 +191,36 @@ export const MIGRATIONS: readonly Migration[] = [
     `,
   },
   {
+    // qa S04a Q-3, legal: a person's line is targeted by row id or role, never by a content hash.
+    target: "user",
+    name: "dispute targets",
+    sql: `
+      CREATE TABLE user.disputes_v2 (
+        id INTEGER PRIMARY KEY,
+        company_eid TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        line_hash TEXT,
+        source_row_id TEXT,
+        role TEXT,
+        personal INTEGER NOT NULL CHECK (personal IN (0, 1)),
+        kind TEXT NOT NULL CHECK (kind IN ('correction', 'objection')),
+        status TEXT NOT NULL CHECK (status IN ('open', 'resolved')),
+        opened_at TEXT NOT NULL,
+        resolved_at TEXT,
+        CHECK (
+          (personal = 0 AND line_hash IS NOT NULL AND source_row_id IS NULL AND role IS NULL) OR
+          (personal = 1 AND line_hash IS NULL AND (source_row_id IS NULL) <> (role IS NULL))
+        )
+      ) STRICT;
+      INSERT INTO user.disputes_v2 (id, company_eid, source_id, item_id, line_hash, personal, kind, status, opened_at, resolved_at)
+        SELECT id, company_eid, source_id, item_id, line_hash, personal, kind, status, opened_at, resolved_at
+        FROM user.disputes WHERE personal = 0; -- a person's line was never disputed by hash outside test runs
+      DROP TABLE user.disputes;
+      ALTER TABLE user.disputes_v2 RENAME TO disputes;
+    `,
+  },
+  {
     target: "sa",
     name: "share-alike",
     sql: `
@@ -206,6 +243,21 @@ export const MIGRATIONS: readonly Migration[] = [
     `,
   },
 ];
+
+/** The identifier props and their fixed ids, seeded by the first main migration. */
+export const IDENTIFIER_PROPS = {
+  registrationNumber: 1,
+  vatCode: 2,
+  taxNumber: 3,
+  leiCode: 4,
+  idNumber: 5,
+  cikCode: 6,
+  isinCode: 7,
+  ticker: 8,
+} as const;
+
+/** The partial index's predicate on `statements st`; a lookup must repeat it to use the index. */
+export const IDENTIFIER_INDEX_WHERE = "st.prop_id BETWEEN 1 AND 8";
 
 /** Large tables take additive migrations only: a rebuild doubles disk use on a ~7 GB store (cto S3). */
 export const LARGE_TABLES = ["statements", "facts", "records"] as const;
