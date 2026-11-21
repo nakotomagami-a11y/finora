@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a and S04f **accepted**; S04i open on 2 legal MUSTs (person-record keys stripped by shape, reference shapes) plus cto's per-country worker pool before S05; S06 and S22 cleared by qa and legal, security review running; S04b next (architect); H5 (agents on the local CLI, no keys) and the outside-names tree rule being applied | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a and S04f **accepted**; S04i open on 2 legal MUSTs (person-record keys stripped by shape, reference shapes) plus cto's per-country worker pool before S05; S06 and S22 cleared by qa and legal; security 3 MUST-FIX (XLSX out-of-memory, quadratic XML scans, UK list person alias); S04b next (architect); H5 (agents on the local CLI, no keys) and the outside-names tree rule being applied | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
