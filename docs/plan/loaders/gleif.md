@@ -80,6 +80,8 @@ Rows are kept only when `Entity.LegalAddress.Country` or `Entity.LegalJurisdicti
 - About 9 statements per row ≈ 3.6 M statements ≈ 0.45 GB at 123 B. Share of the cross-border 1 GB budget: ≈ 0.45 GB.
 - Full parse of 3.5 M rows (filtering 89% away): ≈ 3-5 min, estimated (the probe's single pass over the zip completed in minutes; not timed separately), once a week in the background.
 
+- **Streaming and memory (cto, 7062368907):** GLEIF runs in its own long-lived worker lane and uses the **streamed-artifact path** (fetch to file, streamed sha256, streamed raw cache); the 486.9 MB zip is never held in memory, and it is above the 512 MiB in-memory cap anyway. The CSV is parsed row by row from the zip, and rows outside LT, LV, EE and the US are discarded as they stream, so they are never held. **Acceptance: peak RSS ≤ 1 GB on the real file, recorded in `benchmarks.md`.**
+
 ## Fixtures
 - `fixtures/intl/gleif/lei2-golden-copy.csv` with the real header (338 columns; generated from the column list, not copied) and 12 rows: one per RA code above, one RA999999, one LAPSED, one SOLE_PROPRIETOR (must be dropped), one FUND, one non-target country (must be filtered).
 - Fixture LEIs: 18 characters + 2 check digits that **fail** mod 97 (§3.4: the fixture variant), so they can never be real LEIs; the LEI validator runs in fixture mode for the `fixtures` profile (accepts only the failing variant) and production mode otherwise (rejects it); `fixtures/ids.test.ts` checks both.
@@ -91,6 +93,7 @@ Rows are kept only when `Entity.LegalAddress.Country` or `Entity.LegalJurisdicti
 | `ingest/src/party-gate.test.ts` (GLEIF case) | a SOLE_PROPRIETOR row is not loaded and counted |
 | `resolve/src/lei-link.test.ts` | each RA code links to its register entity; RA999999 never links; no name matching |
 | `ingest/src/purge.test.ts` (shared) | the 2% guard stops a full file that would delete more |
+| `sources/src/intl/gleif/gleif-stream.test.ts` | the loader reads the zip as a stream (no full-file buffer), filters while streaming, and stays under the RSS budget; the real-file run is recorded in `benchmarks.md` |
 
 ## Failure modes
 | Case | Behaviour | UI |
