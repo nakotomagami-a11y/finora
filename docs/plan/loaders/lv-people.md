@@ -171,7 +171,7 @@ Header: `id;uri;at_legal_entity_registration_number;entity_type;name;latvian_ide
 - A name spelling fix or a role-title change on the same `id` emits nothing.
 - The previous set's line identities are needed for the diff (Open question 2).
 
-**Disputes** (§3.3) target company eid + source + item + the content hash of the disputed line. For officers, that is sha256 over the normalised `position`, `governing_body`, `name`, `registered_on` and signing rights. For members: `legal_entity_registration_number` or foreign `name`, shares and `date_from`. It is the same normalisation as the hash input, without the line `id`, so a re-issued row id keeps the suppression.
+**Disputes and restrictions** (§3.3, S04a fix Q-3): no content hash of a person's line is ever computed or stored. A person-line dispute or restriction targets `{companyEid, itemId, sourceRowId}`, where `sourceRowId` is the officer or member `id`. The loader passes these ids to `writeRecord` as `lineIds`, in line order (`null` where a row has none, which is then targeted by role).
 
 **Other rules.**
 - Retention: `PERSON_ROLE_RETENTION_DAYS = 0` (P4).

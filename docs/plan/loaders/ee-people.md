@@ -80,7 +80,7 @@ An unknown role code: dropped `role_not_item` and counted by code in the sync re
 - **Line identity for `finora.role_ended`:** `kirje_id` (row-local, below), kept with the record for the diff only and never written to any output, log, API, MCP or export (PS5).
 - **Order relied on:** none across records (each entity object is complete). Within a set, source order defines the person and relationship positions; it is never re-sorted by name.
 - **Evidence that `kirje_id` is row-local and not code-derived** (legal 7029672714, condition 1), measured 2026-11-20 with `python -I research/probes/baltics/common/role_key_check.py`: EE `kirje_id` on the card file: 528,064 rows, 528,064 distinct, numeric; 91,076 persons (by hash) hold roles in more than one company and none shares an id across companies. The off-card and members files carry `kirje_id` on every row as well (seen on 19 Nov 2026), so the same identity rule applies; their cross-company check is not yet run (same probe, other file).
-- **Dispute content hash** (§3.3): sha256 over the line's normalised `isiku_roll`, `eesnimi`, `nimi_arinimi` (NFC, trimmed, casefolded), `algus_kpv`, and for J lines `isikukood_registrikood`; the same normalisation as the hash input, without `kirje_id`, so a dispute survives a re-entered row.
+- **Disputes and restrictions** (§3.3, S04a fix Q-3): no content hash of a person's line is ever computed or stored. A person-line dispute or restriction targets `{companyEid, itemId, sourceRowId}`, where `sourceRowId` is the line's `kirje_id`. The loader passes the `kirje_id`s to `writeRecord` as `lineIds`, in line order.
 
 ### Role lines (`ee-rik-card-persons`, `ee-rik-offcard-persons`)
 
