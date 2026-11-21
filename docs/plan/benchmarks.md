@@ -96,3 +96,14 @@ The real list files from the phase-1 pulls (EU 2026-10-23, OFAC SDN enhanced XML
 | `uk-sanctions-list` | 48.1 MB | 1,685 / 4,070 / 694 (ships) | 19,064 | 1.0 s | 0.8 s | 734 MB |
 
 **Boot cost:** a restart downloads about 178 MB and parses for about 5 s, as three background syncs under their leases (the non-SDN OFAC list adds a few hundred entries). Until each finishes, officer screening answers `not_checked` and names the lists not loaded (`resolve/src/sanctions.test.ts`). Peak RSS is the process total after each list. A CLI run syncs its sources in one worker, so 734 MB is the peak that matters: under the 1 GB budget, with about 270 MB to spare.
+
+**One worker, the whole batch (cto, 7062341637).** The same files, on an on-disk store in a fresh process, sampled every 20 ms:
+
+| Run | Peak RSS |
+|---|---|
+| `eu-fsf` alone (first load, then a restart re-parse) | 325 MB |
+| `us-ofac-sdn` alone | 629 MB |
+| `uk-sanctions-list` alone | 488 MB |
+| all three in one process, first load then restart re-parse (six syncs) | 787 MB |
+
+V8 does not hand memory back between sources, so the batch peak (787 MB) is above the largest single list (629 MB), and still under the 1 GB worker budget. GLEIF's weekly file (≈ 0.5 GB) in the same cross-border worker would very likely pass it. Run GLEIF in its own worker, or measure that batch again when the pool lands. The OFAC peak is dominated by holding the 106 MB file as one buffer, which the loader contract requires today (`RawArtifact.bytes`). Parsing it from a stream would need a contract change.
