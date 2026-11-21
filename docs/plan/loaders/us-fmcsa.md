@@ -8,7 +8,7 @@ Module `packages/sources/src/us/fmcsa/`. Research: `docs/research/us.md` §4.10,
 - `id`: `us-fmcsa-brokers` and `us-fmcsa-carriers` (below). `licence`: `us-gov-work` (portal metadata states no licence; federal work, 17 U.S.C. 105). `verifiedOn`: 2026-11-19, `https://data.transportation.gov/d/az4n-8mr2` (licence field empty in the dataset metadata). `attribution`: "Source: FMCSA, U.S. Department of Transportation".
 - **Two source ids, one storage class each (§3.5):** `us-fmcsa-brokers` (`store`, bulk, filtered to active broker authority) and `us-fmcsa-carriers` (`live-cached`, `cacheTtl` `{ refetchHours: 24, purgeUnviewedDays: 30 }`). Both share the parser and field map below. `cadence`: `daily`. `publishedAtUtc`: null (portal refresh time observed overnight).
 - `asOf`: `[portal_metadata]` (`rowsUpdatedAt`), then `[max_date_in_data]` over census `mcs150_date`.
-- `deepLink`: `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string={recordKey}` (*pattern not verified*). `orderUrl`: null. `requires`: none (optional `SOCRATA_APP_TOKEN`). `limits`: `{ requestsPerSecond: 5 }`.
+- `deepLink`: `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string={recordKey}` (*pattern not verified*). `orderUrl`: null. `requires`: none (no app token in v1, H5). `limits`: `{ requestsPerSecond: 5 }`.
 
 ### Contract fields (milestone A.1 checklist)
 - `asOf`: `[portal_metadata, max_date_in_data]`.
@@ -44,7 +44,7 @@ Module `packages/sources/src/us/fmcsa/`. Research: `docs/research/us.md` §4.10,
 | `business_org_desc` | party gate only | resolution key | no | CORPORATION, INDIVIDUAL, PARTNERSHIP, or empty |
 | `company_officer_1`, `company_officer_2` | **dropped** | - | - | S03 for carriers is not a Part G item; officer names are not loaded |
 | `email_address`, `phone`, `cell_phone`, `fax` | **dropped** (never selected) | - | - | contact data of often one-person carriers |
-| `safety_rating`, `dun_bradstreet_no` | dropped | - | - | |
+| `safety_rating`, the provider-D1 number column | dropped | - | - | |
 
 **Revocation `sa6p-acbp`**: `docket_number`, `type_license`, `order1_serve_date`, `order2_type_desc` → event `register.authority_revoked` (S11.US.02), last 5 years.
 

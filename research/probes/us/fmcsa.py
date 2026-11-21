@@ -54,7 +54,7 @@ def main():
     print("census carrier_operation:", soql(census, "carrier_operation, count(*) as n", group="carrier_operation", order="n desc"))
     active = "status_code='A'"
     total_active = int(soql(census, "count(*) as n", where=active)[0]["n"])
-    for col in ("company_officer_1", "company_officer_2", "email_address", "phone", "dun_bradstreet_no", "power_units", "total_drivers", "safety_rating", "mcs150_date"):
+    for col in ("company_officer_1", "company_officer_2", "email_address", "phone", "power_units", "total_drivers", "safety_rating", "mcs150_date"):
         n = int(soql(census, "count(*) as n", where=f"{active} AND {col} IS NOT NULL")[0]["n"])
         print(f"  active census fill {col}: {n / total_active:.0%}")
     print("  active census by phy_country:", soql(census, "phy_country, count(*) as n", where=active, group="phy_country", order="n desc", limit=5))

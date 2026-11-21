@@ -21,7 +21,7 @@ Four sources, one loader module per state (`packages/sources/src/us/state-ny/`, 
 - `asOf`: `[portal_metadata]`: the dataset's `rowsUpdatedAt` (Unix seconds) from `GET https://<host>/api/views/<dataset>.json`, read in the same fetch as the rows; it renders as "as published by the portal". It is the dataset's refresh time, not a per-record date; record dates (filing, formation, status dates) are separate statements. Measured 2026-11-19/20: NY 2026-11-19, CO 2026-11-19, CT 2026-11-19, PA 2026-11-03.
 - `deepLink`: null. No state publishes a stable per-entity URL that we verified; the source chip links the dataset page `https://<host>/d/<dataset>`.
 - `orderUrl`: null.
-- `requires`: none. Optional `SOCRATA_APP_TOKEN` (header `X-App-Token`): "requests that aren't using an application token come from a shared pool via IP address", and token requests are not throttled (https://dev.socrata.com/docs/app-tokens.html).
+- `requires`: none. **No app token in v1 (H5).** Without one, "requests that aren't using an application token come from a shared pool via IP address" (https://dev.socrata.com/docs/app-tokens.html); the measured latencies above were taken without a token. A 429 backs off as below and the state shows "did not answer".
 - `limits`: `{ requestsPerSecond: 5 }` per host. Measured latency for a name-prefix query: median 0.66-1.05 s, max 1.72 s. A 429 backs off 2, 4, 8 s, then fails the request (§7.6a rules).
 
 ### Queries (SoQL over `GET https://<host>/resource/<dataset>.json`)
