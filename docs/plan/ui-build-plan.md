@@ -268,7 +268,7 @@ All primitives share one focus style: `outline: 2px solid var(--accent); outline
 | `NodeCard`, `EdgeCard` | A company node with its facts, or an edge with its relation and `SourceChip` | `open` | `Esc` |
 | `LibraryList`, `LibraryItem`, `LibraryFilters` | Past investigations: subject, country, verdict level and coverage, date, cost, status. Filter by level, country, text | `empty`, `list`, `filtered`, `no-match`, `error` | `Arrow` keys move between items, `Enter` opens |
 | `CrashGrid`, `CrashTile` | One tile per M id (§5.9) | `live`, `delayed`, `coarse` (official), `not_configured`, `peak-unknown`, `stale`, `error`, `loading` | Tiles are not focusable unless they hold an action; actions are links or buttons |
-| `DrawdownStrip` | "Distance from peak" card: one row per market sorted by drop, a bar plus a signed percentage with an arrow; "Add your key" or "peak not known yet" in place of a bar where needed. Peak definition in the card header ("peak = highest daily close since 1 Jan 2025") | `full`, `with-gaps` | rows with actions are links |
+| `DrawdownStrip` | "Distance from peak" card: one row per market sorted by drop, a bar plus a signed percentage with an arrow; "Not configured" (with "How to set it up") or "peak not known yet" in place of a bar where needed. Peak definition in the card header ("peak = highest daily close since 1 Jan 2025") | `full`, `with-gaps` | rows with actions are links |
 | `DebtTicker` | M08: the ticking estimate with an `estimate` tag, the official figure and its date, the 30-day change. The ticking digits are `aria-hidden`; a static text carries "Estimate {x}; official {y} as of {date}" | `live`, `error` (shows the official figure only) | - |
 | `SetupHelp` | "How to set it up" for a `not_configured` row or a `needs_source` check: what to add to the local provider file or the local settings, in words, then "Check again". One rendering for both | `closed`, `open` | Dialog rules |
 | `ConnectionRow` | Settings → Connections: Claude Code (`ready`, `missing`, `signed_out`, `unsafe`, with its version), the backend switch, the optional SEC contact header ("set" or "not set") | `ready`, `missing`, `signed-out`, `unsafe`, `checking` | "Check again" button |
@@ -403,7 +403,7 @@ Text over the limit is cut at the limit with "Read at source". Quotes are the on
 
 ### 5.9 Crash monitor tiles
 
-**Page anatomy** (`crash.html`): overline and serif H1 ("How far markets are from their peaks") with the "Updated 2 min ago" line and the cadence note; a `Banner` when running on official data only ("10 of 20 series work without a key ... Add a key"); the **Distance from peak** strip beside the **US national debt** card; tiles M01 to M07; "How it's calculated" and the attribution lines at the end. Fund symbols and key data stay on this machine, and the page says so.
+**Page anatomy** (`crash.html`): overline and serif H1 ("How far markets are from their peaks") with the "Updated 2 min ago" line and the cadence note; a `Banner` when some rows are `not_configured` ("Some markets are not configured on this install. How to set it up"); the **Distance from peak** strip beside the **US national debt** card; tiles M01 to M07; "How it's calculated" and the attribution lines at the end. The provider file and the daily US series stay on this machine, and the page says so.
 
 One tile per id M01-M08 (M09 is LATER). A tile holds one or more **rows** (`MarketRow` in architecture §8, defined in `docs/plan/loaders/markets.md` §1.4): M03 holds up to seven markets, M01 three. Each row shows its name, the value and drawdown, a sparkline, the as-of time, the source and its attribution line, and has its own state. The row's DTO state (`ok | peak_unknown | not_configured | stale | error | loading`) maps to the display states below; `live`, `delayed` and `coarse` are `ok` rows told apart by the row's cadence and lag. State by row (the council's Part C):
 
@@ -539,7 +539,7 @@ The question announcement does not move focus. A shortcut and a link take the us
 - **Purpose required** (`428`): the section shows the purpose gate, not an error.
 - **Host or origin refused** (`403`): a plain page "This app only answers on the machine it runs on" (local mode).
 - **Offline**: the shell shows a banner "You are offline"; cached pages stay readable.
-- **No LLM key**: the explorer works fully. **Investigate** stays visible and opens the "Add your key to run agents" sheet. Never a disabled button with no reason.
+- **No LLM key**: the explorer works fully. **Investigate** stays visible and opens the state its status shows (`agents-off`, `cli-missing` or `cli-signed-out`) with the one step to fix it. Never a disabled button with no reason.
 - **No SEC contact setting**: US public profiles show `needs_source` rows ("needs the SEC contact setting") and promise nothing.
 - **Daily cap reached**: Investigate opens the spend and reset-time sheet. The instant profile keeps working.
 - **404 and 500**: `not-found.tsx` and `error.tsx` per tool, with the search box and a link home.
@@ -655,7 +655,7 @@ Other rules:
 
 ## 12. Fixtures, the state gallery and `?state=`
 
-**Fixtures are synthetic.** Names are obviously fictional: "Example Company A SIA", "Sample Trading UAB", "Placeholder Foods OÜ", "Example Holdings Inc", people "Example Person One". One company has a 200-character fictional name. Registry codes use the fixture ID rules in `docs/plan/reviews/00-early-plan-review.md` (#9). Fund symbols are fictional (`FXAA`). No real entity appears in any fixture, screenshot or doc. URLs and email addresses in fixtures use reserved names only (`.example`, `.test`, `example.com`, `example.org`), and `fixtures/ui.test.ts` fails on any other host or on a string shaped like an email address. Fund symbols use a reserved fictional prefix that `fixtures/ids.test.ts` checks.
+**Fixtures are synthetic.** Names are obviously fictional: "Example Company A SIA", "Sample Trading UAB", "Placeholder Foods OÜ", "Example Holdings Inc", people "Example Person One". One company has a 200-character fictional name. Registry codes use the fixture ID rules in `docs/plan/reviews/00-early-plan-review.md` (#9). No real entity appears in any fixture, screenshot or doc. URLs and email addresses in fixtures use reserved names only (`.example`, `.test`, `example.com`, `example.org`), and `fixtures/ui.test.ts` fails on any other host or on a string shaped like an email address. Market tickers use the reserved fictional prefix that `fixtures/ids.test.ts` checks.
 
 **The state gallery.** `/[locale]/design` lists every component and screen state; `/design/<group>/<name>` renders one with `?theme=` and `?locale=`. It exists only when `FINORA_DEMO=1` (set by `pnpm finora --demo`, the dev server for tests and CI); a normal run returns 404 there. It is the target of the visual, axe, keyboard and e2e tests, and web-qa can reach any state by URL.
 
@@ -892,7 +892,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
   9. At 390 px tiles stack in one column with no horizontal scroll; at 1280 px they form a grid.
   10. No price value appears in the page for a row whose source needs a key and has none.
   11. A `peak_unknown` row (it carries `trackingSince`) never shows a percentage; the total-crypto row says "All-time high"; the value-lost summary lists the rows it sums, names the oldest as-of date and names any counted row it had to leave out.
-  12. A fund slot with no symbol says "Choose a fund in settings" and links to its settings field; with a symbol and no key it says "Add your key to check".
+  12. A row whose provider is not in the local provider file says "Not configured: add provider [code] to your local provider file" with "How to set it up", and shows no number.
 - **Tests:** `web/src/components/crash/*.test.tsx`, `web/e2e/crash.spec.ts`, `web/e2e/crash.refresh.spec.ts`, `web/e2e/crash.states.spec.ts`, `web/e2e/crash.visual.spec.ts`, `web/e2e/crash.a11y.spec.ts`.
 - **Demo:** `pnpm finora --demo`, open `/en/crash`, watch a tile update, switch `?state=not-configured` in fixture mode.
 
