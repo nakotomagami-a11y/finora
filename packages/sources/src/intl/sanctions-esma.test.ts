@@ -9,7 +9,7 @@ describe("esma-ncasp (sanctions.md §5)", () => {
   it("keys a row by its LEI, else by a hash of authority, name and website", async () => {
     const { records } = await parseAll(esmaNcasp, raw);
     expect(records[0]?.recordKey).toBe("FX000000000000000723");
-    expect(records[1]?.recordKey).toMatch(/^[0-9a-f]{32}$/);
+    expect(records[1]?.recordKey).toMatch(/^[a-p]{32}$/);
     expect(values(records[0], "leiCode")).toEqual(["FX000000000000000723"]);
     expect(values(records[0], "name")).toEqual(["Test Energy 7"]);
     expect(values(records[0], "alias")).toEqual(["TE7 Exchange"]);

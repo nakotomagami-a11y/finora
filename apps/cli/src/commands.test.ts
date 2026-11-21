@@ -23,7 +23,7 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 describe("finora-cli (S04f)", () => {
   it("data sync loads every fixture source, and a second run is unchanged", async () => {
     expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
-    expect(lines).toHaveLength(16);
+    expect(lines).toHaveLength(17);
     expect(lines.at(-1)).toMatch(/^peak RSS: \d+ MB$/);
     for (const line of lines.filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged/);
     expect(await dataSync(io(), { profile: "fixtures", source: "fx-hide" })).toBe(0);
@@ -98,7 +98,7 @@ describe("finora-cli (S04f)", () => {
     expect(all.length).toBeGreaterThan(0);
     for (const file of all) {
       const bytes = readFileSync(file);
-      for (const needle of ["Sentinel", "SENTINEL", "Personone", "PERSONFOUR", "1961-05-04", "1966-07-08"]) expect(bytes.includes(Buffer.from(needle)), `${file}: ${needle}`).toBe(false);
+      for (const needle of ["Sentinel", "SENTINEL", "Personone", "PERSONFOUR", "Listedperson", "Golfa", "1961-05-04", "1966-07-08", "12.03.1965"]) expect(bytes.includes(Buffer.from(needle)), `${file}: ${needle}`).toBe(false);
     }
   });
 

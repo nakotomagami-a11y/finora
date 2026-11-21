@@ -114,7 +114,10 @@ function* entries(all: Row[], ctx: ParseContext): Generator<ParsedRecord> {
     const names = [...new Set(group.map((r) => r.NameAlias_WholeName).filter(Boolean))];
     const program = head.Entity_Regulation_Programme || null;
     const listDate = isoDate(head.Entity_DesignationDate);
-    if (head.Entity_SubjectType_ClassificationCode === "person") {
+    // Fail closed (legal on S06, S2): any person row sends the whole entry to the person index;
+    // rows that disagree otherwise are dropped, so a person's name can never be stored as an alias.
+    const kinds = new Set(group.map((r) => r.Entity_SubjectType_ClassificationCode));
+    if (kinds.has("person")) {
       const years = group.map((r) => Number(r.BirthDate_Year || r.BirthDate_BirthDate.slice(0, 4))).filter((y) => y > 1800);
       ctx.onPerson?.({
         list: "eu-fsf",
@@ -128,7 +131,7 @@ function* entries(all: Row[], ctx: ParseContext): Generator<ParsedRecord> {
       ctx.onDrop?.("person_entry");
       continue;
     }
-    if (head.Entity_SubjectType_ClassificationCode !== "enterprise" || names.length === 0) {
+    if (kinds.size !== 1 || !kinds.has("enterprise") || names.length === 0) {
       ctx.onDrop?.("unknown_subject_type");
       continue;
     }
@@ -165,7 +168,7 @@ function* entries(all: Row[], ctx: ParseContext): Generator<ParsedRecord> {
 
 export const euFsf: SourceLoader = {
   meta: EU_FSF_META,
-  parserVersion: parserVersion(EU_FSF_META.id, 1, EU_FSF_FIELD_MAP, EU_FSF_META.items),
+  parserVersion: parserVersion(EU_FSF_META.id, 2, EU_FSF_FIELD_MAP, EU_FSF_META.items),
   fieldMap: EU_FSF_FIELD_MAP,
   async fetch(ctx) {
     const res = await ctx.fetcher(URL_FILE);

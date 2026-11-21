@@ -1,7 +1,7 @@
 // Reads named members of a zip archive (an XLSX) under hard limits (S04i security review): a member
 // path that climbs out, uses a backslash or is absolute is refused, and each member's inflated
 // size is capped, as is the total. Anything unexpected throws `archive_unexpected`.
-import { inflateRawSync } from "node:zlib";
+import { crc32, inflateRawSync } from "node:zlib";
 
 export class ArchiveError extends Error {
   override name = "archive_unexpected";
@@ -30,6 +30,7 @@ export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: Zi
   for (let k = 0; k < count; k++) {
     if (p + 46 > bytes.length || view.getUint32(p, true) !== 0x02014b50) throw new ArchiveError("bad central directory");
     const method = view.getUint16(p + 10, true);
+    const crc = view.getUint32(p + 16, true);
     const compressed = view.getUint32(p + 20, true);
     const size = view.getUint32(p + 24, true);
     const nameLength = view.getUint16(p + 28, true);
@@ -51,6 +52,7 @@ export function readZip(bytes: Uint8Array, wanted: readonly string[], limits: Zi
         throw new ArchiveError("member inflates past its limit or is corrupt");
       }
     } else throw new ArchiveError("unknown compression");
+    if (crc32(member) !== crc) throw new ArchiveError("member checksum mismatch");
     total += member.length;
     if (member.length > limits.maxMemberBytes || total > limits.maxTotalBytes) throw new ArchiveError("archive too large");
     out.set(name, member);

@@ -92,7 +92,9 @@ export function applyGates(record: ParsedRecord, options: { companyPartyTypes: r
         // a description never carries a personal code. Its own ids and references to other rows are not.
         if (COMPANY_ID_PROPS.has(s.prop)) return true;
         // A reference is let through only when it has a row-id shape; anything else is scanned (qa on S04i).
-        if (REFERENCE_PROPS.has(s.prop) && (eidKind(s.value) !== null || isInternalEid(s.value))) return true;
+        // A sanctions eid carries the list's own id, which could be anything: it is scanned too (qa, legal on S06).
+        const kind = eidKind(s.value);
+        if (REFERENCE_PROPS.has(s.prop) && ((kind !== null && kind !== "sanctions") || isInternalEid(s.value))) return true;
         if (!leaksPerson(s.value)) return true;
         drop("personal_code", s.prop);
         withheld.push({ entityEid: entity.eid, prop: s.prop, reason: "personal_code" });

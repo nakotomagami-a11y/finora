@@ -1,5 +1,10 @@
 // A small RFC 4180 reader: quoted fields, doubled quotes, line breaks inside quotes, CRLF, a
 // leading byte-order mark. Rows come out one at a time, so a large file is never split up front.
+// A quote left open at the end of the file throws: it would swallow every row after it (qa S4).
+
+export class CsvError extends Error {
+  override name = "csv_unterminated_quote";
+}
 
 export function* csvRows(text: string, separator = ","): Generator<string[]> {
   let i = text.charCodeAt(0) === 0xfeff ? 1 : 0;
@@ -12,11 +17,7 @@ export function* csvRows(text: string, separator = ","): Generator<string[]> {
         i++;
         for (;;) {
           const q = text.indexOf('"', i);
-          if (q < 0) {
-            field += text.slice(i);
-            i = n;
-            break;
-          }
+          if (q < 0) throw new CsvError("a quoted field runs to the end of the file");
           field += text.slice(i, q);
           i = q + 1;
           if (text[i] !== '"') break;

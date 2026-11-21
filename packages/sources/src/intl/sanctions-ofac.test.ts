@@ -54,6 +54,20 @@ describe("us-ofac-sdn and us-ofac-cons (sanctions.md §2)", () => {
     expect(persons[0]?.list).toBe("us-ofac-cons");
   });
 
+  it("throws on a file cut between two entity blocks, so the sync ends partial and purges nothing (qa S3)", async () => {
+    const text = new TextDecoder().decode(raw[0]!.bytes);
+    const cut = text.slice(0, text.indexOf('<entity id="90000005">'));
+    await expect(parseAll(usOfacSdn, [{ ...raw[0]!, bytes: new TextEncoder().encode(cut) }])).rejects.toThrow();
+    const midBlock = text.slice(0, text.indexOf("</entity>", text.indexOf('<entity id="90000005">')));
+    await expect(parseAll(usOfacSdn, [{ ...raw[0]!, bytes: new TextEncoder().encode(midBlock) }])).rejects.toThrow();
+  });
+
+  it("never matches a tag inside a comment", async () => {
+    const text = new TextDecoder().decode(raw[0]!.bytes).replace("<names>", "<names><!-- <name id=\"1\"><isPrimary>true</isPrimary><translations><translation id=\"1\"><isPrimary>true</isPrimary><script>Latin</script><formattedFullName>COMMENTED OUT</formattedFullName></translation></translations></name> -->");
+    const { records } = await parseAll(usOfacSdn, [{ ...raw[0]!, bytes: new TextEncoder().encode(text) }]);
+    expect(JSON.stringify(records)).not.toContain("COMMENTED OUT");
+  });
+
   it("has a valid field map and fetches only official hosts", () => {
     expect(checkFieldMap(usOfacSdn.meta.id, usOfacSdn.fieldMap)).toEqual([]);
     expect(usOfacSdn.meta.limits.maxBytes).toBe(300 * 1024 ** 2);

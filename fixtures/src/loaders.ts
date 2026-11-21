@@ -2,7 +2,7 @@
 // seeded world. Each is a named export, so a sync worker can import it by module URL; each
 // regenerates the same world from the seed, so no file is ever needed.
 import { readFileSync } from "node:fs";
-import { esmaNcasp, euFsf, lvFidFrozen, ukSanctionsList, usOfacSdn, type AsOfStrategy, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
+import { esmaNcasp, euFsf, lvFidFrozen, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
 import { lvFidXlsx } from "@finora/sources/testing";
 import { DEFAULT_SEED, generateWorld, type FixtureCompany, type World } from "./world.ts";
 
@@ -192,6 +192,7 @@ const file = (path: string) => ({ name: path.split("/").at(-1) ?? path, bytes: n
 
 export const fxEuFsf = fromFiles(euFsf, () => [file("eu-fsf/csvFullSanctionsList_1_1.csv")]);
 export const fxOfacSdn = fromFiles(usOfacSdn, () => [file("us-ofac/SDN_ENHANCED.XML")]);
+export const fxOfacCons = fromFiles(usOfacCons, () => [file("us-ofac/CONS_ENHANCED.XML")]);
 export const fxUkSanctions = fromFiles(ukSanctionsList, () => [file("uk-sanctions-list/UK-Sanctions-List.csv")]);
 export const fxEsma = fromFiles(esmaNcasp, () => [file("esma-ncasp/NCASP.csv")]);
 export const fxLvFid = fromFiles(lvFidFrozen, () => [
@@ -213,6 +214,7 @@ export const FIXTURE_PROFILE: readonly { exportName: string; loader: SourceLoade
   { exportName: "fxHide", loader: fxHide },
   { exportName: "fxEuFsf", loader: fxEuFsf },
   { exportName: "fxOfacSdn", loader: fxOfacSdn },
+  { exportName: "fxOfacCons", loader: fxOfacCons },
   { exportName: "fxUkSanctions", loader: fxUkSanctions },
   { exportName: "fxEsma", loader: fxEsma },
   { exportName: "fxLvFid", loader: fxLvFid },

@@ -84,3 +84,15 @@ The shipped path (qa F3 on S04f): `finora-cli data sync --profile fixtures` into
 
 Budget: under 5 s (S04f acceptance 2), met by the shipped path with about 2 s to spare. CI holds the relative budget in `fixtures/load.test.ts` on the in-memory path: under 400 units (1 unit = the calibration loop, about 9 ms here).
 
+
+### Sanctions lists, first load and restart re-parse (data-osint, S06, 2026-11-21, `dev-desktop-1`)
+
+The real list files from the phase-1 pulls (EU 2026-10-23, OFAC SDN enhanced XML 2026-11-19, UK 2026-11-17), read from disk, so download time is not included. Each list runs `runSync` in one process on an in-memory store. A restart re-parse is the sync that runs because the app holds no person list after a start: the file is fetched and parsed again, and no row changes.
+
+| Source | File | Entries stored / to the person index / not loaded | Statements | First load | Restart re-parse | Peak RSS |
+|---|---|---|---|---|---|---|
+| `eu-fsf` | 24.1 MB | 1,779 / 4,490 / 0 | 31,918 | 1.0 s | 0.7 s | 326 MB |
+| `us-ofac-sdn` | 105.8 MB | 10,122 / 7,561 / 1,912 (vessels, aircraft) | 129,284 | 5.3 s | 3.6 s | 570 MB |
+| `uk-sanctions-list` | 48.1 MB | 1,685 / 4,070 / 694 (ships) | 19,064 | 1.0 s | 0.8 s | 734 MB |
+
+**Boot cost:** a restart downloads about 178 MB and parses for about 5 s, as three background syncs under their leases (the non-SDN OFAC list adds a few hundred entries). Until each finishes, officer screening answers `not_checked` and names the lists not loaded (`resolve/src/sanctions.test.ts`). Peak RSS is the process total after each list. A CLI run syncs its sources in one worker, so 734 MB is the peak that matters: under the 1 GB budget, with about 270 MB to spare.

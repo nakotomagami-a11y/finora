@@ -87,7 +87,9 @@ function* entries(rows: Row[]): Generator<ParsedRecord> {
     const leiOk = /^[A-Z0-9]{20}$/.test(lei) && (isValidLei(lei) || isFixtureLei(lei));
     const name = row.ae_lei_name || row.ae_commercial_name;
     if (!name) continue;
-    const key = leiOk ? lei : createHash("sha256").update(`${row.ae_competentAuthority}|${row.ae_commercial_name}|${row.ae_website}`).digest("hex").slice(0, 32);
+    // Letters only (a-p) for a hashed key, so it never holds a digit run that reads as a personal code.
+    const hashed = createHash("sha256").update(`${row.ae_competentAuthority}|${row.ae_commercial_name}|${row.ae_website}`).digest("hex").slice(0, 32);
+    const key = leiOk ? lei : hashed.replace(/[0-9]/g, (d) => "ghijklmnop"[Number(d)]!);
     const names: ListName[] = [{ value: name, kind: "name" }, ...(row.ae_commercial_name && row.ae_commercial_name !== name ? [{ value: row.ae_commercial_name, kind: "alias" as const }] : [])];
     const record = subjectRecord({
       list: "esma",
@@ -113,7 +115,7 @@ function* entries(rows: Row[]): Generator<ParsedRecord> {
 
 export const esmaNcasp: SourceLoader = {
   meta: ESMA_META,
-  parserVersion: parserVersion(ESMA_META.id, 1, ESMA_FIELD_MAP, ESMA_META.items),
+  parserVersion: parserVersion(ESMA_META.id, 2, ESMA_FIELD_MAP, ESMA_META.items),
   fieldMap: ESMA_FIELD_MAP,
   async fetch(ctx) {
     const res = await ctx.fetcher(URL_FILE);

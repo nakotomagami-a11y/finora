@@ -40,6 +40,14 @@ What the build changed against the sections below, and where things are:
 - **Not loaded:** vessels, aircraft and ships (`subject_out_of_scope`): no schema, and no company screening rule needs them. The UK `Parent company` column is not read.
 - **OFAC:** parsed entity block by entity block over the bytes, no XML dependency; the signed redirect goes to one fixed storage host, which is listed in `officialHosts`.
 - **Props:** stored with FtM names: `weakAlias` (low-quality aliases), `previousName` (F.K.A.), `authorityId` (the list's reference, EU `EU.FX.n`, OFSI group id), `unscId`, `listingDate`. Identifier rows are `Identification` entities `sanc-<list>-<id>-i<n>` with `holder`, `type` (`registration`, `tax`, `lei`, `imo`, `swift`, `other`), `number` and `country`.
+- **Review fixes (qa, legal, cto on S06):**
+  - `lv-fid-frozen` is `rawCache: false`: its file holds natural persons (column 6, birth-date rows).
+  - Column 5 is stored only as a fixed category, `owned_or_controlled_by_listed_person` or `listed_subject`, never as text. Columns 4, 8 and 9 are dropped (`listed_person_name`) when they hold any 3+ letter token of the listed name, matched by stem, so declined and reordered forms count.
+  - The LV record key is a hash of column 1, column 2 and the row's place, written in letters a-p: never column 6.
+  - An EU entry with any person row goes to the person index; rows that disagree otherwise are dropped (`unknown_subject_type`).
+  - An OFAC file cut anywhere, and a CSV with a quote left open, throw, so the sync ends partial and nothing is purged. Zip members are checked against their CRC32.
+  - A `sanc-` eid used as a reference is scanned for personal codes like any free text.
+  - **Coverage:** person screening names each of the four person lists as `checked` (with its as-of date) or `not_checked` (`index_not_loaded`), and says `screened` only when every list was checked. Stored lists with no completed sync are named in `listsNotChecked`. A list that was not looked at never reads as clean. The boot cost is in `benchmarks.md`.
 - **Not built yet:** `finora.frozen_assets_cleared` on a delisting (§4 Refresh) and website matching against ESMA entries; the S11 render cases belong to `domain/src/report/items.test.ts` (report slice).
 
 ---

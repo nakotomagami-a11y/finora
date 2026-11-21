@@ -54,6 +54,20 @@ describe("eu-fsf (sanctions.md §1)", () => {
     expect(JSON.stringify(records)).not.toMatch(/SENTINELDOC|Sentinel|1961/);
   });
 
+  it("fails closed on an entry whose rows disagree: a person row sends it to the index, others drop it (qa S2)", async () => {
+    const text = new TextDecoder().decode(raw[0]!.bytes);
+    const lines = text.split("\n");
+    // A person row under the enterprise 900005, and an unknown row under the enterprise 900002.
+    const person = lines.find((l) => l.includes(";900003;") && l.includes("Sentinel Personone Alpha"))!.replace(";900003;", ";900005;");
+    const other = lines.find((l) => l.includes(";900006;"))!.replace(";900006;", ";900002;");
+    const mixed = new TextEncoder().encode([...lines.slice(0, -1), person, other, ""].join("\n"));
+    const { records, persons, drops } = await parseAll(euFsf, [{ ...raw[0]!, bytes: mixed }]);
+    expect(records.map((r) => r.recordKey)).toEqual(["900001"]);
+    expect(persons.map((p) => p.entryId)).toEqual(["900003", "900004", "900005"]);
+    expect(drops.filter((d) => d === "unknown_subject_type")).toHaveLength(2);
+    expect(JSON.stringify(records)).not.toMatch(/Sentinel|Demo Orbital/);
+  });
+
   it("reads the as-of date from fileGenerationDate", () => {
     expect(euFsf.asOf(raw)).toEqual({ in_file_field: "2026-11-20" });
   });

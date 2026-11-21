@@ -6,6 +6,7 @@ export {
   fxEsma,
   fxEuFsf,
   fxLvFid,
+  fxOfacCons,
   fxOfacSdn,
   fxUkSanctions,
   fxEeRegister,

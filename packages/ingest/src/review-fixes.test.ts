@@ -143,6 +143,16 @@ describe("legal on S04i: a person record's keys get the strict rule; company rec
     expect(scanStore(db, [code])).toEqual([]);
     expect(db.prepare("SELECT COUNT(*) AS n FROM main.statements WHERE value = 'lv-00000000002'").get()).toEqual({ n: 1 });
   });
+
+  it("a sanctions eid in a reference is scanned, since its id part comes from the list (qa, legal on S06)", async () => {
+    const db = memoryDb();
+    const code = eeLt();
+    const record = companyRecord(1, { extra: [{ prop: "owner", value: `sanc-x-${code}`, itemId: "S01.LV.01" }, { prop: "owner", value: "sanc-eu-900001", itemId: "S01.LV.01" }] });
+    const outcome = await sync(db, fakeSource({}, { records: [record] }));
+    expect(outcome.report?.dropped).toEqual({ personal_code: 1 });
+    expect(scanStore(db, [code])).toEqual([]);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM main.statements WHERE value = 'sanc-eu-900001'").get()).toEqual({ n: 1 });
+  });
 });
 
 describe("fencing: the lease is renewed inside every write transaction", () => {

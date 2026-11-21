@@ -51,17 +51,28 @@ export const OFAC_FIELD_MAP: FieldMap = [
 
 const ENTITY_OPEN = Buffer.from("<entity id=");
 const ENTITY_CLOSE = Buffer.from("</entity>");
+const FILE_CLOSE = Buffer.from("</sanctionsData>");
 
-/** Each `<entity>` block of the file, decoded on its own. */
+class Truncated extends Error {
+  override name = "truncated";
+}
+
+/**
+ * Each `<entity>` block of the file, decoded on its own, comments removed. A file cut anywhere,
+ * even between two blocks, throws, so the sync ends partial and nothing is purged (qa S3).
+ */
 function* entityBlocks(bytes: Uint8Array): Generator<string> {
   const buf = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const decoder = new TextDecoder();
+  let last = 0;
   for (let at = buf.indexOf(ENTITY_OPEN); at >= 0; ) {
     const end = buf.indexOf(ENTITY_CLOSE, at);
-    if (end < 0) throw new Error("truncated entity");
-    yield decoder.decode(buf.subarray(at, end + ENTITY_CLOSE.length));
-    at = buf.indexOf(ENTITY_OPEN, end);
+    if (end < 0) throw new Truncated();
+    yield decoder.decode(buf.subarray(at, end + ENTITY_CLOSE.length)).replace(/<!--[\s\S]*?-->/g, "");
+    last = end + ENTITY_CLOSE.length;
+    at = buf.indexOf(ENTITY_OPEN, last);
   }
+  if (buf.indexOf(FILE_CLOSE, last) < 0) throw new Truncated();
 }
 
 function features(block: string): { type: string; value: string; from: string | null }[] {
@@ -177,7 +188,7 @@ function ofacLoader(id: "us-ofac-sdn" | "us-ofac-cons", file: string): SourceLoa
   };
   return {
     meta,
-    parserVersion: parserVersion(id, 1, OFAC_FIELD_MAP, meta.items),
+    parserVersion: parserVersion(id, 2, OFAC_FIELD_MAP, meta.items),
     fieldMap: OFAC_FIELD_MAP,
     async fetch(ctx) {
       const res = await ctx.fetcher(`${EXPORTS}/${file}`);

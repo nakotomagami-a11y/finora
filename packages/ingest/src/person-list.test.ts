@@ -3,8 +3,8 @@
 // no list held parses again; the LV frozen-assets rows pass the party gate only when proven.
 import fs, { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { clearPersonList, personListHeld, screenPersonName } from "@finora/resolve";
-import { euFsf, lvFidFrozen, type PoliteFetch } from "@finora/sources";
+import { clearPersonList, PERSON_LISTS, personListHeld, screenPersons } from "@finora/resolve";
+import { euFsf, LOADERS, lvFidFrozen, type PoliteFetch } from "@finora/sources";
 import { lvFidXlsx } from "@finora/sources/testing";
 import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -45,7 +45,9 @@ describe("a sanctions list with individuals (eu-fsf fixture)", () => {
     expect(count(store.db, "SELECT COUNT(*) AS n FROM main.records WHERE source_id = 'eu-fsf'")).toBe(3);
     expect(count(store.db, "SELECT COUNT(*) AS n FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE s.name = 'Person'")).toBe(0);
     expect(personListHeld("eu-fsf")).toBe(true);
-    expect(screenPersonName("Sentinel Personone Alpha")).toEqual([{ list: "eu-fsf", entryId: "900003", listDate: "2026-03-01", status: "possible_match" }]);
+    const screen = screenPersons(["Sentinel Personone Alpha"]);
+    expect(screen.matches).toEqual([{ list: "eu-fsf", entryId: "900003", listDate: "2026-03-01", status: "possible_match" }]);
+    expect(screen.complete).toBe(false);
 
     expect(scanStore(store.db, ["Sentinel", "Personone", "1961-05-04", "SENTINELDOC1"])).toEqual([]);
     store.close();
@@ -97,6 +99,12 @@ describe("a sanctions list with individuals (eu-fsf fixture)", () => {
   });
 });
 
+describe("the person lists the index reports on", () => {
+  it("are exactly the loaders that feed it", () => {
+    expect([...PERSON_LISTS].sort()).toEqual(LOADERS.filter((l) => l.meta.personIndex).map((l) => l.meta.id).sort());
+  });
+});
+
 describe("the LV frozen-assets list through the party gate", () => {
   it("attaches the event to a proven LV company and drops unresolved codes, persons and unproven rows", async () => {
     const store = openStore({ dataDir: null });
@@ -121,8 +129,8 @@ describe("the LV frozen-assets list through the party gate", () => {
     const events = store.db
       .prepare("SELECT e.eid, ev.date FROM main.events ev JOIN main.entities e ON e.id = ev.entity_id JOIN main.event_types t ON t.id = ev.type_id WHERE t.name = 'register.frozen_assets' ORDER BY e.eid")
       .all() as { eid: string; date: string }[];
-    expect(events.map((e) => e.eid)).toEqual(["lv-40103000014", expect.stringMatching(/^sanc-lvfid-[0-9a-f]{32}$/)]);
-    expect(scanStore(store.db, ["Listedperson", "Personfive", "Mock Northern Holder"])).toEqual([]);
+    expect(events.map((e) => e.eid)).toEqual(["lv-40103000014", expect.stringMatching(/^sanc-lvfid-[a-p]{32}$/)]);
+    expect(scanStore(store.db, ["Listedperson", "Sentinel", "Golfa", "Personfive", "Mock Northern Holder"])).toEqual([]);
     store.close();
   });
 });

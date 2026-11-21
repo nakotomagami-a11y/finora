@@ -176,6 +176,10 @@ function hitLines(io: Io, hits: readonly SanctionsHit[]): void {
   }
 }
 
+/** A list never synced is not a clean answer: the line says which lists were checked. */
+const noMatch = (notChecked: readonly string[], suffix: string) =>
+  notChecked.length === 0 ? `no match on the stored lists${suffix}` : `no match on the lists checked${suffix}; not checked: ${notChecked.join(", ")}`;
+
 const listsLine = (lists: readonly ListState[]) =>
   `lists checked: ${lists.map((l) => `${l.sourceId} ${l.asOf ? `as of ${l.asOf}` : "not loaded"}`).join(", ")}`;
 
@@ -194,14 +198,15 @@ export function resolveSanctions(io: Io, query: string): number {
         return 1;
       }
       if (result.naturalPerson) io.out("A natural person: facts only, no list level. Open it in the app with a stated purpose.");
-      else if (result.hits.length === 0) io.out("no match on the stored lists");
+      else if (result.hits.length === 0) io.out(noMatch(result.listsNotChecked, ""));
       hitLines(io, result.hits);
       io.out(listsLine(result.lists));
       return 0;
     }
-    const hits = screenName(db, query);
-    if (hits.length === 0) io.out("no match on the stored lists (organisations only)");
-    hitLines(io, hits);
+    const result = screenName(db, query);
+    if (result.hits.length === 0) io.out(noMatch(result.listsNotChecked, " (organisations only)"));
+    hitLines(io, result.hits);
+    if (result.listsNotChecked.length > 0) io.out(`not checked: ${result.listsNotChecked.join(", ")} (no completed sync)`);
     return 0;
   });
 }

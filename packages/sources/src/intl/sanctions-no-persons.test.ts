@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { personFieldProblems } from "../person-fields.ts";
 import { euFsf } from "./sanctions/eu-fsf.ts";
 import { usOfacSdn } from "./sanctions/ofac.ts";
+import { lvFidFrozen } from "../lv/fid/fid.ts";
 import { ukSanctionsList } from "./sanctions/uk.ts";
 import { fixture, parseAll } from "./sanctions-test-helpers.ts";
 
@@ -34,5 +35,8 @@ describe("the stored lists hold no listed individual", () => {
       expect(loader.meta.rawCache, loader.meta.id).toBe(false);
       expect(loader.meta.personIndex, loader.meta.id).toBe(true);
     }
+    // The LV frozen-assets file holds persons too (column 6, birth-date rows): never cached, never indexed.
+    expect(lvFidFrozen.meta.rawCache).toBe(false);
+    expect(lvFidFrozen.meta.personIndex).toBeUndefined();
   });
 });

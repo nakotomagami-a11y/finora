@@ -18,7 +18,7 @@ export const LV_FID_HEADER = [
 ];
 
 export const LV_FID_ROWS: readonly string[][] = [
-  ['SIA "Placeholder Bakery 1"', "40103000014", "Latvija", "Naudas līdzekļi; Nekustamais īpašums", "Sentinel Listedperson Golf kontrolē", "Sentinel Listedperson Golf", "01.03.2026.", "Regula FX/2026", "Pārbaudīts", "05.03.2026."],
+  ['SIA "Placeholder Bakery 1"', "40103000014", "Latvija", "Naudas līdzekļi; Nekustamais īpašums", "Golfa Listedpersona Sentinela kontrolē", "Sentinel Listedperson Golf", "01.03.2026.", "Regula FX/2026", "Pārbaudīts; saistīts ar Sentinelu Golfu", "05.03.2026."],
   ["OOO Mock Northern Trade", "FX99887766", "Krievija", "Naudas līdzekļi", "Pieder sarakstā iekļautai personai", "Sentinel Listedperson Hotel", "02.04.2026.", "Regula FX/2026", "", "06.04.2026."],
   ["Mock Northern Holder", "FX55443322", "Krievija", "Naudas līdzekļi", "Pieder sarakstā iekļautai personai", "Sentinel Listedperson India", "02.04.2026.", "Regula FX/2026", "", "06.04.2026."],
   ["Sentinel Personfive Echo", "12.03.1965.", "Krievija", "Naudas līdzekļi", "Iekļauts sarakstā", "Sentinel Personfive Echo", "03.05.2026.", "Regula FX/2026", "", "07.05.2026."],

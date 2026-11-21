@@ -2,12 +2,16 @@ export { FUZZY_THRESHOLD, levenshtein, nameKey, namesMatch, nameTokens, similari
 export {
   clearPersonList,
   personIndexState,
+  personListCoverage,
   personListHeld,
-  screenPersonName,
+  PERSON_LISTS,
+  screenPersons,
   setPersonList,
+  type ListCoverage,
   type ListedPerson,
   type PersonCitation,
   type PersonList,
+  type PersonScreen,
 } from "./person-index.ts";
 export {
   normalizeId,

@@ -1,6 +1,9 @@
 // Minimal helpers for flat, known XML (the OFAC enhanced export, XLSX parts): the blocks of a
 // repeated element, the text of the first one, an attribute, and entity decoding. Element names
-// match exactly, so `<name>` never matches `<names>`.
+// match exactly, so `<name>` never matches `<names>`. Callers remove comments first
+// (`withoutComments`), so a tag inside one is never matched.
+
+export const withoutComments = (xml: string) => xml.replace(/<!--[\s\S]*?-->/g, "");
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 
@@ -15,7 +18,8 @@ export function decodeXml(value: string): string {
 /** Every `<tag ...>inner</tag>` (or self-closed `<tag/>`) block, not nested in one of its own kind. */
 export function elements(xml: string, tag: string): { attrs: string; inner: string }[] {
   const out: { attrs: string; inner: string }[] = [];
-  const re = new RegExp(`<${tag}(?=[\\s>/])([^>]*?)(/?)>`, "g");
+  // Attribute values may hold ">" when quoted.
+  const re = new RegExp(`<${tag}(?=[\\s>/])((?:[^>"']|"[^"]*"|'[^']*')*?)(/?)>`, "g");
   const close = `</${tag}>`;
   let m: RegExpExecArray | null;
   while ((m = re.exec(xml))) {

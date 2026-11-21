@@ -2,7 +2,8 @@
 // (sanctions.md §4). An XLSX read under the archive limits; columns found by their leading number.
 // A row loads only through the party gate: an LV register code that resolves to a company (the
 // event attaches to it), or a foreign name with a company-form word (stored for screening).
-// Natural persons and unproven rows are dropped; column 6, the listed person's name, is never kept.
+// Natural persons and unproven rows are dropped; column 6, the listed person's name, is never kept,
+// nor any token of it in another column, and the file itself is never cached (it holds persons).
 import { createHash } from "node:crypto";
 import { namesCompany, normalizeText } from "@finora/domain";
 import { readXlsx } from "../../formats/xlsx.ts";
@@ -30,6 +31,7 @@ export const LV_FID_META: SourceMeta = {
   maxPurgeShare: 0.05,
   purgeScope: "full",
   deepLink: PAGE,
+  rawCache: false,
   orderUrl: null,
   requires: [],
   limits: { maxBytes: 10 * 1024 ** 2 },
@@ -49,6 +51,23 @@ export const LV_FID_FIELD_MAP: FieldMap = [
   { field: "9", target: { event: "register.frozen_assets" }, itemId: ITEM, personal: false },
   { field: "10", target: { event: "register.frozen_assets" }, itemId: ITEM, personal: false },
 ];
+
+/** The ground is stored as a fixed category, never its text, which names the listed person (legal on S06). */
+export const FID_GROUNDS = { ownedOrControlled: "owned_or_controlled_by_listed_person", listedSubject: "listed_subject" } as const;
+
+/** A name token's stem: Latvian declines names, so "Bērziņš" and "Bērziņa" share "berzin". */
+const stem = (token: string) => token.slice(0, Math.max(3, token.length - 2));
+
+/** Whether free text holds any 3+ letter token of the listed name, in any order or case ending. */
+function holdsListedName(text: string, listedTokens: readonly string[]): boolean {
+  return normalizeText(text)
+    .split(" ")
+    .filter((t) => t.length >= 3)
+    .some((t) => listedTokens.some((n) => t.startsWith(stem(n)) || n.startsWith(stem(t))));
+}
+
+/** Letters only (a-p), so a key never holds a digit run that reads as a personal code. */
+const letterKey = (hex: string) => hex.replace(/[0-9]/g, (d) => "ghijklmnop"[Number(d)]!);
 
 /** Excel's day 0 is 1899-12-30. */
 const serialDate = (n: number) => new Date(Date.UTC(1899, 11, 30) + n * 86_400_000).toISOString().slice(0, 10);
@@ -86,38 +105,55 @@ function* rowsOf(raw: RawArtifact[], ctx: ParseContext): Generator<ParsedRecord>
     const name = col(row, 1).replace(/[„“”"]/g, '"');
     if (!name) continue;
     const second = col(row, 2);
-    const listed = col(row, 6);
-    const recordKey = createHash("sha256").update([name, second, listed].map(normalizeText).join("|")).digest("hex").slice(0, 32);
+    // Keyed on the subject, column 2 and the row's place: never on column 6, whose hash anyone
+    // holding the public list could recompute (legal on S06, S1).
+    const recordKey = letterKey(createHash("sha256").update(`${normalizeText(name)}|${normalizeText(second)}|${i}`).digest("hex").slice(0, 32));
     const rowRef = `row ${found.header + i + 2}`;
     if (cellDate(second) !== null && !/^\d{11}$/.test(second.replace(/[\s-]/g, ""))) {
       ctx.onDrop?.("person_entry");
       continue;
     }
-    // The ground often reads "owned or controlled by <listed person>": that name is never kept.
-    const listedName = normalizeText(listed);
-    const ground = listedName && normalizeText(col(row, 5)).includes(listedName) ? "controlled or owned by a person on the sanctions list" : col(row, 5);
+    const listedTokens = normalizeText(col(row, 6))
+      .split(" ")
+      .filter((t) => t.length >= 3);
+    const listedIsSubject = listedTokens.length === 0 || normalizeText(col(row, 6)) === normalizeText(name);
+    const dropped: { reason: "listed_person_name" }[] = [];
+    // Columns 4, 8 and 9 are free text: a field holding any token of the listed name is not kept.
+    const free = (n: number): string | null => {
+      const value = col(row, n);
+      if (!value) return null;
+      if (listedTokens.length > 0 && holdsListedName(value, listedTokens)) {
+        dropped.push({ reason: "listed_person_name" });
+        return null;
+      }
+      return value;
+    };
+    const assetTypes = free(4);
+    const legalAct = free(8);
+    const checkedNote = free(9);
+    const ground = listedIsSubject ? FID_GROUNDS.listedSubject : FID_GROUNDS.ownedOrControlled;
     const event = (entityEid: string): EventInput => ({
       entityEid,
       type: "register.frozen_assets",
       date: cellDate(col(row, 10)) ?? cellDate(col(row, 7)) ?? ctx.now.slice(0, 10),
       itemId: ITEM,
       data: {
-        assetTypes: col(row, 4)
+        assetTypes: (assetTypes ?? "")
           .split(";")
           .map((s) => s.trim())
           .filter(Boolean)
-          .join("; "),
+          .join("; ") || null,
         ground,
         sanctionsFrom: cellDate(col(row, 7)),
-        legalAct: col(row, 8) || null,
-        checkedNote: col(row, 9) || null,
+        legalAct,
+        checkedNote,
       },
     });
-    const hashInput = [2, 3, 4, 5, 7, 8, 9, 10].map((n) => (n === 5 ? ground : col(row, n)));
+    const hashInput = [col(row, 2), col(row, 3), assetTypes ?? "", ground, col(row, 7), legalAct ?? "", checkedNote ?? "", col(row, 10)];
     const code = second.replace(/[\s-]/g, "");
     const country = countryCode(col(row, 3));
     if (/^\d{11}$/.test(code) && (country === null || country === "lv")) {
-      yield { recordKey, hashInput, rowRef, entities: [], parties: [{ code: { country: "lv", value: code }, entities: [], events: [event(`lv-${code}`)] }] };
+      yield { recordKey, hashInput, rowRef, entities: [], parties: [{ code: { country: "lv", value: code }, entities: [], events: [event(`lv-${code}`)] }], ...(dropped.length > 0 ? { dropped } : {}) };
       continue;
     }
     if (!namesCompany(name)) {
@@ -134,13 +170,13 @@ function* rowsOf(raw: RawArtifact[], ctx: ParseContext): Generator<ParsedRecord>
       identifiers: second ? [{ type: "registration", number: normalizeId(second), country }] : [],
       sanction: { authority: "Finanšu izlūkošanas dienests", programs: [], listingDate: cellDate(col(row, 7)), sourceUrl: PAGE },
     });
-    yield { ...subject, hashInput, rowRef, events: [event(`sanc-lvfid-${recordKey}`)] };
+    yield { ...subject, hashInput, rowRef, events: [event(`sanc-lvfid-${recordKey}`)], ...(dropped.length > 0 ? { dropped } : {}) };
   }
 }
 
 export const lvFidFrozen: SourceLoader = {
   meta: LV_FID_META,
-  parserVersion: parserVersion(LV_FID_META.id, 1, LV_FID_FIELD_MAP, LV_FID_META.items),
+  parserVersion: parserVersion(LV_FID_META.id, 2, LV_FID_FIELD_MAP, LV_FID_META.items),
   fieldMap: LV_FID_FIELD_MAP,
   async fetch(ctx) {
     const portal = await ctx.fetcher(PORTAL);

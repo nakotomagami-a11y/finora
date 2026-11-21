@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { writeXlsx, writeZip } from "../testing/xlsx-writer.ts";
-import { csvRows } from "./csv.ts";
+import { CsvError, csvRows } from "./csv.ts";
+import { elements, withoutComments } from "./xml.ts";
 import { readXlsx } from "./xlsx.ts";
 import { ArchiveError, readZip } from "./zip.ts";
 
@@ -17,7 +18,30 @@ describe("csvRows", () => {
   });
 });
 
+describe("csvRows on a cut file", () => {
+  it("throws on a quote left open at the end, instead of swallowing the rows after it (qa S4)", () => {
+    expect(() => [...csvRows('a,b\n"open,1\nx,y\n')]).toThrow(CsvError);
+  });
+});
+
+describe("xml helpers", () => {
+  it("reads an element whose quoted attribute holds '>'", () => {
+    expect(elements('<a note="x > y" id="1">in</a>', "a")).toEqual([{ attrs: ' note="x > y" id="1"', inner: "in" }]);
+  });
+
+  it("never matches a tag inside a comment once comments are removed", () => {
+    expect(elements(withoutComments("<!-- <a>hidden</a> --><a>shown</a>"), "a").map((e) => e.inner)).toEqual(["shown"]);
+  });
+});
+
 describe("the archive limits (S04i loader-contract note)", () => {
+  it("refuses a member whose checksum does not match", () => {
+    const zip = writeZip([{ name: "a.xml", data: utf8("<a/>") }]);
+    // Local header (30 bytes) + "a.xml" (5) puts the stored "<a/>" at 35: flip its "a".
+    zip[36] = utf8("b")[0]!;
+    expect(() => readZip(zip, ["a.xml"], { maxMemberBytes: 1000, maxTotalBytes: 1000 })).toThrow(/checksum/);
+  });
+
   const limits = { maxMemberBytes: 1000, maxTotalBytes: 1500 };
 
   it("reads the wanted members only", () => {
