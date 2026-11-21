@@ -7,7 +7,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "openapi": "node src/write-openapi.ts"
   },
   "dependencies": {
     "@finora/domain": "workspace:*",

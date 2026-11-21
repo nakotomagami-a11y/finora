@@ -1,20 +1,11 @@
 import { isPersonalUseLine } from "@finora/domain";
 import { z } from "zod";
+import { SourceRef } from "./common.ts";
 
-// GET /api/v1/markets/crash (architecture §8, loaders/markets.md §1.4). Written with S22; S04b owns the
-// contract file set and may fold this in. Money is whole US dollars as a float: an integer of micro-USD
+// GET /api/v1/markets/crash (architecture §8, loaders/markets.md §1.4). Written with S22; its SourceRef is the
+// shared one in common.ts (S04b). Money is whole US dollars as a float: an integer of micro-USD
 // passes Number.MAX_SAFE_INTEGER above about $9 billion, and these values run to trillions.
 
-export const SourceRef = z.object({
-  sourceId: z.string().min(1),
-  licenceId: z.string().min(1),
-  retrievedAt: z.string().min(1),
-  asOf: z.string().nullable(),
-  asOfBasis: z.string().nullable(),
-  checkedAt: z.string().nullable(),
-  accessTier: z.enum(["open", "purpose"]),
-  derived: z.boolean(),
-});
 
 // M02 (Europe) and M04 (Americas excluding the US) had only key-gated rows; human ruling H5 removed them.
 export const TileId = z.enum(["M01", "M03", "M05", "M06", "M07", "M08"]);
