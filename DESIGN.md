@@ -114,6 +114,7 @@ Every value renders through `FieldRow` with an `itemId` from Part G. The section
 | `not_checked{reason: skipped}` | NC | `dash` | "Not checked: [why the run skipped it]" | |
 | `not_checked{reason: paid_only}` | PAID | `euro` | "Available as a paid register extract" + "Order from the register" | link only to the official register's own ordering page; no link if none exists |
 | `not_checked{reason: needs_key}` | KEY | `key` | the row's setting, "Set the SEC contact in Settings" (the only optional local setting in v1; H5: no API keys) + Settings link | |
+| `not_checked{reason: needs_source}` | | `settings` | "Not configured: add provider [code] to your local provider file" + "How to set it up" | a coded source with no entry in the local provider map (C15); the same copy and icon as the Crash monitor row state `not_configured` (§12); never a number, never "none found" |
 | `not_checked{reason: needs_purpose}` | | none | the purpose gate itself (§8.3), never the words "Not checked" | |
 | `not_checked{reason: agent_only, agentId}` | AGENT | `agent` | "Not checked here: the [agent] agent checks this when you investigate" | becomes a running line, then a finding, during a run |
 | `not_checked{reason: manual_lookup, url}` | MANUAL | `hand` | "Check manually at [official site] · Open" | url on the official-host allowlist |
