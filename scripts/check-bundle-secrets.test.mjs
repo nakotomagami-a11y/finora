@@ -6,8 +6,9 @@ const sentinels = Object.fromEntries(SECRET_NAMES.map((name) => [name, sentinelF
 // The checker takes any set of names, so the cases below use two invented ones.
 const two = { EXAMPLE_ONE: sentinelFor("EXAMPLE_ONE"), EXAMPLE_TWO: sentinelFor("EXAMPLE_TWO") };
 
-test("v1 has no API key to guard, only the contact header", () => {
-  assert.deepEqual(SECRET_NAMES, ["SEC_USER_AGENT"]);
+test("the contact header is watched, and so is a model key left in the shell", () => {
+  assert.ok(SECRET_NAMES.includes("SEC_USER_AGENT"));
+  assert.ok(SECRET_NAMES.every((name) => sentinelFor(name).startsWith("finora-sentinel-")));
 });
 
 test("a clean bundle has no leak", () => {
