@@ -314,6 +314,7 @@ No keys in v1 (H5): every tile runs on a keyless source or is not drawn. Commerc
   - **Peak basis** (`peakBasis`): `since` reads "peak = highest daily close since [date]"; `all_time` (total crypto) reads "all-time high, [date]"; `seeded` (Taiwan, once legal approves it) reads "peak seeded from [source]" (`?taiwan=seeded`).
   - **Value below peaks** summary at the top of the drawdown card (`totalWiped`): "≈ $X trillion" (market value, not usage), then a sentence naming every row it sums with its as-of, "Peaks fall on different dates; the oldest figure is from [as-of]", and the Derived by Finora badge. Bitcoin and ether are inside the crypto total and are never added on top of it.
   - A failed source hides its value ("Last good value 07:40, hidden rather than shown as current"); a stale one shows amber dates and a banner.
+  - **`not_configured`** (C15 provider map): a coded source with no entry in the local provider file shows the tile's shape with "Not configured: add providers [codes] to your local provider file", "No number is shown until then, never 0%", and a "How to set it up" link (`crash.html?state=not-configured`). It replaces `choose-fund`, `needs_key` and `needs_symbol`.
 - "How it's calculated" and the attribution lines close the page; providers are named by their codes. Personal-use series stay on this machine and are never exported.
 
 ## 13. Components
