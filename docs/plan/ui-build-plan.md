@@ -882,7 +882,7 @@ Slices that depend only on fixtures start before the real API lands (the archite
 - **Scope:** the `crash` route, `CrashGrid`, `CrashTile` in every state of §5.9, `DrawdownStrip`, `DebtTicker`, `WipedSummary`, `Sparkline`, the 60 s poll with visibility pause, attribution footers (text only, never HTML), the "Not covered in v1" footer line.
 - **Acceptance:**
   1. Each M01-M08 tile renders every state of §5.9 in the gallery and with `?markets=` on the real route.
-  2. A coarse tile shows its cadence and never claims to be live; a key-only tile shows its shape with no number; a fund proxy with no symbol shows "Choose a fund in settings" and no number.
+  2. A coarse tile shows its cadence and never claims to be live; a `not_configured` row shows its shape with no number and "How to set it up", never 0%; M02, M04 and Korea are not drawn and the footer names them.
   3. A peak-unknown tile shows no percentage and never 0%.
   4. Drawdown shows a real minus sign, an arrow and the word; colour is never the only signal.
   5. Every tile shows its as-of time, source and attribution line; M08's estimate is labelled and shown next to the official figure and date.
