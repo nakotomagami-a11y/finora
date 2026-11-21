@@ -1,5 +1,6 @@
 import "server-only";
 import { getEnv } from "./env.ts";
+import { startMarkets } from "./services/markets.ts";
 
 let booted = false;
 
@@ -10,5 +11,6 @@ let booted = false;
 export function boot(): void {
   if (booted) return;
   getEnv();
+  startMarkets();
   booted = true;
 }

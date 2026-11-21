@@ -16,7 +16,7 @@
 > - The Treasury connector reads `tot_pub_debt_out_amt` only; the other two debt fields are not read (no row shows them).
 > - A POST (the bitcoin block-header read) is retried only when marked idempotent, and is never followed through a redirect.
 > - The user agent names the source URL (`Finora/<version> (+<url>)`): FRED's edge resets a request whose agent has no `(+https://…)` part (measured 2026-11-21).
-> - Jobs start on the first `GET /api/v1/markets/crash` until S25 moves the start into `boot()` behind a Node-runtime guard. `FINORA_DEMO=1` runs one pass of the real connectors over synthetic fixtures, into an in-memory store, with no network.
+> - Jobs start in `boot()`, which `instrumentation.ts` runs in the Node.js runtime only. `FINORA_DEMO=1` runs one pass of the real connectors over synthetic fixtures, into an in-memory store, with no network.
 - Security review (S22.md): an as-of, a close or a snapshot time more than a day past the run fails the sync `future_date` and stores nothing (SEC-5). An unforeseen error still closes the sync `failed` with `internal`, and the log names the error class only (SEC-7). Only a request with `Sec-Fetch-Site` `same-origin` or `none`, or with no such header, counts as a client poll (SEC-8).
 - Each row carries `attribution`: the cited series' own line for `us-fred-cited`, else its source's line (from the provider file for a coded source). The contract refuses an `M01.X.03` row with a value unless its attribution states personal use.
 

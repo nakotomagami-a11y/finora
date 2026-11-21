@@ -74,10 +74,7 @@ export function settingsOf(s: Store) {
   return readMarketSettings(new Map(rows.map((r) => [r.key, r.value])));
 }
 
-/**
- * Starts the market jobs once; test runs never fetch. Called on the first crash request for now: starting
- * them in boot() pulls the store into the edge instrumentation bundle, so S25 moves this behind a Node-runtime guard.
- */
+/** Starts the market jobs once, from boot() (instrumentation runs it in the Node.js runtime only); test runs never fetch. */
 export function startMarkets(): void {
   const env = getEnv();
   if (stopJobs || env.NODE_ENV === "test") return;
@@ -99,7 +96,6 @@ export function startMarkets(): void {
 }
 
 export function getCrash(opts: { now?: string; store?: Store; fetchSite?: string | null } = {}): CrashResponse {
-  startMarkets();
   const s = opts.store ?? getStore();
   const at = opts.now ?? (getEnv().FINORA_DEMO === "1" ? FIXTURE_NOW : new Date().toISOString());
   markClientPoll(at, opts.fetchSite ?? null);
