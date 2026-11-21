@@ -99,6 +99,7 @@ The council answers: would we use this every day? What is missing? Then signs of
 
 | Before | What | Why |
 |---|---|---|
+| S09a acceptance, after H6 | Run `scripts/agents-isolation-proof.mjs` once: sign in to Claude Code in a throwaway config dir the script creates and deletes (your real config is never touched) | Proves agent runs load none of your own Claude setup (C18) |
 | Before S10's measured run, needed before M2 passes | The H6 decision (the local CLI under the subscription terms), a signed-in Claude Code CLI, and paid extra usage kept **off** in the Claude account (Finora can't see that setting) | S10's measured run replaces the modelled agent usage and calibrates the pre-run estimate. **Build and gate usage on the human's plan: about 15M standard tokens (st) expected, plan for 33M st**, several usage windows (cto; replaces "about $45, plan for $100") |
 | M3 (S16, S17, S18) | Optionally `SEC_USER_AGENT` (a contact header with a real email, not a key: C14) | US public companies; without it they show "needs the SEC contact setting". No other key in v1 (H5): federal exclusions and federal dockets are manual links |
 | Done | the final merge of the hub PR | the only merge |
