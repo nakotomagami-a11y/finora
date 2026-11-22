@@ -18,6 +18,7 @@ import {
   endStaging,
   entityByCode,
   entityByEid,
+  entityGeneration,
   finishSync,
   heartbeat,
   holdsLease,
@@ -32,6 +33,7 @@ import {
   releaseLease,
   replaceShareAlike,
   setContentHash,
+  syncReport,
   shareAlikeRecords,
   stage,
   StoreError,
@@ -63,6 +65,9 @@ export type SyncReport = {
   reason?: string;
   token?: string;
   storage: StorageClass;
+  /** Set when a record waits on another source: the file's hash and the store's entity generation then. */
+  retryHash?: string;
+  retryGeneration?: number;
 };
 
 export type SyncOutcome = { kind: SyncKind; syncId: number | null; report: SyncReport | null };
@@ -252,6 +257,15 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     if (previous && previous.contentHash === hash && sameParser && !mustParse) {
       return finish("unchanged", { upstreamAsOf: previous.upstreamAsOf });
     }
+    // A file with records waiting on another source is parsed again only once the store has gained
+    // an entity since; until then it is unchanged, and its waiting count is reported again.
+    if (previous && previous.contentHash === null && sameParser && !mustParse) {
+      const last = syncReport(db, previous.id) as Partial<SyncReport> | null;
+      if (last?.retryHash === hash && (last.retryGeneration ?? -1) >= entityGeneration(db)) {
+        report.dropped = { ...(last.dropped ?? {}) };
+        return finish("unchanged", { upstreamAsOf: previous.upstreamAsOf });
+      }
+    }
 
     const dates = loader.asOf(artifacts);
     const basis = meta.asOf.find((s) => typeof dates[s] === "string" && dates[s] !== "");
@@ -289,6 +303,9 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       beat();
     };
 
+    let retryFile = false;
+    // Taken before this sync writes: a target that this very file adds later counts as new next time.
+    const generationAtStart = entityGeneration(db);
     let lastYield = Date.now();
     // Listed individuals: memory only, handed to the person index once the parse completes (§7a).
     const persons: PersonEntry[] = [];
@@ -328,6 +345,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
         if (record.period) periods.add(record.period);
         const gated = applyGates(record, gateOptions);
         countDrops(report, gated.drops);
+        if (gated.retry) retryFile = true;
 
         if (storage !== "store") {
           // Share-alike and live-no-store rows stay keyed on the public eid; a fact is kept as
@@ -404,7 +422,15 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     }
 
     if (classChanged) moveOutOf(db, meta.id, previousStorage as StorageClass, storage, options.rawCacheDir ?? null, begin);
-    if (storage !== "live-no-store") setContentHash(db, syncId, hash);
+    // A file with a record waiting on another source (an unresolved reference, an entity not loaded
+    // yet) keeps no content hash, so the next sync parses it again even when the file is unchanged
+    // (cto's ref condition, qa M5 on S05).
+    if ((report.skipped.entity_missing ?? 0) > 0) retryFile = true;
+    if (storage !== "live-no-store" && !retryFile) setContentHash(db, syncId, hash);
+    if (retryFile) {
+      report.retryHash = hash;
+      report.retryGeneration = generationAtStart;
+    }
     return finish("content", { upstreamAsOf: asOf, asOfBasis: basis });
   } catch (error) {
     if (db.isTransaction) db.exec("ROLLBACK");

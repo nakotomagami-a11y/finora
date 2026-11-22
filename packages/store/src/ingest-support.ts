@@ -176,6 +176,17 @@ export function lastContentStorage(db: DatabaseSync, sourceId: string): string |
   return row?.storage ?? null;
 }
 
+/** The highest entity row id: it grows whenever any source adds an entity a waiting reference may need. */
+export function entityGeneration(db: DatabaseSync): number {
+  return (db.prepare("SELECT COALESCE(MAX(id), 0) AS n FROM main.entities").get() as { n: number }).n;
+}
+
+/** A finished sync's stored report, counts only. */
+export function syncReport(db: DatabaseSync, syncId: number): Record<string, unknown> | null {
+  const row = db.prepare("SELECT report_json FROM main.syncs WHERE id = ?").get(syncId) as { report_json: string | null } | undefined;
+  return row?.report_json ? (JSON.parse(row.report_json) as Record<string, unknown>) : null;
+}
+
 export function lastContentSync(
   db: DatabaseSync,
   sourceId: string,

@@ -114,7 +114,16 @@ export function applyGates(
   const natural = new Set<string>();
   // A ref is never a same-record eid (qa M3 on S05): it counts as a reference only through the store.
   const recordEids = new Set([...record.entities, ...parties].filter((e) => !e.ref).map((e) => e.eid));
-  const companiesInRecord = new Set([...record.entities, ...parties].filter((e) => !e.ref && e.schema !== "Person").map((e) => e.eid));
+  // A company this record carries, never a natural person (legal 7075401998).
+  const companiesInRecord = new Set(
+    [...record.entities, ...parties].filter((e) => !e.ref && e.schema !== "Person" && !isNaturalPerson({ schema: e.schema, legalForm: e.legalForm ?? null })).map((e) => e.eid),
+  );
+  /** The store holds this eid as a company that is not a natural person. */
+  const companyHeld = (eid: string): boolean => {
+    if (!options.byEid) return options.knownCompany?.(eid) === true;
+    const held = options.byEid(eid);
+    return held !== null && !held.person && !held.naturalPerson;
+  };
   const inRecord = new Set<string>();
   const entities = [...record.entities, ...parties].map((entity) => {
     // A referenced entity is judged by the row it will be written to, looked up by eid (qa M2 on
@@ -169,10 +178,15 @@ export function applyGates(
     const m = /^(lv|ee|lt)-(\d+)$/.exec(eid);
     return m ? options.lookup(m[1]!, m[2]!) : null;
   };
+  // Fails closed (SEC-4 on S05): an entity neither in the record nor in the store is treated as a
+  // natural person, so its facts and events get the natural-person rules (and the store refuses them).
   const naturalEid = (eid: string): boolean => {
     if (natural.has(eid)) return true;
     if (inRecord.has(eid)) return false;
-    return stored(eid)?.naturalPerson ?? false;
+    const held = stored(eid);
+    // Unknown yet: retried on the next sync, once its register has loaded.
+    if (held === null) retry = true;
+    return held?.naturalPerson ?? true;
   };
   // Current-business data from another source on an entity the register has ended (load rule 3).
   const endedElsewhere = (eid: string, itemId: string): boolean =>
@@ -212,7 +226,17 @@ export function applyGates(
           continue;
         }
         const shaped = typeof value === "string" && companyEidShape(value);
-        const reference = shaped && (companiesInRecord.has(value) || options.knownCompany?.(value) === true);
+        const reference = shaped && (companiesInRecord.has(value) || companyHeld(value));
+        // Held, but as a natural person or a person row: refused for good, never retried (legal 7075401998).
+        const heldAsPerson = shaped && !reference && (() => {
+          const held = options.byEid?.(value as string);
+          return held != null && (held.person || held.naturalPerson);
+        })();
+        if (heldAsPerson) {
+          drop("natural_person_party");
+          refused.push(value as string);
+          continue;
+        }
         if (shaped && !reference) {
           drop("reference_unresolved");
           retry = true;

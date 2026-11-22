@@ -41,10 +41,13 @@ describe("P1: no main-store row references a share-alike sync, in both modes (LA
   it("live-no-store mode: nothing in either file, the values only in memory", async () => {
     const db = memoryDb();
     clearLiveView("ee-tax");
+    // The register loads first (lanes, meta.order): an entity the store does not hold is judged a
+    // natural person and its tax rows are dropped until it does (SEC-4 on S05, fails closed).
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1), companyRecord(2), companyRecord(3)] }));
     expect((await sync(db, taxes(), { shareAlikeMode: "live-no-store" })).kind).toBe("content");
     expect(mainRows(db)).toEqual({ records: 0, facts: 0, events: 0, values: 0 });
     expect(count(db, "SELECT COUNT(*) AS n FROM sa.sa_statements")).toBe(0);
     expect(liveRowsFor("ee-tax", "lv-00000000002")).toEqual([{ eid: "lv-00000000002", prop: "taxes_paid@2026-09-30", value: "2000", itemId: "S08.EE.01b" }]);
-    expect(db.prepare("SELECT storage, content_hash FROM main.syncs").get()).toEqual({ storage: "live-no-store", content_hash: null });
+    expect(db.prepare("SELECT storage, content_hash FROM main.syncs WHERE source_id = 'ee-tax'").get()).toEqual({ storage: "live-no-store", content_hash: null });
   });
 });

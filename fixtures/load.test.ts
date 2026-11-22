@@ -23,9 +23,16 @@ async function loadAll() {
 }
 
 describe("the fixture profile loads end to end (S04f)", () => {
-  it("syncs every source, and a second run is unchanged everywhere", async () => {
+  it("syncs every source; a second run writes nothing, and a third is unchanged everywhere", async () => {
     const { db, outcomes } = await loadAll();
     expect(outcomes.map((o) => o.kind)).toEqual(FIXTURE_PROFILE.map(() => "content"));
+    // A file with a reference still waiting on another source is parsed again while the store
+    // grows (qa M5 on S05), but it writes nothing; once the store stops growing it is unchanged.
+    for (const { loader } of FIXTURE_PROFILE) {
+      if (loader.meta.storage === "live-no-store") continue;
+      const second = await runSync(db, loader, { fetcher: noNetwork });
+      expect([second.kind, second.report?.written ?? 0, second.report?.deleted ?? 0], loader.meta.id).toEqual([second.kind === "unchanged" ? "unchanged" : "content", 0, 0]);
+    }
     for (const { loader } of FIXTURE_PROFILE) {
       if (loader.meta.storage === "live-no-store") continue;
       expect((await runSync(db, loader, { fetcher: noNetwork })).kind, loader.meta.id).toBe("unchanged");

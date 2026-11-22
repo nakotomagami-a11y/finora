@@ -202,13 +202,21 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
     if (!row) throw new StoreError("entity_missing");
     return row.id;
   };
+  /** Facts and events belong to companies: never to a person or relationship row (SEC-4 on S05). */
+  const companyId = (eid: string): number => {
+    if (isInternalEid(eid)) throw new StoreError("ref_not_company");
+    const row = db.prepare("SELECT e.id, s.name AS schema FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ?").get(eid) as { id: number; schema: string } | undefined;
+    if (!row) throw new StoreError("entity_missing");
+    if (row.schema === "Person") throw new StoreError("ref_not_company");
+    return row.id;
+  };
   for (const report of input.reports ?? []) {
     const reportId = Number(
       db
         .prepare(
           `INSERT INTO main.fact_reports (entity_id, kind, period_start, period_end, currency, unit_scale, record_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(entityId(report.entityEid), report.kind, report.periodStart ?? null, report.periodEnd, report.currency ?? null, report.unitScale ?? 1, recordId)
+        .run(companyId(report.entityEid), report.kind, report.periodStart ?? null, report.periodEnd, report.currency ?? null, report.unitScale ?? 1, recordId)
         .lastInsertRowid,
     );
     const fact = db.prepare("INSERT INTO main.facts (report_id, concept_id, value) VALUES (?, ?, ?)");
@@ -216,7 +224,7 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
   }
   for (const event of input.events ?? []) {
     db.prepare("INSERT INTO main.events (entity_id, type_id, date, data, item_id, record_id) VALUES (?, ?, ?, ?, ?, ?)").run(
-      entityId(event.entityEid),
+      companyId(event.entityEid),
       intern(db, "event_types", event.type),
       event.date,
       event.data ? JSON.stringify(event.data) : null,

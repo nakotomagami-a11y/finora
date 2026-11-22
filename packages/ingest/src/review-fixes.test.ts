@@ -283,6 +283,13 @@ describe("qa M3: the share-alike store has the purge guard", () => {
         reports: [{ entityEid: `ee-${String(i).padStart(8, "0")}`, kind: "taxes", periodEnd: "2026-09-30", itemId: "S08.EE.01b", facts: [{ concept: "taxes_paid", value: i }] }],
       }));
     const loader = fakeSource({ id: "ee-tax", country: "ee", storage: "share-alike-store", licence: "cc-by-sa-3.0" }, { records: tax(100) });
+    // The companies are in the register first, so their tax rows are not dropped as unknown (fails closed).
+    const register = Array.from({ length: 100 }, (_, i) => ({
+      recordKey: `ee-${String(i).padStart(8, "0")}`,
+      hashInput: [String(i)],
+      entities: [{ eid: `ee-${String(i).padStart(8, "0")}`, schema: "Company" as const, country: "ee", legalForm: "ee-ou", code: String(i).padStart(8, "0"), statements: [{ prop: "name", value: `Example ${i} OÜ`, itemId: "S01.EE.01" }] }],
+    }));
+    await sync(db, fakeSource({ id: "ee-register", country: "ee", items: ["S01.EE.01"] }, { records: register }));
     await sync(db, loader);
     for (const [n, day] of [[0, "02"], [50, "03"]] as const) {
       loader.state.records = tax(n);

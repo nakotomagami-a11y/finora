@@ -81,9 +81,47 @@ describe("qa M1-M5 on S05", () => {
     expect(first.report?.dropped.reference_unresolved).toBe(1);
     expect(first.report?.dropped.personal_code).toBeUndefined();
     expect(count(db, `SELECT COUNT(*) AS n FROM main.events WHERE data LIKE '%${target}%'`)).toBe(0);
-    const second = await runSync(db, fakeSource({ id: "fake-register" }, { records, asOf: { in_file_field: "2026-11-02" } }), { fetcher: noNetwork });
+    // The very same file: a file with a waiting record keeps no content hash, so it is parsed again.
+    const second = await sync(db, "fake-register", records);
     expect(second.report?.dropped.reference_unresolved).toBeUndefined();
     expect(count(db, `SELECT COUNT(*) AS n FROM main.events WHERE data LIKE '%${target}%'`)).toBe(1);
+  });
+
+  it("a reference that never resolves does not churn: once the store stops growing the file is unchanged, and the count is still reported", async () => {
+    const db = memoryDb();
+    const event = [{ entityEid: `lv-${lv(1)}`, type: "register.reorganisation", date: "2026-01-01", itemId: "S02.LV.01", data: { other: `lv-${overlapCode()}` } }];
+    const records = [company(lv(1), {}, event)];
+    await sync(db, "fake-register", records);
+    const second = await sync(db, "fake-register", records);
+    expect([second.kind, second.report?.written]).toEqual(["content", 0]);
+    const third = await sync(db, "fake-register", records);
+    expect(third.kind).toBe("unchanged");
+    expect(third.report?.dropped.reference_unresolved).toBe(1);
+  });
+
+  it("SEC-4: facts and events never attach to a person row, and an unknown entity's facts fail closed", async () => {
+    const db = memoryDb();
+    await sync(db, "fake-register", [company(lv(1))]);
+    await sync(db, "fake-officers", [roleSetRecord(1, [{ name: "Example Person", role: "board_member", rowId: "11" }])]);
+    const person = (db.prepare("SELECT eid FROM main.entities WHERE eid LIKE 'p-%' LIMIT 1").get() as { eid: string }).eid;
+    expect(() =>
+      writeRecord(db, { syncId: 1, sourceId: "fake-register", recordKey: "ev", hashInput: ["ev"], entities: [], events: [{ entityEid: person, type: "x.y", date: "2026-01-01", itemId: "S02.LV.01" }] }),
+    ).toThrow(/ref_not_company/);
+    // A tax report on an entity the store does not hold yet is judged a natural person's and dropped; the file is retried.
+    const report = { recordKey: "tax-1", hashInput: ["1"], entities: [], reports: [{ entityEid: `lv-${lv(9)}`, kind: "taxes", periodEnd: "2026-09-30", itemId: "S08.LV.01", facts: [{ concept: "taxes_paid", value: 1 }] }] };
+    const outcome = await sync(db, "fake-tax", [report]);
+    expect(count(db, "SELECT COUNT(*) AS n FROM main.fact_reports")).toBe(0);
+    expect(db.prepare("SELECT content_hash FROM main.syncs WHERE id = ?").get(outcome.syncId)).toEqual({ content_hash: null });
+  });
+
+  it("legal: a reference that resolves to a natural person is refused for good, never retried", async () => {
+    const db = memoryDb();
+    await sync(db, "fake-register", [company(lv(1)), company(lv(2), { legalForm: "lv-ik" })]);
+    const event = [{ entityEid: `lv-${lv(1)}`, type: "register.reorganisation", date: "2026-01-01", itemId: "S02.LV.01", data: { other: `lv-${lv(2)}` } }];
+    const outcome = await sync(db, "fake-events", [{ ...company(lv(1), {}, event), recordKey: "to-sole-trader" }]);
+    expect(outcome.report?.dropped.natural_person_party).toBe(1);
+    expect(outcome.report?.dropped.reference_unresolved).toBeUndefined();
+    expect(count(db, `SELECT COUNT(*) AS n FROM main.events WHERE data LIKE '%${lv(2)}%'`)).toBe(0);
   });
 
   it("M4: a shape-valid reference needs a register check digit and must not fit the LV personal-code shape", async () => {

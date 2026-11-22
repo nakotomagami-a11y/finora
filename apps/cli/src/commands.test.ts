@@ -29,7 +29,11 @@ describe("finora-cli (S04f)", () => {
     expect(out).toEqual(["no core source for zz"]);
   });
 
-  it("data sync loads every fixture source, and a second run is unchanged", async () => {
+  it("data sync loads every fixture source; a later run writes nothing, and then is unchanged", async () => {
+    // The second run may parse a file whose reference still waits on another source, writing nothing.
+    expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
+    for (const line of lines.filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged|: content, read \d+, written 0, unchanged \d+, deleted 0,/);
+    lines.length = 0;
     expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
     expect(lines).toHaveLength(FIXTURE_PROFILE.length + 1);
     expect(lines.at(-1)).toMatch(/^peak RSS: \d+ MB$/);
