@@ -5,7 +5,7 @@ import { isNaturalPerson, naturalPersonCaption } from "./persons.ts";
 describe("legal rule 5: sole traders are natural persons", () => {
   it("marks the sole-trader form of every country, and only those", () => {
     const natural = LEGAL_FORMS.filter((f) => f.naturalPerson).map((f) => f.code);
-    expect(natural.sort()).toEqual(["ee-fie", "lt-ii", "lv-ik", "us-sole"]);
+    expect(natural.sort()).toEqual(["ee-fie", "lt-ii", "lv-gim", "lv-ik", "lv-ind", "lv-zem", "lv-zvj", "us-sole"]);
     for (const code of natural) expect(isNaturalPerson({ schema: "Company", legalForm: code })).toBe(true);
   });
 

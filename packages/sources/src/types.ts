@@ -59,6 +59,11 @@ export type ParsedEntity = {
   status?: string | null;
   code?: string | null;
   statements: ParsedStatement[];
+  /**
+   * An entity another source owns (a former name or a capital value attached to a register
+   * entity): its statements attach to it, but it is never created or changed. Absent → `entity_missing`.
+   */
+  ref?: boolean;
 };
 export type FactReportInput = {
   entityEid: string;

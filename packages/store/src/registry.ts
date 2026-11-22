@@ -85,6 +85,8 @@ export type EntityInput = {
   status?: string | null;
   code?: string | null;
   statements: StatementInput[];
+  /** Attach statements to an entity another source owns: never created or changed here. */
+  ref?: boolean;
 };
 export type RecordInput = {
   syncId: number;
@@ -201,7 +203,7 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
     "INSERT INTO main.statements (entity_id, prop_id, value, lang, item_id, record_id, line) VALUES (?, ?, ?, ?, ?, ?, ?)",
   );
   for (const entity of input.entities) {
-    const entityId = upsertEntity(db, entity, input.syncId);
+    const entityId = entity.ref ? existingEntity(db, entity.eid) : upsertEntity(db, entity, input.syncId);
     for (const s of entity.statements) {
       insert.run(entityId, intern(db, "props", s.prop), s.value, s.lang ?? null, intern(db, "items", s.itemId), recordId, s.line ?? null);
     }
@@ -264,6 +266,12 @@ export function dropIfOrphan(db: DatabaseSync, entityId: number): boolean {
   db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
   db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
   return true;
+}
+
+function existingEntity(db: DatabaseSync, eid: string): number {
+  const row = db.prepare("SELECT id FROM main.entities WHERE eid = ?").get(eid) as { id: number } | undefined;
+  if (!row) throw new StoreError("entity_missing");
+  return row.id;
 }
 
 function upsertEntity(db: DatabaseSync, entity: EntityInput, syncId: number): number {

@@ -440,6 +440,8 @@ type ParsedRecord = {
 
 `parse` is pure given the artifacts, so `sources/src/<cc>/<id>/<id>.test.ts` runs it on committed synthetic fixtures with no network.
 
+**Entities another source owns (S05).** A dependent source (LV former names, share capital, VAT and NACE from the tax authority) attaches statements to a register entity through an entity marked `ref: true`. The store looks it up by `eid` and never creates or changes it: legal form, status and the person flag stay the register's. An `eid` the store lacks is refused as `entity_missing`, counted. Facts and events need no entity: they name `entityEid`. For such an entity the gates read the person flag and status from the store, so the natural-person rules (P6) and load rule 3 apply to it as to the register's own rows. Load rule 3 there means a struck-off or reorganised entity takes no S03, S04, S06, S07, S08 or S13 data from another source (`struck_off_identity_only`); its identity, status history and risk history (S09-S11) stay. Tests: `ingest/src/ref-entity.test.ts`.
+
 Contract rules from the S04i security review:
 - **Strict records.** Every object in a `ParsedRecord` is validated strictly, so a key the contract doesn't name makes the record invalid. A drop's `reason` is one of `DROP_REASONS` (`domain/config/drop-reasons.ts`), and a loader slice adds its own reasons there.
 - **Keys hold no codes.** A record key or line id that holds a personal code or a person row id refuses the record (`person_field`), and so do a person record's hash input and row reference.

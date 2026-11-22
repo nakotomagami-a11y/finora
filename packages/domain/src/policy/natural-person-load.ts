@@ -3,6 +3,9 @@
 
 /** Sections dropped whole for a natural person: tax and arrears lines (S08), insolvency, securing measures and suspensions (S09). */
 export const NATURAL_PERSON_DROPPED_SECTIONS: Readonly<Record<string, string>> = {
+  // A sole trader's head count identifies the person (legal 7030224307: a count of 1 is the owner;
+  // a suppressed count is LATER), so workforce figures are not loaded for natural persons.
+  S07: "natural_person_workforce",
   S08: "natural_person_tax",
   S09: "natural_person_insolvency",
 };
@@ -11,6 +14,8 @@ export const NATURAL_PERSON_DROPPED_SECTIONS: Readonly<Record<string, string>> =
 export const SOLE_TRADER_DROPPED_PROPS: Readonly<Record<string, string>> = {
   address: "sole_trader_address",
   vatCode: "sole_trader_vat",
+  // A sole trader's former name is a person's name (lv-register.md, name history).
+  previousName: "natural_person_name",
 };
 
 /** The drop reason for one value of a natural-person entity, or null if it may load. */

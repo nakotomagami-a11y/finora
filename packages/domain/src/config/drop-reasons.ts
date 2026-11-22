@@ -11,6 +11,7 @@ export const DROP_REASONS = [
   "sole_trader_vat",
   "natural_person_tax",
   "natural_person_insolvency",
+  "natural_person_workforce",
   // records refused whole
   "invalid_record",
   "person_field",
@@ -36,6 +37,14 @@ export const DROP_REASONS = [
   "free_text",
   "gender",
   "duplicate_key",
+  // the LV loaders (S05)
+  "lv_person_rows_role_counts",
+  "natural_person_party",
+  "link_host",
+  "struck_off_identity_only",
+  "bad_period",
+  "bad_nace",
+  "bad_date",
   "person_document",
   "no_item",
   // the Crash monitor connectors (loaders/markets.md)

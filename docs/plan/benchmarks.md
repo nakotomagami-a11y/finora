@@ -107,3 +107,36 @@ The real list files from the phase-1 pulls (EU 2026-10-23, OFAC SDN enhanced XML
 | all three in one process, first load then restart re-parse (six syncs) | 787 MB |
 
 V8 does not hand memory back between sources, so the batch peak (787 MB) is above the largest single list (629 MB), and still under the 1 GB worker budget. GLEIF's weekly file (≈ 0.5 GB) in the same cross-border worker would very likely pass it. Run GLEIF in its own worker, or measure that batch again when the pool lands. The OFAC peak is dominated by holding the 106 MB file as one buffer, which the loader contract requires today (`RawArtifact.bytes`). Parsing it from a stream would need a contract change.
+
+### LV first load, all 19 LV sources (data-baltics, S05, 2026-11-22, `dev-desktop-1`)
+
+`finora-cli data sync --country lv` against data.gov.lv, into an empty on-disk store: one worker, the sources in load order, downloads included (the files of 2026-11-20 and 2026-11-21). It reproduces with the same command; `FINORA_DATA_DIR` picks the data dir.
+
+| Source | Records written | Sync time |
+|---|---|---|
+| `lv-ur-register` | 456,358 | 479 s |
+| `lv-ur-name-history` | 89,477 | 132 s |
+| `lv-ur-liquidations` | 9,650 | 21 s |
+| `lv-ur-reorganizations` | 10,198 | 15 s |
+| `lv-ur-equity-capitals` | 141,382 | 203 s |
+| `lv-ur-memorandum-dates` | 150,706 | 185 s |
+| `lv-ur-officers` | 208,351 | 351 s |
+| `lv-ur-members` | 13,015 | 24 s |
+| `lv-ur-insolvency` | 18,074 | 15 s |
+| `lv-ur-securing-measures` | 33,628 | 14 s |
+| `lv-ur-suspensions` | 10,604 | 3 s |
+| `lv-ur-sanctions-links` | 66 | 1 s |
+| `lv-ur-annual-reports` | 547,378 | 638 s |
+| `lv-vid-taxes-quarterly` | 456,013 | 509 s |
+| `lv-vid-taxes-yearly` | 288,180 | 356 s |
+| `lv-vid-rating` | 145,690 | 151 s |
+| `lv-vid-vat-payers` | 246,937 | 311 s |
+| `lv-vid-suspensions` | 72,939 | 74 s |
+| `lv-fid-frozen` (S06) | 136 | 1 s |
+| **Total** | **2.90 M records** | **3,483 s (58 min)** |
+
+- **Store:** `finora.db` 1.4 GB (LV ≤ 2.5 GB: **passes**). It holds 1.04 M entities, 5.77 M statements, 1.83 M fact reports with 7.46 M facts, 0.84 M events and 2.90 M records, about 480 bytes per record with indexes and FTS. Raw cache 207 MB.
+- **Peak RSS: 1,649 MB** for the one worker over all 19 sources (**fails** ≤ 1 GB). The largest single source, `lv-ur-annual-reports`, peaks at about 1.2 GB on its own: its three files (≈ 500 MB) are held as buffers (`RawArtifact.bytes`) and joined in memory.
+- **Time: fails.** The register lands after 479 s (budget ≈ 2 min), and the LV total alone is about twice the 30-minute budget for the whole store.
+- **Where the time goes:** parsing is a small part of it. The register's 129 MB parse takes 2.8 s, and every LV parse together less than a minute. The rest is the per-record write path, at about 0.7 ms per record on disk: a CPU profile of 50,000 register rows puts `refreshEntity`, `write`, `writeRecord` and `upsertEntity` at about 64% of the time, all SQLite execution, about 20 statements per record. Caching prepared statements and skipping the FTS refresh each changed nothing measurable. What would move it is a first-load bulk path (no per-record lookups or history snapshot on an empty source, multi-row inserts, FTS and trigram built once after the load), which is open with the architect. S05 records the time and memory budgets as failing; whether the slice ships before that fix is qa's and the coordinator's call.
+- **Unchanged reload: passes.** The same command against the loaded store, about an hour later and before the portal's nightly regeneration: all 19 sources end `unchanged` with 0 records read or written, in 37 s for the whole LV set (downloads and content hashes included), peak RSS 966 MB.

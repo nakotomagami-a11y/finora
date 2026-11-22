@@ -9,7 +9,7 @@ export const FTM_UPSTREAM = {
   Thing: ["name", "alias", "previousName", "weakAlias", "country", "address", "sourceUrl", "notes"],
   LegalEntity: [
     "registrationNumber", "idNumber", "taxNumber", "vatCode", "leiCode", "incorporationDate",
-    "dissolutionDate", "status", "legalForm", "jurisdiction", "website", "email", "cikCode",
+    "dissolutionDate", "status", "legalForm", "jurisdiction", "website", "email", "cikCode", "classification",
   ],
   Organization: [],
   Company: ["capital", "ticker", "isinCode"],
@@ -26,7 +26,10 @@ export const FTM_UPSTREAM = {
   Identification: ["holder", "number", "type"],
 } as const;
 
-export const FINORA_EXTENSIONS = ["finora:vatRegistered", "finora:roleSet", "finora:capitalCurrency"] as const;
+export const FINORA_EXTENSIONS = [
+  "finora:vatRegistered", "finora:roleSet", "finora:capitalCurrency", "finora:addressId",
+  "finora:governingBody", "finora:signingRights", "finora:taxAuthorityRating",
+] as const;
 
 export const SCHEMAS = [
   "Company", "Organization", "LegalEntity", "Person", "Address", "Directorship",

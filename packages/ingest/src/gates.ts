@@ -32,7 +32,15 @@ export type GateResult = {
 const REFERENCE_PROPS = new Set(["organization", "director", "member", "owner", "asset", "holder", "parent", "subsidiary", "entity", "subject"]);
 const leaksPerson = (value: string) => freeTextHoldsPersonalCode(value) || PERSON_EID.test(value);
 
-export type PartyLookup = (country: string, code: string) => { naturalPerson: boolean } | null;
+export type PartyLookup = (country: string, code: string) => { naturalPerson: boolean; status?: string | null } | null;
+
+/**
+ * Load rule 3: a struck-off or reorganised entity keeps no current-business data from other sources
+ * (people, owners, accounts, workforce, taxes, filings). Its identity and status history stay, and so
+ * do its risk history (insolvency, courts, sanctions): "was it bankrupt?" is the question asked of it.
+ */
+const ENDED = new Set(["struck_off", "reorganised"]);
+const DROPPED_WHEN_ENDED = new Set(["S03", "S04", "S06", "S07", "S08", "S13"]);
 
 /** A row-local reference safe for a report: never a code or a person row id. */
 function safeRowRef(rowRef: string | undefined): string | undefined {
@@ -84,12 +92,19 @@ export function applyGates(
 
   const natural = new Set<string>();
   const recordEids = new Set([...record.entities, ...parties].map((e) => e.eid));
+  const inRecord = new Set<string>();
   const entities = [...record.entities, ...parties].map((entity) => {
-    const naturalPerson = isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null });
+    // A referenced entity is judged by what the store holds for it; one the store lacks is
+    // treated as a natural person here and then refused by the store as `entity_missing`.
+    const held = entity.ref ? options.lookup(entity.country, entity.code ?? "") : null;
+    if (!entity.ref) inRecord.add(entity.eid);
+    const naturalPerson = entity.ref ? (held?.naturalPerson ?? true) : isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null });
+    const ended = entity.ref && ENDED.has(held?.status ?? "");
     if (naturalPerson) natural.add(entity.eid);
     const statements = entity.statements.filter((s) => {
       const byItem = itemDrop(s.itemId);
       if (byItem) return void drop(byItem, s.prop), false;
+      if (ended && DROPPED_WHEN_ENDED.has(s.itemId.slice(0, 3))) return void drop("struck_off_identity_only", s.prop), false;
       if (!naturalPerson) {
         // A company's free text is scanned too (legal on S04i, SEC-1 scope): a name, an address or
         // a description never carries a personal code. Its own ids and references to other rows are not.
@@ -119,19 +134,35 @@ export function applyGates(
     return { ...entity, statements };
   });
 
+  // A fact or event may sit on an entity this record does not carry (an LV insolvency row on a
+  // register entity): the store decides whether that entity is a natural person (rule 5).
+  const stored = (eid: string) => {
+    const m = /^(lv|ee|lt)-(\d+)$/.exec(eid);
+    return m ? options.lookup(m[1]!, m[2]!) : null;
+  };
+  const naturalEid = (eid: string): boolean => {
+    if (natural.has(eid)) return true;
+    if (inRecord.has(eid)) return false;
+    return stored(eid)?.naturalPerson ?? false;
+  };
+  // Current-business data from another source on an entity the register has ended (load rule 3).
+  const endedElsewhere = (eid: string, itemId: string): boolean =>
+    !inRecord.has(eid) && DROPPED_WHEN_ENDED.has(itemId.slice(0, 3)) && ENDED.has(stored(eid)?.status ?? "");
   const reports = (record.reports ?? []).filter((r) => {
     const byItem = itemDrop(r.itemId);
     if (byItem) return void drop(byItem), false;
-    const byRule = natural.has(r.entityEid) ? naturalPersonDrop({ prop: "", itemId: r.itemId }) : null;
+    const byRule = naturalEid(r.entityEid) ? naturalPersonDrop({ prop: "", itemId: r.itemId }) : null;
     if (byRule) return void drop(byRule as DropReason), false;
+    if (endedElsewhere(r.entityEid, r.itemId)) return void drop("struck_off_identity_only"), false;
     return true;
   });
   const events = [...(record.events ?? []), ...partyEvents]
     .filter((e) => {
       const byItem = itemDrop(e.itemId);
       if (byItem) return void drop(byItem), false;
-      const byRule = natural.has(e.entityEid) ? naturalPersonDrop({ prop: "", itemId: e.itemId }) : null;
+      const byRule = naturalEid(e.entityEid) ? naturalPersonDrop({ prop: "", itemId: e.itemId }) : null;
       if (byRule) return void drop(byRule as DropReason), false;
+      if (endedElsewhere(e.entityEid, e.itemId)) return void drop("struck_off_identity_only"), false;
       return true;
     })
     .map((e) => {
@@ -140,7 +171,11 @@ export function applyGates(
       if (!e.data) return e;
       const data: Record<string, string | number | null> = {};
       for (const [key, value] of Object.entries(e.data)) {
-        if (typeof value === "string" && leaksPerson(value)) {
+        // A company id the record carries or the store holds (the other side of an LV
+        // reorganisation) is a reference, not free text: an LV register code can fit the EE/LT
+        // personal-code check by chance (about 1 in 11). Anything else is scanned, as statements are.
+        const reference = typeof value === "string" && (recordEids.has(value) || options.knownCompany?.(value) === true);
+        if (typeof value === "string" && !reference && leaksPerson(value)) {
           drop("personal_code");
           refused.push(value);
           continue;

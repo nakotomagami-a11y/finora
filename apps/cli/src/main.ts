@@ -4,7 +4,7 @@ import { backup, dataStatus, dataSync, doctor, resolveSanctions, search, show, t
 import { loadCliEnv } from "./env.ts";
 
 const USAGE = `usage: finora-cli <command>
-  data sync [source] [--profile fixtures|core] [--allow-mass-purge]
+  data sync [source] [--profile fixtures|core] [--country lv|ee|lt|us] [--allow-mass-purge]
   data status
   search <query> [--country lv|ee|lt|us]
   show <eid>
@@ -21,8 +21,9 @@ async function main(argv: string[]): Promise<number> {
   const io: Io = { env: loadCliEnv(), out: (line) => process.stdout.write(`${line}\n`) };
   const [command, sub, ...rest] = argv;
   if (command === "data" && sub === "sync") {
-    const source = rest.find((a, i) => !a.startsWith("--") && rest[i - 1] !== "--profile");
-    return dataSync(io, { profile: flag(rest, "--profile") ?? "core", ...(source ? { source } : {}), allowMassPurge: rest.includes("--allow-mass-purge") });
+    const source = rest.find((a, i) => !a.startsWith("--") && rest[i - 1] !== "--profile" && rest[i - 1] !== "--country");
+    const country = flag(rest, "--country");
+    return dataSync(io, { profile: flag(rest, "--profile") ?? "core", ...(source ? { source } : {}), ...(country ? { country } : {}), allowMassPurge: rest.includes("--allow-mass-purge") });
   }
   if (command === "data" && sub === "status") return dataStatus(io);
   if (command === "search" && sub) {

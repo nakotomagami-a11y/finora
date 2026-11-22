@@ -2,8 +2,8 @@
 // seeded world. Each is a named export, so a sync worker can import it by module URL; each
 // regenerates the same world from the seed, so no file is ever needed.
 import { readFileSync } from "node:fs";
-import { esmaNcasp, euFsf, lvFidFrozen, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
-import { lvFidXlsx } from "@finora/sources/testing";
+import { esmaNcasp, euFsf, lvFidFrozen, lvUrAnnualReports, lvUrInsolvency, lvUrMembers, lvUrOfficers, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions, lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
+import { lvBalanceSheetsCsv, lvIncomeStatementsCsv, lvInsolvencyCsv, lvMembersCsv, lvOfficersCsv, lvSanctionsLinksCsv, lvSecuringMeasuresCsv, lvStatementsCsv, lvSuspensionsCsv, lvVidQuarterlyCsv, lvVidRatingCsv, lvVidSuspensionsCsv, lvVidVatCsv, lvVidYearlyCsv, lvEquityCapitalsCsv, lvFidXlsx, lvLiquidationsCsv, lvMemorandumCsv, lvNameHistoryCsv, lvRegisterCsv, lvReorganizationsCsv } from "@finora/sources/testing";
 import { DEFAULT_SEED, generateWorld, type FixtureCompany, type World } from "./world.ts";
 
 export const FIXTURE_AS_OF = "2026-11-20";
@@ -208,9 +208,55 @@ export const fxLvFid = fromFiles(lvFidFrozen, () => [
   { name: "resource.json", bytes: new TextEncoder().encode(JSON.stringify({ lastModified: "2026-11-16T08:00:00" })) },
 ]);
 
+/**
+ * The real LV loaders (S05) over their layout fixtures: the files as data.gov.lv serves them, on the
+ * LV fixture companies of `@finora/sources/testing` (their own fixture codes, apart from the world's).
+ */
+const lvFile = (name: string, bytes: () => Uint8Array) => () => [{ name, bytes: bytes() }];
+export const fxLvUrRegister = fromFiles(lvUrRegister, lvFile("register.csv", lvRegisterCsv));
+export const fxLvUrNameHistory = fromFiles(lvUrNameHistory, lvFile("register_name_history.csv", lvNameHistoryCsv));
+export const fxLvUrLiquidations = fromFiles(lvUrLiquidations, lvFile("liquidations.csv", lvLiquidationsCsv));
+export const fxLvUrReorganizations = fromFiles(lvUrReorganizations, lvFile("reorganizations.csv", lvReorganizationsCsv));
+export const fxLvUrEquityCapitals = fromFiles(lvUrEquityCapitals, lvFile("equity_capitals.csv", lvEquityCapitalsCsv));
+export const fxLvUrMemorandumDates = fromFiles(lvUrMemorandumDates, lvFile("memorandum_date.csv", lvMemorandumCsv));
+export const fxLvUrOfficers = fromFiles(lvUrOfficers, lvFile("officers.csv", () => lvOfficersCsv()));
+export const fxLvUrMembers = fromFiles(lvUrMembers, lvFile("members.csv", lvMembersCsv));
+export const fxLvUrInsolvency = fromFiles(lvUrInsolvency, lvFile("insolvency_legal_person_proceeding.csv", lvInsolvencyCsv));
+export const fxLvUrSecuringMeasures = fromFiles(lvUrSecuringMeasures, lvFile("securing_measures.csv", lvSecuringMeasuresCsv));
+export const fxLvUrSuspensions = fromFiles(lvUrSuspensions, lvFile("suspensions_prohibitions.csv", lvSuspensionsCsv));
+export const fxLvUrSanctionsLinks = fromFiles(lvUrSanctionsLinks, lvFile("sanctions.csv", lvSanctionsLinksCsv));
+export const fxLvUrAnnualReports = fromFiles(lvUrAnnualReports, () => [
+  { name: "financial_statements.csv", bytes: lvStatementsCsv() },
+  { name: "balance_sheets.csv", bytes: lvBalanceSheetsCsv() },
+  { name: "income_statements.csv", bytes: lvIncomeStatementsCsv() },
+]);
+export const fxLvVidTaxesQuarterly = fromFiles(lvVidTaxesQuarterly, lvFile("pdb_samaksato_nodoklu_kopsummas_cet.csv", lvVidQuarterlyCsv));
+export const fxLvVidTaxesYearly = fromFiles(lvVidTaxesYearly, lvFile("pdb_nm_komersantu_samaksato_nodoklu_kopsumas_odata.csv", lvVidYearlyCsv));
+export const fxLvVidRating = fromFiles(lvVidRating, lvFile("reitings_uznemumi.csv", lvVidRatingCsv));
+export const fxLvVidVatPayers = fromFiles(lvVidVatPayers, lvFile("pdb_pvnmaksataji_odata.csv", lvVidVatCsv));
+export const fxLvVidSuspensions = fromFiles(lvVidSuspensions, lvFile("pdb_saimndarbibaaptureta_odata.csv", lvVidSuspensionsCsv));
+
 /** Every bulk loader of the profile, in load order: registers first, so the others can join. */
 export const FIXTURE_PROFILE: readonly { exportName: string; loader: SourceLoader }[] = [
   { exportName: "fxLvRegister", loader: fxLvRegister },
+  { exportName: "fxLvUrRegister", loader: fxLvUrRegister },
+  { exportName: "fxLvUrNameHistory", loader: fxLvUrNameHistory },
+  { exportName: "fxLvUrLiquidations", loader: fxLvUrLiquidations },
+  { exportName: "fxLvUrReorganizations", loader: fxLvUrReorganizations },
+  { exportName: "fxLvUrEquityCapitals", loader: fxLvUrEquityCapitals },
+  { exportName: "fxLvUrMemorandumDates", loader: fxLvUrMemorandumDates },
+  { exportName: "fxLvUrOfficers", loader: fxLvUrOfficers },
+  { exportName: "fxLvUrMembers", loader: fxLvUrMembers },
+  { exportName: "fxLvUrInsolvency", loader: fxLvUrInsolvency },
+  { exportName: "fxLvUrSecuringMeasures", loader: fxLvUrSecuringMeasures },
+  { exportName: "fxLvUrSuspensions", loader: fxLvUrSuspensions },
+  { exportName: "fxLvUrSanctionsLinks", loader: fxLvUrSanctionsLinks },
+  { exportName: "fxLvUrAnnualReports", loader: fxLvUrAnnualReports },
+  { exportName: "fxLvVidTaxesQuarterly", loader: fxLvVidTaxesQuarterly },
+  { exportName: "fxLvVidTaxesYearly", loader: fxLvVidTaxesYearly },
+  { exportName: "fxLvVidRating", loader: fxLvVidRating },
+  { exportName: "fxLvVidVatPayers", loader: fxLvVidVatPayers },
+  { exportName: "fxLvVidSuspensions", loader: fxLvVidSuspensions },
   { exportName: "fxEeRegister", loader: fxEeRegister },
   { exportName: "fxLtRegister", loader: fxLtRegister },
   { exportName: "fxUsRegister", loader: fxUsRegister },

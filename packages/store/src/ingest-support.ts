@@ -129,14 +129,14 @@ export function writeFinoraEvent(
 }
 
 /** The party gate's store lookup: a register entity by code, never a person. */
-export function entityByCode(db: DatabaseSync, country: string, code: string): { eid: string; naturalPerson: boolean } | null {
+export function entityByCode(db: DatabaseSync, country: string, code: string): { eid: string; naturalPerson: boolean; status: string | null } | null {
   const row = db
     .prepare(
-      `SELECT e.eid, e.natural_person FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id
+      `SELECT e.eid, e.natural_person, e.status FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id
        WHERE e.country = ? AND e.code = ? AND s.name <> 'Person' ORDER BY e.id LIMIT 1`,
     )
-    .get(country, code) as { eid: string; natural_person: number } | undefined;
-  return row ? { eid: row.eid, naturalPerson: row.natural_person === 1 } : null;
+    .get(country, code) as { eid: string; natural_person: number; status: string | null } | undefined;
+  return row ? { eid: row.eid, naturalPerson: row.natural_person === 1, status: row.status } : null;
 }
 
 /** P1: a share-alike source's rows live in finora-sa.db only, keyed on the public eid. */

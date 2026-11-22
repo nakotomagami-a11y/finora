@@ -113,6 +113,8 @@ Header: `regcode;date_to;name`
 
 Record key: `<regcode>|<date_to>|<sha8(name)>`. There can be several rows per company; 0.27% have an empty name, which is a counted skip.
 
+**Attachment (as built in S05):** a former name is a statement on the register entity, written through an entity marked `ref` (`ParsedEntity.ref`): the store attaches it to the entity `lv-ur-register` wrote and never creates or changes that entity (an unknown code is refused as `entity_missing`). The same holds for `capital` from `lv-ur-equity-capitals`. Without `ref`, a dependent record's entity upsert would reset the register's legal form and person flag.
+
 ### `lv-ur-liquidations` (`liquidations.csv`, `;`)
 
 Header: `id;legal_entity_registration_number;liquidation_type;liquidation_type_text;date_from;grounds_for_liquidation;registered_on;last_modified_at`

@@ -23,9 +23,15 @@ beforeAll(async () => {
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("finora-cli (S04f)", () => {
+  it("data sync --profile core picks the real loaders by country, and names an empty choice", async () => {
+    const out: string[] = [];
+    expect(await dataSync({ ...io(), out: (l: string) => out.push(l) }, { profile: "core", country: "zz" })).toBe(2);
+    expect(out).toEqual(["no core source for zz"]);
+  });
+
   it("data sync loads every fixture source, and a second run is unchanged", async () => {
     expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
-    expect(lines).toHaveLength(19);
+    expect(lines).toHaveLength(FIXTURE_PROFILE.length + 1);
     expect(lines.at(-1)).toMatch(/^peak RSS: \d+ MB$/);
     for (const line of lines.filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged/);
     expect(await dataSync(io(), { profile: "fixtures", source: "fx-hide" })).toBe(0);

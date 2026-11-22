@@ -5,7 +5,7 @@ import { existsSync, readdirSync, statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { eidKind, isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { FIXTURE_PROFILE } from "@finora/fixtures";
-import { lanesOf, runSyncsInWorker, type SyncReport } from "@finora/ingest";
+import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { LOADERS } from "@finora/sources";
 import { companyValues, openStore, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
@@ -28,24 +28,24 @@ function withStore<T>(io: Io, fn: (store: Store) => T): T {
 const dropsLine = (dropped: Record<string, number>) =>
   Object.keys(dropped).length === 0 ? "none" : Object.entries(dropped).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k} ${v}`).join(", ");
 
-/** `data sync [source] --profile fixtures|core [--allow-mass-purge]`: every sync in its own worker. */
-export async function dataSync(io: Io, args: { profile: string; source?: string; allowMassPurge?: boolean }): Promise<number> {
-  if (args.profile === "core") {
-    if (LOADERS.length === 0) {
-      io.out("core profile: no loader ships yet (the loader slices add them)");
-      return 0;
-    }
-    io.out("core profile: loaders run through the app's scheduler from S12 on");
-    return 1;
-  }
-  if (args.profile !== "fixtures") {
+/** The User-Agent for official open-data portals; the SEC contact string goes only to the SEC (S17). */
+const PORTAL_USER_AGENT = "Finora/0.1 (open-source company research; local install)";
+
+/**
+ * `data sync [source] [--profile fixtures|core] [--country lv|ee|lt|us] [--allow-mass-purge]`: every
+ * sync in its own worker. The core profile fetches the real sources (S05 on: the loader slices add
+ * them); the app's scheduler runs the same syncs from S12 on.
+ */
+export async function dataSync(io: Io, args: { profile: string; source?: string; country?: string; allowMassPurge?: boolean }): Promise<number> {
+  if (args.profile !== "fixtures" && args.profile !== "core") {
     io.out(`unknown profile "${args.profile}" (fixtures or core)`);
     return 2;
   }
   withStore(io, () => undefined);
-  const chosen = FIXTURE_PROFILE.filter((p) => !args.source || p.loader.meta.id === args.source);
+  const pool = args.profile === "core" ? LOADERS.map((loader) => ({ loader })) : FIXTURE_PROFILE;
+  const chosen = pool.filter((p) => (!args.source || p.loader.meta.id === args.source) && (!args.country || p.loader.meta.country === args.country));
   if (chosen.length === 0) {
-    io.out(`no fixture source "${args.source}"`);
+    io.out(`no ${args.profile} source${args.source ? ` "${args.source}"` : ""}${args.country ? ` for ${args.country}` : ""}`);
     return 2;
   }
   let failed = 0;
@@ -55,10 +55,12 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
   const lanes = lanesOf(chosen.map((p) => p.loader));
   const results = await Promise.all(
     [...lanes.values()].map(async (sourceIds) => {
-      const outcomes = await runSyncsInWorker(SYNC_WORKER, {
+      // The core profile's worker knows the shipped loaders only: a fixture loader keeps its real
+      // source's id, so the CLI's own worker (fixtures first) must never serve a real sync.
+      const outcomes = await runSyncsInWorker(args.profile === "core" ? CORE_SYNC_WORKER : SYNC_WORKER, {
         dataDir: io.env.dataDir,
         sourceIds,
-        userAgent: io.env.secUserAgent ?? "Finora (fixtures)",
+        userAgent: args.profile === "fixtures" ? "Finora (fixtures)" : PORTAL_USER_AGENT,
         options: {
           shareAlikeMode: io.env.shareAlikeMode,
           allowMassPurge: args.allowMassPurge === true,

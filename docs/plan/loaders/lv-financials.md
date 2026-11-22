@@ -21,7 +21,7 @@ One `SourceMeta`, `lv-ur-annual-reports`, reads three files of the dataset `gada
   1. `max_date_in_data` over `financial_statements.created_at` (date part), ignoring dates after the sync date. **This one wins today:** 2026-11-18 on the 19 Nov pull.
   2. `portal_metadata`: the CKAN resource `last_modified`.
   3. `http_last_modified`: changes nightly.
-- **`purgeScope: "window"`**. The window field is `year_ended_on`, and the window is each company's 5 newest fiscal years in the current file (load rule 3). A record whose fiscal year falls behind its company's 5th-newest year is an expected deletion and does not count against the guard. A record missing *inside* its company's window counts.
+- **`purgeScope: "window"`**. The window field is `year_ended_on`, and the window is **the 5 newest fiscal years in the file**, at most 5 per company (load rule 3; as built in S05). Counting 5 years per company instead kept old years of companies that stopped filing: 1.04 M records on the real files, against ≈ 548 k this way (547,280 measured), and it would break `windowStart`, which the purge guard needs as one date. A record whose fiscal year falls behind the window is an expected deletion.
 - **`maxPurgeShare`: 0.02.** Measured 6 statements removed of 1,986,939 in one day (0.0003%). That is about 42 a week (0.002%), and ×5 is still under the floor. Records in the window number ≈ 540,000.
 - **`parserVersion`:** sha256 of the loader module (it holds the window length of 5 and the `source_type` selection), its field map and `items.generated.ts`.
 - **Keys and limits:** no key; ≤ 2 requests/s; size cap 400 MB per file.

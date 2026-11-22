@@ -25,7 +25,12 @@ export type {
   StorageClass,
 } from "./types.ts";
 export { personFieldProblems } from "./person-fields.ts";
-export { LOADERS } from "./registry.ts";
+export { LOADERS, LV_LOADERS } from "./registry.ts";
+export { lvUrOfficers, lvUrOfficersLoader, lvUrMembers, LV_PEOPLE_LOADERS, LV_PERSON_ROWS_MODES, type LvPersonRows } from "./lv/lv-people/lv-people.ts";
+export { lvUrInsolvency, lvUrSecuringMeasures, lvUrSuspensions, lvUrSanctionsLinks, LV_RISK_LOADERS } from "./lv/lv-risk/lv-risk.ts";
+export { lvUrAnnualReports, LV_FINANCIALS_LOADERS } from "./lv/lv-financials/lv-financials.ts";
+export { lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, LV_TAX_LOADERS } from "./lv/lv-tax/lv-tax.ts";
+export { lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations } from "./lv/lv-ur-register/lv-ur-register.ts";
 export { parserVersion } from "./parser-version.ts";
 export { AGENT_ONLY_LISTS } from "./intl/sanctions/agent-only.ts";
 export { normalizeId, type Identifier, type IdentifierType } from "./intl/sanctions/shared.ts";

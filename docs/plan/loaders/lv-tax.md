@@ -72,7 +72,7 @@ Header: `"Registracijas_kods","Nosaukums","Taksacijas_gads_ceturksnis","Samaksat
 | `Samaksato_VID_administreto_nodoklu_kopsumma_tukst_EUR` | decimal | `taxes_paid` | S08.LV.01 | no | `currency = EUR`, `unit_scale = 1000`; value as published |
 | `Taja_skaita_PVN_iemaksa` | decimal | `vat_paid` | S08.LV.01 | no | as above |
 | `Taja_skaita_IIN_summa` + `Taja_skaita_VSAOI_summa` | decimal | `labour_taxes` = their sum (personal income tax withheld + social contributions) | S08.LV.01 | no | the sum is documented in `concepts.ts`; both empty → no fact |
-| `Videjais_nodarbinato_personu_skaits_cilv` | int | `employees` | S07.LV.01 | no | 0 stored as 0. The UI says "0 employees reported", not "none" |
+| `Videjais_nodarbinato_personu_skaits_cilv` | int | `employees`, in its own `quarterly_employees` report (unit 1; the tax report is in thousand EUR) | S07.LV.01 | no | 0 stored as 0. The UI says "0 employees reported", not "none". Natural persons: not loaded (`natural_person_workforce`: a sole trader's head count identifies the person, legal 7030224307) |
 | `Nosaukums`, `Taja_skaita_PVN_atmaksa` | - | not read | - | - | VAT refund: no concept (Open questions) |
 
 ### `lv-vid-taxes-yearly`
@@ -85,7 +85,7 @@ Header: `"Registracijas_kods","Nosaukums","Taksacijas_gads","Uznemejdarbibas_for
 | `Taksacijas_gads` | int | an `annual_tax` report for Jan 1 to Dec 31 of the year; record key part | S08.LV.01 | no | 4 digits |
 | `Samaksato_VID_administreto_nodoklu_kopsumma_tukst_EUR` | decimal | `taxes_paid` | S08.LV.01 | no | `unit_scale = 1000` |
 | `Taja_skaita_IIN` + `Taja_skaita_VSAOI` | decimal | `labour_taxes` (sum) | S08.LV.01 | no | - |
-| `Videjais_nodarbinato_personu_skaits_cilv` | int | `employees` | S07.LV.01 | no | - |
+| `Videjais_nodarbinato_personu_skaits_cilv` | int | `employees`, in its own `annual_employees` report (unit 1) | S07.LV.01 | no | as above |
 | `Pamatdarbibas_NACE_kods` | text, 4 digits | statement `classification` = `NACE:<dd>.<dd>` (e.g. `4120` → `NACE:41.20`), from the newest year only | S01.LV.01 | no | `?` placeholders (3,377) and anything that is not 4 digits after trimming a trailing `.` → no statement, counted `bad_nace` |
 | `Nosaukums`, `Uznemejdarbibas_forma`, `Juridiska_adrese_ATVK_kods`, `Juridiska_adrese_ATVK_nosaukums` | - | not read | - | - | the register carries name, form and address |
 

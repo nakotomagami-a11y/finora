@@ -15,6 +15,7 @@ const entity = z.strictObject({
   status: z.string().nullish(),
   code: z.string().nullish(),
   statements: z.array(statement),
+  ref: z.boolean().optional(),
 });
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}/);
 const event = z.strictObject({ entityEid: text, type: text, date: isoDate, data: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).optional(), itemId: text });
