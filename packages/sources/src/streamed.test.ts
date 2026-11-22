@@ -40,7 +40,7 @@ async function withServer(body: (port: number) => Promise<void>, size = 3 * 1024
 }
 
 const local = (extra: object = {}) =>
-  politeFetch({ officialHosts: ["files.example.lv"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, retries: 0, ...extra });
+  politeFetch({ officialHosts: ["files.example.lv"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, allowHttp: true, retries: 0, ...extra });
 
 describe("toFile (the real transport, against a local server)", () => {
   it("writes the body to the file with its size and sha256, and holds no bytes in memory", async () => {

@@ -43,6 +43,19 @@ describe("finora-cli (S04f)", () => {
     expect(await dataSync(io(), { profile: "nope" })).toBe(2);
   }, 120_000);
 
+  it("refuses a fixture sync into a data dir that holds the core profile (SEC-10 on S05)", async () => {
+    const fresh = mkdtempSync(join(tmpdir(), "finora-cli-profile-"));
+    try {
+      writeFileSync(join(fresh, "profile"), "core\n");
+      const env = { ...io(), env: { dataDir: fresh, secUserAgent: null, shareAlikeMode: "store" as const } };
+      expect(await dataSync(env, { profile: "fixtures" })).toBe(2);
+      expect(lines.at(-1)).toMatch(/holds the core profile/);
+      expect(readdirSync(fresh).filter((f) => f.endsWith(".db"))).toEqual([]);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
+  });
+
   it("starts exactly one long-lived worker per lane, never one per source (cto on S04i)", async () => {
     const fresh = mkdtempSync(join(tmpdir(), "finora-cli-lanes-"));
     try {

@@ -1,7 +1,7 @@
 // `finora-cli` commands (S04f): data sync, data status, search, show, doctor, backup. Each writes
 // plain lines through `out` and returns an exit code, so tests run them without a process. No
 // command prints a person row, a personal code or an internal hash (PS5).
-import { existsSync, readdirSync, statfsSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statfsSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { eidKind, isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { FIXTURE_PROFILE } from "@finora/fixtures";
@@ -41,14 +41,23 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     io.out(`unknown profile "${args.profile}" (fixtures or core)`);
     return 2;
   }
-  // Boot for the CLI: work dirs left by a sync that never reached its cleanup go first (legal condition 1).
-  withStore(io, (store) => sweepWorkDirs(store.db, join(io.env.dataDir, "work")));
   const pool = args.profile === "core" ? LOADERS.map((loader) => ({ loader })) : FIXTURE_PROFILE;
   const chosen = pool.filter((p) => (!args.source || p.loader.meta.id === args.source) && (!args.country || p.loader.meta.country === args.country));
   if (chosen.length === 0) {
     io.out(`no ${args.profile} source${args.source ? ` "${args.source}"` : ""}${args.country ? ` for ${args.country}` : ""}`);
     return 2;
   }
+  // One data dir holds one profile (SEC-10 on S05): fixture copies keep their real sources' ids, so a
+  // fixture sync into a store of real data (or the reverse) would mix invented values into it.
+  const marker = join(io.env.dataDir, "profile");
+  const held = existsSync(marker) ? readFileSync(marker, "utf8").trim() : null;
+  if (held !== null && held !== args.profile) {
+    io.out(`this data dir holds the ${held} profile; ${args.profile} syncs go to their own data dir (FINORA_DATA_DIR)`);
+    return 2;
+  }
+  // Boot for the CLI: work dirs left by a sync that never reached its cleanup go first (legal condition 1).
+  withStore(io, (store) => sweepWorkDirs(store.db, join(io.env.dataDir, "work")));
+  if (held === null) writeFileSync(marker, `${args.profile}\n`);
   let failed = 0;
   // One long-lived worker per lane (a country, the sanctions lists, GLEIF), the lanes in parallel,
   // each lane's sources in `meta.order`, the register first (architecture §4.5, cto on S04i). A few

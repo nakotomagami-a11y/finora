@@ -43,7 +43,7 @@ describe("the polite fetcher", () => {
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     try {
       const port = (server.address() as AddressInfo).port;
-      const fetch = politeFetch({ officialHosts: ["rpc.example.org"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, retries: 0 });
+      const fetch = politeFetch({ officialHosts: ["rpc.example.org"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, allowHttp: true, retries: 0 });
       const posted = await fetch(`http://rpc.example.org:${port}/rpc`, { headers: { "content-type": "application/json" }, body: '{"method":"getbestblockhash"}' });
       expect(new TextDecoder().decode(posted.bytes)).toBe('{"result":1}');
       await fetch(`http://rpc.example.org:${port}/plain`);
@@ -137,12 +137,12 @@ describe("the polite fetcher", () => {
         officialHosts: ["files.example.lv"],
         userAgent: "x",
         resolve: async () => [{ address: "127.0.0.1", family: 4 }],
-        allowAddress: () => true,
+        allowAddress: () => true, allowHttp: true,
         maxBytes: 1000,
         retries: 0,
       });
       await expect(fetch(`http://files.example.lv:${port}/big`)).rejects.toMatchObject({ code: "too_large" });
-      const roomy = politeFetch({ officialHosts: ["files.example.lv"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true });
+      const roomy = politeFetch({ officialHosts: ["files.example.lv"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, allowHttp: true });
       expect((await roomy(`http://files.example.lv:${port}/big`)).bytes.length).toBe(5000);
     } finally {
       server.close();
@@ -189,7 +189,7 @@ describe("the polite fetcher, after the S04i security review", () => {
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     const port = (server.address() as AddressInfo).port;
     try {
-      const fetch = politeFetch({ officialHosts: ["files.example.lv"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, deadlineMs: 400, retries: 0 });
+      const fetch = politeFetch({ officialHosts: ["files.example.lv"], userAgent: "x", resolve: async () => [{ address: "127.0.0.1", family: 4 }], allowAddress: () => true, allowHttp: true, deadlineMs: 400, retries: 0 });
       const started = Date.now();
       await expect(fetch(`http://files.example.lv:${port}/drip`)).rejects.toMatchObject({ code: "deadline" });
       expect(Date.now() - started).toBeLessThan(3000);
@@ -214,5 +214,15 @@ describe("the polite fetcher, after the S04i security review", () => {
     await Promise.all(Array.from({ length: 5 }, () => fetch("https://www.sec.example/")));
     expect(starts).toHaveLength(5);
     expect(new Set(starts).size).toBe(5);
+  });
+});
+
+describe("https only (SEC-7 on S05)", () => {
+  it("refuses a plain http URL unless the source opts in", async () => {
+    const ok = () => fake([{ status: 200, headers: {}, bytes: new TextEncoder().encode("x") }]);
+    const closed = politeFetch({ officialHosts: ["data.example.lv"], userAgent: "x", transport: ok().transport, resolve: publicDns });
+    await expect(closed("http://data.example.lv/file.csv")).rejects.toMatchObject({ code: "host_not_official" });
+    const open = politeFetch({ officialHosts: ["data.example.lv"], userAgent: "x", transport: ok().transport, resolve: publicDns, allowHttp: true });
+    expect((await open("http://data.example.lv/file.csv")).status).toBe(200);
   });
 });

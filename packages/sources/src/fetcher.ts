@@ -176,6 +176,8 @@ export type PoliteFetchOptions = {
   resolve?: Resolver;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
+  /** Plain http, for a source whose official host has no https (a reviewed opt-in); default https only (SEC-7 on S05). */
+  allowHttp?: boolean;
   /** Tests only: let a local server through the address check. */
   allowAddress?: (address: string) => boolean;
 };
@@ -216,7 +218,7 @@ export function politeFetch(options: PoliteFetchOptions): PoliteFetch {
   }
 
   async function once(url: URL, headers: Record<string, string>, deadline: number, body: string | undefined, toFile: string | undefined): Promise<TransportResponse> {
-    if (url.protocol !== "https:" && url.protocol !== "http:") throw new FetchError("host_not_official", `${url.protocol} is not fetched`);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && options.allowHttp === true)) throw new FetchError("host_not_official", `${url.protocol} is not fetched`);
     if (!options.officialHosts.includes(url.hostname)) throw new FetchError("host_not_official", `${url.hostname} is not an official host of this source`);
     const addresses = isIP(url.hostname) ? [{ address: url.hostname, family: isIP(url.hostname) }] : await resolve(url.hostname);
     const target = addresses[0];

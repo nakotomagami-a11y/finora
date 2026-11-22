@@ -54,6 +54,7 @@ export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoade
           userAgent: batch.userAgent,
           ...(loader.meta.limits.requestsPerSecond ? { requestsPerSecond: loader.meta.limits.requestsPerSecond } : {}),
           ...(loader.meta.limits.maxBytes ? { maxBytes: loader.meta.limits.maxBytes } : {}),
+          ...(loader.meta.limits.allowHttp === true ? { allowHttp: true } : {}),
         });
         outcome = await runSync(store.db, loader, {
           ...batch.options,
