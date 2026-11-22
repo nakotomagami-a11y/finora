@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runSync } from "@finora/ingest";
 import { lvUrOfficersLoader, type LvPersonRows } from "@finora/sources";
-import { LV_BIRTH_DATE_CANARY, LV_LIQUIDATION_GROUND_CANARY, LV_RISK_CANARIES, lvMaskedCodeCanary, lvRiskMaskedCode } from "@finora/sources/testing";
+import { LV_BIRTH_DATE_CANARY, LV_LIQUIDATION_GROUND_CANARY, LV_RISK_CANARIES, lvFx, lvMaskedCodeCanary, lvOfficersCsv, lvRiskMaskedCode } from "@finora/sources/testing";
 import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { FIXTURE_PROFILE } from "./src/index.ts";
@@ -136,5 +136,30 @@ describe("LV fixture load: data dir and raw dir byte scan", () => {
     const elsewhere = db.prepare("SELECT p.name AS prop, st.value FROM main.statements st JOIN main.props p ON p.id = st.prop_id WHERE p.name <> 'director'").all() as { prop: string; value: string }[];
     expect(elsewhere.filter((v) => PERSON_ROW.test(v.value))).toEqual([]);
     close();
+  });
+
+  it("nulls and counts a name in an officer's id column, and stores it nowhere in either mode (N1)", async () => {
+    const ID_NAME = "Test Person Idcanary";
+    const csv = () => lvOfficersCsv([
+      { id: ID_NAME as never, n: 1, position: "BOARD_MEMBER", body: "EXECUTIVE_BOARD", name: "Test Person Q1", rights: "INDIVIDUALLY", registered: "2020-01-01" },
+      { id: 5004, n: 1, position: "BOARD_MEMBER", body: "EXECUTIVE_BOARD", name: "Test Person Q2", rights: "INDIVIDUALLY", registered: "2020-01-01" },
+    ]);
+    for (const mode of ["names_no_id", "role_counts"] as const) {
+      const dataDir = mkdtempSync(join(tmpdir(), "finora-lv-n1-"));
+      const rawDir = mkdtempSync(join(tmpdir(), "finora-lv-n1-raw-"));
+      dirs.push(dataDir, rawDir);
+      const store = openStore({ dataDir });
+      await runSync(store.db, fxLvUrRegister, { fetcher: noNetwork, rawCacheDir: rawDir });
+      const officers = { ...lvUrOfficersLoader({ personRows: mode }), fetch: async (ctx: { now: string }) => ({ artifacts: [{ name: "officers.csv", bytes: csv(), fetchedAt: ctx.now }] }) };
+      const outcome = await runSync(store.db, officers, { fetcher: noNetwork, rawCacheDir: rawDir, companyPartyTypes: COMPANY_PARTY_TYPES });
+      expect(outcome.kind).toBe("content");
+      expect(outcome.report?.dropped.free_text).toBe(1);
+      // The control: the digit id is kept.
+      const lineIds = (store.db.prepare("SELECT line_ids FROM main.records WHERE record_key = ?").get(`lv-${lvFx(1).code}|officers`) as { line_ids: string }).line_ids;
+      expect(JSON.parse(lineIds)).toEqual([null, "5004"]);
+      store.close();
+      const hits = [...files(dataDir), ...files(rawDir)].filter((path) => readFileSync(path).toString("utf8").includes(ID_NAME));
+      expect(hits, mode).toEqual([]);
+    }
   });
 });
