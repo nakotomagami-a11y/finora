@@ -16,6 +16,7 @@ import {
   heartbeat,
   isCompanyEid,
   liveCheckedAt,
+  markMaintenance,
   markViewed,
   missSince,
   recordIdsWithPrefix,
@@ -23,6 +24,7 @@ import {
   recordLines,
   recordMiss,
   releaseLease,
+  runMaintenance,
   setLiveChecked,
   upsertSource,
   writeFinoraEvent,
@@ -75,6 +77,7 @@ export async function fetchOnView(
     upsertSource(db, { id: meta.id, storage: "live-cached", purgeScope: meta.purgeScope }, at);
     syncId = beginSync(db, { sourceId: meta.id, licenceId: meta.licence, storage: "live-cached", parserVersion: loader.parserVersion, startedAt: at });
     const report = emptyReport("live-cached");
+    let withdrawn = false;
     const answers = await loader.fetchRecord({ fetcher: options.fetcher, keys: options.keys, now: at, lastToken: null }, view.recordKey);
     const gateOptions = {
       companyPartyTypes: options.companyPartyTypes ?? [],
@@ -135,12 +138,21 @@ export async function fetchOnView(
       // A record the dataset no longer returns is withdrawn (CT terms): its rows go.
       const gone = recordIdsWithPrefix(db, meta.id, `${prefix}:`).filter((id) => !keep.has(recordKeyOf(db, id)));
       deleteRecords(db, gone);
+      if (gone.length > 0) withdrawn = true;
       states[answer.dataset] = "fresh";
     }
     setLiveChecked(db, meta.id, view.recordKey, at);
     markViewed(db, view.entityEid, at);
+    // A rewrite or a withdrawal deleted values whose old page images sit in the WAL: a TRUNCATE
+    // checkpoint is owed, run after the commit (legal on fix 7).
+    if (report.written > 0 || report.deleted > 0 || withdrawn) markMaintenance(db, "wal_truncate");
     db.exec("COMMIT");
     finishSync(db, syncId, { kind: "content", finishedAt: options.now.toISOString(), report });
+    try {
+      runMaintenance(db);
+    } catch {
+      // Still owed: the next sync, the idle timer or the boot runs it.
+    }
     return states;
   } catch (error) {
     if (db.isTransaction) db.exec("ROLLBACK");

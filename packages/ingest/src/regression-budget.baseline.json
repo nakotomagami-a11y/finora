@@ -1,7 +1,7 @@
 {
   "records": 2000,
-  "firstLoadRatio": 45,
-  "unchangedRatio": 1,
+  "firstLoadRatio": 18,
+  "unchangedRatio": 0.4,
   "tolerance": 3,
-  "measuredOn": "dev-desktop-1, 2026-11-21: first load 39-43 units, unchanged reload 0.21-0.30 units (1 unit = the calibration loop, about 9 ms)"
+  "measuredOn": "dev-desktop-1, 2026-11-23, on a sync connection (sync: true, as the worker): first load 15.1-17.3 units best of 4, unchanged reload 0.34-0.36 units (1 unit = the calibration loop, about 9 ms)"
 }

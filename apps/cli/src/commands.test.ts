@@ -19,13 +19,24 @@ const io = (): Io => {
   return { env: { dataDir: dir, secUserAgent: null, shareAlikeMode: "store", lvPersonRows: "names_no_id" }, out: (l) => void lines.push(l), now: () => new Date("2026-11-21T10:00:00.000Z") };
 };
 
+/** The per-source lines, without their detail lines (write timings, maintenance). */
+const sourceLines = () => lines.filter((l) => !l.startsWith("  ") && !l.startsWith("maintenance "));
+let firstLoad: string[] = [];
+
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "finora-cli-"));
   expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
+  firstLoad = [...lines];
 }, 120_000);
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("finora-cli (S04f)", () => {
+  it("data sync prints each source's write timings and maintenance on their own lines (cto's fix 7)", () => {
+    const writes = firstLoad.filter((l) => /^ {2}writes: \d+ transactions, p95 [\d.]+ ms, max [\d.]+ ms, total [\d.]+ ms; checkpoints: \d+, max [\d.]+ ms, total [\d.]+ ms$/.test(l));
+    expect(writes.length).toBeGreaterThan(5);
+    expect(firstLoad.some((l) => /^ {2}maintenance wal_truncate: 1 step\(s\), max [\d.]+ ms, total [\d.]+ ms/.test(l))).toBe(true);
+  });
+
   it("data sync --profile core picks the real loaders by country, and names an empty choice", async () => {
     const out: string[] = [];
     expect(await dataSync({ ...io(), out: (l: string) => out.push(l) }, { profile: "core", country: "zz" })).toBe(2);
@@ -35,14 +46,14 @@ describe("finora-cli (S04f)", () => {
   it("data sync loads every fixture source; a later run writes nothing, and then is unchanged", async () => {
     // The second run may parse a file whose reference still waits on another source, writing nothing.
     expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
-    for (const line of lines.filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged|: content, read \d+, written 0, unchanged \d+, deleted 0,/);
+    for (const line of sourceLines().filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged|: content, read \d+, written 0, unchanged \d+, deleted 0,/);
     lines.length = 0;
     expect(await dataSync(io(), { profile: "fixtures" })).toBe(0);
-    expect(lines).toHaveLength(FIXTURE_PROFILE.length + 1);
+    expect(sourceLines()).toHaveLength(FIXTURE_PROFILE.length + 1);
     expect(lines.at(-1)).toMatch(/^peak RSS: \d+ MB$/);
-    for (const line of lines.filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged/);
+    for (const line of sourceLines().filter((l) => !l.startsWith("fx-lt-arrears") && !l.startsWith("peak RSS"))) expect(line).toMatch(/: unchanged/);
     expect(await dataSync(io(), { profile: "fixtures", source: "fx-hide" })).toBe(0);
-    expect(lines).toHaveLength(2);
+    expect(sourceLines()).toHaveLength(2);
     expect(await dataSync(io(), { profile: "nope" })).toBe(2);
   }, 120_000);
 

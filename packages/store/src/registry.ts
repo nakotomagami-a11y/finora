@@ -1,4 +1,5 @@
 // The registry write path the ingest pipeline builds on (architecture §3.2-§3.3, §4.4 step 5).
+import { markMaintenance } from "./maintenance.ts";
 import { prepared } from "./statements.ts";
 import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
@@ -200,7 +201,7 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
     // as a sole trader is never found by name, not even until the pass (L2, L3; qa, legal on 8661a89).
     if (input.deferSearch) {
       const entity = refreshCaption(db, entityId);
-      if (entity && !searchable(entity)) deleteSearchRows(db, entityId);
+      if (entity && !searchable(entity)) deleteUnsearchableRows(db, entityId);
       prepared(db, "INSERT OR IGNORE INTO main.search_dirty (entity_id) VALUES (?)").run(entityId);
     } else refreshEntity(db, entityId);
   }
@@ -264,8 +265,7 @@ export function dropIfOrphan(db: DatabaseSync, entityId: number): boolean {
     )
     .run(entityId).changes;
   if (deleted === 0) return false;
-  prepared(db, "DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
-  prepared(db, "DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
+  deleteUnsearchableRows(db, entityId);
   return true;
 }
 
@@ -296,9 +296,20 @@ type EntityForSearch = { id: number; eid: string; natural_person: number; legal_
 const searchable = (entity: EntityForSearch) =>
   entity.natural_person === 0 && (ORGANISATION_SCHEMAS as readonly string[]).includes(entity.schema) && !entity.eid.startsWith("sanc-");
 
-function deleteSearchRows(db: DatabaseSync, entityId: number): void {
-  prepared(db, "DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
-  prepared(db, "DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
+/** Deletes the entity's search rows; returns how many went. */
+function deleteSearchRows(db: DatabaseSync, entityId: number): number {
+  return (
+    Number(prepared(db, "DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId).changes) +
+    Number(prepared(db, "DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId).changes)
+  );
+}
+
+/**
+ * An entity that is not searchable any more lost its search rows: an FTS5 delete leaves the terms in
+ * older index segments until they are merged, so the merge is owed (cto 7087224181, legal).
+ */
+function deleteUnsearchableRows(db: DatabaseSync, entityId: number): void {
+  if (deleteSearchRows(db, entityId) > 0) markMaintenance(db, "fts_merge");
 }
 
 /** The entity and its names; null when it is gone. */
@@ -334,15 +345,12 @@ export function refreshCaption(db: DatabaseSync, entityId: number): EntityForSea
 
 /** The entity's two search rows, rewritten from its names. */
 export function refreshSearchRows(db: DatabaseSync, entityId: number): void {
-  deleteSearchRows(db, entityId);
   const found = entityForSearch(db, entityId);
-  if (!found) return;
-  const { entity, names } = found;
-  if (searchable(entity)) {
-    const text = normalizeText([...new Set(names)].join(" "));
-    prepared(db, "INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)").run(entityId, text);
-    prepared(db, "INSERT INTO main.entities_trigram (rowid, search_text) VALUES (?, ?)").run(entityId, text);
-  }
+  if (!found || !searchable(found.entity)) return void deleteUnsearchableRows(db, entityId);
+  deleteSearchRows(db, entityId);
+  const text = normalizeText([...new Set(found.names)].join(" "));
+  prepared(db, "INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)").run(entityId, text);
+  prepared(db, "INSERT INTO main.entities_trigram (rowid, search_text) VALUES (?, ?)").run(entityId, text);
 }
 
 export function refreshEntity(db: DatabaseSync, entityId: number): void {
@@ -355,8 +363,9 @@ export function refreshEntity(db: DatabaseSync, entityId: number): void {
  * `begin` (a sync's fenced begin) and committed here. The marks are rows, so a sync cut off before
  * this pass leaves them for the next sync or the boot to finish (qa condition 1 on the write path).
  */
-export function rebuildSearch(db: DatabaseSync, options: { begin?: () => void; batch?: number } = {}): number {
+export function rebuildSearch(db: DatabaseSync, options: { begin?: () => void; commit?: () => void; batch?: number } = {}): number {
   const begin = options.begin ?? (() => db.exec("BEGIN IMMEDIATE"));
+  const commit = options.commit ?? (() => db.exec("COMMIT"));
   const batch = options.batch ?? 5000;
   let done = 0;
   for (;;) {
@@ -372,7 +381,7 @@ export function rebuildSearch(db: DatabaseSync, options: { begin?: () => void; b
         refreshSearchRows(db, id);
         prepared(db, "DELETE FROM main.search_dirty WHERE entity_id = ?").run(id);
       }
-      db.exec("COMMIT");
+      commit();
     } catch (error) {
       if (db.isTransaction) db.exec("ROLLBACK");
       throw error;

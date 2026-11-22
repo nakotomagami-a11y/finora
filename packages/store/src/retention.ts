@@ -2,6 +2,7 @@
 // successful sync, content or unchanged, so live officers never expire while a file is unchanged
 // (qa N1). Live-cached entities not viewed for the TTL are purged.
 import type { DatabaseSync } from "node:sqlite";
+import { markMaintenance } from "./maintenance.ts";
 import { dropIfOrphan } from "./registry.ts";
 
 const DAY_MS = 86_400_000;
@@ -49,12 +50,15 @@ export function runRetention(
         .all(id) as { id: number }[]
     ).map((r) => r.id);
     expireRecords(db, records, touched);
-    db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(id);
-    db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(id);
+    const searchRows = Number(db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(id).changes) + Number(db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(id).changes);
+    if (searchRows > 0) markMaintenance(db, "fts_merge");
     db.prepare("DELETE FROM main.entities WHERE id = ?").run(id);
     touched.delete(id);
   }
   for (const id of touched) dropIfOrphan(db, id);
+  // A purge leaves a TRUNCATE checkpoint owed, after any merge: the caller runs runMaintenance once
+  // its transaction commits, so no image of a purged row stays in the WAL (legal on fix 7).
+  if (personStatements > 0 || expired.length > 0) markMaintenance(db, "wal_truncate");
   return { personStatements, liveCacheEntities: expired.length };
 }
 

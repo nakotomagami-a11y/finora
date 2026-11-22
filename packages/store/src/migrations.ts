@@ -351,6 +351,17 @@ export const MIGRATIONS: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  {
+    // Fix 7 and legal's purge conditions on S05: maintenance a write left owed, kept as a row so a
+    // sync cut off before it runs leaves it for the next sync, the idle timer or the boot.
+    target: "main",
+    name: "maintenance due",
+    sql: `
+      CREATE TABLE main.maintenance_due (
+        kind TEXT PRIMARY KEY CHECK (kind IN ('fts_merge', 'wal_truncate'))
+      ) STRICT;
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */

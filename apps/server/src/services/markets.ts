@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { CrashResponse } from "@finora/api-contract";
 import { parseProviders, PROVIDERS_MAX_BYTES, readMarketSettings, type Fetch, type Providers } from "@finora/markets";
 import { FetchError, LICENCES, type PoliteFetch } from "@finora/sources";
-import { openStore, type Store } from "@finora/store";
+import { openStore, startIdleMaintenance, type Store } from "@finora/store";
 import pkg from "../../package.json" with { type: "json" };
 import { getDataDir } from "../data-dir.ts";
 import { getEnv } from "../env.ts";
@@ -39,7 +39,13 @@ export function useMarketsStore(s: Store, p: Providers = {}): void {
 }
 
 function getStore(): Store {
-  store ??= openStore({ dataDir: getDataDir() });
+  if (!store) {
+    store = openStore({ dataDir: getDataDir() });
+    // The app's long-lived connection checkpoints nothing in its commits (wal_autocheckpoint = 0):
+    // at start and on an idle timer, a PASSIVE checkpoint bounds the WAL between syncs, and any merge
+    // or TRUNCATE a sync left owed runs (cto's fix 7, legal).
+    startIdleMaintenance(store.db);
+  }
   return store;
 }
 

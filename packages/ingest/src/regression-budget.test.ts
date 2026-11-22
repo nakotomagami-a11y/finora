@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { companies, fakeSource } from "./testing/fake-source.ts";
-import { memoryDb, sync } from "./test-helpers.ts";
+import { openStore } from "@finora/store";
+import { sync } from "./test-helpers.ts";
 
 // P10 in CI (qa #23): absolute times do not hold across machines, so each sync is timed against a
 // fixed CPU workload run right beside it, and the ratio is compared with a stored baseline. The
@@ -24,7 +25,8 @@ function calibrate(): number {
 }
 
 async function round(): Promise<{ firstLoad: number; unchanged: number }> {
-  const db = memoryDb();
+  // The connection a sync runs on (cto 7087168109): statement cache and page cache, as in the worker.
+  const db = openStore({ dataDir: null, sync: true }).db;
   const loader = fakeSource({}, { records: companies(1, baseline.records) });
   const before = calibrate();
   let start = performance.now();

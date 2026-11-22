@@ -45,7 +45,8 @@ function files(dir: string): string[] {
   });
 }
 
-async function loadAll(mode: LvPersonRows): Promise<{ dataDir: string; rawDir: string }> {
+/** The store stays open, so its -wal and -shm files are scanned too (qa, legal on fix 7). */
+async function loadAll(mode: LvPersonRows): Promise<{ dataDir: string; rawDir: string; close: () => void }> {
   const dataDir = mkdtempSync(join(tmpdir(), "finora-lv-scan-"));
   const rawDir = mkdtempSync(join(tmpdir(), "finora-lv-raw-"));
   dirs.push(dataDir, rawDir);
@@ -55,20 +56,22 @@ async function loadAll(mode: LvPersonRows): Promise<{ dataDir: string; rawDir: s
     const outcome = await runSync(store.db, loader, { fetcher: noNetwork, rawCacheDir: rawDir, companyPartyTypes: COMPANY_PARTY_TYPES });
     expect(outcome.kind, loader.meta.id).toBe("content");
   }
-  store.close();
-  return { dataDir, rawDir };
+  return { dataDir, rawDir, close: () => store.close() };
 }
 
 describe("LV fixture load: data dir and raw dir byte scan", () => {
   it.each(["names_no_id", "role_counts"] as const)("holds no person code, birth date or dropped person text in %s mode", async (mode) => {
-    const { dataDir, rawDir } = await loadAll(mode);
+    const { dataDir, rawDir, close } = await loadAll(mode);
     expect(files(rawDir)).toEqual([]);
     // In role_counts no officer, member or listed person's name is stored either.
     const needles = mode === "role_counts" ? [...ALWAYS, ...PERSON_NAMES] : ALWAYS;
+    // Read while the store is open: the -wal file is there and is scanned with the rest.
+    expect(files(dataDir).some((path) => path.endsWith("finora.db-wal"))).toBe(true);
     const hits = files(dataDir).flatMap((path) => {
       const text = readFileSync(path).toString("utf8");
       return needles.filter((n) => text.includes(n)).map((n) => `${path.slice(dataDir.length)}: ${n}`);
     });
+    close();
     expect(hits).toEqual([]);
   }, 60_000);
 

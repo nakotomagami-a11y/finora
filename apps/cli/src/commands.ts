@@ -8,13 +8,15 @@ import { fixtureProfileFor } from "@finora/fixtures";
 import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, sweepWorkDirs, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { loadersFor, type LoaderConfig } from "@finora/sources";
-import { companyValues, openStore, rebuildSearch, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
+import { companyValues, openStore, rebuildSearch, runMaintenance, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
 
 export type Io = { env: CliEnv; out: (line: string) => void; now?: () => Date };
 
 const COMPANY_PARTY_TYPES = ["LEGAL_ENTITY", "FOREIGN_ENTITY", "J"];
 const SYNC_WORKER = new URL("./sync-worker.ts", import.meta.url);
+
+const round = (ms: number) => Math.round(ms * 10) / 10;
 
 function withStore<T>(io: Io, fn: (store: Store) => T): T {
   const store = openStore({ dataDir: io.env.dataDir });
@@ -62,6 +64,8 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
   withStore(io, (store) => {
     sweepWorkDirs(store.db, join(io.env.dataDir, "work"));
     rebuildSearch(store.db);
+    // A merge or a TRUNCATE a killed sync still owed (legal on fix 7).
+    runMaintenance(store.db);
   });
   if (held === null) writeFileSync(marker, `${args.profile}\n`);
   let failed = 0;
@@ -96,7 +100,16 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     if (outcome.kind === "failed" || outcome.kind === "partial") failed++;
     const r = outcome.report;
     io.out(`${loader.meta.id}: ${outcome.kind}${r ? `, read ${r.read}, written ${r.written}, unchanged ${r.unchanged}, deleted ${r.deleted}, dropped ${dropsLine(r.dropped)}` : ""}${outcome.peakHeapMb !== undefined ? `, heap peak ${outcome.peakHeapMb} MB` : ""}`);
+    // Target 3 from the product's own output (cto's fix 7): write transactions, the sync's checkpoints,
+    // and each maintenance write on its own line.
+    const t = r?.timings;
+    if (t && t.transactions > 0) io.out(`  writes: ${t.transactions} transactions, p95 ${t.p95Ms} ms, max ${t.maxMs} ms, total ${t.totalMs} ms; checkpoints: ${t.checkpoints}, max ${t.checkpointMaxMs} ms, total ${t.checkpointTotalMs} ms`);
+    for (const m of r?.maintenance ?? []) io.out(`  maintenance ${m.kind}: ${m.steps} step(s), max ${m.maxStepMs} ms, total ${m.ms} ms${m.busy ? ", busy (retried on the next run)" : ""}`);
   }
+  // A TRUNCATE a reader blocked during a sync, retried once every lane is done.
+  withStore(io, (store) => {
+    for (const m of runMaintenance(store.db)) io.out(`maintenance ${m.kind}: ${m.steps} step(s), max ${round(m.maxStepMs)} ms${m.busy ? ", busy (retried on the next run)" : ""}`);
+  });
   // P10 memory budget: the peak of this process, which ran every sync worker above (cto on S04i).
   io.out(`peak RSS: ${(process.resourceUsage().maxRSS / 1024).toFixed(0)} MB`);
   return failed === 0 ? 0 : 1;

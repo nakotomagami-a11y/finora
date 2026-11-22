@@ -16,6 +16,7 @@ import {
   deleteRecords,
   endStaging,
   entityByCode,
+  checkpoint,
   clearStatementCache,
   entityByEid,
   entityGeneration,
@@ -32,7 +33,9 @@ import {
   recordLines,
   releaseLease,
   replaceShareAlike,
+  markMaintenance,
   rebuildSearch,
+  runMaintenance,
   recordUnchanged,
   setContentHash,
   syncReport,
@@ -43,6 +46,7 @@ import {
   upsertSource,
   writeFinoraEvent,
   writeRecord,
+  type MaintenanceStep,
 } from "@finora/store";
 import { applyGates, type Drop, type GateResult } from "./gates.ts";
 import { snapshot, writeHistory } from "./history.ts";
@@ -71,7 +75,29 @@ export type SyncReport = {
   /** Set when a record waits on another source: the file's hash and the store's entity generation then. */
   retryHash?: string;
   retryGeneration?: number;
+  /** Write transactions, BEGIN to COMMIT, and the sync's own checkpoints between them (cto's fix 7). */
+  timings?: WriteTimings;
+  /** Maintenance writes, each on its own line: never folded into the transaction figures (council). */
+  maintenance?: MaintenanceStep[];
 };
+
+export type WriteTimings = { transactions: number; p95Ms: number; maxMs: number; totalMs: number; checkpoints: number; checkpointMaxMs: number; checkpointTotalMs: number };
+
+const round = (ms: number) => Math.round(ms * 10) / 10;
+function summarizeWrites(writes: { tx: number[]; checkpoints: number[] }): WriteTimings {
+  const sorted = [...writes.tx].sort((a, b) => a - b);
+  const p95 = sorted.length === 0 ? 0 : sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)]!;
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  return {
+    transactions: sorted.length,
+    p95Ms: round(p95),
+    maxMs: round(sorted.at(-1) ?? 0),
+    totalMs: round(sum(sorted)),
+    checkpoints: writes.checkpoints.length,
+    checkpointMaxMs: round(Math.max(0, ...writes.checkpoints)),
+    checkpointTotalMs: round(sum(writes.checkpoints)),
+  };
+}
 
 export type SyncOutcome = { kind: SyncKind; syncId: number | null; report: SyncReport | null };
 
@@ -99,6 +125,8 @@ export type SyncOptions = {
   heartbeatMs?: number;
   /** Records per transaction, and the time one transaction may hold the write lock. */
   batch?: { maxRecords?: number; maxMs?: number };
+  /** WAL frames between the sync's own PASSIVE checkpoints; default 16,384 (64 MB of 4 KB pages; cto's fix 7). Tests set it low. */
+  checkpointFrames?: number;
   signal?: AbortSignal;
   logger?: Logger;
   /** Register type values that prove a party is a company (LV LEGAL_ENTITY, EE J). */
@@ -242,7 +270,10 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
   };
   /** Fencing (qa on S04i): the lease row is renewed inside the write transaction itself, so a
    *  takeover between two transactions rolls back whatever this one would have written. */
+  const writes = { tx: [] as number[], checkpoints: [] as number[] };
+  let txStart = 0;
   const begin = () => {
+    txStart = performance.now();
     db.exec("BEGIN IMMEDIATE");
     if (lost || !heartbeat(db, lease, ttl, now().getTime())) {
       lost = true;
@@ -250,10 +281,47 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       throw new LeaseLost();
     }
   };
+  // Each write transaction is timed BEGIN to COMMIT. The sync checkpoints the WAL itself, between
+  // transactions, once about `checkpointFrames` frames have gathered (cto's fix 7): a checkpoint inside
+  // a COMMIT flushed the whole file and made the register's commits 209 s of its 286 s.
+  const checkpointSchema = storage === "share-alike-store" ? "sa" : "main";
+  const checkpointFrames = finiteIn(options.checkpointFrames, 1, 10_000_000) ?? 16_384;
+  let commitsSinceCheckpoint = 0;
+  let checkpointEvery = 8;
+  const commitTx = () => {
+    db.exec("COMMIT");
+    writes.tx.push(performance.now() - txStart);
+    if (++commitsSinceCheckpoint < checkpointEvery) return;
+    const passive = checkpoint(db, "PASSIVE", checkpointSchema);
+    writes.checkpoints.push(passive.ms);
+    // The WAL held `log` frames after these commits, everyone's: the next checkpoint comes after about
+    // `checkpointFrames` more.
+    checkpointEvery = Math.max(1, Math.min(10_000, Math.round((commitsSinceCheckpoint * checkpointFrames) / Math.max(1, passive.log))));
+    commitsSinceCheckpoint = 0;
+  };
 
   /** Null until the sync row exists: an error before it ends the sync with no row to close. */
   let syncId: number | null = null;
+  /**
+   * At the sync's end, whatever its outcome, outside any transaction: a sync that wrote or deleted
+   * anything leaves a TRUNCATE checkpoint owed, since a rewrite deletes the value it replaces and its
+   * old page image sits in the WAL (legal on fix 7); then the maintenance owed runs, each kind on its
+   * own line of the report (council on target 3).
+   */
+  const maintain = () => {
+    report.timings = summarizeWrites(writes);
+    if (storage === "live-no-store" || db.isTransaction) return;
+    try {
+      if (report.written + report.deleted + report.tombstoned + report.events > 0) markMaintenance(db, "wal_truncate");
+      const steps = runMaintenance(db);
+      if (steps.length > 0) report.maintenance = steps.map((m) => ({ ...m, ms: round(m.ms), maxStepMs: round(m.maxStepMs) }));
+    } catch {
+      // Still owed: the next sync, the idle timer or the boot runs it.
+      report.maintenance = [{ kind: "wal_truncate", ms: 0, steps: 0, maxStepMs: 0, busy: true }];
+    }
+  };
   const finish = (kind: Exclude<SyncKind, "already_running">, extra: { reason?: string; upstreamAsOf?: string | null; asOfBasis?: string | null } = {}): SyncOutcome => {
+    maintain();
     report.durationMs = now().getTime() - started.getTime();
     if (extra.reason) report.reason = extra.reason;
     if (syncId !== null) {
@@ -281,7 +349,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     // base is not swept: a lease covers one store, and another store's sync of the source may be live there.
     if (options.workDir) removeWorkDirs(options.workDir, [meta.id]);
     // A sync cut off before its search pass left marks: they are written first (qa condition 1).
-    rebuildSearch(db, { begin });
+    rebuildSearch(db, { begin, commit: commitTx });
     const previous = lastContentSync(db, meta.id);
     const previousStorage = lastContentStorage(db, meta.id);
     const classChanged = previousStorage !== null && previousStorage !== storage;
@@ -354,7 +422,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     let batchStart = 0;
     const commit = () => {
       if (!db.isTransaction) return;
-      db.exec("COMMIT");
+      commitTx();
       // The next batch is sized from this one's rate, so the write lock is held about maxMs: a slow
       // disk shrinks it, a fast one grows it, never below 50 or above 5000 (cto's fix 1; qa session 2).
       maxRecords = nextBatchSize(inBatch, maxMs, Date.now() - batchStart, batchCap);
@@ -451,7 +519,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       }
       begin();
       replaceShareAlike(db, { sourceId: meta.id, licenceId: meta.licence, startedAt, upstreamAsOf: asOf, records: memoryRecords }, memory);
-      db.exec("COMMIT");
+      commitTx();
       report.written = memoryRecords;
       report.deleted = removed;
     } else if (storage === "live-no-store") {
@@ -467,20 +535,21 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
         day,
         windowStart: loader.windowStart?.(artifacts) ?? null,
         begin,
+        commit: commitTx,
         maxMs,
       });
       endStaging(db);
       report.deleted = purged.deleted;
       report.tombstoned = purged.tombstoned;
       report.events += purged.events;
-      rebuildSearch(db, { begin });
+      rebuildSearch(db, { begin, commit: commitTx });
       if (purged.guard) {
         setContentHash(db, syncId, hash);
         return finish("partial", { upstreamAsOf: asOf, asOfBasis: basis, reason: "purge_guard" });
       }
     }
 
-    if (classChanged) moveOutOf(db, meta.id, previousStorage as StorageClass, storage, options.rawCacheDir ?? null, begin);
+    if (classChanged) moveOutOf(db, meta.id, previousStorage as StorageClass, storage, options.rawCacheDir ?? null, begin, commitTx);
     // A file with a record waiting on another source (an unresolved reference, an entity not loaded
     // yet) keeps no content hash, so the next sync parses it again even when the file is unchanged
     // (cto's ref condition, qa M5 on S05).
@@ -573,12 +642,12 @@ export function countDrops(report: SyncReport, drops: readonly Drop[]): void {
 }
 
 /** A7: after a full reload into the new class, nothing of the source stays in the old one. */
-function moveOutOf(db: DatabaseSync, sourceId: string, from: StorageClass, to: StorageClass, rawCacheDir: string | null, begin: () => void): void {
+function moveOutOf(db: DatabaseSync, sourceId: string, from: StorageClass, to: StorageClass, rawCacheDir: string | null, begin: () => void, commit: () => void): void {
   if (from === to) return;
   begin();
   if (from === "store") purgeSourceFromMain(db, sourceId);
   if (from === "share-alike-store") purgeShareAlike(db, sourceId);
-  db.exec("COMMIT");
+  commit();
   if (from === "live-no-store") clearLiveView(sourceId);
   if (to === "live-no-store" && rawCacheDir) dropRaw(rawCacheDir, sourceId);
 }
@@ -592,7 +661,7 @@ function moveOutOf(db: DatabaseSync, sourceId: string, from: StorageClass, to: S
 function purge(
   db: DatabaseSync,
   loader: SourceLoader,
-  run: { deletes: string[]; periods: Set<string>; allowMassPurge: boolean; day: string; windowStart: string | null; begin: () => void; maxMs: number },
+  run: { deletes: string[]; periods: Set<string>; allowMassPurge: boolean; day: string; windowStart: string | null; begin: () => void; commit: () => void; maxMs: number },
 ): { deleted: number; tombstoned: number; events: number; guard: boolean } {
   const { meta } = loader;
   const total = countRecords(db, meta.id);
@@ -631,7 +700,7 @@ function purge(
     }
     deleteRecords(db, batch);
     deleted += batch.length;
-    db.exec("COMMIT");
+    run.commit();
   }
   return { deleted, tombstoned, events, guard: false };
 }

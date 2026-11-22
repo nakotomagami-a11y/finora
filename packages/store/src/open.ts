@@ -52,6 +52,12 @@ export function openStore(options: { dataDir: string | null; sync?: boolean }): 
   // First, so that two processes opening one store at once wait for each other instead of failing.
   // Opening waits long: the other may be migrating a fresh store on a busy machine (qa NIT on S05).
   db.exec("PRAGMA busy_timeout = 60000");
+  // Before the attaches, which take it over: a deleted row's bytes are overwritten, on every
+  // connection, the sync's included, since a rewrite deletes the value it replaces (legal on fix 7).
+  db.exec("PRAGMA secure_delete = ON");
+  // No connection checkpoints inside its own COMMIT: the sync checkpoints outside its transactions,
+  // and a long-lived process runs idle maintenance (cto's fix 7; see maintenance.ts).
+  db.exec("PRAGMA wal_autocheckpoint = 0");
   db.prepare("ATTACH DATABASE ? AS user").run(paths.user);
   db.prepare("ATTACH DATABASE ? AS sa").run(paths.sa);
   db.prepare("ATTACH DATABASE ? AS cc").run(paths.cc);
