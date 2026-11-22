@@ -85,6 +85,28 @@ describe("streamed artifacts in the pipeline", () => {
     expect(readdirSync(work.path)).toEqual([]);
   });
 
+  it("removes the work dir when the sync fails too: a parse error, and a fetch that throws after writing (legal)", async () => {
+    const db = memoryDb();
+    const work = tempDir();
+    dirs.push(work);
+    const failing = streamedSource({ records: companies(1, 5) });
+    const parse = failing.loader.parse.bind(failing.loader);
+    failing.loader.parse = async function* (raw, ctx) {
+      yield* parse(raw, ctx);
+      throw new Error("cut-off file");
+    };
+    expect((await runSync(db, failing.loader, { fetcher: noNetwork, workDir: work.path })).kind).not.toBe("content");
+    expect(readdirSync(work.path)).toEqual([]);
+    const throwing = streamedSource({ records: companies(1, 5) });
+    const fetch = throwing.loader.fetch.bind(throwing.loader);
+    throwing.loader.fetch = async (ctx) => {
+      await fetch(ctx);
+      throw new Error("connection reset");
+    };
+    expect((await runSync(memoryDb(), throwing.loader, { fetcher: noNetwork, workDir: work.path })).kind).toBe("failed");
+    expect(readdirSync(work.path)).toEqual([]);
+  });
+
   it("a cached file that fails its sha256 is not used: the source is fetched again", async () => {
     const db = memoryDb();
     const work = tempDir();
