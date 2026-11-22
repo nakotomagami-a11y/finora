@@ -95,3 +95,19 @@ describe("G3: an error right after the lease is taken still releases it", () => 
     expect((await runSync(db, loader, { fetcher: noNetwork })).kind).toBe("content");
   });
 });
+
+describe("J4: a clock that throws around the lease leaves none held", () => {
+  it("the sync rejects and holds no lease; the next sync runs", async () => {
+    const db = memoryDb();
+    const loader = fakeSource({}, { records: companies(1, 3) });
+    // It fails on its second reading: before J4 that was the first one after the lease was taken.
+    let readings = 0;
+    const clock = () => {
+      if (++readings === 2) throw new Error("clock");
+      return new Date("2026-11-23T08:00:00.000Z");
+    };
+    await expect(runSync(db, loader, { fetcher: noNetwork, now: clock })).rejects.toThrow("clock");
+    expect(db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
+    expect((await runSync(db, loader, { fetcher: noNetwork })).kind).toBe("content");
+  });
+});
