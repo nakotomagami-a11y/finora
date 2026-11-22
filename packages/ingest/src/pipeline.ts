@@ -166,18 +166,23 @@ export function nextBatchSize(inBatch: number, maxMs: number, elapsedMs: number,
 const RETRY_MARKER = "\u0000reference_retry";
 const retryable = (hashInput: string[], retry: boolean) => (retry ? [...hashInput, RETRY_MARKER] : hashInput);
 
-/** Every string a value of `refused` appears in is masked, so no row hash covers a personal code. */
 /**
- * The hash input with every refused value replaced by a marker of its own, in one pass: with a
- * shared marker, a proven value changing from "12" to "21" would mask the same as soon as "1" and
- * "2" were refused, and the change would never be written (coordinator, qa on 400f7d6).
+ * The hash input with every refused value replaced by a marker of its own, in one pass, so no row
+ * hash covers a refused value. With a shared marker, a proven value changing from "12" to "21" would
+ * mask the same as soon as "1" and "2" were refused, and the change would never be written
+ * (coordinator, qa on 400f7d6). A loader may put a value into its hash input inside JSON, so the
+ * value's JSON-escaped form is masked too: `SIA "Example"` stands there as `SIA \"Example\"`.
  */
 function masked(hashInput: readonly string[], refused: readonly string[]): string[] {
   const values = [...new Set(refused.filter((v) => v !== ""))].sort();
   if (values.length === 0) return [...hashInput];
-  const marker = new Map(values.map((v, i) => [v, `[withheld ${i}]`]));
+  const marker = new Map<string, string>();
+  values.forEach((v, i) => {
+    marker.set(v, `[withheld ${i}]`);
+    marker.set(JSON.stringify(v).slice(1, -1), `[withheld ${i}]`);
+  });
   // Longest first, so a value inside a longer refused value never splits it.
-  const pattern = new RegExp([...values].sort((a, b) => b.length - a.length).map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+  const pattern = new RegExp([...marker.keys()].sort((a, b) => b.length - a.length).map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
   return hashInput.map((h) => h.replace(pattern, (v) => marker.get(v) as string));
 }
 

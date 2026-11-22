@@ -117,4 +117,20 @@ describe("a party that needs another (PartyRef.needs)", () => {
     expect(refused).toEqual(expect.arrayContaining(["Scope Holding", "Scope Alias"]));
     expect(refused).not.toContain("777");
   });
+
+  it("a quoted name inside a JSON hash element is masked too: a change to it alone writes nothing (legal: any name in a member line)", async () => {
+    const run = async (proven: boolean) => {
+      const db = memoryDb();
+      await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+      const holder = (name: string): PartyRef => ({ type: proven ? "LEGAL_ENTITY" : "JOINT_OWNERS", entities: [{ eid: "org-00000000000000000007", schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
+      const record = (name: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), holder(name)]), hashInput: [JSON.stringify(["", "JOINT_OWNERS", "", name, "10"])] });
+      const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record('SIA "Quoted Holding A"')] });
+      await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
+      links.state.records = [record('SIA "Quoted Holding B"')];
+      links.state.asOf = { in_file_field: "2026-11-02" };
+      return (await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report;
+    };
+    expect((await run(false))?.unchanged).toBe(1);
+    expect((await run(true))?.written).toBe(1);
+  });
 });
