@@ -7,8 +7,9 @@
 //
 // Get the files once (open data, CC0): `python -I research/probes/baltics/lv/01_ckan_download.py <cache>`
 // writes `<cache>/raw/<dataset>/<file>.csv`. Then, from the repo root, on a fresh run:
-//   node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [--names] [source ids...]
-// The officers load in `role_counts` unless `--names` asks for `names_no_id`. The store goes to a
+//   node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [--person-rows <mode>] [source ids...]
+// `--person-rows` sets LV_PERSON_ROWS for the officers: `role_counts` by default for casual runs; an
+// acceptance run passes `names_no_id`, the mode that ships by default, which writes more (qa). The store goes to a
 // fresh temp dir and is removed on every exit, Ctrl-C included. Record the printed commit, the
 // command and the machine with any figure you keep (docs/plan/benchmarks.md).
 import { execFileSync } from "node:child_process";
@@ -16,7 +17,7 @@ import { copyFileSync, existsSync, mkdtempSync, readdirSync, rmSync, statSync, w
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runSync } from "../../packages/ingest/src/index.ts";
-import { loadersFor } from "../../packages/sources/src/index.ts";
+import { loadersFor, LV_PERSON_ROWS_MODES, type LvPersonRows } from "../../packages/sources/src/index.ts";
 import { openStore } from "../../packages/store/src/index.ts";
 
 /** The bench prints its figures to stdout. */
@@ -29,16 +30,19 @@ const option = (name: string) => {
   args.splice(i, 2);
   return value ?? null;
 };
-const names = args.includes("--names");
-if (names) args.splice(args.indexOf("--names"), 1);
+const personRows = option("--person-rows") ?? "role_counts";
+if (!(LV_PERSON_ROWS_MODES as readonly string[]).includes(personRows)) {
+  console.error(`--person-rows must be one of ${LV_PERSON_ROWS_MODES.join(", ")}`);
+  process.exit(2);
+}
 const raw = option("--raw");
 const workBase = option("--work") ?? tmpdir();
 if (!raw || !existsSync(raw)) {
-  console.error("usage: node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [--names] [source ids...]");
+  console.error("usage: node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [--person-rows <mode>] [source ids...]");
   process.exit(2);
 }
 const only = new Set(args);
-const LV = loadersFor({ lvPersonRows: names ? "names_no_id" : "role_counts" }).filter((l) => l.meta.country === "lv" && l.meta.id.startsWith("lv-") && (only.size === 0 || only.has(l.meta.id)));
+const LV = loadersFor({ lvPersonRows: personRows as LvPersonRows }).filter((l) => l.meta.country === "lv" && l.meta.id.startsWith("lv-") && (only.size === 0 || only.has(l.meta.id)));
 const commit = (() => {
   try {
     return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
@@ -46,14 +50,14 @@ const commit = (() => {
     return "unknown";
   }
 })();
-out(`commit ${commit}, node ${process.version}, ${LV.length} sources, LV_PERSON_ROWS ${names ? "names_no_id" : "role_counts"}, gc ${typeof globalThis.gc === "function" ? "on" : "off (pass --expose-gc)"}`);
+out(`commit ${commit}, node ${process.version}, ${LV.length} sources, LV_PERSON_ROWS ${personRows}, gc ${typeof globalThis.gc === "function" ? "on" : "off (pass --expose-gc)"}`);
 
 const mb = (n: number) => Math.round(n / 2 ** 20);
 const dataDir = mkdtempSync(join(workBase, "finora-bench-store-"));
 const store = openStore({ dataDir, sync: true });
 const db = store.db;
 let closed = false;
-/** The store holds officer names under `--names`: it never outlives the run. */
+/** The store holds officer names under `names_no_id`: it never outlives the run. */
 const cleanUp = () => {
   if (!closed) {
     closed = true;
