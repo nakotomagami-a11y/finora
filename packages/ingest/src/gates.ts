@@ -107,14 +107,21 @@ export function applyGates(
   // Entities of a party the gate did not prove: a value naming one is refused for good, never
   // retried as an unresolved reference (an LV sanctions counterparty known by name, N4 on S05).
   const unproven = new Set<string>();
-  const proven = (record.parties ?? []).map((party) => partyProven(party, options.companyPartyTypes, options.lookup));
+  // `needs` points at an earlier party that loaded, so a chain holds and a bad index fails closed.
+  const loaded: boolean[] = [];
   for (const [i, party] of (record.parties ?? []).entries()) {
-    if (proven[i] && (party.needs === undefined || proven[party.needs] === true)) {
+    const ok = partyProven(party, options.companyPartyTypes, options.lookup) && (party.needs === undefined || (party.needs < i && loaded[party.needs] === true));
+    loaded.push(ok);
+    if (ok) {
       parties.push(...party.entities);
       partyEvents.push(...(party.events ?? []));
     } else {
       drop("party_not_proven");
-      for (const e of party.entities) unproven.add(e.eid);
+      for (const e of party.entities) {
+        unproven.add(e.eid);
+        // Its values are not stored, so no record hash covers them either (masked, like a refused code).
+        for (const s of e.statements) if (s.value) refused.push(s.value);
+      }
     }
   }
 

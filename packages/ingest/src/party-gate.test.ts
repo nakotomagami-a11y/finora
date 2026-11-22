@@ -1,6 +1,6 @@
 import type { ParsedEntity, ParsedRecord, PartyRef } from "@finora/sources";
 import { describe, expect, it } from "vitest";
-import { partyProven } from "./gates.ts";
+import { applyGates, partyProven } from "./gates.ts";
 import { companyRecord, fakeSource } from "./testing/fake-source.ts";
 import { count, memoryDb, sync } from "./test-helpers.ts";
 
@@ -61,5 +61,41 @@ describe("the proven-company party gate (council final round; LAW-LLC-MEMBERS in
     const owners = (db.prepare("SELECT value FROM main.statements st JOIN main.props p ON p.id = st.prop_id WHERE p.name = 'owner' ORDER BY value").all() as { value: string }[]).map((r) => r.value);
     expect(owners).toEqual([`org-${"1".padStart(20, "0")}`, `org-${"3".padStart(20, "0")}`]);
     expect(count(db, "SELECT COUNT(*) AS n FROM main.statements WHERE value LIKE 'Member Holding 2%' OR value LIKE 'Member Holding 4%' OR value LIKE 'Member Holding 5%'")).toBe(0);
+  });
+});
+
+// data-baltics' N4 contract on S05 (cf3e83a), reviewed by the architect: `needs` and the hash.
+describe("a party that needs another (PartyRef.needs)", () => {
+  const subject = (value: string): PartyRef => ({ code: { country: "lv", value }, entities: [] });
+  const named = (n: number, needs: number): PartyRef => ({ type: "FOREIGN_ENTITY", needs, entities: [{ eid: `org-${String(n).padStart(20, "0")}`, schema: "Organization", country: "intl", statements: [{ prop: "name", value: `Needs Holding ${n}`, itemId: "S04.LV.01" }] }] });
+  const lookup = (_c: string, code: string) => (code === "1" ? { naturalPerson: false } : null);
+  const loaded = (parties: PartyRef[]) => applyGates(membersRecord(parties), { companyPartyTypes: COMPANY_TYPES, lookup }).entities.map((e) => e.eid);
+
+  it("loads only beside the party it needs; the control loads", () => {
+    expect(loaded([subject("1"), named(1, 0)])).toEqual([`org-${"1".padStart(20, "0")}`]);
+    expect(loaded([subject("9"), named(1, 0)])).toEqual([]);
+  });
+
+  it("follows a chain, and fails closed on its own or a later index", () => {
+    expect(loaded([subject("9"), named(1, 0), named(2, 1)])).toEqual([]);
+    expect(loaded([subject("1"), named(1, 0), named(2, 1)])).toHaveLength(2);
+    expect(loaded([named(1, 0)])).toEqual([]);
+    expect(loaded([named(1, 1), subject("1")])).toEqual([]);
+  });
+
+  it("an unproven party's name is masked in the record hash: a change to it alone writes nothing (control: proven, it is written)", async () => {
+    const run = async (code: string) => {
+      const db = memoryDb();
+      await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+      const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [] });
+      const record = (name: string): ParsedRecord => ({ ...membersRecord([subject(code), { ...named(1, 0), entities: [{ ...named(1, 0).entities[0]!, statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] }]), hashInput: ["link", name] });
+      links.state.records = [record("Needs Holding A")];
+      await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
+      links.state.records = [record("Needs Holding B")];
+      links.state.asOf = { in_file_field: "2026-11-02" };
+      return (await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report;
+    };
+    expect((await run("99999999999"))?.unchanged).toBe(1);
+    expect((await run("00000000001"))?.written).toBe(1);
   });
 });
