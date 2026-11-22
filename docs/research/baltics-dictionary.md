@@ -1273,7 +1273,7 @@ Null % is measured on the Baltic subset (GLEIF: 40,486 LT+LV+EE records; Kohesio
 | Kohesio | beneficiaries | Beneficiary | EU Knowledge Graph URI | URI | 0 | eu_funds |
 | Kohesio | beneficiaries | BeneficiaryLabel | beneficiary name | string | 0 | eu_funds |
 | Kohesio | beneficiaries | Beneficiary_Local_Identifier | national register code (sometimes VAT number) | string | 1.3 / 65.3 / 1.8 | reg_code |
-| Kohesio | beneficiaries | Website, WikidataID | website, Wikidata ID | string | 100 / 100 / 100 | website_or_contact |
+| Kohesio | beneficiaries | Website, WikidataID | website, an outside knowledge-base ID | string | 100 / 100 / 100 | website_or_contact |
 | Kohesio | projects | Operation_Unique_Identifier | project URI | URI | 0 | eu_funds |
 | Kohesio | projects | Operation_Local_Identifier | programme's own project number | string | 0 | eu_funds |
 | Kohesio | projects | Operation_Name_English, Operation_Name_Programme_Language | project title (EN, local) | string | 0 | eu_funds |

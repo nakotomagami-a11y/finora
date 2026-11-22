@@ -207,7 +207,7 @@ Asked by `architect`. Per-source answers are under each entry below (lines a-k);
   deregistered 316,076, management bodies 235,095, capital 102,641. 0.0% null on name, code, address, dates.
 - Freshness: daily; `formavimo_data` = the pull date (2026-11-19); newest registration date in the file is the day
   before. Current.
-- Size and speed: 40.9 + 42.6 + 25.4 + 15.6 MB; each parses in < 0.6 s. No ETag or Last-Modified (Cloudflare,
+- Size and speed: 40.9 + 42.6 + 25.4 + 15.6 MB; each parses in < 0.6 s. No ETag or Last-Modified (served through a CDN,
   `Cache-Control: private`): the as-of date is the `formavimo_data` column. No delta file. Changes measured against
   the API copy (cut-off 2026-10-02): 2,048 new registrations, 618 deregistrations, 2,901 status changes in 48 days.
   Day-over-day diff (`diff_pulls.py`, hashing every column except `formavimo_data`): 19 → 20 Nov, registered 65 added, 14 moved to the deregistered file, 64 changed (0.06%); management bodies 56 changed.
@@ -947,7 +947,7 @@ Measured 2026-11-19 and 2026-11-20 with the probes in `research/probes/baltics/c
 ### Kohesio: EU cohesion-policy projects and beneficiaries (S12)
 - Publisher and official URL: European Commission (DG REGIO), https://kohesio.ec.europa.eu/en/data . File index: `https://kohesio.ec.europa.eu/api/data/{beneficiaries|programmingPeriod20142020|programmingPeriod20212027}`; file: `https://kohesio.ec.europa.eu/api/data/object?id=data/beneficiaries/latest/<CC>-latest.csv` and `.../projects-2014-2020/latest/<CC>-pp14-20-latest.csv`, `.../projects-2021-2027/latest/<CC>-pp21-27-latest.csv` (CSV and XLSX).
 - Access: bulk files per country and period, dated snapshot folders. The EU Knowledge Graph SPARQL endpoint (query.linkedopendata.eu) returned HTTP 403 to our client; not needed.
-- Fields: projects: operation ID (EU KG URI) and local ID, name (EN + programme language), start and end date, co-financing rate, total eligible expenditure, EU budget, beneficiary URI, name and local identifier, intervention category, thematic / policy objective, fund, programme, location (coordinates, postal code, LAU, NUTS 1-3), summary, managing authority. Beneficiaries: URI, label, local identifier, website, Wikidata ID.
+- Fields: projects: operation ID (EU KG URI) and local ID, name (EN + programme language), start and end date, co-financing rate, total eligible expenditure, EU budget, beneficiary URI, name and local identifier, intervention category, thematic / policy objective, fund, programme, location (coordinates, postal code, LAU, NUTS 1-3), summary, managing authority. Beneficiaries: URI, label, local identifier, website, an outside knowledge-base ID (field `WikidataID`).
 - Rows and coverage: beneficiaries LT 10,605, LV 1,378, EE 5,924. Projects 2014-2020: LT 24,772, LV 2,103, EE 14,593. Projects 2021-2027: LT 2,491, LV 1,177, EE 3,729. EU budget sums: LT 7.08 bn (2014-20) + 4.45 bn (2021-27) EUR; LV 3.78 + 1.68 bn; EE 3.83 + 2.50 bn. One beneficiary per project row in all Baltic files.
 - Freshness: snapshot folders on 2026-03-17, 06-09, 09-15, 09-24, 10-23 and `latest`. Baltic 2021-2027 files: `latest` is identical to 2026-09-24; LT 2021-2027 has the same 2,491 projects since 2026-03-17 (no rows added, the only change was a new column). Latest project start date seen: LT 2025-04, LV 2025-12, EE 2027-01 (planned). Slow: national lists reach Kohesio months late.
 - Size and speed: Baltic pull 108 MB of CSV (LT 2014-20 alone 65.7 MB); probe parse 29 s. No ETag or Last-Modified; the dated folder name is the version.
