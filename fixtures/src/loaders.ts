@@ -317,5 +317,5 @@ export const fxUsState = Object.assign(jsonLoader(meta("fx-us-state", "us", "liv
 
 
 /** The fixture profile for one loader config: the same list, the officers loader built for its mode. */
-export const fixtureProfileFor = (config: LoaderConfig = DEFAULT_LOADER_CONFIG): readonly { exportName: string; loader: SourceLoader }[] =>
+export const fixtureProfileFor = (config: LoaderConfig): readonly { exportName: string; loader: SourceLoader }[] =>
   FIXTURE_PROFILE.map((p) => (p.exportName === "fxLvUrOfficers" ? { ...p, loader: fxLvUrOfficersFor(config) } : p));

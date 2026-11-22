@@ -195,9 +195,12 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
     for (const s of entity.statements) {
       insert.run(entityId, intern(db, "props", s.prop), s.value, s.lang ?? null, intern(db, "items", s.itemId), recordId, s.line ?? null);
     }
-    // A sync defers the search rows to one pass at its end (cto's fix 3); the caption stays inline.
+    // A sync defers the search rows to one pass at its end (cto's fix 3); the caption stays inline,
+    // and so does removing the rows of an entity that is not searchable any more: a company rewritten
+    // as a sole trader is never found by name, not even until the pass (L2, L3; qa, legal on 8661a89).
     if (input.deferSearch) {
-      refreshCaption(db, entityId);
+      const entity = refreshCaption(db, entityId);
+      if (entity && !searchable(entity)) deleteSearchRows(db, entityId);
       prepared(db, "INSERT OR IGNORE INTO main.search_dirty (entity_id) VALUES (?)").run(entityId);
     } else refreshEntity(db, entityId);
   }
@@ -289,12 +292,23 @@ function upsertEntity(db: DatabaseSync, entity: EntityInput, syncId: number): nu
 /** Recomputes an entity's caption and search rows. Only organisations that are not natural persons are searchable (L2, L3). */
 type EntityForSearch = { id: number; eid: string; natural_person: number; legal_form: string | null; code: string | null; schema: string };
 
-function entityForSearch(db: DatabaseSync, entityId: number): { entity: EntityForSearch; names: string[] } {
+/** Organisations only, never a natural person, never a sanctions list entry (sanctions.md §6; L2, L3). */
+const searchable = (entity: EntityForSearch) =>
+  entity.natural_person === 0 && (ORGANISATION_SCHEMAS as readonly string[]).includes(entity.schema) && !entity.eid.startsWith("sanc-");
+
+function deleteSearchRows(db: DatabaseSync, entityId: number): void {
+  prepared(db, "DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
+  prepared(db, "DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
+}
+
+/** The entity and its names; null when it is gone. */
+function entityForSearch(db: DatabaseSync, entityId: number): { entity: EntityForSearch; names: string[] } | null {
   const entity = prepared(
     db,
     `SELECT e.id, e.eid, e.natural_person, e.legal_form, e.code, s.name AS schema FROM main.entities e
        JOIN main.schemas s ON s.id = e.schema_id WHERE e.id = ?`,
-  ).get(entityId) as EntityForSearch;
+  ).get(entityId) as EntityForSearch | undefined;
+  if (!entity) return null;
   const names = (
     prepared(
       db,
@@ -305,24 +319,26 @@ function entityForSearch(db: DatabaseSync, entityId: number): { entity: EntityFo
   return { entity, names };
 }
 
-/** The entity's caption, from its names (or, for a natural person, its legal form and code). */
-export function refreshCaption(db: DatabaseSync, entityId: number): void {
-  const { entity, names } = entityForSearch(db, entityId);
+/** The entity's caption, from its names (or, for a natural person, its legal form and code); returns the entity, null when gone. */
+export function refreshCaption(db: DatabaseSync, entityId: number): EntityForSearch | null {
+  const found = entityForSearch(db, entityId);
+  if (!found) return null;
+  const { entity, names } = found;
   const caption =
     entity.natural_person === 1
       ? naturalPersonCaption({ legalForm: entity.legal_form, code: entity.code ?? "" })
       : (names[0] ?? entity.code ?? "");
   prepared(db, "UPDATE main.entities SET caption = ? WHERE id = ?").run(caption, entityId);
+  return entity;
 }
 
 /** The entity's two search rows, rewritten from its names. */
 export function refreshSearchRows(db: DatabaseSync, entityId: number): void {
-  const { entity, names } = entityForSearch(db, entityId);
-  // Sanctions list entries are reachable only through screening, never search (sanctions.md §6).
-  const searchable = entity.natural_person === 0 && (ORGANISATION_SCHEMAS as readonly string[]).includes(entity.schema) && !entity.eid.startsWith("sanc-");
-  prepared(db, "DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
-  prepared(db, "DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
-  if (searchable) {
+  deleteSearchRows(db, entityId);
+  const found = entityForSearch(db, entityId);
+  if (!found) return;
+  const { entity, names } = found;
+  if (searchable(entity)) {
     const text = normalizeText([...new Set(names)].join(" "));
     prepared(db, "INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)").run(entityId, text);
     prepared(db, "INSERT INTO main.entities_trigram (rowid, search_text) VALUES (?, ?)").run(entityId, text);
@@ -344,10 +360,14 @@ export function rebuildSearch(db: DatabaseSync, options: { begin?: () => void; b
   const batch = options.batch ?? 5000;
   let done = 0;
   for (;;) {
-    const ids = (prepared(db, "SELECT entity_id FROM main.search_dirty ORDER BY entity_id LIMIT ?").all(batch) as { entity_id: number }[]).map((r) => r.entity_id);
-    if (ids.length === 0) return done;
+    // A cheap look first, so a sync with nothing owed takes no write lock.
+    if (prepared(db, "SELECT 1 FROM main.search_dirty LIMIT 1").get() === undefined) return done;
     begin();
+    let ids: number[];
     try {
+      // Read inside the transaction: an entity another sync removed since is gone with its mark
+      // (ON DELETE CASCADE), and one gone anyway only loses its mark (qa SHOULD on 8661a89).
+      ids = (prepared(db, "SELECT entity_id FROM main.search_dirty ORDER BY entity_id LIMIT ?").all(batch) as { entity_id: number }[]).map((r) => r.entity_id);
       for (const id of ids) {
         refreshSearchRows(db, id);
         prepared(db, "DELETE FROM main.search_dirty WHERE entity_id = ?").run(id);

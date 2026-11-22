@@ -4,7 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { balticCheckDigit } from "@finora/domain";
 import { lvUrOfficersLoader, lvUrRegister, type SourceLoader } from "@finora/sources";
 import { LV_BIRTH_DATE_CANARY, lvMaskedCodeCanary, lvOfficersCsv, lvRegisterCsv } from "@finora/sources/testing";
-import { beginSync, cachedStatements, openStore, searchCompanies, statementCacheSize, upsertSource, writeRecord } from "@finora/store";
+import { beginSync, openStore, rebuildSearch, searchCompanies, upsertSource, writeRecord } from "@finora/store";
+import { cachedStatements, statementCacheSize } from "@finora/store/testing";
 import { describe, expect, it } from "vitest";
 import { nextBatchSize, runSync } from "./pipeline.ts";
 import { companies, companyRecord, fakeSource, noNetwork } from "./testing/fake-source.ts";
@@ -50,6 +51,68 @@ describe("fix 3: search rows are written in one pass at the sync's end", () => {
     await runSync(db, fakeSource({ id: "another-source" }, { records: [] }), { fetcher: noNetwork });
     expect(count(db, "SELECT COUNT(*) AS n FROM main.search_dirty")).toBe(0);
     expect(searchCompanies(db, "example company", { limit: 100 }).length).toBe(committed);
+  });
+});
+
+describe("the deferred pass never leaves a natural person searchable (qa MUST, legal on 8661a89; L2, L3)", () => {
+  const name = ["Deferred", "Rewrite", "Example"].join(" ");
+  const setup = () => {
+    const { db } = openStore({ dataDir: null });
+    upsertSource(db, { id: "fake-register", storage: "store" }, "2026-11-22T08:00:00.000Z");
+    const syncId = beginSync(db, { sourceId: "fake-register", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-22T08:00:00.000Z" });
+    const write = (legalForm: string, deferSearch: boolean, key = "k1") =>
+      writeRecord(db, {
+        syncId,
+        sourceId: "fake-register",
+        recordKey: key,
+        hashInput: [legalForm],
+        deferSearch,
+        entities: [{ eid: "lv-00000000001", schema: "Company", country: "lv", legalForm, code: "00000000001", statements: [{ prop: "name", value: name, itemId: "S01.LV.01" }] }],
+      });
+    return { db, write };
+  };
+
+  it("a company rewritten as a sole trader is gone from name search before the pass; by code it stays", () => {
+    const { db, write } = setup();
+    write("lv-sia", false);
+    expect(searchCompanies(db, name).length).toBe(1);
+    write("lv-ik", true);
+    expect(searchCompanies(db, name)).toEqual([]);
+    expect(count(db, "SELECT COUNT(*) AS n FROM main.entities_fts")).toBe(0);
+    expect(count(db, "SELECT COUNT(*) AS n FROM main.entities_trigram")).toBe(0);
+    expect(searchCompanies(db, "00000000001").map((h) => h.match)).toEqual(["code"]);
+    rebuildSearch(db);
+    expect(searchCompanies(db, name)).toEqual([]);
+  });
+
+  it("the control: a company rewritten as a company keeps its rows until the pass, then has fresh ones", () => {
+    const { db, write } = setup();
+    write("lv-sia", false);
+    write("lv-as", true);
+    expect(searchCompanies(db, name).length).toBe(1);
+    rebuildSearch(db);
+    expect(searchCompanies(db, name).length).toBe(1);
+  });
+
+  it("the second layer: a name row left for a natural person is never a hit", () => {
+    const { db, write } = setup();
+    write("lv-ik", false);
+    const id = (db.prepare("SELECT id FROM main.entities WHERE eid = 'lv-00000000001'").get() as { id: number }).id;
+    db.prepare("INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)").run(id, name.toLowerCase());
+    db.prepare("INSERT INTO main.entities_trigram (rowid, search_text) VALUES (?, ?)").run(id, name.toLowerCase());
+    expect(searchCompanies(db, name)).toEqual([]);
+    expect(searchCompanies(db, "00000000001").length).toBe(1);
+  });
+
+  it("the pass skips an entity that is gone and drops its mark, without failing the sync (qa SHOULD)", () => {
+    const { db, write } = setup();
+    write("lv-sia", true);
+    const id = (db.prepare("SELECT id FROM main.entities WHERE eid = 'lv-00000000001'").get() as { id: number }).id;
+    db.exec("PRAGMA foreign_keys = OFF");
+    db.prepare("DELETE FROM main.entities WHERE id = ?").run(id);
+    db.exec("PRAGMA foreign_keys = ON");
+    expect(() => rebuildSearch(db)).not.toThrow();
+    expect(count(db, "SELECT COUNT(*) AS n FROM main.search_dirty")).toBe(0);
   });
 });
 

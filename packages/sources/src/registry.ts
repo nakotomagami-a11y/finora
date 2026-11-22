@@ -23,8 +23,8 @@ const lvLoaders = (config: LoaderConfig): SourceLoader[] => [
   ...lvPeopleLoaders({ personRows: config.lvPersonRows }), ...LV_RISK_LOADERS, ...LV_FINANCIALS_LOADERS, ...LV_TAX_LOADERS,
 ];
 
-/** Every shipped loader, built for one config: a sync job passes its own (SEC-1 on S05). */
-export const loadersFor = (config: LoaderConfig = DEFAULT_LOADER_CONFIG): SourceLoader[] => [
+/** Every shipped loader, built for one config: a sync job passes its own, never a default (SEC-1 on S05; qa, legal). */
+export const loadersFor = (config: LoaderConfig): SourceLoader[] => [
   euFsf, usOfacSdn, usOfacCons, ukSanctionsList, esmaNcasp, ...lvLoaders(config), lvFidFrozen,
 ];
 

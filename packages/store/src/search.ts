@@ -82,13 +82,16 @@ export function searchCompanies(db: DatabaseSync, query: string, options: { coun
   const ids = [...found.keys()];
   const rows = db
     .prepare(
-      `SELECT id, eid, caption, country, legal_form, status, code FROM main.entities
+      `SELECT id, eid, caption, country, legal_form, status, code, natural_person FROM main.entities
        WHERE id IN (${ids.map(() => "?").join(", ")})${options.country ? " AND country = ?" : ""}`,
     )
     .all(...ids, ...(options.country ? [options.country] : [])) as {
-    id: number; eid: string; caption: string; country: string; legal_form: string | null; status: string | null; code: string | null;
+    id: number; eid: string; caption: string; country: string; legal_form: string | null; status: string | null; code: string | null; natural_person: number;
   }[];
   return rows
+    // The second layer (legal on 8661a89): a natural person is found by registry code only, even if a
+    // name row for it were ever left in the index.
+    .filter((r) => r.natural_person === 0 || found.get(r.id)!.match === "code")
     .map((r) => {
       const hit = found.get(r.id)!;
       return { eid: r.eid, caption: r.caption, country: r.country, legalForm: r.legal_form, status: r.status, code: r.code, match: hit.match, score: hit.score };
