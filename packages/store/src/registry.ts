@@ -1,22 +1,10 @@
 // The registry write path the ingest pipeline builds on (architecture §3.2-§3.3, §4.4 step 5).
 import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import {
-  COMPANY_ID_PROPS,
-  idIsPersonalCode,
-  findPersonalCodes,
-  isLoadable,
-  isNaturalPerson,
-  isProp,
-  NAME_PROPS,
-  naturalPersonCaption,
-  normalizeText,
-  ORGANISATION_SCHEMAS,
-  type SchemaName,
-} from "@finora/domain";
+import { COMPANY_ID_PROPS, findPersonalCodes, idIsPersonalCode, isInternalEid, isLoadable, isNaturalPerson, isProp, NAME_PROPS, naturalPersonCaption, normalizeText, ORGANISATION_SCHEMAS, type SchemaName } from "@finora/domain";
 
 /** Store-internal refusals; the API maps them to `internal_error` or its own codes. */
-export type StoreErrorCode = "unknown_prop" | "item_not_loadable" | "personal_code_refused" | "purpose_blocked" | "entity_missing";
+export type StoreErrorCode = "unknown_prop" | "item_not_loadable" | "personal_code_refused" | "purpose_blocked" | "entity_missing" | "ref_not_company";
 
 export class StoreError extends Error {
   readonly code: StoreErrorCode;
@@ -268,9 +256,12 @@ export function dropIfOrphan(db: DatabaseSync, entityId: number): boolean {
   return true;
 }
 
+/** A ref's target: an existing company row, never a person or relationship row (qa M1 on S05, legal). */
 function existingEntity(db: DatabaseSync, eid: string): number {
-  const row = db.prepare("SELECT id FROM main.entities WHERE eid = ?").get(eid) as { id: number } | undefined;
+  if (isInternalEid(eid)) throw new StoreError("ref_not_company");
+  const row = db.prepare("SELECT e.id, s.name AS schema FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ?").get(eid) as { id: number; schema: string } | undefined;
   if (!row) throw new StoreError("entity_missing");
+  if (row.schema === "Person") throw new StoreError("ref_not_company");
   return row.id;
 }
 

@@ -14,6 +14,7 @@ import {
   freeTextHoldsPersonalCode,
   isInternalEid,
   type DropReason,
+  eidKind,
 } from "@finora/domain";
 import type { ParsedEntity, ParsedRecord, PartyRef } from "@finora/sources";
 
@@ -26,6 +27,8 @@ export type GateResult = {
   drops: Drop[];
   /** Values refused as personal codes: masked in the record's hash input, so no hash covers them. */
   refused: string[];
+  /** A reference waits for its target: the record's hash is salted, so the next sync writes it again. */
+  retry: boolean;
 };
 
 /** Properties that name another row of the store: a person's row id there is by design (§3.3). */
@@ -67,9 +70,26 @@ export function partyProven(party: PartyRef, companyTypes: readonly string[], lo
   return false;
 }
 
+/** A ref's target as the store holds it, looked up by the eid it will be written to. */
+export type EntityByEid = (eid: string) => { code: string | null; naturalPerson: boolean; status: string | null; person: boolean } | null;
+
+/** Kinds of public eid that may name a company in event data. */
+const COMPANY_EID_KINDS = new Set(["lv", "ee", "lt", "org", "lei", "sec", "usState"]);
+
+/**
+ * Whether a value has the shape of a public company eid (qa M4 on S05, legal): a whole value of a
+ * public kind, never a person or relationship row id; an LV eid carries a register check digit (in
+ * `eidKind`) and never the LV personal-code shape (a real DDMMYY date or the 32 prefix).
+ */
+function companyEidShape(value: string): boolean {
+  const kind = eidKind(value);
+  if (kind === null || !COMPANY_EID_KINDS.has(kind) || isInternalEid(value)) return false;
+  return !(kind === "lv" && idIsPersonalCode("lv", value.slice(3)));
+}
+
 export function applyGates(
   record: ParsedRecord,
-  options: { companyPartyTypes: readonly string[]; lookup: PartyLookup; knownCompany?: (eid: string) => boolean },
+  options: { companyPartyTypes: readonly string[]; lookup: PartyLookup; knownCompany?: (eid: string) => boolean; byEid?: EntityByEid },
 ): GateResult {
   const rowRef = safeRowRef(record.rowRef);
   const drops: Drop[] = [];
@@ -80,6 +100,7 @@ export function applyGates(
   for (const d of record.dropped ?? []) drop(d.reason, d.prop);
   const withheld: GateResult["withheld"] = [];
   const refused: string[] = [];
+  let retry = false;
 
   const parties: ParsedEntity[] = [];
   const partyEvents: NonNullable<ParsedRecord["events"]> = [];
@@ -91,13 +112,20 @@ export function applyGates(
   }
 
   const natural = new Set<string>();
-  const recordEids = new Set([...record.entities, ...parties].map((e) => e.eid));
+  // A ref is never a same-record eid (qa M3 on S05): it counts as a reference only through the store.
+  const recordEids = new Set([...record.entities, ...parties].filter((e) => !e.ref).map((e) => e.eid));
+  const companiesInRecord = new Set([...record.entities, ...parties].filter((e) => !e.ref && e.schema !== "Person").map((e) => e.eid));
   const inRecord = new Set<string>();
   const entities = [...record.entities, ...parties].map((entity) => {
-    // A referenced entity is judged by what the store holds for it; one the store lacks is
-    // treated as a natural person here and then refused by the store as `entity_missing`.
-    const held = entity.ref ? options.lookup(entity.country, entity.code ?? "") : null;
+    // A referenced entity is judged by the row it will be written to, looked up by eid (qa M2 on
+    // S05); one the store lacks is treated as a natural person here and refused as `entity_missing`.
+    const held = entity.ref ? (options.byEid?.(entity.eid) ?? null) : null;
     if (!entity.ref) inRecord.add(entity.eid);
+    if (entity.ref && held && (held.person || isInternalEid(entity.eid) || (entity.code != null && held.code !== entity.code))) {
+      // A person row, or a code that is not the target's own: nothing is attached (qa M1, M2; legal).
+      for (const s of entity.statements) drop(held.person || isInternalEid(entity.eid) ? "ref_not_company" : "ref_mismatch", s.prop);
+      return { ...entity, statements: [] };
+    }
     const naturalPerson = entity.ref ? (held?.naturalPerson ?? true) : isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null });
     const ended = entity.ref && ENDED.has(held?.status ?? "");
     if (naturalPerson) natural.add(entity.eid);
@@ -137,6 +165,7 @@ export function applyGates(
   // A fact or event may sit on an entity this record does not carry (an LV insolvency row on a
   // register entity): the store decides whether that entity is a natural person (rule 5).
   const stored = (eid: string) => {
+    if (options.byEid) return options.byEid(eid);
     const m = /^(lv|ee|lt)-(\d+)$/.exec(eid);
     return m ? options.lookup(m[1]!, m[2]!) : null;
   };
@@ -171,10 +200,24 @@ export function applyGates(
       if (!e.data) return e;
       const data: Record<string, string | number | null> = {};
       for (const [key, value] of Object.entries(e.data)) {
-        // A company id the record carries or the store holds (the other side of an LV
-        // reorganisation) is a reference, not free text: an LV register code can fit the EE/LT
-        // personal-code check by chance (about 1 in 11). Anything else is scanned, as statements are.
-        const reference = typeof value === "string" && (recordEids.has(value) || options.knownCompany?.(value) === true);
+        // A public company eid (the other side of an LV reorganisation) is a reference, not free
+        // text, when the record carries that company or the store holds it: an LV register code can
+        // fit the EE/LT personal-code check by chance. The shape and the store each have to agree
+        // (legal). A company eid the store does not hold yet is withheld and retried (qa M5).
+        // A person or relationship row id never travels in event data (PS5; qa M4 on S05), and an id
+        // shaped like a Baltic register eid that fails its check is not a company (qa M4).
+        if (typeof value === "string" && (isInternalEid(value) || (/^(lv|ee|lt)-\d{6,}$/.test(value) && !companyEidShape(value)))) {
+          drop(isInternalEid(value) ? "person_field" : "invalid_code");
+          refused.push(value);
+          continue;
+        }
+        const shaped = typeof value === "string" && companyEidShape(value);
+        const reference = shaped && (companiesInRecord.has(value) || options.knownCompany?.(value) === true);
+        if (shaped && !reference) {
+          drop("reference_unresolved");
+          retry = true;
+          continue;
+        }
         if (typeof value === "string" && !reference && leaksPerson(value)) {
           drop("personal_code");
           refused.push(value);
@@ -184,5 +227,5 @@ export function applyGates(
       }
       return { ...e, data };
     });
-  return { entities, reports, events, withheld, drops, refused };
+  return { entities, reports, events, withheld, drops, refused, retry };
 }

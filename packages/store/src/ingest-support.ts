@@ -1,3 +1,4 @@
+import { isInternalEid } from "@finora/domain";
 // The store side of the ingest pipeline (architecture §4.4 steps 4-7): staging, purge, tombstones,
 // history reads, the share-alike store, class changes and live-cache misses. Every query is
 // scoped to one source or one record; none takes a person id.
@@ -276,7 +277,17 @@ export function recordKeyOf(db: DatabaseSync, id: number): string {
 
 /** Whether the store holds this eid as a non-Person entity: a reference to it names a company row. */
 export function isCompanyEid(db: DatabaseSync, eid: string): boolean {
+  // A relationship row is not a company (PS5; qa M4 on S05).
+  if (isInternalEid(eid)) return false;
   return (
     db.prepare("SELECT 1 FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ? AND s.name <> 'Person'").get(eid) !== undefined
   );
+}
+
+/** A ref's target as the store holds it, by eid: the gate judges the row it will write to (qa M2 on S05). */
+export function entityByEid(db: DatabaseSync, eid: string): { code: string | null; naturalPerson: boolean; status: string | null; person: boolean } | null {
+  const row = db
+    .prepare("SELECT e.code, e.natural_person, e.status, s.name AS schema FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ?")
+    .get(eid) as { code: string | null; natural_person: number; status: string | null; schema: string } | undefined;
+  return row ? { code: row.code, naturalPerson: row.natural_person === 1, status: row.status, person: row.schema === "Person" } : null;
 }

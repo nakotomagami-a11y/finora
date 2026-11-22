@@ -11,6 +11,7 @@ import {
   clearMiss,
   deleteRecords,
   entityByCode,
+  entityByEid,
   finishSync,
   heartbeat,
   isCompanyEid,
@@ -79,6 +80,7 @@ export async function fetchOnView(
       companyPartyTypes: options.companyPartyTypes ?? [],
       lookup: (c: string, v: string) => entityByCode(db, c, v),
       knownCompany: (eid: string) => isCompanyEid(db, eid),
+      byEid: (eid: string) => entityByEid(db, eid),
     };
 
     // Parse everything first: no write transaction is ever held across an await (SEC-4).

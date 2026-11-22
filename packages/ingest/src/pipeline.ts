@@ -17,6 +17,7 @@ import {
   deleteRecords,
   endStaging,
   entityByCode,
+  entityByEid,
   finishSync,
   heartbeat,
   holdsLease,
@@ -132,6 +133,14 @@ const bump = (counts: Record<string, number>, key: string, n = 1) => (counts[key
 
 /** Thrown inside a sync when its lease was lost: everything in flight rolls back. */
 class LeaseLost extends Error {}
+
+/**
+ * A record waiting for a referenced company carries a fixed marker in its hash input, so its stored
+ * hash differs from the one it gets once the reference resolves: that sync writes it again and the
+ * value loads (qa M5 on S05, legal). While it waits, the marked hash repeats, so it is not rewritten.
+ */
+const RETRY_MARKER = "\u0000reference_retry";
+const retryable = (hashInput: string[], retry: boolean) => (retry ? [...hashInput, RETRY_MARKER] : hashInput);
 
 /** Every string a value of `refused` appears in is masked, so no row hash covers a personal code. */
 function masked(hashInput: readonly string[], refused: readonly string[]): string[] {
@@ -258,6 +267,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       companyPartyTypes: options.companyPartyTypes ?? [],
       lookup: (country: string, code: string) => entityByCode(db, country, code),
       knownCompany: (eid: string) => isCompanyEid(db, eid),
+      byEid: (eid: string) => entityByEid(db, eid),
     };
     const day = startedAt.slice(0, 10);
     const periods = new Set<string>();
@@ -335,7 +345,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
           batchStart = Date.now();
           inBatch = 0;
         }
-        writeParsed(db, { syncId, sourceId: meta.id, day }, { ...record, hashInput: masked(record.hashInput, gated.refused) }, gated, report);
+        writeParsed(db, { syncId, sourceId: meta.id, day }, { ...record, hashInput: retryable(masked(record.hashInput, gated.refused), gated.retry) }, gated, report);
         if (++inBatch >= maxRecords || Date.now() - batchStart > maxMs) commit();
       }
     } catch (error) {
@@ -452,7 +462,7 @@ export function writeParsed(
     };
     report.events += writeHistory(db, before, after, sync.day, itemOf);
   } catch (error) {
-    bump(report.skipped, error instanceof StoreError && error.code === "entity_missing" ? "entity_missing" : "write_refused");
+    bump(report.skipped, error instanceof StoreError && (error.code === "entity_missing" || error.code === "ref_not_company") ? error.code : "write_refused");
   }
 }
 

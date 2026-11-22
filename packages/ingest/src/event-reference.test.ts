@@ -1,7 +1,7 @@
 // S05: a company id in event data (the other side of an LV reorganisation) that the store holds is a
 // reference, not free text, so an LV register code that happens to fit the EE/LT personal-code check
 // is kept; an id the store does not hold is scanned like any other text.
-import { idIsPersonalCode, isBalticPersonalCode, isValidRegisterCode } from "@finora/domain";
+import { idIsPersonalCode, isBalticPersonalCode, isFixtureRegisterCode } from "@finora/domain";
 import { describe, expect, it } from "vitest";
 import { applyGates } from "./gates.ts";
 
@@ -9,7 +9,7 @@ import { applyGates } from "./gates.ts";
 function overlapCode(): string {
   for (let i = 0; ; i++) {
     const code = `40003${String(i).padStart(6, "0")}`;
-    if (!isValidRegisterCode("lv", code) && isBalticPersonalCode(code) && !idIsPersonalCode("lv", code)) return code;
+    if (isFixtureRegisterCode("lv", code) && isBalticPersonalCode(code) && !idIsPersonalCode("lv", code)) return code;
   }
 }
 

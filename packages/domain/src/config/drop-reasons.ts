@@ -18,6 +18,9 @@ export const DROP_REASONS = [
   "entity_missing",
   "write_refused",
   "delete_not_allowed",
+  "ref_not_company",
+  "ref_mismatch",
+  "reference_unresolved",
   // named by the loader specs so far
   "code_not_in_register",
   "invalid_code",

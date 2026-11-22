@@ -37,6 +37,7 @@ export {
   deleteRecords,
   endStaging,
   entityByCode,
+  entityByEid,
   failSync,
   holdsLease,
   isCompanyEid,
