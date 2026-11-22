@@ -1,3 +1,4 @@
+import { enableStatementCache } from "./statements.ts";
 import { closeSync, mkdirSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -33,7 +34,11 @@ function createLog(path: string): void {
  * `dataDir: null` opens all four in memory, for tests. The logs are created with a new
  * user file only: a log missing beside an existing store is damage, and reads and repairs refuse.
  */
-export function openStore(options: { dataDir: string | null }): Store {
+/**
+ * `sync`: the sync worker's connection, closed when its batch ends. It gets the statement cache and a
+ * 64 MB page cache (cto's fixes 2 and 5); no other connection does.
+ */
+export function openStore(options: { dataDir: string | null; sync?: boolean }): Store {
   const paths = options.dataDir
     ? {
         main: join(options.dataDir, "finora.db"),
@@ -54,6 +59,12 @@ export function openStore(options: { dataDir: string | null }): Store {
     db.exec(`PRAGMA ${schema}.synchronous = NORMAL`);
   }
   db.exec("PRAGMA foreign_keys = ON");
+  // Savepoints and the staged keys stay in memory (cto's fix 4).
+  db.exec("PRAGMA temp_store = MEMORY");
+  if (options.sync === true) {
+    db.exec("PRAGMA main.cache_size = -65536");
+    enableStatementCache(db);
+  }
   const fresh = (db.prepare("PRAGMA user.user_version").get() as { user_version: number }).user_version === 0;
   migrate(db);
   let logs: Store["logs"] = null;

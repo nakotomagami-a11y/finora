@@ -1,4 +1,5 @@
 // The registry write path the ingest pipeline builds on (architecture §3.2-§3.3, §4.4 step 5).
+import { prepared } from "./statements.ts";
 import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { COMPANY_ID_PROPS, findPersonalCodes, idIsPersonalCode, isInternalEid, isLoadable, isNaturalPerson, isProp, NAME_PROPS, naturalPersonCaption, normalizeText, ORGANISATION_SCHEMAS, type SchemaName } from "@finora/domain";
@@ -29,14 +30,14 @@ export function intern(db: DatabaseSync, table: "schemas" | "props" | "items" | 
   const key = `${table}:${name}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
-  db.prepare(`INSERT INTO main.${table} (name) VALUES (?) ON CONFLICT (name) DO NOTHING`).run(name);
-  const row = db.prepare(`SELECT id FROM main.${table} WHERE name = ?`).get(name) as { id: number };
+  prepared(db, `INSERT INTO main.${table} (name) VALUES (?) ON CONFLICT (name) DO NOTHING`).run(name);
+  const row = prepared(db, `SELECT id FROM main.${table} WHERE name = ?`).get(name) as { id: number };
   cache.set(key, row.id);
   return row.id;
 }
 
 export function upsertSource(db: DatabaseSync, source: { id: string; storage: string; purgeScope?: string }, now: string): void {
-  db.prepare(
+  prepared(db, 
     `INSERT INTO main.sources (id, storage, purge_scope, created_at) VALUES (?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET storage = excluded.storage, purge_scope = excluded.purge_scope`,
   ).run(source.id, source.storage, source.purgeScope ?? "full", now);
@@ -45,8 +46,7 @@ export function upsertSource(db: DatabaseSync, source: { id: string; storage: st
 export type SyncStart = { sourceId: string; licenceId: string; storage: string; parserVersion: string; startedAt: string };
 
 export function beginSync(db: DatabaseSync, sync: SyncStart): number {
-  const result = db
-    .prepare(
+  const result = prepared(db, 
       `INSERT INTO main.syncs (source_id, kind, licence_id, storage, started_at, parser_version)
        VALUES (?, 'running', ?, ?, ?, ?)`,
     )
@@ -59,7 +59,7 @@ export function finishSync(
   syncId: number,
   end: { kind: "content" | "unchanged" | "stale_skipped" | "partial" | "failed"; finishedAt: string; upstreamAsOf?: string; asOfBasis?: string; report?: unknown },
 ): void {
-  db.prepare(
+  prepared(db, 
     `UPDATE main.syncs SET kind = ?, finished_at = ?, upstream_as_of = ?, as_of_basis = ?, report_json = ? WHERE id = ?`,
   ).run(end.kind, end.finishedAt, end.upstreamAsOf ?? null, end.asOfBasis ?? null, end.report ? JSON.stringify(end.report) : null, syncId);
 }
@@ -77,6 +77,8 @@ export type EntityInput = {
   ref?: boolean;
 };
 export type RecordInput = {
+  /** Mark touched entities in `search_dirty` instead of writing their search rows (a sync; see rebuildSearch). */
+  deferSearch?: boolean;
   syncId: number;
   sourceId: string;
   recordKey: string;
@@ -140,8 +142,7 @@ function refuse(input: RecordInput): void {
  */
 export function writeRecord(db: DatabaseSync, input: RecordInput): { changed: boolean } {
   const hash = rowHash(input.hashInput);
-  const existing = db
-    .prepare("SELECT id, row_hash FROM main.records WHERE source_id = ? AND record_key = ?")
+  const existing = prepared(db, "SELECT id, row_hash FROM main.records WHERE source_id = ? AND record_key = ?")
     .get(input.sourceId, input.recordKey) as { id: number; row_hash: Uint8Array } | undefined;
   if (existing && Buffer.from(existing.row_hash).equals(hash)) return { changed: false };
   refuse(input);
@@ -166,9 +167,9 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
   if (existing) {
     recordId = existing.id;
     previousEntities = (
-      db.prepare("SELECT DISTINCT entity_id FROM main.statements WHERE record_id = ?").all(recordId) as { entity_id: number }[]
+      prepared(db, "SELECT DISTINCT entity_id FROM main.statements WHERE record_id = ?").all(recordId) as { entity_id: number }[]
     ).map((r) => r.entity_id);
-    db.prepare("UPDATE main.records SET row_hash = ?, last_changed_sync_id = ?, line_ids = ?, period = ? WHERE id = ?").run(
+    prepared(db, "UPDATE main.records SET row_hash = ?, last_changed_sync_id = ?, line_ids = ?, period = ? WHERE id = ?").run(
       hash,
       input.syncId,
       lineIds,
@@ -176,18 +177,17 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
       recordId,
     );
     for (const table of ["statements", "fact_reports", "events", "withheld"]) {
-      db.prepare(`DELETE FROM main.${table} WHERE record_id = ?`).run(recordId);
+      prepared(db, `DELETE FROM main.${table} WHERE record_id = ?`).run(recordId);
     }
   } else {
-    const result = db
-      .prepare(
+    const result = prepared(db, 
         `INSERT INTO main.records (source_id, record_key, row_hash, first_sync_id, last_changed_sync_id, line_ids, period) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(input.sourceId, input.recordKey, hash, input.syncId, input.syncId, lineIds, input.period ?? null);
     recordId = Number(result.lastInsertRowid);
   }
 
-  const insert = db.prepare(
+  const insert = prepared(db, 
     "INSERT INTO main.statements (entity_id, prop_id, value, lang, item_id, record_id, line) VALUES (?, ?, ?, ?, ?, ?, ?)",
   );
   for (const entity of input.entities) {
@@ -195,35 +195,38 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
     for (const s of entity.statements) {
       insert.run(entityId, intern(db, "props", s.prop), s.value, s.lang ?? null, intern(db, "items", s.itemId), recordId, s.line ?? null);
     }
-    refreshEntity(db, entityId);
+    // A sync defers the search rows to one pass at its end (cto's fix 3); the caption stays inline.
+    if (input.deferSearch) {
+      refreshCaption(db, entityId);
+      prepared(db, "INSERT OR IGNORE INTO main.search_dirty (entity_id) VALUES (?)").run(entityId);
+    } else refreshEntity(db, entityId);
   }
   const entityId = (eid: string): number => {
-    const row = db.prepare("SELECT id FROM main.entities WHERE eid = ?").get(eid) as { id: number } | undefined;
+    const row = prepared(db, "SELECT id FROM main.entities WHERE eid = ?").get(eid) as { id: number } | undefined;
     if (!row) throw new StoreError("entity_missing");
     return row.id;
   };
   /** Facts and events belong to companies: never to a person or relationship row (SEC-4 on S05). */
   const companyId = (eid: string): number => {
     if (isInternalEid(eid)) throw new StoreError("ref_not_company");
-    const row = db.prepare("SELECT e.id, s.name AS schema FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ?").get(eid) as { id: number; schema: string } | undefined;
+    const row = prepared(db, "SELECT e.id, s.name AS schema FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ?").get(eid) as { id: number; schema: string } | undefined;
     if (!row) throw new StoreError("entity_missing");
     if (row.schema === "Person") throw new StoreError("ref_not_company");
     return row.id;
   };
   for (const report of input.reports ?? []) {
     const reportId = Number(
-      db
-        .prepare(
+      prepared(db, 
           `INSERT INTO main.fact_reports (entity_id, kind, period_start, period_end, currency, unit_scale, record_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(companyId(report.entityEid), report.kind, report.periodStart ?? null, report.periodEnd, report.currency ?? null, report.unitScale ?? 1, recordId)
         .lastInsertRowid,
     );
-    const fact = db.prepare("INSERT INTO main.facts (report_id, concept_id, value) VALUES (?, ?, ?)");
+    const fact = prepared(db, "INSERT INTO main.facts (report_id, concept_id, value) VALUES (?, ?, ?)");
     for (const f of report.facts) fact.run(reportId, intern(db, "concepts", f.concept), f.value);
   }
   for (const event of input.events ?? []) {
-    db.prepare("INSERT INTO main.events (entity_id, type_id, date, data, item_id, record_id) VALUES (?, ?, ?, ?, ?, ?)").run(
+    prepared(db, "INSERT INTO main.events (entity_id, type_id, date, data, item_id, record_id) VALUES (?, ?, ?, ?, ?, ?)").run(
       companyId(event.entityEid),
       intern(db, "event_types", event.type),
       event.date,
@@ -233,7 +236,7 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
     );
   }
   for (const w of input.withheld ?? []) {
-    db.prepare("INSERT OR IGNORE INTO main.withheld (record_id, entity_id, prop_id, reason) VALUES (?, ?, ?, ?)").run(
+    prepared(db, "INSERT OR IGNORE INTO main.withheld (record_id, entity_id, prop_id, reason) VALUES (?, ?, ?, ?)").run(
       recordId,
       entityId(w.entityEid),
       intern(db, "props", w.prop),
@@ -249,8 +252,7 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
  * has facts, events or links from another source is kept (qa S04a Q-4).
  */
 export function dropIfOrphan(db: DatabaseSync, entityId: number): boolean {
-  const deleted = db
-    .prepare(
+  const deleted = prepared(db, 
       `DELETE FROM main.entities WHERE id = ?1
          AND NOT EXISTS (SELECT 1 FROM main.statements WHERE entity_id = ?1)
          AND NOT EXISTS (SELECT 1 FROM main.fact_reports WHERE entity_id = ?1)
@@ -259,15 +261,15 @@ export function dropIfOrphan(db: DatabaseSync, entityId: number): boolean {
     )
     .run(entityId).changes;
   if (deleted === 0) return false;
-  db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
-  db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
+  prepared(db, "DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
+  prepared(db, "DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
   return true;
 }
 
 /** A ref's target: an existing company row, never a person or relationship row (qa M1 on S05, legal). */
 function existingEntity(db: DatabaseSync, eid: string): number {
   if (isInternalEid(eid)) throw new StoreError("ref_not_company");
-  const row = db.prepare("SELECT e.id, s.name AS schema FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ?").get(eid) as { id: number; schema: string } | undefined;
+  const row = prepared(db, "SELECT e.id, s.name AS schema FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE e.eid = ?").get(eid) as { id: number; schema: string } | undefined;
   if (!row) throw new StoreError("entity_missing");
   if (row.schema === "Person") throw new StoreError("ref_not_company");
   return row.id;
@@ -275,44 +277,92 @@ function existingEntity(db: DatabaseSync, eid: string): number {
 
 function upsertEntity(db: DatabaseSync, entity: EntityInput, syncId: number): number {
   const naturalPerson = isNaturalPerson({ schema: entity.schema, legalForm: entity.legalForm ?? null }) ? 1 : 0;
-  db.prepare(
+  prepared(db, 
     `INSERT INTO main.entities (eid, schema_id, country, legal_form, natural_person, status, code, caption, first_sync_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, '', ?)
      ON CONFLICT (eid) DO UPDATE SET legal_form = excluded.legal_form, natural_person = excluded.natural_person,
        status = excluded.status, code = excluded.code`,
   ).run(entity.eid, intern(db, "schemas", entity.schema), entity.country, entity.legalForm ?? null, naturalPerson, entity.status ?? null, entity.code ?? null, syncId);
-  return (db.prepare("SELECT id FROM main.entities WHERE eid = ?").get(entity.eid) as { id: number }).id;
+  return (prepared(db, "SELECT id FROM main.entities WHERE eid = ?").get(entity.eid) as { id: number }).id;
 }
 
 /** Recomputes an entity's caption and search rows. Only organisations that are not natural persons are searchable (L2, L3). */
-export function refreshEntity(db: DatabaseSync, entityId: number): void {
-  const entity = db
-    .prepare(
-      `SELECT e.id, e.eid, e.natural_person, e.legal_form, e.code, s.name AS schema FROM main.entities e
-       JOIN main.schemas s ON s.id = e.schema_id WHERE e.id = ?`,
-    )
-    .get(entityId) as { id: number; eid: string; natural_person: number; legal_form: string | null; code: string | null; schema: string };
-  const names = (
-    db
-      .prepare(
-        `SELECT st.value FROM main.statements st JOIN main.props p ON p.id = st.prop_id
-         WHERE st.entity_id = ? AND p.name IN (${NAME_PROPS.map(() => "?").join(", ")}) ORDER BY st.id`,
-      )
-      .all(entityId, ...NAME_PROPS) as { value: string }[]
-  ).map((r) => r.value);
+type EntityForSearch = { id: number; eid: string; natural_person: number; legal_form: string | null; code: string | null; schema: string };
 
-  // Sanctions list entries are reachable only through screening, never search (sanctions.md §6).
-  const searchable = entity.natural_person === 0 && (ORGANISATION_SCHEMAS as readonly string[]).includes(entity.schema) && !entity.eid.startsWith("sanc-");
+function entityForSearch(db: DatabaseSync, entityId: number): { entity: EntityForSearch; names: string[] } {
+  const entity = prepared(
+    db,
+    `SELECT e.id, e.eid, e.natural_person, e.legal_form, e.code, s.name AS schema FROM main.entities e
+       JOIN main.schemas s ON s.id = e.schema_id WHERE e.id = ?`,
+  ).get(entityId) as EntityForSearch;
+  const names = (
+    prepared(
+      db,
+      `SELECT st.value FROM main.statements st JOIN main.props p ON p.id = st.prop_id
+         WHERE st.entity_id = ? AND p.name IN (${NAME_PROPS.map(() => "?").join(", ")}) ORDER BY st.id`,
+    ).all(entityId, ...NAME_PROPS) as { value: string }[]
+  ).map((r) => r.value);
+  return { entity, names };
+}
+
+/** The entity's caption, from its names (or, for a natural person, its legal form and code). */
+export function refreshCaption(db: DatabaseSync, entityId: number): void {
+  const { entity, names } = entityForSearch(db, entityId);
   const caption =
     entity.natural_person === 1
       ? naturalPersonCaption({ legalForm: entity.legal_form, code: entity.code ?? "" })
       : (names[0] ?? entity.code ?? "");
-  db.prepare("UPDATE main.entities SET caption = ? WHERE id = ?").run(caption, entityId);
-  db.prepare("DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
-  db.prepare("DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
+  prepared(db, "UPDATE main.entities SET caption = ? WHERE id = ?").run(caption, entityId);
+}
+
+/** The entity's two search rows, rewritten from its names. */
+export function refreshSearchRows(db: DatabaseSync, entityId: number): void {
+  const { entity, names } = entityForSearch(db, entityId);
+  // Sanctions list entries are reachable only through screening, never search (sanctions.md §6).
+  const searchable = entity.natural_person === 0 && (ORGANISATION_SCHEMAS as readonly string[]).includes(entity.schema) && !entity.eid.startsWith("sanc-");
+  prepared(db, "DELETE FROM main.entities_fts WHERE rowid = ?").run(entityId);
+  prepared(db, "DELETE FROM main.entities_trigram WHERE rowid = ?").run(entityId);
   if (searchable) {
     const text = normalizeText([...new Set(names)].join(" "));
-    db.prepare("INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)").run(entityId, text);
-    db.prepare("INSERT INTO main.entities_trigram (rowid, search_text) VALUES (?, ?)").run(entityId, text);
+    prepared(db, "INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)").run(entityId, text);
+    prepared(db, "INSERT INTO main.entities_trigram (rowid, search_text) VALUES (?, ?)").run(entityId, text);
   }
+}
+
+export function refreshEntity(db: DatabaseSync, entityId: number): void {
+  refreshCaption(db, entityId);
+  refreshSearchRows(db, entityId);
+}
+
+/**
+ * Writes the search rows of every entity a sync marked dirty, `batch` per transaction, opened with
+ * `begin` (a sync's fenced begin) and committed here. The marks are rows, so a sync cut off before
+ * this pass leaves them for the next sync or the boot to finish (qa condition 1 on the write path).
+ */
+export function rebuildSearch(db: DatabaseSync, options: { begin?: () => void; batch?: number } = {}): number {
+  const begin = options.begin ?? (() => db.exec("BEGIN IMMEDIATE"));
+  const batch = options.batch ?? 5000;
+  let done = 0;
+  for (;;) {
+    const ids = (prepared(db, "SELECT entity_id FROM main.search_dirty ORDER BY entity_id LIMIT ?").all(batch) as { entity_id: number }[]).map((r) => r.entity_id);
+    if (ids.length === 0) return done;
+    begin();
+    try {
+      for (const id of ids) {
+        refreshSearchRows(db, id);
+        prepared(db, "DELETE FROM main.search_dirty WHERE entity_id = ?").run(id);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      if (db.isTransaction) db.exec("ROLLBACK");
+      throw error;
+    }
+    done += ids.length;
+  }
+}
+
+/** Whether a record's stored hash already equals this hash input: an unchanged record is not read further. */
+export function recordUnchanged(db: DatabaseSync, sourceId: string, recordKey: string, hashInput: readonly string[]): boolean {
+  const row = prepared(db, "SELECT row_hash FROM main.records WHERE source_id = ? AND record_key = ?").get(sourceId, recordKey) as { row_hash: Uint8Array } | undefined;
+  return row !== undefined && Buffer.from(row.row_hash).equals(rowHash([...hashInput]));
 }

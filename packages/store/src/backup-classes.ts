@@ -36,6 +36,7 @@ export const BACKUP_CLASSES: Record<string, BackupClass> = {
   "main.leases": derivable,
   "main.jobs": derivable,
   "main.entities_fts": derivable,
+  "main.search_dirty": derivable,
   "main.entities_trigram": derivable,
   "main.withheld": derivable,
   "main.live_cache_misses": derivable,

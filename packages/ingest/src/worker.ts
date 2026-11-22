@@ -36,7 +36,8 @@ export async function serveSyncWorker(resolve: (sourceId: string, config: Loader
   const batch = workerData as WorkerBatch;
   const post = (message: WorkerMessage) => parentPort?.postMessage(message);
   post({ type: "progress" });
-  const store = openStore({ dataDir: batch.dataDir });
+  // The sync connection: statement and page caches, closed when the batch ends (which finalizes every statement).
+  const store = openStore({ dataDir: batch.dataDir, sync: true });
   try {
     for (const sourceId of batch.sourceIds) {
       const loader = resolve(sourceId, batch.config ?? DEFAULT_LOADER_CONFIG);

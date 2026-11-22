@@ -340,6 +340,17 @@ export const MIGRATIONS: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  {
+    // cto's write-path fix 3 on S05: entities whose search rows a sync still owes, written in one pass at
+    // its end; a sync cut off before that pass leaves its marks for the next sync or the boot.
+    target: "main",
+    name: "search dirty",
+    sql: `
+      CREATE TABLE main.search_dirty (
+        entity_id INTEGER PRIMARY KEY REFERENCES entities(id) ON DELETE CASCADE
+      ) STRICT;
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */

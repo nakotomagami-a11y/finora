@@ -8,7 +8,7 @@ import { FIXTURE_PROFILE } from "@finora/fixtures";
 import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, sweepWorkDirs, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { LOADERS } from "@finora/sources";
-import { companyValues, openStore, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
+import { companyValues, openStore, rebuildSearch, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
 
 export type Io = { env: CliEnv; out: (line: string) => void; now?: () => Date };
@@ -56,7 +56,11 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     return 2;
   }
   // Boot for the CLI: work dirs left by a sync that never reached its cleanup go first (legal condition 1).
-  withStore(io, (store) => sweepWorkDirs(store.db, join(io.env.dataDir, "work")));
+  // and search rows a killed sync still owed are written (qa condition 1 on the write path).
+  withStore(io, (store) => {
+    sweepWorkDirs(store.db, join(io.env.dataDir, "work"));
+    rebuildSearch(store.db);
+  });
   if (held === null) writeFileSync(marker, `${args.profile}\n`);
   let failed = 0;
   // One long-lived worker per lane (a country, the sanctions lists, GLEIF), the lanes in parallel,

@@ -1,11 +1,16 @@
 export { openStore, STORE_SCHEMAS, transaction, type Store, type StoreSchema } from "./open.ts";
+export { cachedStatements, clearStatementCache, enableStatementCache, prepared, statementCacheSize } from "./statements.ts";
 export { IDENTIFIER_INDEX_WHERE, IDENTIFIER_PROPS, LARGE_TABLES, largeTableRewrites, migrate, MIGRATIONS, type Migration, type Target } from "./migrations.ts";
 export {
   beginSync,
   dropIfOrphan,
   finishSync,
   intern,
+  rebuildSearch,
+  recordUnchanged,
+  refreshCaption,
   refreshEntity,
+  refreshSearchRows,
   rowHash,
   StoreError,
   upsertSource,

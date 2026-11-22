@@ -16,6 +16,7 @@ import {
   deleteRecords,
   endStaging,
   entityByCode,
+  clearStatementCache,
   entityByEid,
   entityGeneration,
   finishSync,
@@ -31,6 +32,8 @@ import {
   recordLines,
   releaseLease,
   replaceShareAlike,
+  rebuildSearch,
+  recordUnchanged,
   setContentHash,
   syncReport,
   shareAlikeRecords,
@@ -140,6 +143,14 @@ const bump = (counts: Record<string, number>, key: string, n = 1) => (counts[key
 class LeaseLost extends Error {}
 
 /**
+ * The next batch's size from the last one's rate, so the write lock is held about `maxMs`: a slow
+ * disk shrinks it, a fast one grows it, between 50 (or the cap, if lower) and the cap (cto's fix 1).
+ */
+export function nextBatchSize(inBatch: number, maxMs: number, elapsedMs: number, cap = 5000): number {
+  return Math.min(cap, Math.max(Math.min(50, cap), Math.floor((inBatch * maxMs) / Math.max(1, elapsedMs))));
+}
+
+/**
  * A record waiting for a referenced company carries a fixed marker in its hash input, so its stored
  * hash differs from the one it gets once the reference resolves: that sync writes it again and the
  * value loads (qa M5 on S05, legal). While it waits, the marked hash repeats, so it is not rewritten.
@@ -230,6 +241,8 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
   };
 
   try {
+    // A sync cut off before its search pass left marks: they are written first (qa condition 1).
+    rebuildSearch(db, { begin });
     const previous = lastContentSync(db, meta.id);
     const previousStorage = lastContentStorage(db, meta.id);
     const classChanged = previousStorage !== null && previousStorage !== storage;
@@ -295,14 +308,17 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
 
     if (storage === "store") beginStaging(db);
     const maxMs = options.batch?.maxMs ?? 250;
-    let maxRecords = options.batch?.maxRecords ?? 5000;
+    // The caller's batch size is the upper bound; the floor is 50, or the bound if lower.
+    const batchCap = options.batch?.maxRecords ?? 5000;
+    let maxRecords = batchCap;
     let inBatch = 0;
     let batchStart = 0;
     const commit = () => {
       if (!db.isTransaction) return;
       db.exec("COMMIT");
-      // A slow disk shrinks the batch, so the write lock is never held long (qa session 2).
-      if (Date.now() - batchStart > maxMs && maxRecords > 50) maxRecords = Math.max(50, Math.floor(maxRecords / 2));
+      // The next batch is sized from this one's rate, so the write lock is held about maxMs: a slow
+      // disk shrinks it, a fast one grows it, never below 50 or above 5000 (cto's fix 1; qa session 2).
+      maxRecords = nextBatchSize(inBatch, maxMs, Date.now() - batchStart, batchCap);
       beat();
     };
 
@@ -366,7 +382,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
           batchStart = Date.now();
           inBatch = 0;
         }
-        writeParsed(db, { syncId, sourceId: meta.id, day }, { ...record, hashInput: retryable(masked(record.hashInput, gated.refused), gated.retry) }, gated, report);
+        writeParsed(db, { syncId, sourceId: meta.id, day, deferSearch: true }, { ...record, hashInput: retryable(masked(record.hashInput, gated.refused), gated.retry) }, gated, report);
         if (++inBatch >= maxRecords || Date.now() - batchStart > maxMs) commit();
       }
     } catch (error) {
@@ -418,6 +434,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       report.deleted = purged.deleted;
       report.tombstoned = purged.tombstoned;
       report.events += purged.events;
+      rebuildSearch(db, { begin });
       if (purged.guard) {
         setContentHash(db, syncId, hash);
         return finish("partial", { upstreamAsOf: asOf, asOfBasis: basis, reason: "purge_guard" });
@@ -451,17 +468,24 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     if (!lost) releaseLease(db, lease);
     // Streamed downloads live only for their sync; the raw cache keeps its own compressed copy.
     if (workDir) rmSync(workDir, { recursive: true, force: true });
+    // No statement keeps a value bound by this sync (legal on the statement cache).
+    clearStatementCache(db);
   }
 }
 
 /** Writes one gated record and its history events; counts the outcome in the report. */
 export function writeParsed(
   db: DatabaseSync,
-  sync: { syncId: number; sourceId: string; day: string },
+  sync: { syncId: number; sourceId: string; day: string; deferSearch?: boolean },
   raw: ParsedRecord,
   gated: GateResult,
   report: SyncReport,
 ): void {
+  // The daily case first: an unchanged record is counted before any snapshot is read (cto's fix 6).
+  if (recordUnchanged(db, sync.sourceId, raw.recordKey, raw.hashInput)) {
+    report.unchanged++;
+    return;
+  }
   const existing = recordId(db, sync.sourceId, raw.recordKey);
   const companies = gated.entities.filter((e) => e.schema !== "Person").map((e) => e.eid);
   const before = snapshot(db, existing, companies);
@@ -477,6 +501,7 @@ export function writeParsed(
       withheld: gated.withheld,
       ...(raw.lineIds ? { lineIds: raw.lineIds } : {}),
       ...(raw.period ? { period: raw.period } : {}),
+      ...(sync.deferSearch ? { deferSearch: true } : {}),
     });
     if (!changed) {
       report.unchanged++;
