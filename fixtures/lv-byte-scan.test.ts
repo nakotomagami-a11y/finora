@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runSync } from "@finora/ingest";
 import { lvUrOfficersLoader, type LvPersonRows } from "@finora/sources";
-import { LV_BIRTH_DATE_CANARY, LV_RISK_CANARIES, lvMaskedCodeCanary, lvRiskMaskedCode } from "@finora/sources/testing";
+import { LV_BIRTH_DATE_CANARY, LV_LIQUIDATION_GROUND_CANARY, LV_RISK_CANARIES, lvMaskedCodeCanary, lvRiskMaskedCode } from "@finora/sources/testing";
 import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { FIXTURE_PROFILE } from "./src/index.ts";
@@ -20,7 +20,7 @@ const LV = FIXTURE_PROFILE.map((p) => p.loader).filter((l) => /^lv-(ur|vid)-/.te
 const COMPANY_PARTY_TYPES = ["LEGAL_ENTITY", "FOREIGN_ENTITY"];
 
 /** Values no mode may store: person codes, birth dates and the dropped free text around people. */
-const ALWAYS = [lvMaskedCodeCanary(), LV_BIRTH_DATE_CANARY, lvRiskMaskedCode(), LV_RISK_CANARIES.birthDate, LV_RISK_CANARIES.debtorAddress, LV_RISK_CANARIES.bailiff, LV_RISK_CANARIES.typeDetails, LV_RISK_CANARIES.groundFor, LV_RISK_CANARIES.nationality, LV_RISK_CANARIES.legalBase];
+const ALWAYS = [lvMaskedCodeCanary(), LV_BIRTH_DATE_CANARY, lvRiskMaskedCode(), LV_RISK_CANARIES.birthDate, LV_RISK_CANARIES.debtorAddress, LV_RISK_CANARIES.bailiff, LV_RISK_CANARIES.typeDetails, LV_RISK_CANARIES.groundFor, LV_RISK_CANARIES.nationality, LV_RISK_CANARIES.legalBase, LV_LIQUIDATION_GROUND_CANARY, "Test Person S"];
 
 /**
  * Officers', members' and listed persons' fixture names. "Test Person A" is left out: it is also a

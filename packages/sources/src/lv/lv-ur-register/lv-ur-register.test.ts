@@ -107,6 +107,8 @@ describe("lv-ur-liquidations, reorganisations and memorandum dates", () => {
     expect(records[0]!.events).toEqual([{ entityEid: `lv-${lvFx(18).code}`, type: "register.liquidation", date: "2026-09-01", itemId: "S02.LV.01", data: { kind: "LIQUIDATION" } }]);
     expect(records[0]!.dropped).toEqual([{ reason: "free_text", prop: "grounds_for_liquidation" }]);
     expect(JSON.stringify(records)).not.toContain("sapulces");
+    expect(JSON.stringify(records)).not.toContain("Test Person S");
+    expect(records[1]!.dropped).toContainEqual({ reason: "free_text", prop: "grounds_for_liquidation" });
     expect(records[2]!.dropped).toContainEqual({ reason: "unknown_enum", prop: "liquidation_type" });
   });
 

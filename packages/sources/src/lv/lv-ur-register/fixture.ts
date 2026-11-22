@@ -20,10 +20,13 @@ export const lvNameHistoryCsv = () =>
     [lvFx(1).code, "2015-01-01", ""], // an empty name: skipped
   ]);
 
+/** A liquidation ground naming a fictional person: grounds are free text and are never stored (legal on S05). */
+export const LV_LIQUIDATION_GROUND_CANARY = "Court ruling on a claim by Test Person S";
+
 export const lvLiquidationsCsv = () =>
   lvCsv(["id", "legal_entity_registration_number", "liquidation_type", "liquidation_type_text", "date_from", "grounds_for_liquidation", "registered_on", "last_modified_at"], [
     ["7001", lvFx(18).code, "LIQUIDATION", "Likvidācijas process", "2026-09-01", "Dalībnieku sapulces lēmums", "2026-09-02", "2026-09-02T10:00:00"],
-    ["7002", lvFx(6).code, "ACTIVITY_TERMINATED_BY_COURT", "Darbības izbeigšana ar tiesas nolēmumu", "2019-01-10", "Tiesas spriedums", "2019-01-11", "2019-01-11T10:00:00"],
+    ["7002", lvFx(6).code, "ACTIVITY_TERMINATED_BY_COURT", "Darbības izbeigšana ar tiesas nolēmumu", "2019-01-10", LV_LIQUIDATION_GROUND_CANARY, "2019-01-11", "2019-01-11T10:00:00"],
     ["7003", lvFx(14).code, "SOMETHING_NEW", "", "2025-02-02", "", "2025-02-03", "2025-02-03T10:00:00"], // an unknown type: kept, counted
   ]);
 
