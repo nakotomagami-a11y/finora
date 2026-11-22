@@ -1,9 +1,9 @@
 {
   "nodes": [
     {
-      "eid": "lv-00000000001",
+      "eid": "lv-40003000018",
       "name": "Example Company 1 SIA",
-      "code": "00000000001",
+      "code": "40003000018",
       "status": "active",
       "country": "lv"
     }

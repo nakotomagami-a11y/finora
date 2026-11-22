@@ -4,7 +4,7 @@
       "id": "inv-fixture-1",
       "subject": "Example Company 1 SIA",
       "country": "lv",
-      "eid": "lv-00000000001",
+      "eid": "lv-40003000018",
       "level": "points_to_check",
       "coverage": {
         "ran": 9,
@@ -25,7 +25,7 @@
       "id": "inv-fixture-2",
       "subject": "Placeholder Foods OÜ",
       "country": "ee",
-      "eid": "ee-10000000",
+      "eid": "ee-10000002",
       "level": null,
       "coverage": null,
       "usage": {

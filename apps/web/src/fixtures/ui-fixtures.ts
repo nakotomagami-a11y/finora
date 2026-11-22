@@ -8,6 +8,7 @@ import {
   SearchResponse,
   type Usage,
 } from "@finora/api-contract";
+import { fixtureRegisterCode } from "@finora/domain";
 import { AT, EID, agentsStatus, companyReport, snapshot as sampleSnapshot, source, usage as sampleUsage, verdict } from "@finora/api-contract/samples";
 
 /**
@@ -16,6 +17,21 @@ import { AT, EID, agentsStatus, companyReport, snapshot as sampleSnapshot, sourc
  * JSON files under `fixtures/ui/` and `fixtures/agents/`; a test checks that the committed files equal this output and
  * that each one validates against the contract, so neither can drift from the other.
  */
+
+/** The first fixture register code at or after `start` that has a check digit (architecture §3.4: fixture codes are the true digit plus one). */
+function fx(country: "lv" | "ee" | "lt", start: string): string {
+  for (let n = 0; n < 50; n += 1) {
+    const code = fixtureRegisterCode(country, String(Number(start) + n).padStart(start.length, "0"));
+    if (code) return code;
+  }
+  throw new Error(`no fixture code near ${start}`);
+}
+const LV1 = EID.slice(3);
+const LV2 = fx("lv", "4000300020");
+const LV3 = fx("lv", "4000300040");
+const LV9 = fx("lv", "4000300090");
+const EE1 = fx("ee", "1000000");
+const LT1 = fx("lt", EE1);
 
 const INV = "inv-fixture-1";
 const NAME = "Example Company 1 SIA";
@@ -106,7 +122,7 @@ const question = (id: string, kind: string, text: string, options: { id: string;
 const QUESTION_EVENTS: Record<string, EventInput[]> = {
   entity: [
     { type: "run.status", data: { runId: "run-lead", status: "waiting", waitingOn: "question" } },
-    { type: "question", data: question("q1", "entity_choice", "Two registered companies match. Which one do you mean?", [{ id: "a", label: `${NAME} (00000000001)` }, { id: "b", label: "Example Company 2 SIA (00000000002)" }]) },
+    { type: "question", data: question("q1", "entity_choice", "Two registered companies match. Which one do you mean?", [{ id: "a", label: `${NAME} (${LV1})` }, { id: "b", label: `Example Company 2 SIA (${LV2})` }]) },
   ],
   sanctions: [
     { type: "run.status", data: { runId: "run-legal", status: "waiting", waitingOn: "question" } },
@@ -276,15 +292,15 @@ export function searchFixtures(): Record<string, SearchResponse> {
     empty: SearchResponse.parse({ groups: [{ id: "lv", kind: "bulk", country: "lv", state: "ready", results: [] }] }),
     loading: SearchResponse.parse({
       groups: [
-        { id: "lv", kind: "bulk", country: "lv", state: "ready", results: [hit("00000000001", NAME, "lv"), hit("00000000002", "Example Company 2 SIA", "lv")] },
+        { id: "lv", kind: "bulk", country: "lv", state: "ready", results: [hit(LV1, NAME, "lv"), hit(LV2, "Example Company 2 SIA", "lv")] },
         { id: "ee", kind: "bulk", country: "ee", state: "loading", percent: 62, results: [] },
       ],
     }),
     results: SearchResponse.parse({
       groups: [
-        { id: "lv", kind: "bulk", country: "lv", state: "ready", results: [hit("00000000001", NAME, "lv"), hit("00000000002", "Example Company 2 SIA", "lv")] },
-        { id: "ee", kind: "bulk", country: "ee", state: "ready", results: [hit("10000000", "Placeholder Foods OÜ", "ee")] },
-        { id: "lt", kind: "bulk", country: "lt", state: "ready", results: [hit("100000000", "Sample Trading UAB", "lt")] },
+        { id: "lv", kind: "bulk", country: "lv", state: "ready", results: [hit(LV1, NAME, "lv"), hit(LV2, "Example Company 2 SIA", "lv")] },
+        { id: "ee", kind: "bulk", country: "ee", state: "ready", results: [hit(EE1, "Placeholder Foods OÜ", "ee")] },
+        { id: "lt", kind: "bulk", country: "lt", state: "ready", results: [hit(LT1, "Sample Trading UAB", "lt")] },
         { id: "us-ny", kind: "live", country: "us", state: "error", results: [] },
       ],
     }),
@@ -295,15 +311,15 @@ export function networkFixtures(): Record<string, NetworkResponse> {
   const node = (code: string, name: string) => ({ eid: `lv-${code}`, name, code, status: "active", country: "lv" as const });
   const edge = (from: string, to: string, over: Record<string, unknown> = {}) => ({ from: `lv-${from}`, to: `lv-${to}`, relation: "shared_address", source: source(), ...over });
   const graph = NetworkResponse.parse({
-    nodes: [node("00000000001", NAME), node("00000000002", "Example Company 2 SIA"), node("00000000003", "Example Company 3 SIA")],
-    edges: [edge("00000000001", "00000000002"), edge("00000000001", "00000000003", { relation: "corporate_member", share: 40 })],
+    nodes: [node(LV1, NAME), node(LV2, "Example Company 2 SIA"), node(LV3, "Example Company 3 SIA")],
+    edges: [edge(LV1, LV2), edge(LV1, LV3, { relation: "corporate_member", share: 40 })],
     hubs: [],
     truncated: false,
   });
   return {
     graph,
     list: graph,
-    empty: NetworkResponse.parse({ nodes: [node("00000000001", NAME)], edges: [], hubs: [], truncated: false }),
+    empty: NetworkResponse.parse({ nodes: [node(LV1, NAME)], edges: [], hubs: [], truncated: false }),
     "too-large": NetworkResponse.parse({ ...graph, hubs: [{ addressKey: "addr-fixture-1", companyCount: 412, collapsed: true }], truncated: true }),
   };
 }
@@ -313,7 +329,7 @@ export function libraryFixtures(): Record<string, unknown> {
     list: LibraryResponse.parse({
       investigations: [
         { id: INV, subject: NAME, country: "lv", eid: EID, level: "points_to_check", coverage: { ran: 9, total: 11 }, usage: usage({ used: 190_000, held: 0 }), status: "done", startedAt: AT, finishedAt: AT },
-        { id: "inv-fixture-2", subject: "Placeholder Foods OÜ", country: "ee", eid: "ee-10000000", level: null, coverage: null, usage: usage({ used: 40_000, held: 0 }), status: "stopped", startedAt: AT, finishedAt: AT },
+        { id: "inv-fixture-2", subject: "Placeholder Foods OÜ", country: "ee", eid: `ee-${EE1}`, level: null, coverage: null, usage: usage({ used: 40_000, held: 0 }), status: "stopped", startedAt: AT, finishedAt: AT },
       ],
     }),
     empty: LibraryResponse.parse({ investigations: [] }),
@@ -349,8 +365,8 @@ export function companyFixtures(): Record<string, unknown> {
   const header = (country: "lv" | "lt" | "ee" | "us", code: string, over: Record<string, unknown> = {}) => ({ ...base.header, eid: `${country}-${code}`, country, code, legalForm: null, ...over });
   return {
     lv: base,
-    lt: { ...base, header: header("lt", "100000000", { name: "Sample Trading UAB", caption: "Sample Trading UAB" }) },
-    ee: { ...base, header: header("ee", "10000000", { name: "Placeholder Foods OÜ", caption: "Placeholder Foods OÜ" }) },
+    lt: { ...base, header: header("lt", LT1, { name: "Sample Trading UAB", caption: "Sample Trading UAB" }) },
+    ee: { ...base, header: header("ee", EE1, { name: "Placeholder Foods OÜ", caption: "Placeholder Foods OÜ" }) },
     us: { ...base, header: header("us", "ny-fx000001", { name: "Example Holdings Inc", caption: "Example Holdings Inc" }) },
     // The purpose is set: the officers section (S03) is open. Names are fictional.
     "purpose-set": {
@@ -371,7 +387,7 @@ export function companyFixtures(): Record<string, unknown> {
     },
     "sole-trader": {
       ...base,
-      header: { eid: "lv-00000000009", country: "lv", code: "00000000009", legalForm: "lv-ik", status: "active", caption: "Sole trader (IK) · 00000000009" },
+      header: { eid: `lv-${LV9}`, country: "lv", code: LV9, legalForm: "lv-ik", status: "active", caption: `Sole trader (IK) · ${LV9}` },
       isNaturalPerson: true,
     },
   };

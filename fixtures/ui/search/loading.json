@@ -7,9 +7,9 @@
       "state": "ready",
       "results": [
         {
-          "eid": "lv-00000000001",
+          "eid": "lv-40003000018",
           "caption": "Example Company 1 SIA",
-          "code": "00000000001",
+          "code": "40003000018",
           "country": "lv",
           "legalForm": null,
           "status": "active",
@@ -17,9 +17,9 @@
           "isNaturalPerson": false
         },
         {
-          "eid": "lv-00000000002",
+          "eid": "lv-40003000215",
           "caption": "Example Company 2 SIA",
-          "code": "00000000002",
+          "code": "40003000215",
           "country": "lv",
           "legalForm": null,
           "status": "active",

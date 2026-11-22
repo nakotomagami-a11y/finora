@@ -1,7 +1,7 @@
 {
   "id": "inv-fixture-1",
   "subject": {
-    "eid": "lv-00000000001",
+    "eid": "lv-40003000018",
     "country": "lv",
     "caption": "Example Company 1 SIA"
   },
@@ -148,7 +148,7 @@
       "id": "f1",
       "investigationId": "inv-fixture-1",
       "runId": "run-registry",
-      "entityId": "lv-00000000001",
+      "entityId": "lv-40003000018",
       "checkId": 2,
       "itemId": "S01.LV.01",
       "kind": "signal",
@@ -186,11 +186,11 @@
       "options": [
         {
           "id": "a",
-          "label": "Example Company 1 SIA (00000000001)"
+          "label": "Example Company 1 SIA (40003000018)"
         },
         {
           "id": "b",
-          "label": "Example Company 2 SIA (00000000002)"
+          "label": "Example Company 2 SIA (40003000215)"
         }
       ],
       "defaultOptionId": null,

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "../../../i18n/navigation.ts";
 import { isDemoMode } from "../../../lib/server-data.ts";
@@ -7,10 +7,13 @@ import { GROUPS } from "../../../components/gallery/group-list.ts";
 export const metadata = { title: "Design system", robots: { index: false } };
 
 /** The state gallery: every primitive in every state. Demo and test builds only (`FINORA_DEMO=1`). */
-export default async function DesignIndex({ params }: { params: Promise<{ locale: string }> }) {
+export default async function DesignIndex({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ state?: string }> }) {
   if (!isDemoMode()) notFound();
   const { locale } = await params;
   setRequestLocale(locale);
+  // `/design?state=report` opens that investigation fixture (the plan's demo address).
+  const { state } = await searchParams;
+  if (state !== undefined && /^[a-z0-9-]{1,40}$/u.test(state)) redirect(`/${locale}/design/fixtures?screen=investigation&state=${state}`);
 
   return (
     <>
@@ -29,6 +32,11 @@ export default async function DesignIndex({ params }: { params: Promise<{ locale
             </Link>
           </li>
         ))}
+        <li>
+          <Link href="/design/fixtures" className="inline-flex min-h-8 items-center text-body text-ink underline">
+            Fixture states
+          </Link>
+        </li>
       </ul>
     </>
   );

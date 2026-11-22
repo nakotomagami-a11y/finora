@@ -22,6 +22,7 @@
     "@fontsource-variable/geist": "catalog:",
     "@fontsource-variable/geist-mono": "catalog:",
     "@fontsource/instrument-serif": "catalog:",
+    "@tanstack/react-query": "catalog:",
     "get-nonce": "catalog:",
     "lucide-react": "catalog:",
     "next": "catalog:",

@@ -7,9 +7,9 @@
       "state": "ready",
       "results": [
         {
-          "eid": "lv-00000000001",
+          "eid": "lv-40003000018",
           "caption": "Example Company 1 SIA",
-          "code": "00000000001",
+          "code": "40003000018",
           "country": "lv",
           "legalForm": null,
           "status": "active",
@@ -17,9 +17,9 @@
           "isNaturalPerson": false
         },
         {
-          "eid": "lv-00000000002",
+          "eid": "lv-40003000215",
           "caption": "Example Company 2 SIA",
-          "code": "00000000002",
+          "code": "40003000215",
           "country": "lv",
           "legalForm": null,
           "status": "active",
@@ -35,9 +35,9 @@
       "state": "ready",
       "results": [
         {
-          "eid": "ee-10000000",
+          "eid": "ee-10000002",
           "caption": "Placeholder Foods OÜ",
-          "code": "10000000",
+          "code": "10000002",
           "country": "ee",
           "legalForm": null,
           "status": "active",
@@ -53,9 +53,9 @@
       "state": "ready",
       "results": [
         {
-          "eid": "lt-100000000",
+          "eid": "lt-100000027",
           "caption": "Sample Trading UAB",
-          "code": "100000000",
+          "code": "100000027",
           "country": "lt",
           "legalForm": null,
           "status": "active",

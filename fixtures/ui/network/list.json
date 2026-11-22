@@ -1,31 +1,31 @@
 {
   "nodes": [
     {
-      "eid": "lv-00000000001",
+      "eid": "lv-40003000018",
       "name": "Example Company 1 SIA",
-      "code": "00000000001",
+      "code": "40003000018",
       "status": "active",
       "country": "lv"
     },
     {
-      "eid": "lv-00000000002",
+      "eid": "lv-40003000215",
       "name": "Example Company 2 SIA",
-      "code": "00000000002",
+      "code": "40003000215",
       "status": "active",
       "country": "lv"
     },
     {
-      "eid": "lv-00000000003",
+      "eid": "lv-40003000408",
       "name": "Example Company 3 SIA",
-      "code": "00000000003",
+      "code": "40003000408",
       "status": "active",
       "country": "lv"
     }
   ],
   "edges": [
     {
-      "from": "lv-00000000001",
-      "to": "lv-00000000002",
+      "from": "lv-40003000018",
+      "to": "lv-40003000215",
       "relation": "shared_address",
       "source": {
         "sourceId": "fx-lv-register",
@@ -39,8 +39,8 @@
       }
     },
     {
-      "from": "lv-00000000001",
-      "to": "lv-00000000003",
+      "from": "lv-40003000018",
+      "to": "lv-40003000408",
       "relation": "corporate_member",
       "source": {
         "sourceId": "fx-lv-register",

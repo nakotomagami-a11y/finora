@@ -28,3 +28,4 @@ export { Disclosure, Tabs, type TabItem } from "./primitives/tabs-disclosure.tsx
 export { Textarea, type TextareaProps } from "./primitives/textarea.tsx";
 export { Toast, ToastProvider } from "./primitives/toast.tsx";
 export { Tooltip } from "./primitives/tooltip.tsx";
+export { UsageMeter, type UsageMeterProps } from "./primitives/usage-meter.tsx";

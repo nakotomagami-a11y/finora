@@ -6,6 +6,7 @@ import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { isLocale } from "@finora/i18n";
+import { Providers } from "../../components/Providers.ts";
 import { AppShell } from "../../components/shell/AppShell.tsx";
 import { CspNonce } from "../../components/shell/CspNonce.tsx";
 import { THEME_COOKIE, themeFromCookie } from "../../lib/theme.ts";
@@ -33,7 +34,9 @@ export default async function LocaleLayout({ children, params }: Props) {
       <body>
         {nonce ? <CspNonce nonce={nonce} /> : null}
         <NextIntlClientProvider>
-          <AppShell>{children}</AppShell>
+          <Providers>
+            <AppShell>{children}</AppShell>
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>
