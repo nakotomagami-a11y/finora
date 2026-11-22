@@ -174,15 +174,17 @@ const retryable = (hashInput: string[], retry: boolean) => (retry ? [...hashInpu
  * value's JSON-escaped form is masked too: `SIA "Example"` stands there as `SIA \"Example\"`.
  */
 function masked(hashInput: readonly string[], refused: readonly string[]): string[] {
-  // Numbered in the gate's push order, never sorted: a refused name renamed past another in sort
-  // order must not swap their markers, or the hash would follow a value it may not cover (G2).
-  const values = [...new Set(refused.filter((v) => v !== ""))];
-  if (values.length === 0) return [...hashInput];
+  // Numbered by each value's first place in the gate's push list, never sorted and never after
+  // deduplication: a refused name renamed past another in sort order, or a duplicate renamed, must not
+  // move any other value's marker, or the hash would follow values it may not cover (G2; qa NIT).
   const marker = new Map<string, string>();
-  values.forEach((v, i) => {
+  refused.forEach((v, i) => {
+    if (v === "" || marker.has(v)) return;
     marker.set(v, `[withheld ${i}]`);
-    marker.set(JSON.stringify(v).slice(1, -1), `[withheld ${i}]`);
+    const escaped = JSON.stringify(v).slice(1, -1);
+    if (!marker.has(escaped)) marker.set(escaped, `[withheld ${i}]`);
   });
+  if (marker.size === 0) return [...hashInput];
   // Longest first, so a value inside a longer refused value never splits it.
   const pattern = new RegExp([...marker.keys()].sort((a, b) => b.length - a.length).map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
   return hashInput.map((h) => h.replace(pattern, (v) => marker.get(v) as string));

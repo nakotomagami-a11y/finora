@@ -158,4 +158,17 @@ describe("a party that needs another (PartyRef.needs)", () => {
     links.state.asOf = { in_file_field: "2026-11-02" };
     expect((await sync(db, links)).report?.unchanged).toBe(1);
   });
+
+  it("a renamed duplicate moves no other value's marker (qa NIT on a866354)", async () => {
+    const db = memoryDb();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+    const unproven = (n: number, name: string): PartyRef => ({ type: "JOINT_OWNERS", entities: [{ eid: `org-${String(n).padStart(20, "0")}`, schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
+    // Only the third name is in the hash input: its marker is all the hash can follow.
+    const record = (second: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), unproven(1, "Same Holding"), unproven(2, second), unproven(3, "Other Holding")]), hashInput: ["link", "Other Holding"] });
+    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record("Same Holding")] });
+    await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
+    links.state.records = [record("Renamed Holding")];
+    links.state.asOf = { in_file_field: "2026-11-02" };
+    expect((await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report?.unchanged).toBe(1);
+  });
 });
