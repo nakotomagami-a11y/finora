@@ -7,8 +7,9 @@
 //
 // Get the files once (open data, CC0): `python -I research/probes/baltics/lv/01_ckan_download.py <cache>`
 // writes `<cache>/raw/<dataset>/<file>.csv`. Then, from the repo root, on a fresh run:
-//   node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [source ids...]
-// The store goes to a fresh temp dir and is removed at the end. Record the printed commit, the
+//   node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [--names] [source ids...]
+// The officers load in `role_counts` unless `--names` asks for `names_no_id`. The store goes to a
+// fresh temp dir and is removed on every exit, Ctrl-C included. Record the printed commit, the
 // command and the machine with any figure you keep (docs/plan/benchmarks.md).
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -19,8 +20,7 @@ import { loadersFor } from "../../packages/sources/src/index.ts";
 import { openStore } from "../../packages/store/src/index.ts";
 
 /** The bench prints its figures to stdout. */
-const out = (line: string) => void process.stdout.write(`${line}
-`);
+const out = (line: string) => void process.stdout.write(`${line}\n`);
 const args = process.argv.slice(2);
 const option = (name: string) => {
   const i = args.indexOf(name);
@@ -29,14 +29,16 @@ const option = (name: string) => {
   args.splice(i, 2);
   return value ?? null;
 };
+const names = args.includes("--names");
+if (names) args.splice(args.indexOf("--names"), 1);
 const raw = option("--raw");
 const workBase = option("--work") ?? tmpdir();
 if (!raw || !existsSync(raw)) {
-  console.error("usage: node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [source ids...]");
+  console.error("usage: node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [--names] [source ids...]");
   process.exit(2);
 }
 const only = new Set(args);
-const LV = loadersFor({ lvPersonRows: "names_no_id" }).filter((l) => l.meta.country === "lv" && l.meta.id.startsWith("lv-") && (only.size === 0 || only.has(l.meta.id)));
+const LV = loadersFor({ lvPersonRows: names ? "names_no_id" : "role_counts" }).filter((l) => l.meta.country === "lv" && l.meta.id.startsWith("lv-") && (only.size === 0 || only.has(l.meta.id)));
 const commit = (() => {
   try {
     return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
@@ -44,18 +46,48 @@ const commit = (() => {
     return "unknown";
   }
 })();
-out(`commit ${commit}, node ${process.version}, ${LV.length} sources, gc ${typeof globalThis.gc === "function" ? "on" : "off (pass --expose-gc)"}`);
+out(`commit ${commit}, node ${process.version}, ${LV.length} sources, LV_PERSON_ROWS ${names ? "names_no_id" : "role_counts"}, gc ${typeof globalThis.gc === "function" ? "on" : "off (pass --expose-gc)"}`);
 
 const mb = (n: number) => Math.round(n / 2 ** 20);
 const dataDir = mkdtempSync(join(workBase, "finora-bench-store-"));
 const store = openStore({ dataDir, sync: true });
 const db = store.db;
+let closed = false;
+/** The store holds officer names under `--names`: it never outlives the run. */
+const cleanUp = () => {
+  if (!closed) {
+    closed = true;
+    try {
+      store.close();
+    } catch {
+      // already closed
+    }
+  }
+  rmSync(dataDir, { recursive: true, force: true });
+};
+process.once("SIGINT", () => {
+  cleanUp();
+  process.exit(130);
+});
 
-// Write transactions, timed from outside the product code.
+// Write transactions (BEGIN..COMMIT) and maintenance writes (checkpoints, FTS optimize and merge
+// steps, vacuum), each timed from outside the product code. A maintenance write runs with no BEGIN
+// of its own, and counts against target 3 on its own line (council 7087246086).
 let txStart = 0;
 let tx: number[] = [];
+let maintenance: number[] = [];
+const MAINTENANCE = /wal_checkpoint|\(\s*'(optimize|merge|rebuild|automerge|crisismerge)'|\bvacuum\b|incremental_vacuum/i;
+const timed = <T,>(series: number[], run: () => T): T => {
+  const started = performance.now();
+  try {
+    return run();
+  } finally {
+    series.push(performance.now() - started);
+  }
+};
 const exec = db.exec.bind(db);
 (db as unknown as { exec: (sql: string) => void }).exec = (sql: string) => {
+  if (MAINTENANCE.test(sql)) return timed(maintenance, () => exec(sql));
   if (/^\s*BEGIN/i.test(sql)) txStart = performance.now();
   exec(sql);
   if (/^\s*(COMMIT|ROLLBACK)/i.test(sql) && txStart) {
@@ -63,6 +95,26 @@ const exec = db.exec.bind(db);
     txStart = 0;
   }
 };
+const prepare = db.prepare.bind(db);
+(db as unknown as { prepare: (sql: string) => unknown }).prepare = (sql: string) => {
+  const statement = prepare(sql) as unknown as Record<string, (...a: unknown[]) => unknown>;
+  if (!MAINTENANCE.test(sql)) return statement;
+  for (const method of ["run", "get", "all"]) {
+    const call = statement[method]!.bind(statement);
+    statement[method] = (...a: unknown[]) => timed(maintenance, () => call(...a));
+  }
+  return statement;
+};
+
+// The control: a checkpoint through either path is caught, or the bench refuses to run.
+db.exec("PRAGMA main.wal_checkpoint(PASSIVE)");
+db.prepare("PRAGMA main.wal_checkpoint(PASSIVE)").get();
+if (maintenance.length !== 2) {
+  console.error("the maintenance timer missed a checkpoint: the bench would under-count target 3");
+  cleanUp();
+  process.exit(1);
+}
+maintenance = [];
 
 /** A CKAN `package_show` and file download served from the local copies; `rehash` changes the file's bytes, not its rows. */
 let rehash = false;
@@ -85,8 +137,9 @@ const fetcher = (() => {
 const quantile = (xs: readonly number[], q: number) => (xs.length === 0 ? 0 : [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(q * xs.length))]!);
 const ms = (n: number) => `${n.toFixed(0)} ms`;
 
-async function one(loader: (typeof LV)[number], label = loader.meta.id): Promise<{ seconds: number; tx: number[] }> {
+async function one(loader: (typeof LV)[number], label = loader.meta.id): Promise<{ seconds: number; tx: number[]; maintenance: number[] }> {
   tx = [];
+  maintenance = [];
   globalThis.gc?.();
   let heap = 0;
   let ext = 0;
@@ -112,26 +165,34 @@ async function one(loader: (typeof LV)[number], label = loader.meta.id): Promise
   out(
     `${label}: ${outcome.kind}${r?.reason ? ` (${r.reason})` : ""}, ${seconds.toFixed(1)} s (${inTx.toFixed(1)} s in write tx), read ${r?.read ?? 0}, written ${r?.written ?? 0}, unchanged ${r?.unchanged ?? 0}, statement writes ${writes}; ` +
       `tx ${tx.length}: p50 ${ms(quantile(tx, 0.5))}, p95 ${ms(quantile(tx, 0.95))}, max ${ms(Math.max(0, ...tx))}, worst #${tx.indexOf(Math.max(...tx)) + 1}; ` +
+      `maintenance ${maintenance.length}: max ${ms(Math.max(0, ...maintenance))}, at 5 s or more ${maintenance.filter((x) => x >= 5000).length}; ` +
       `heap ${mb(heap)} MB, external ${mb(ext)} MB, rss ${mb(rss)} MB`,
   );
-  return { seconds, tx: [...tx] };
+  return { seconds, tx: [...tx], maintenance: [...maintenance] };
 }
 
-const all: number[] = [];
-let total = 0;
-for (const loader of LV) {
-  const { seconds, tx: t } = await one(loader);
-  total += seconds;
-  all.push(...t);
-}
-out(`all: ${total.toFixed(0)} s (${(all.reduce((a, b) => a + b, 0) / 1000).toFixed(0)} s in write tx); tx ${all.length}: p95 ${ms(quantile(all, 0.95))}, max ${ms(Math.max(0, ...all))}, at 5 s or more: ${all.filter((x) => x >= 5000).length}`);
+try {
+  const all: number[] = [];
+  const allMaintenance: number[] = [];
+  let total = 0;
+  for (const loader of LV) {
+    const result = await one(loader);
+    total += result.seconds;
+    all.push(...result.tx);
+    allMaintenance.push(...result.maintenance);
+  }
+  out(`all: ${total.toFixed(0)} s (${(all.reduce((a, b) => a + b, 0) / 1000).toFixed(0)} s in write tx); tx ${all.length}: p95 ${ms(quantile(all, 0.95))}, max ${ms(Math.max(0, ...all))}, at 5 s or more: ${all.filter((x) => x >= 5000).length}`);
+  out(`maintenance writes ${allMaintenance.length}: p95 ${ms(quantile(allMaintenance, 0.95))}, max ${ms(Math.max(0, ...allMaintenance))}, at 5 s or more: ${allMaintenance.filter((x) => x >= 5000).length}`);
 
-const register = LV.find((l) => l.meta.id === "lv-ur-register");
-if (register) {
-  rehash = true;
-  await one(register, "lv-ur-register (same rows, new file hash)");
+  const register = LV.find((l) => l.meta.id === "lv-ur-register");
+  if (register) {
+    rehash = true;
+    await one(register, "lv-ur-register (same rows, new file hash)");
+  }
+  store.close();
+  closed = true;
+  const size = readdirSync(dataDir).reduce((n, f) => n + statSync(join(dataDir, f)).size, 0);
+  out(`store ${mb(size)} MB`);
+} finally {
+  cleanUp();
 }
-store.close();
-const size = readdirSync(dataDir).reduce((n, f) => n + statSync(join(dataDir, f)).size, 0);
-out(`store ${mb(size)} MB`);
-rmSync(dataDir, { recursive: true, force: true });
