@@ -4,7 +4,6 @@
 // never overlap.
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
@@ -47,6 +46,7 @@ import { snapshot, writeHistory } from "./history.ts";
 import { clearLiveView, liveView, setLiveView, type LiveView } from "./live-views.ts";
 import { dropRaw, loadRaw, saveRaw } from "./raw-cache.ts";
 import { validateRecord } from "./validate.ts";
+import { removeWorkDirs, workBase } from "./work-dirs.ts";
 
 export type SyncKind = "content" | "unchanged" | "stale_skipped" | "partial" | "failed" | "already_running";
 
@@ -170,7 +170,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
   /** This sync's directory for streamed downloads, made on first use. */
   const syncWorkDir = () => {
     if (workDir) return workDir;
-    const base = options.workDir ?? tmpdir();
+    const base = workBase(options.workDir);
     mkdirSync(base, { recursive: true });
     workDir = mkdtempSync(join(base, `finora-${meta.id}-`));
     return workDir;
@@ -179,6 +179,9 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     logger.info("sync already running", { sourceId: meta.id });
     return { kind: "already_running", syncId: null, report: null };
   }
+  // This sync holds the source's lease, so any work dir of this source is an orphan of a sync that
+  // never reached its own cleanup: removed before anything is downloaded.
+  removeWorkDirs(workBase(options.workDir), [meta.id]);
   // Heartbeat from acquisition to release (SEC-3, qa M2): a long download or parse keeps the
   // lease; a lease taken over by another holder stops this sync before it writes again.
   let lost = false;

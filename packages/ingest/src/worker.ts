@@ -10,6 +10,7 @@ import { personListHeld, setPersonList, type PersonList } from "@finora/resolve"
 import { politeFetch, type SourceLoader } from "@finora/sources";
 import { failSync, openStore, releaseLease } from "@finora/store";
 import { liveView, setLiveView, type LiveView } from "./live-views.ts";
+import { removeWorkDirs, workBase } from "./work-dirs.ts";
 import { runSync, type SyncOptions, type SyncOutcome } from "./pipeline.ts";
 
 type JobOptions = Omit<SyncOptions, "fetcher" | "signal" | "logger" | "now" | "onLiveView" | "onPersonList">;
@@ -130,6 +131,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
     const worker = new Worker(entry, { workerData: data, resourceLimits: { maxOldGenerationSizeMb: options.maxHeapMb ?? SYNC_WORKER_HEAP_MB } });
     started++;
     const outcomes = new Map<string, WorkerOutcome>();
+    const finished = new Set<string>();
     let current: { sourceId: string; syncId: number } | null = null;
     let settled = false;
     const finish = () => resolve(batch.sourceIds.map((id) => outcomes.get(id) ?? failed("not_run")));
@@ -142,6 +144,9 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
       for (const id of batch.sourceIds) if (!outcomes.has(id)) outcomes.set(id, failed(reason));
       // Terminated first, so the hung thread cannot write after its lease is released.
       void worker.terminate().then(() => {
+        // The terminated thread never reached its own cleanup: its downloads go now, before the
+        // lease is released, for every source of the batch that had not finished (legal condition 1).
+        removeWorkDirs(workBase(batch.options.workDir), batch.sourceIds.filter((id) => !finished.has(id)));
         const store = openStore({ dataDir: batch.dataDir });
         try {
           if (current) {
@@ -165,6 +170,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
       else if (message.type === "persons") setPersonList(message.sourceId, message.list);
       else if (message.type === "result") {
         outcomes.set(message.sourceId, message.peakHeapMb === undefined ? message.outcome : { ...message.outcome, peakHeapMb: message.peakHeapMb });
+        finished.add(message.sourceId);
         if (current?.sourceId === message.sourceId) current = null;
         clearTimeout(watchdog);
         watchdog = setTimeout(() => settle("worker_hung"), Math.max(ttl, 30_000));

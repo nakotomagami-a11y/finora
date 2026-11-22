@@ -5,7 +5,7 @@ import { existsSync, readdirSync, statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { eidKind, isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { FIXTURE_PROFILE } from "@finora/fixtures";
-import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, type SyncReport } from "@finora/ingest";
+import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, sweepWorkDirs, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { LOADERS } from "@finora/sources";
 import { companyValues, openStore, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
@@ -41,7 +41,8 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     io.out(`unknown profile "${args.profile}" (fixtures or core)`);
     return 2;
   }
-  withStore(io, () => undefined);
+  // Boot for the CLI: work dirs left by a sync that never reached its cleanup go first (legal condition 1).
+  withStore(io, (store) => sweepWorkDirs(store.db, join(io.env.dataDir, "work")));
   const pool = args.profile === "core" ? LOADERS.map((loader) => ({ loader })) : FIXTURE_PROFILE;
   const chosen = pool.filter((p) => (!args.source || p.loader.meta.id === args.source) && (!args.country || p.loader.meta.country === args.country));
   if (chosen.length === 0) {

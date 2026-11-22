@@ -107,6 +107,29 @@ describe("streamed artifacts in the pipeline", () => {
     expect(readdirSync(work.path)).toEqual([]);
   });
 
+  it("removes the work dir on a lost lease and on the purge guard (qa)", async () => {
+    const db = memoryDb();
+    const work = tempDir();
+    dirs.push(work);
+    const lost = streamedSource({ records: companies(1, 5) });
+    const fetch = lost.loader.fetch.bind(lost.loader);
+    lost.loader.fetch = async (ctx) => {
+      const result = await fetch(ctx);
+      db.prepare("UPDATE main.leases SET holder = 'someone-else'").run();
+      return result;
+    };
+    expect((await runSync(db, lost.loader, { fetcher: noNetwork, workDir: work.path })).report?.reason).toBe("lease_lost");
+    expect(readdirSync(work.path)).toEqual([]);
+    const db2 = memoryDb();
+    const state = { records: companies(1, 100) };
+    await runSync(db2, streamedSource(state).loader, { fetcher: noNetwork, workDir: work.path });
+    state.records = companies(1, 10);
+    const guarded = streamedSource(state, "streamed-1");
+    (guarded.loader as unknown as { asOf: () => object }).asOf = () => ({ in_file_field: "2026-11-02" });
+    expect((await runSync(db2, guarded.loader, { fetcher: noNetwork, workDir: work.path })).report?.reason).toBe("purge_guard");
+    expect(readdirSync(work.path)).toEqual([]);
+  });
+
   it("a cached file that fails its sha256 is not used: the source is fetched again", async () => {
     const db = memoryDb();
     const work = tempDir();
