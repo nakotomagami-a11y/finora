@@ -116,7 +116,7 @@ The *sanctions subject* (`sanctions_subject_*`) is the Latvian register entity. 
 | `position` | enum | event `register.sanctions_link`, `data.role` | S11.LV.01 | no | `BENEFICIAL_OWNER`, `SHAREHOLDER`, `MEMBER_OF_THE_BOARD`, `CHAIRPERSON_OF_THE_BOARD`, `FOUNDER`, `OWNER`, `PARTNER`, `PERSON_ACTUALLY_EXERCISING_CONTROL`, `BENEFICIARY_CONTROL_LEGAL_ENTITY`, `HUSBAND`; empty (3%) → `unspecified`. Unknown → `unspecified`, counted `unknown_enum` (closed set, S05 review SEC-2). `data.role` is shown, but the BO and shareholder role names don't disclose who the owner is |
 | `entity_type` | enum | `data.partyType` = `person` / `company` / `foreign_company` | S11.LV.01 | no | `NATURAL_PERSON`, `LEGAL_ENTITY`, `FOREIGN_ENTITY` |
 | `legal_entity_registration_number` | text | `data.party` = `lv-<code>` for `LEGAL_ENTITY` parties that resolve to a non-NP register entity | S11.LV.01 | no | - |
-| `legal_entity_name`, `legal_entity_country` | text | `data.partyName`, `data.partyCountry` for `FOREIGN_ENTITY` and unresolved `LEGAL_ENTITY` parties | S11.LV.01 | no | trim; ISO country lower-case |
+| `legal_entity_name`, `legal_entity_country` | text | for `FOREIGN_ENTITY` and unresolved company-form `LEGAL_ENTITY` parties: the name on an `Organization` (`org-<20 hex>`) in its own typed party with `needs: 0`, referenced as `data.party`; `data.partyCountry` only as an ISO 3166-1 alpha-2 code (see § S05 security re-check) | S11.LV.01 | no | trim; ISO country lower-case |
 | `list` | enum | `data.list` | S11.LV.01 | no | `ES_SANCTIONS` (EU), `LV_SANCTIONS` (national), `SDN_OFAC_SANCTIONS` |
 | `program` | text | `data.programme` | S11.LV.01 | no | e.g. `RUSSIA-EO14024`, `BLR` |
 | `entry_date` | date | event date | S11.LV.01 | no | ISO |
@@ -223,7 +223,7 @@ The sanctions-link *party* gets a second check: natural-person parties keep only
 
 - Every enum that reaches event data is a closed set: proceeding form, type and subtype, securing-measure type, suspension code, sanctions-link role and list. Unknown → `unspecified`, counted `unknown_enum`. The insolvency resolution is kept only in the register's code shape (`M06`, `T14`).
 - Case numbers (`court_case_initial_number`, `case_number`) are kept only as digits with capital letters and separators (`/`, `.`, `-`, `_`, space), at most 40 characters; anything else is dropped as `free_text`, so a name in the column is never stored.
-- A sanctions-link party's country is kept only as a 2- or 3-letter code.
+- A sanctions-link party's country is kept only as an ISO 3166-1 alpha-2 code (N5, below).
 - No LV file is kept in the raw cache (`rawCache: false`): the files hold natural persons. Each file streams to the sync's work dir and is parsed from there in chunks.
 
 ## S05 security re-check (N2-N5)

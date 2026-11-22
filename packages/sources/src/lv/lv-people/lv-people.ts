@@ -4,7 +4,7 @@
 // person members never get past the type check. Beneficial owners, joint-stock shareholders and
 // joint owners are never fetched.
 import { createHash } from "node:crypto";
-import { freeTextHoldsPersonalCode, LEGAL_FORMS, type DropReason } from "@finora/domain";
+import { LEGAL_FORMS, type DropReason } from "@finora/domain";
 import { parserVersion } from "../../parser-version.ts";
 import type { FetchContext, FieldMap, ParseContext, ParsedEntity, ParsedRecord, PartyRef, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
 import { artifact, cleanCode, closedValue, CURRENCIES, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
@@ -91,14 +91,15 @@ const orgEid = (sourceId: string, code: string, recordKey: string, lineId: strin
 type Dropped = { reason: DropReason; prop?: string };
 
 /**
- * A line's own row id, kept for role-end detection (§3.3). Only the register's id shape is kept: 1-12
- * digits (the 2026-11 files hold 1-8), never one shaped like a personal code. Anything else is nulled
- * and counted (legal on the S05 review; N1 in the security re-check): a name or a code in the id
- * column would otherwise sit in `line_ids` and the hash.
+ * A line's own row id, kept for role-end detection (§3.3). Only the register's id shape is kept: at
+ * most 10 digits (the 2026-11 files hold 1-8), so no 11-digit personal code, and no longer run that
+ * holds one, can pass. Anything else is nulled and counted (legal on the S05 review; N1 in the
+ * security re-check, qa 7083380788): a name or a code in the id column would otherwise sit in
+ * `line_ids` and the hash.
  */
 function lineId(value: string, dropped: Dropped[]): string | null {
   if (value === "") return null;
-  if (/^\d{1,12}$/.test(value) && !freeTextHoldsPersonalCode(value)) return value;
+  if (/^\d{1,10}$/.test(value)) return value;
   dropped.push({ reason: /^\d+$/.test(value) ? "personal_code" : "free_text" });
   return null;
 }
@@ -304,7 +305,7 @@ export function lvUrOfficersLoader(config: LvPeopleConfig = LV_PEOPLE_DEFAULT_CO
   if (!LV_PERSON_ROWS_MODES.includes(mode)) throw new Error("LV_PERSON_ROWS must be names_no_id or role_counts");
   return {
     meta: m,
-    parserVersion: `${parserVersion(m.id, 3, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
+    parserVersion: `${parserVersion(m.id, 4, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
     fieldMap: LV_UR_OFFICERS_FIELD_MAP,
     fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "officers", OFFICERS_FILE) }),
     asOf: (raw) => lvAsOf(raw, OFFICERS_FILE, datesOf, today(raw)),
@@ -467,7 +468,7 @@ const MEMBERS_META = meta("lv-ur-members", "Members", [S04, S17]);
 
 export const lvUrMembers: SourceLoader = {
   meta: MEMBERS_META,
-  parserVersion: `${parserVersion(MEMBERS_META.id, 3, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
+  parserVersion: `${parserVersion(MEMBERS_META.id, 4, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
   fieldMap: LV_UR_MEMBERS_FIELD_MAP,
   fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "members", MEMBERS_FILE) }),
   asOf: (raw) => lvAsOf(raw, MEMBERS_FILE, datesOf, today(raw)),

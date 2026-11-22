@@ -128,6 +128,17 @@ describe("names in id, case-number, court, programme and country columns are nev
     expect(JSON.stringify(members.records)).not.toContain("CANARY");
   });
 
+  it("nulls an 11- or 12-digit id, so a personal code with a digit around it never passes (N1, qa 7083380788)", async () => {
+    const wrapped = [`${CODE_ID}`, `7${CODE_ID}`, `${CODE_ID}7`];
+    const officers = wrapped.map((id, i) => ({ id: id as never, n: 1, position: "BOARD_MEMBER", name: `Test Person W${i}`, rights: "INDIVIDUALLY", registered: "2020-01-01" }));
+    const { records } = await parseAll(lvUrOfficers, [art("officers.csv", lvOfficersCsv([...officers, { id: 1234567890 as never, n: 1, position: "BOARD_MEMBER", name: "Test Person W9", rights: "INDIVIDUALLY", registered: "2020-01-01" }]))]);
+    expect(records[0]!.lineIds).toEqual([null, null, null, "1234567890"]);
+    expect(records[0]!.dropped?.filter((d) => d.reason === "personal_code").length).toBeGreaterThanOrEqual(3);
+    const members = await parseAll(lvUrMembers, [art("members.csv", lvMembersCsv(wrapped.map((id) => ({ id: id as never, n: 2, type: "FOREIGN_ENTITY", name: "Sample Holdings Ltd", shares: "5", nominal: "1.00" }))))]);
+    expect(members.records[0]!.lineIds).toEqual([null, null, null]);
+    for (const id of wrapped) expect(JSON.stringify([...records, ...members.records])).not.toContain(id);
+  });
+
   it("keeps a case number only with the known letter codes, so a capitalised name with a digit is dropped (N2)", async () => {
     const securing = (caseNo: string) => lvCsv(LV_SECURING_HEADER, [["6301", lvFx(22).code, "LIEN", "", "", "2026-11-17", caseNo, "", "", ""]]);
     for (const caseNo of ["TEST PERSON 1", "CANARY-12", "12345/123/2024-NOSX"]) {
