@@ -50,7 +50,8 @@ export function openStore(options: { dataDir: string | null; sync?: boolean }): 
   if (options.dataDir) mkdirSync(options.dataDir, { recursive: true });
   const db = new DatabaseSync(paths.main);
   // First, so that two processes opening one store at once wait for each other instead of failing.
-  db.exec("PRAGMA busy_timeout = 5000");
+  // Opening waits long: the other may be migrating a fresh store on a busy machine (qa NIT on S05).
+  db.exec("PRAGMA busy_timeout = 60000");
   db.prepare("ATTACH DATABASE ? AS user").run(paths.user);
   db.prepare("ATTACH DATABASE ? AS sa").run(paths.sa);
   db.prepare("ATTACH DATABASE ? AS cc").run(paths.cc);
@@ -67,6 +68,7 @@ export function openStore(options: { dataDir: string | null; sync?: boolean }): 
   }
   const fresh = (db.prepare("PRAGMA user.user_version").get() as { user_version: number }).user_version === 0;
   migrate(db);
+  db.exec("PRAGMA busy_timeout = 5000");
   let logs: Store["logs"] = null;
   if (options.dataDir) {
     const deletions = join(options.dataDir, "deletions.log");

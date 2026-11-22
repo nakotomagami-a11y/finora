@@ -2,6 +2,7 @@
 // starts run in a process of their own: many short-lived workers in one process can crash V8 (§4.5).
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEFAULT_LOADER_CONFIG } from "@finora/sources";
 import { acquireLease, openStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { tempDir } from "./test-helpers.ts";
@@ -25,7 +26,7 @@ describe("work dirs never outlive their sync (qa, legal condition 1 on 9ec97db)"
       openStore({ dataDir: dir.path }).close();
       const work = join(dir.path, "work");
       const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
-      const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: c.id, userAgent: "t", options: { ...c.options, workDir: work } }, c.limits);
+      const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: c.id, userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: { ...c.options, workDir: work } }, c.limits);
       expect(outcome.report?.reason).toBe(c.reason);
       expect(readdirSync(work).filter((n) => n.startsWith("finora-"))).toEqual([]);
     }, 60_000);
@@ -46,7 +47,7 @@ describe("work dirs never outlive their sync (qa, legal condition 1 on 9ec97db)"
     mkdirSync(join(work, "finora-fake-slow-dddddd"));
     store.close();
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
-    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", options: { workDir: work } })).kind).toBe("content");
+    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: { workDir: work } })).kind).toBe("content");
     expect(readdirSync(work)).toEqual(["finora-held-source-cccccc"]);
   }, 60_000);
 });

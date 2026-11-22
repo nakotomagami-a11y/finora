@@ -3,6 +3,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { balticCheckDigit, isBalticPersonalCode, isFixtureRegisterCode, isValidRegisterCode } from "@finora/domain";
+import { DEFAULT_LOADER_CONFIG } from "@finora/sources";
 import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { fetchOnView, type LiveCachedLoader } from "./live-cache.ts";
@@ -245,6 +246,7 @@ describe("qa M1: a live-no-store view reaches the process that serves it", () =>
       dataDir: data,
       sourceId: "fake-live-sentinel",
       userAgent: "test",
+      config: DEFAULT_LOADER_CONFIG,
       options: { rawCacheDir: join(data, "raw") },
     });
     expect(outcome.kind).toBe("content");
@@ -399,7 +401,7 @@ describe("qa D2: two workers open and migrate one fresh data dir", () => {
   it("neither fails with a lock", async () => {
     const data = dir();
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
-    const job = { dataDir: data, sourceId: "fake-slow", userAgent: "test", options: {} };
+    const job = { dataDir: data, sourceId: "fake-slow", userAgent: "test", config: DEFAULT_LOADER_CONFIG, options: {} };
     const outcomes = await Promise.all([runSyncInWorker(entry, job), runSyncInWorker(entry, job)]);
     for (const o of outcomes) expect(o.kind).not.toBe("failed");
     expect(existsSync(join(data, "finora.db"))).toBe(true);
@@ -410,7 +412,7 @@ describe("SEC-12: a worker that cannot run its source ends failed, never running
   it("an unknown source id is refused inside the worker", async () => {
     const data = dir();
     openStore({ dataDir: data }).close();
-    const outcome = await runSyncInWorker(new URL("./testing/test-sync-worker.ts", import.meta.url), { dataDir: data, sourceId: "../../etc", userAgent: "t", options: {} });
+    const outcome = await runSyncInWorker(new URL("./testing/test-sync-worker.ts", import.meta.url), { dataDir: data, sourceId: "../../etc", userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: {} });
     expect(outcome).toMatchObject({ kind: "failed", report: { reason: "unknown_source" } });
   }, 60_000);
 });

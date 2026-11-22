@@ -37,7 +37,7 @@ export type SourceMeta = {
   orderUrl: string | null;
   cacheTtl?: { refetchHours: number; purgeUnviewedDays: number };
   requires: string[];
-  /** `maxBytes` caps one response on the wire (the fetcher's default otherwise). */
+  /** `maxBytes` caps one response on the wire, buffered or streamed to a file (the fetcher's defaults otherwise). */
   /** `allowHttp`: the official host serves plain http only; an opt-in reviewed with the source (SEC-7 on S05). */
   limits: { requestsPerSecond?: number; dailyRequests?: number; maxBytes?: number; allowHttp?: boolean };
   /** Every item the source fills; must equal the item ids of its field map. */

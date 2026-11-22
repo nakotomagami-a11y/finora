@@ -1,5 +1,6 @@
 import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEFAULT_LOADER_CONFIG } from "@finora/sources";
 import { beginSync, openStore, upsertSource } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { tempDir } from "./test-helpers.ts";
@@ -14,7 +15,7 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     dirs.push(dir);
     const watcher = openStore({ dataDir: dir.path });
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
-    const job = { dataDir: dir.path, sourceId: "fake-slow", userAgent: "Finora test", options: {} };
+    const job = { dataDir: dir.path, sourceId: "fake-slow", userAgent: "Finora test", config: DEFAULT_LOADER_CONFIG, options: {} };
     const hold = join(dir.path, "hold");
     writeFileSync(hold, "");
     const first = runSyncInWorker(entry, job);
@@ -39,7 +40,7 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     openStore({ dataDir: dir.path }).close();
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
     const started = Date.now();
-    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-hung", userAgent: "t", options: { leaseTtlMs: 600 } }, { startupMs: 20_000 });
+    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-hung", userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: { leaseTtlMs: 600 } }, { startupMs: 20_000 });
     expect(outcome).toMatchObject({ kind: "failed", report: { reason: "worker_hung" } });
     expect(Date.now() - started).toBeLessThan(15_000);
     const store = openStore({ dataDir: dir.path });
@@ -53,13 +54,13 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     dirs.push(dir);
     openStore({ dataDir: dir.path }).close();
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
-    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-crash", userAgent: "t", options: {} });
+    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-crash", userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: {} });
     expect(outcome).toMatchObject({ kind: "failed", report: { reason: "worker_exit_3" } });
     const store = openStore({ dataDir: dir.path });
     expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
     expect(store.db.prepare("SELECT kind FROM main.syncs").all()).toEqual([{ kind: "failed" }]);
     store.close();
-    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", options: {} })).kind).toBe("content");
+    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: {} })).kind).toBe("content");
   }, 60_000);
 
   it("a worker past its heap cap fails its own sync; the parent and another lane run on (SEC-1, qa on S06)", async () => {
@@ -68,8 +69,8 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     openStore({ dataDir: dir.path }).close();
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
     const [oom, other] = await Promise.all([
-      runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-oom", "fake-slow"], userAgent: "t", options: {} }, { maxHeapMb: 128 }),
-      runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-slow"], userAgent: "t", options: {} }),
+      runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-oom", "fake-slow"], userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: {} }, { maxHeapMb: 128 }),
+      runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-slow"], userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: {} }),
     ]);
     expect(oom.map((o) => o.report?.reason)).toEqual(["worker_out_of_memory", "worker_out_of_memory"]);
     expect(other.map((o) => o.kind)).toEqual(["content"]);
@@ -87,7 +88,7 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     dirs.push(dir);
     openStore({ dataDir: dir.path }).close();
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
-    const [outcome] = await runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-oom-mid"], userAgent: "t", options: {} }, { maxHeapMb: 128 });
+    const [outcome] = await runSyncsInWorker(entry, { dataDir: dir.path, sourceIds: ["fake-oom-mid"], userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: {} }, { maxHeapMb: 128 });
     expect(outcome?.report?.reason).toBe("worker_out_of_memory");
     const store = openStore({ dataDir: dir.path });
     expect(store.db.prepare("SELECT COUNT(*) AS n FROM main.records").get()).toEqual({ n: 0 });
@@ -98,7 +99,7 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     store.db.exec("BEGIN IMMEDIATE");
     store.db.exec("ROLLBACK");
     store.close();
-    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", options: {} })).kind).toBe("content");
+    expect((await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-slow", userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: {} })).kind).toBe("content");
   }, 60_000);
 
   it("a timed-out worker closes only the sync it opened and releases its own lease (qa on S04i)", async () => {
@@ -112,7 +113,7 @@ describe("S04i acceptance 5: two concurrent syncs of one source", () => {
     const takeover = beginSync(store.db, { sourceId: "fake-stuck", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-21T00:00:00.000Z" });
     store.close();
     const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
-    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-stuck", userAgent: "t", options: {} }, { timeoutMs: 3000, startupMs: 20_000 });
+    const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: "fake-stuck", userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: {} }, { timeoutMs: 3000, startupMs: 20_000 });
     expect(outcome).toMatchObject({ kind: "failed", report: { reason: "worker_timeout" } });
     const after = openStore({ dataDir: dir.path });
     expect(after.db.prepare("SELECT source_id, kind FROM main.syncs ORDER BY id").all()).toEqual([

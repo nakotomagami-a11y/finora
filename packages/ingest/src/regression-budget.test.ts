@@ -6,7 +6,8 @@ import { memoryDb, sync } from "./test-helpers.ts";
 // P10 in CI (qa #23): absolute times do not hold across machines, so each sync is timed against a
 // fixed CPU workload run right beside it, and the ratio is compared with a stored baseline. The
 // suite runs in parallel, so each ratio is the best of several rounds: load from other test files
-// can only slow a round down. The absolute numbers are recorded per release in docs/plan/benchmarks.md.
+// can only slow a round down. While the best is over budget, more rounds run (up to 12): contention
+// slows some rounds, a real regression slows every one, so it still fails (qa NIT on S05). The absolute numbers are recorded per release in docs/plan/benchmarks.md.
 const baseline = JSON.parse(readFileSync(new URL("./regression-budget.baseline.json", import.meta.url), "utf8")) as {
   records: number;
   firstLoadRatio: number;
@@ -38,11 +39,12 @@ async function round(): Promise<{ firstLoad: number; unchanged: number }> {
 
 describe("relative regression budgets on a synthetic source (P10)", () => {
   it(`a first load of ${baseline.records} records and an unchanged reload stay within the baseline`, async () => {
-    const rounds = [];
-    for (let i = 0; i < 4; i++) rounds.push(await round());
-    const firstLoad = Math.min(...rounds.map((r) => r.firstLoad));
-    const unchanged = Math.min(...rounds.map((r) => r.unchanged));
+    const rounds: { firstLoad: number; unchanged: number }[] = [];
+    const best = () => ({ firstLoad: Math.min(...rounds.map((r) => r.firstLoad)), unchanged: Math.min(...rounds.map((r) => r.unchanged)) });
+    const within = () => best().firstLoad < baseline.firstLoadRatio * baseline.tolerance && best().unchanged < baseline.unchangedRatio * baseline.tolerance;
+    while (rounds.length < 4 || (!within() && rounds.length < 12)) rounds.push(await round());
+    const { firstLoad, unchanged } = best();
     expect(firstLoad, `first load ratio ${firstLoad.toFixed(1)}`).toBeLessThan(baseline.firstLoadRatio * baseline.tolerance);
     expect(unchanged, `unchanged ratio ${unchanged.toFixed(2)}`).toBeLessThan(baseline.unchangedRatio * baseline.tolerance);
-  }, 120_000);
+  }, 300_000);
 });

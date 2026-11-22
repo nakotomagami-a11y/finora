@@ -7,15 +7,15 @@
 import { getHeapStatistics } from "node:v8";
 import { parentPort, Worker, workerData } from "node:worker_threads";
 import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
-import { DEFAULT_LOADER_CONFIG, politeFetch, type LoaderConfig, type SourceLoader } from "@finora/sources";
+import { politeFetch, type LoaderConfig, type PoliteFetchOptions, type SourceLoader, type SourceMeta } from "@finora/sources";
 import { failSync, openStore, releaseLease } from "@finora/store";
 import { liveView, setLiveView, type LiveView } from "./live-views.ts";
 import { removeWorkDirs, workBase } from "./work-dirs.ts";
 import { runSync, type SyncOptions, type SyncOutcome } from "./pipeline.ts";
 
 type JobOptions = Omit<SyncOptions, "fetcher" | "signal" | "logger" | "now" | "onLiveView" | "onPersonList">;
-export type WorkerJob = { dataDir: string; sourceId: string; userAgent: string; options: JobOptions };
-export type WorkerBatch = { dataDir: string; sourceIds: string[]; userAgent: string; options: JobOptions; liveViewsHeld?: string[]; personListsHeld?: string[]; config?: LoaderConfig };
+export type WorkerJob = { dataDir: string; sourceId: string; userAgent: string; options: JobOptions; config: LoaderConfig };
+export type WorkerBatch = { dataDir: string; sourceIds: string[]; userAgent: string; options: JobOptions; liveViewsHeld?: string[]; personListsHeld?: string[]; config: LoaderConfig };
 
 type WorkerMessage =
   | { type: "progress" }
@@ -31,6 +31,21 @@ const failed = (reason: string): SyncOutcome => ({
   report: { read: 0, written: 0, unchanged: 0, deleted: 0, tombstoned: 0, skipped: {}, dropped: {}, droppedRows: [], events: 0, durationMs: 0, storage: "store", reason },
 });
 
+/**
+ * A source's fetcher options. Its byte cap bounds a buffered response and a body streamed to a file
+ * alike: a streamed file can hold person data, so it gets no larger cap than the source declares
+ * (N6 on S05; legal: the cap is part of the person-data bounds).
+ */
+export function sourceFetchOptions(meta: SourceMeta, userAgent: string): PoliteFetchOptions {
+  return {
+    officialHosts: meta.officialHosts,
+    userAgent,
+    ...(meta.limits.requestsPerSecond ? { requestsPerSecond: meta.limits.requestsPerSecond } : {}),
+    ...(meta.limits.maxBytes ? { maxBytes: meta.limits.maxBytes, maxFileBytes: meta.limits.maxBytes } : {}),
+    ...(meta.limits.allowHttp === true ? { allowHttp: true } : {}),
+  };
+}
+
 /** Call at the top of a worker entry module, with the registry that module trusts, built for the job's config. */
 export async function serveSyncWorker(resolve: (sourceId: string, config: LoaderConfig) => SourceLoader | undefined): Promise<void> {
   const batch = workerData as WorkerBatch;
@@ -40,7 +55,12 @@ export async function serveSyncWorker(resolve: (sourceId: string, config: Loader
   const store = openStore({ dataDir: batch.dataDir, sync: true });
   try {
     for (const sourceId of batch.sourceIds) {
-      const loader = resolve(sourceId, batch.config ?? DEFAULT_LOADER_CONFIG);
+      // No fallback: a batch without its config (LV_PERSON_ROWS) loads nothing (qa on 69a9568).
+      if (!batch.config) {
+        post({ type: "result", sourceId, outcome: failed("config_missing") });
+        continue;
+      }
+      const loader = resolve(sourceId, batch.config);
       if (!loader) {
         post({ type: "result", sourceId, outcome: failed("unknown_source") });
         continue;
@@ -50,13 +70,7 @@ export async function serveSyncWorker(resolve: (sourceId: string, config: Loader
       let peak = getHeapStatistics().used_heap_size;
       const sample = () => void (peak = Math.max(peak, getHeapStatistics().used_heap_size));
       try {
-        const fetcher = politeFetch({
-          officialHosts: loader.meta.officialHosts,
-          userAgent: batch.userAgent,
-          ...(loader.meta.limits.requestsPerSecond ? { requestsPerSecond: loader.meta.limits.requestsPerSecond } : {}),
-          ...(loader.meta.limits.maxBytes ? { maxBytes: loader.meta.limits.maxBytes } : {}),
-          ...(loader.meta.limits.allowHttp === true ? { allowHttp: true } : {}),
-        });
+        const fetcher = politeFetch(sourceFetchOptions(loader.meta, batch.userAgent));
         outcome = await runSync(store.db, loader, {
           ...batch.options,
           liveViewHeld: (batch.liveViewsHeld ?? []).includes(sourceId),
