@@ -1,6 +1,7 @@
 export {
   FIXTURE_AS_OF,
   FIXTURE_PROFILE,
+  fixtureProfileFor,
   companyEntity,
   fxEeOfficers,
   fxEsma,

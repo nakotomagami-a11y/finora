@@ -1,5 +1,5 @@
 // Every parsed record is validated before it is gated or written; an invalid one is a counted skip.
-import { DROP_REASONS, freeTextHoldsPersonalCode, PERSON_EID, SCHEMAS, textHoldsPersonalCode } from "@finora/domain";
+import { DROP_REASONS, freeTextHoldsPersonalCode, item, PERSON_EID, SCHEMAS, textHoldsPersonalCode } from "@finora/domain";
 import type { ParsedRecord } from "@finora/sources";
 import { z } from "zod";
 
@@ -56,6 +56,8 @@ const record = z.strictObject({
   dropped: z.array(z.strictObject({ reason: z.enum(DROP_REASONS), prop: z.string().optional() })).optional(),
 });
 
+const RELATIONSHIP_SCHEMAS = new Set<string>(["Directorship", "Ownership", "Membership", "Representation"]);
+
 export type Validation = { ok: true; record: ParsedRecord } | { ok: false; reason: "invalid_record" | "person_field" };
 
 /** Whether a company-only record's stored key holds a personal code or a person row id (country-aware). */
@@ -100,7 +102,14 @@ export function validateRecord(value: unknown, context: { knownCompany?: (eid: s
   const r = parsed.data as ParsedRecord;
   const countries = new Set(r.entities.map((e) => e.country));
   const stored = [r.recordKey, ...(r.lineIds ?? []).filter((x): x is string => x !== null)];
-  const aboutPeople = r.entities.some((e) => e.schema === "Person") || (r.parties ?? []).some((p) => p.entities.some((e) => e.schema === "Person"));
+  // About people (SEC-3 on S05): a person entity, a role or ownership row (a role-count record has
+  // no person entity but is still about people), or any value of a personal item.
+  const all = [...r.entities, ...(r.parties ?? []).flatMap((p) => p.entities)];
+  const aboutPeople =
+    all.some((e) => e.schema === "Person" || RELATIONSHIP_SCHEMAS.has(e.schema)) ||
+    all.some((e) => e.statements.some((s) => item(s.itemId)?.personal === true)) ||
+    (r.reports ?? []).some((rep) => item(rep.itemId)?.personal === true) ||
+    [...(r.events ?? []), ...(r.parties ?? []).flatMap((p) => p.events ?? [])].some((ev) => item(ev.itemId)?.personal === true);
   if (aboutPeople) {
     const own = companyEidsOf(r, context.knownCompany ?? (() => false));
     if ([...stored, ...r.hashInput, r.rowRef ?? ""].some((k) => personKeyLeaks(k, own))) return { ok: false, reason: "person_field" };

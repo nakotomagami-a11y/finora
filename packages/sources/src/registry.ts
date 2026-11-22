@@ -7,16 +7,26 @@ import { usOfacCons, usOfacSdn } from "./intl/sanctions/ofac.ts";
 import { ukSanctionsList } from "./intl/sanctions/uk.ts";
 import { lvFidFrozen } from "./lv/fid/fid.ts";
 import { LV_FINANCIALS_LOADERS } from "./lv/lv-financials/lv-financials.ts";
-import { LV_PEOPLE_LOADERS } from "./lv/lv-people/lv-people.ts";
+import { lvPeopleLoaders, type LvPersonRows } from "./lv/lv-people/lv-people.ts";
 import { LV_RISK_LOADERS } from "./lv/lv-risk/lv-risk.ts";
 import { LV_TAX_LOADERS } from "./lv/lv-tax/lv-tax.ts";
 import { lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations } from "./lv/lv-ur-register/lv-ur-register.ts";
 import type { SourceLoader } from "./types.ts";
 
+/** Settings a loader is built with: the lawyer switches that change what a loader keeps (§10.2). */
+export type LoaderConfig = { lvPersonRows: LvPersonRows };
+export const DEFAULT_LOADER_CONFIG: LoaderConfig = { lvPersonRows: "names_no_id" };
+
 /** The LV register loads before every other LV source (lv-register.md § Identity and joins). */
-export const LV_LOADERS: readonly SourceLoader[] = [
+const lvLoaders = (config: LoaderConfig): SourceLoader[] => [
   lvUrRegister, lvUrNameHistory, lvUrLiquidations, lvUrReorganizations, lvUrEquityCapitals, lvUrMemorandumDates,
-  ...LV_PEOPLE_LOADERS, ...LV_RISK_LOADERS, ...LV_FINANCIALS_LOADERS, ...LV_TAX_LOADERS,
+  ...lvPeopleLoaders({ personRows: config.lvPersonRows }), ...LV_RISK_LOADERS, ...LV_FINANCIALS_LOADERS, ...LV_TAX_LOADERS,
 ];
 
-export const LOADERS: readonly SourceLoader[] = [euFsf, usOfacSdn, usOfacCons, ukSanctionsList, esmaNcasp, ...LV_LOADERS, lvFidFrozen];
+/** Every shipped loader, built for one config: a sync job passes its own (SEC-1 on S05). */
+export const loadersFor = (config: LoaderConfig = DEFAULT_LOADER_CONFIG): SourceLoader[] => [
+  euFsf, usOfacSdn, usOfacCons, ukSanctionsList, esmaNcasp, ...lvLoaders(config), lvFidFrozen,
+];
+
+export const LV_LOADERS: readonly SourceLoader[] = lvLoaders(DEFAULT_LOADER_CONFIG);
+export const LOADERS: readonly SourceLoader[] = loadersFor(DEFAULT_LOADER_CONFIG);

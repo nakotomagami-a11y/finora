@@ -15,6 +15,8 @@ const EnvSchema = z.object({
   FINORA_COMMIT: z.string().min(1).optional(),
   // The user's local provider file for Crash monitor (human ruling H4); default <data dir>/providers.json.
   FINORA_PROVIDERS_FILE: z.string().min(1).optional(),
+  // The lawyer switch for LV officer names (§3.3, PS7): validated at boot, passed in every sync job (SEC-1 on S05).
+  LV_PERSON_ROWS: z.enum(["names_no_id", "role_counts"]).default("names_no_id"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

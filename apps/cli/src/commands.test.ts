@@ -13,7 +13,7 @@ let dir: string;
 let lines: string[];
 const io = (): Io => {
   lines = [];
-  return { env: { dataDir: dir, secUserAgent: null, shareAlikeMode: "store" }, out: (l) => void lines.push(l), now: () => new Date("2026-11-21T10:00:00.000Z") };
+  return { env: { dataDir: dir, secUserAgent: null, shareAlikeMode: "store", lvPersonRows: "names_no_id" }, out: (l) => void lines.push(l), now: () => new Date("2026-11-21T10:00:00.000Z") };
 };
 
 beforeAll(async () => {
@@ -43,11 +43,53 @@ describe("finora-cli (S04f)", () => {
     expect(await dataSync(io(), { profile: "nope" })).toBe(2);
   }, 120_000);
 
+  it("LV_PERSON_ROWS=role_counts reaches the worker: no LV officer is stored as a person, by name or row (SEC-1 on S05)", async () => {
+    const officerNames = (dataDir: string) => {
+      const db = new DatabaseSync(join(dataDir, "finora.db"), { readOnly: true });
+      const names = db
+        .prepare(
+          `SELECT DISTINCT st.value FROM main.statements st JOIN main.entities e ON e.id = st.entity_id JOIN main.schemas s ON s.id = e.schema_id
+           JOIN main.props p ON p.id = st.prop_id JOIN main.records r ON r.id = st.record_id
+           WHERE s.name = 'Person' AND p.name = 'name' AND r.source_id = 'lv-ur-officers'`,
+        )
+        .all() as { value: string }[];
+      db.close();
+      return names.map((n) => n.value);
+    };
+    const named = mkdtempSync(join(tmpdir(), "finora-cli-names-"));
+    const counted = mkdtempSync(join(tmpdir(), "finora-cli-counts-"));
+    try {
+      const run = (dataDir: string, lvPersonRows: "names_no_id" | "role_counts") =>
+        dataSync({ ...io(), env: { dataDir, secUserAgent: null, shareAlikeMode: "store", lvPersonRows } }, { profile: "fixtures", country: "lv" });
+      await run(named, "names_no_id");
+      const names = officerNames(named);
+      expect(names.length).toBeGreaterThan(0);
+      await run(counted, "role_counts");
+      expect(officerNames(counted)).toEqual([]);
+      // No statement anywhere holds an officer's name as its value. A sole trader's own register name
+      // may contain one (the fixture world names a sole trader after a person); that is the register's.
+      const db = new DatabaseSync(join(counted, "finora.db"), { readOnly: true });
+      const stored = db.prepare(`SELECT COUNT(*) AS n FROM main.statements WHERE value IN (${names.map(() => "?").join(",")})`).get(...names);
+      const people = db.prepare("SELECT COUNT(*) AS n FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id JOIN main.statements st ON st.entity_id = e.id JOIN main.records r ON r.id = st.record_id WHERE s.name = 'Person' AND r.source_id = 'lv-ur-officers'").get();
+      db.close();
+      expect([stored, people]).toEqual([{ n: 0 }, { n: 0 }]);
+    } finally {
+      rmSync(named, { recursive: true, force: true });
+      rmSync(counted, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("refuses an invalid LV_PERSON_ROWS at start (SEC-1)", () => {
+    expect(() => loadCliEnv({ LV_PERSON_ROWS: "everything" })).toThrow(/LV_PERSON_ROWS/);
+    expect(loadCliEnv({ LV_PERSON_ROWS: "role_counts" }).lvPersonRows).toBe("role_counts");
+    expect(loadCliEnv({}).lvPersonRows).toBe("names_no_id");
+  });
+
   it("refuses a fixture sync into a data dir that holds the core profile (SEC-10 on S05)", async () => {
     const fresh = mkdtempSync(join(tmpdir(), "finora-cli-profile-"));
     try {
       writeFileSync(join(fresh, "profile"), "core\n");
-      const env = { ...io(), env: { dataDir: fresh, secUserAgent: null, shareAlikeMode: "store" as const } };
+      const env = { ...io(), env: { dataDir: fresh, secUserAgent: null, shareAlikeMode: "store" as const, lvPersonRows: "names_no_id" as const } };
       expect(await dataSync(env, { profile: "fixtures" })).toBe(2);
       expect(lines.at(-1)).toMatch(/holds the core profile/);
       expect(readdirSync(fresh).filter((f) => f.endsWith(".db"))).toEqual([]);
@@ -62,7 +104,7 @@ describe("finora-cli (S04f)", () => {
       const before = workerStartCount();
       const lanes = new Set(FIXTURE_PROFILE.map((p) => laneOf(p.loader)));
       expect(lanes.size).toBeGreaterThanOrEqual(4);
-      expect(await dataSync({ ...io(), env: { dataDir: fresh, secUserAgent: null, shareAlikeMode: "store" } }, { profile: "fixtures" })).toBe(0);
+      expect(await dataSync({ ...io(), env: { dataDir: fresh, secUserAgent: null, shareAlikeMode: "store", lvPersonRows: "names_no_id" } }, { profile: "fixtures" })).toBe(0);
       expect(workerStartCount() - before).toBe(lanes.size);
       // Each source's line names its worker heap peak, so a loader slice can see which source drives P10.
       expect(lines.filter((l) => /^fx-lv-register: .*, heap peak \d+ MB$/.test(l))).toHaveLength(1);

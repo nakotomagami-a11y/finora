@@ -5,6 +5,7 @@ import type { ParsedRecord } from "@finora/sources";
 import { StoreError, writeRecord } from "@finora/store";
 import { describe, expect, it } from "vitest";
 import { runSync } from "./pipeline.ts";
+import { validateRecord } from "./validate.ts";
 import { fakeSource, noNetwork, roleSetRecord } from "./testing/fake-source.ts";
 import { count, memoryDb } from "./test-helpers.ts";
 
@@ -131,5 +132,26 @@ describe("qa M1-M5 on S05", () => {
     const event = (other: string) => [{ entityEid: `lv-${lv(1)}`, type: "register.reorganisation", date: "2026-01-01", itemId: "S02.LV.01", data: { other } }];
     await sync(db, "fake-events", [{ ...company(lv(1), {}, event(bad)), recordKey: "bad-digit" }]);
     expect(count(db, `SELECT COUNT(*) AS n FROM main.events WHERE data LIKE '%${bad}%'`)).toBe(0);
+  });
+
+  it("SEC-3: a role-count record and an ownership record get the strict key rule, though they hold no person entity", () => {
+    // An LV personal code behind an "lv-" prefix: the company-only rule reads it as an eid, the strict rule refuses it.
+    const code = ["lv-", "010190", "12345"].join("");
+    const roleCounts: ParsedRecord = {
+      recordKey: `lv-${lv(1)}:officers`,
+      hashInput: ["3"],
+      lineIds: [code],
+      entities: [{ eid: `lv-${lv(1)}`, schema: "Company", country: "lv", code: lv(1), ref: true, statements: [{ prop: "notes", value: "3 role lines", itemId: "S03.LV.01" }] }],
+    };
+    expect(validateRecord(roleCounts)).toEqual({ ok: false, reason: "person_field" });
+    const members: ParsedRecord = {
+      recordKey: `lv-${lv(1)}:members`,
+      hashInput: ["1"],
+      lineIds: [code],
+      entities: [{ eid: "rel-1-0", schema: "Ownership", country: "lv", statements: [{ prop: "asset", value: `lv-${lv(1)}`, itemId: "S04.LV.01" }] }],
+    };
+    expect(validateRecord(members)).toEqual({ ok: false, reason: "person_field" });
+    // The control: the same key in a company-only record passes the country-aware rule, so the two cases above are the strict rule at work.
+    expect(validateRecord({ ...roleCounts, entities: [{ ...roleCounts.entities[0]!, statements: [{ prop: "name", value: "Example SIA", itemId: "S01.LV.01" }] }] }).ok).toBe(true);
   });
 });

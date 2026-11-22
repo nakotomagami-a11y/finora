@@ -2,7 +2,7 @@
 // seeded world. Each is a named export, so a sync worker can import it by module URL; each
 // regenerates the same world from the seed, so no file is ever needed.
 import { readFileSync } from "node:fs";
-import { esmaNcasp, euFsf, lvFidFrozen, lvUrAnnualReports, lvUrInsolvency, lvUrMembers, lvUrOfficers, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions, lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
+import { DEFAULT_LOADER_CONFIG, lvUrOfficersLoader, type LoaderConfig, esmaNcasp, euFsf, lvFidFrozen, lvUrAnnualReports, lvUrInsolvency, lvUrMembers, lvUrOfficers, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions, lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
 import { lvBalanceSheetsCsv, lvIncomeStatementsCsv, lvInsolvencyCsv, lvMembersCsv, lvOfficersCsv, lvSanctionsLinksCsv, lvSecuringMeasuresCsv, lvStatementsCsv, lvSuspensionsCsv, lvVidQuarterlyCsv, lvVidRatingCsv, lvVidSuspensionsCsv, lvVidVatCsv, lvVidYearlyCsv, lvEquityCapitalsCsv, lvFidXlsx, lvLiquidationsCsv, lvMemorandumCsv, lvNameHistoryCsv, lvRegisterCsv, lvReorganizationsCsv } from "@finora/sources/testing";
 import { DEFAULT_SEED, generateWorld, type FixtureCompany, type World } from "./world.ts";
 
@@ -220,6 +220,9 @@ export const fxLvUrReorganizations = fromFiles(lvUrReorganizations, lvFile("reor
 export const fxLvUrEquityCapitals = fromFiles(lvUrEquityCapitals, lvFile("equity_capitals.csv", lvEquityCapitalsCsv));
 export const fxLvUrMemorandumDates = fromFiles(lvUrMemorandumDates, lvFile("memorandum_date.csv", lvMemorandumCsv));
 export const fxLvUrOfficers = fromFiles(lvUrOfficers, lvFile("officers.csv", () => lvOfficersCsv()));
+/** The officers fixture built with the real parser for one `LV_PERSON_ROWS` mode (SEC-1 on S05). */
+const fxLvUrOfficersFor = (config: LoaderConfig) =>
+  config.lvPersonRows === DEFAULT_LOADER_CONFIG.lvPersonRows ? fxLvUrOfficers : fromFiles(lvUrOfficersLoader({ personRows: config.lvPersonRows }), lvFile("officers.csv", () => lvOfficersCsv()));
 export const fxLvUrMembers = fromFiles(lvUrMembers, lvFile("members.csv", lvMembersCsv));
 export const fxLvUrInsolvency = fromFiles(lvUrInsolvency, lvFile("insolvency_legal_person_proceeding.csv", lvInsolvencyCsv));
 export const fxLvUrSecuringMeasures = fromFiles(lvUrSecuringMeasures, lvFile("securing_measures.csv", lvSecuringMeasuresCsv));
@@ -311,3 +314,8 @@ export const fxUsState = Object.assign(jsonLoader(meta("fx-us-state", "us", "liv
     ];
   },
 });
+
+
+/** The fixture profile for one loader config: the same list, the officers loader built for its mode. */
+export const fixtureProfileFor = (config: LoaderConfig = DEFAULT_LOADER_CONFIG): readonly { exportName: string; loader: SourceLoader }[] =>
+  FIXTURE_PROFILE.map((p) => (p.exportName === "fxLvUrOfficers" ? { ...p, loader: fxLvUrOfficersFor(config) } : p));

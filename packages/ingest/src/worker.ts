@@ -7,7 +7,7 @@
 import { getHeapStatistics } from "node:v8";
 import { parentPort, Worker, workerData } from "node:worker_threads";
 import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
-import { politeFetch, type SourceLoader } from "@finora/sources";
+import { DEFAULT_LOADER_CONFIG, politeFetch, type LoaderConfig, type SourceLoader } from "@finora/sources";
 import { failSync, openStore, releaseLease } from "@finora/store";
 import { liveView, setLiveView, type LiveView } from "./live-views.ts";
 import { removeWorkDirs, workBase } from "./work-dirs.ts";
@@ -15,7 +15,7 @@ import { runSync, type SyncOptions, type SyncOutcome } from "./pipeline.ts";
 
 type JobOptions = Omit<SyncOptions, "fetcher" | "signal" | "logger" | "now" | "onLiveView" | "onPersonList">;
 export type WorkerJob = { dataDir: string; sourceId: string; userAgent: string; options: JobOptions };
-export type WorkerBatch = { dataDir: string; sourceIds: string[]; userAgent: string; options: JobOptions; liveViewsHeld?: string[]; personListsHeld?: string[] };
+export type WorkerBatch = { dataDir: string; sourceIds: string[]; userAgent: string; options: JobOptions; liveViewsHeld?: string[]; personListsHeld?: string[]; config?: LoaderConfig };
 
 type WorkerMessage =
   | { type: "progress" }
@@ -31,15 +31,15 @@ const failed = (reason: string): SyncOutcome => ({
   report: { read: 0, written: 0, unchanged: 0, deleted: 0, tombstoned: 0, skipped: {}, dropped: {}, droppedRows: [], events: 0, durationMs: 0, storage: "store", reason },
 });
 
-/** Call at the top of a worker entry module, with the registry that module trusts. */
-export async function serveSyncWorker(resolve: (sourceId: string) => SourceLoader | undefined): Promise<void> {
+/** Call at the top of a worker entry module, with the registry that module trusts, built for the job's config. */
+export async function serveSyncWorker(resolve: (sourceId: string, config: LoaderConfig) => SourceLoader | undefined): Promise<void> {
   const batch = workerData as WorkerBatch;
   const post = (message: WorkerMessage) => parentPort?.postMessage(message);
   post({ type: "progress" });
   const store = openStore({ dataDir: batch.dataDir });
   try {
     for (const sourceId of batch.sourceIds) {
-      const loader = resolve(sourceId);
+      const loader = resolve(sourceId, batch.config ?? DEFAULT_LOADER_CONFIG);
       if (!loader) {
         post({ type: "result", sourceId, outcome: failed("unknown_source") });
         continue;

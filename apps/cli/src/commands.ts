@@ -71,6 +71,8 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
         dataDir: io.env.dataDir,
         sourceIds,
         userAgent: args.profile === "fixtures" ? "Finora (fixtures)" : PORTAL_USER_AGENT,
+        // The lawyer switch travels with the job, so the worker builds the officers loader for it (SEC-1 on S05).
+        config: { lvPersonRows: io.env.lvPersonRows },
         options: {
           shareAlikeMode: io.env.shareAlikeMode,
           allowMassPurge: args.allowMassPurge === true,
