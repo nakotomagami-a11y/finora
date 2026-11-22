@@ -28,7 +28,7 @@ export type {
 } from "./types.ts";
 export { personFieldProblems } from "./person-fields.ts";
 export { DEFAULT_LOADER_CONFIG, loadersFor, SOURCE_METAS, type LoaderConfig } from "./registry.ts";
-export { lvUrOfficers, lvUrOfficersLoader, lvUrMembers, LV_PEOPLE_LOADERS, LV_PERSON_ROWS_MODES, type LvPersonRows } from "./lv/lv-people/lv-people.ts";
+export { lvUrOfficersLoader, lvUrMembers, LV_PERSON_ROWS_MODES, type LvPersonRows } from "./lv/lv-people/lv-people.ts";
 export { lvUrInsolvency, lvUrSecuringMeasures, lvUrSuspensions, lvUrSanctionsLinks, LV_RISK_LOADERS } from "./lv/lv-risk/lv-risk.ts";
 export { lvUrAnnualReports, LV_FINANCIALS_LOADERS } from "./lv/lv-financials/lv-financials.ts";
 export { lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, LV_TAX_LOADERS } from "./lv/lv-tax/lv-tax.ts";

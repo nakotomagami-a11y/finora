@@ -8,10 +8,12 @@ import type { RawArtifact } from "../types.ts";
 import { lvCsv } from "./fixture-csv.ts";
 import { lvFx } from "./fixture-world.ts";
 import { lvMembersCsv, lvOfficersCsv } from "./lv-people/fixture.ts";
-import { lvUrMembers, lvUrOfficers, lvUrOfficersLoader } from "./lv-people/lv-people.ts";
+import { lvUrMembers, lvUrOfficersLoader } from "./lv-people/lv-people.ts";
 import { LV_INSOLVENCY_HEADER, LV_SANCTIONS_HEADER, LV_SECURING_HEADER, LV_SUSPENSIONS_HEADER } from "./lv-risk/fixture.ts";
 import { lvUrInsolvency, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions } from "./lv-risk/lv-risk.ts";
 import { lvUrLiquidations, lvUrReorganizations } from "./lv-ur-register/lv-ur-register.ts";
+
+const lvUrOfficers = lvUrOfficersLoader({ personRows: "names_no_id" });
 
 /** A fictional name placed in every enum column: it must never survive a parse. */
 const NAME = "Test Person Canary";

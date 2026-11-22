@@ -17,7 +17,6 @@ const S17 = "S17.LV.01";
 export const LV_PERSON_ROWS_MODES = ["names_no_id", "role_counts"] as const;
 export type LvPersonRows = (typeof LV_PERSON_ROWS_MODES)[number];
 export type LvPeopleConfig = { personRows: LvPersonRows };
-export const LV_PEOPLE_DEFAULT_CONFIG: LvPeopleConfig = { personRows: "names_no_id" };
 
 /** Datasets and files that hold beneficial owners, shareholders or joint owners: never requested. */
 export const LV_NEVER_FETCHED = {
@@ -299,7 +298,8 @@ function* officers(raw: RawArtifact[], sourceId: string, mode: LvPersonRows, ctx
 }
 
 /** The officers loader for one `LV_PERSON_ROWS` mode; the mode is part of its parserVersion. */
-export function lvUrOfficersLoader(config: LvPeopleConfig = LV_PEOPLE_DEFAULT_CONFIG): SourceLoader {
+/** No default mode (J1 on S05): a caller always states `LV_PERSON_ROWS`, so a forgotten config never stores names. */
+export function lvUrOfficersLoader(config: LvPeopleConfig): SourceLoader {
   const m = meta("lv-ur-officers", "Officers", [S03]);
   const mode = config.personRows;
   if (!LV_PERSON_ROWS_MODES.includes(mode)) throw new Error("LV_PERSON_ROWS must be names_no_id or role_counts");
@@ -475,12 +475,5 @@ export const lvUrMembers: SourceLoader = {
   parse: (raw, ctx) => members(raw, MEMBERS_META.id, ctx),
 };
 
-export const lvUrOfficers = lvUrOfficersLoader();
-
 /** The module's loaders in load order, for one `LV_PERSON_ROWS` mode. */
-export const lvPeopleLoaders = (config: LvPeopleConfig = LV_PEOPLE_DEFAULT_CONFIG): SourceLoader[] => [
-  config.personRows === LV_PEOPLE_DEFAULT_CONFIG.personRows ? lvUrOfficers : lvUrOfficersLoader(config),
-  lvUrMembers,
-];
-
-export const LV_PEOPLE_LOADERS: readonly SourceLoader[] = lvPeopleLoaders();
+export const lvPeopleLoaders = (config: LvPeopleConfig): SourceLoader[] => [lvUrOfficersLoader(config), lvUrMembers];

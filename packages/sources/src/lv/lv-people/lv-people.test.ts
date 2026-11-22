@@ -7,7 +7,7 @@ import type { FetchContext, ParsedRecord, RawArtifact } from "../../types.ts";
 import { lvCsv } from "../fixture-csv.ts";
 import { lvFx } from "../fixture-world.ts";
 import { LV_BIRTH_DATE_CANARY, LV_MEMBERS_HEADER, LV_MEMBERS_UNKNOWN_HOLDER, LV_OFFICERS_DAY2, LV_OFFICERS_HEADER, lvMaskedCodeCanary, lvMembersCsv, lvOfficersCsv } from "./fixture.ts";
-import { fetchLvPeopleFile, LV_PEOPLE_LOADERS, lvPeopleLoaders, lvUrMembers, lvUrOfficers, lvUrOfficersLoader, signingRights } from "./lv-people.ts";
+import { fetchLvPeopleFile, lvPeopleLoaders, lvUrMembers, lvUrOfficersLoader, signingRights } from "./lv-people.ts";
 
 const art = (name: string, bytes: Uint8Array): RawArtifact => ({ name, bytes, fetchedAt: "2026-11-21T00:00:00Z" });
 const officersRaw = (bytes = lvOfficersCsv()) => [art("officers.csv", bytes)];
@@ -16,6 +16,7 @@ const setOf = (records: ParsedRecord[], n: number, family: "officers" | "members
 const statementsOf = (record: ParsedRecord | undefined, eid: string) => record?.entities.filter((e) => e.eid === eid).flatMap((e) => e.statements) ?? [];
 const prop = (record: ParsedRecord | undefined, eid: string, name: string) => statementsOf(record, eid).find((s) => s.prop === name)?.value;
 const roleCounts = lvUrOfficersLoader({ personRows: "role_counts" });
+const lvUrOfficers = lvUrOfficersLoader({ personRows: "names_no_id" });
 const set1 = (n: number) => `1${lvFx(n).code}`;
 
 describe("lv-ur-officers (lv-people.md)", () => {
@@ -134,8 +135,13 @@ describe("lv-ur-officers (lv-people.md)", () => {
   it("changes the parserVersion with the mode, and only the name moves the hash between modes", async () => {
     expect(roleCounts.parserVersion).not.toBe(lvUrOfficers.parserVersion);
     expect(lvPeopleLoaders({ personRows: "role_counts" })[0]!.parserVersion).toBe(roleCounts.parserVersion);
-    expect(lvPeopleLoaders()[0]).toBe(lvUrOfficers);
+    expect(lvPeopleLoaders({ personRows: "names_no_id" })[0]!.parserVersion).toBe(lvUrOfficers.parserVersion);
     expect(() => lvUrOfficersLoader({ personRows: "pseudonym" as never })).toThrow();
+    // J1 on S05: no default mode. A call without a config fails typecheck, and at run time.
+    // @ts-expect-error the mode is required
+    expect(() => lvUrOfficersLoader()).toThrow();
+    // @ts-expect-error the mode is required
+    expect(() => lvPeopleLoaders()).toThrow();
     const names = (await parseAll(lvUrOfficers, officersRaw())).records;
     const counts = (await parseAll(roleCounts, officersRaw())).records;
     expect(setOf(counts, 18, "officers")!.hashInput).not.toEqual(setOf(names, 18, "officers")!.hashInput);
@@ -249,8 +255,9 @@ describe("the lv-people sources", () => {
   });
 
   it("pass the licence and field-map checks, in load order", () => {
-    expect(LV_PEOPLE_LOADERS.map((l) => l.meta.id)).toEqual(["lv-ur-officers", "lv-ur-members"]);
-    for (const l of [...LV_PEOPLE_LOADERS, roleCounts]) {
+    const loaders = lvPeopleLoaders({ personRows: "names_no_id" });
+    expect(loaders.map((l) => l.meta.id)).toEqual(["lv-ur-officers", "lv-ur-members"]);
+    for (const l of [...loaders, roleCounts]) {
       expect(checkFieldMap(l.meta.id, l.fieldMap)).toEqual([]);
       expect(checkSource(l.meta, l.fieldMap, ["data.gov.lv"])).toEqual([]);
     }

@@ -144,8 +144,9 @@ V8 does not hand memory back between sources, so the batch peak (787 MB) is abov
 ### LV re-measure after the write-path fixes (data-baltics, S05, 2026-11-22/23, `dev-desktop-1`)
 
 At `9dd06f4`, which holds the architect's write path (`8661a89`: adaptive batch, statement cache, deferred search pass, `temp_store` MEMORY, 64 MB page cache, hash before snapshot) and data-baltics' streamed, chunked LV parsing. **Other agents' jobs held the CPU at 40-94% throughout, so times are high and vary by up to 2x between runs.** Two passes:
-- **A.** `finora-cli data sync --country lv` on a fresh data dir, downloading from data.gov.lv.
-- **B.** The same loaders and `runSync` on a `sync: true` connection, fed from local copies of the same files, with `BEGIN`..`COMMIT` timed from outside the product code. B separates parse and write from the download, and gives transaction times and per-source memory.
+- **A.** `FINORA_DATA_DIR=<new empty dir> pnpm finora-cli data sync --country lv`, at `9dd06f4`, on `dev-desktop-1`, started 2026-11-22 18:12 UTC. The data dir was fresh, and the run was cold: LV keeps no raw cache, so every file was downloaded from data.gov.lv.
+- **B.** `node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw`, at `9dd06f4`, on `dev-desktop-1`. The script is committed, and is not run in CI. It runs the same loaders and `runSync` on a `sync: true` connection into a fresh temp store, fed from local copies of the same files (downloaded once with `research/probes/baltics/lv/01_ckan_download.py`), with `BEGIN`..`COMMIT` timed from outside the product code. B separates parse and write from the download, and gives transaction times and per-source memory. The figures here were taken with the script's scratch predecessor, which used the same method; the committed script also prints each source's time inside write transactions and its commit.
+- **The tip has moved since:** the architect's J2 (`4665c94`) hashes the gated record, so every record is rewritten once on its next sync. Later figures name their own commit.
 
 | Source | A: CLI | B: local | B: write tx p95 / max | B: heap peak |
 |---|---|---|---|---|
@@ -174,7 +175,7 @@ At `9dd06f4`, which holds the architect's write path (`8661a89`: adaptive batch,
 - **Memory:** peak RSS is 834 MB in A, for the one lane worker over all 19 sources (was 1,649 MB), and 849 MB in B. The CLI's per-source heap peaks are 424 MB at most (annual reports). Parse alone, measured separately: register 146 MB, officers 206, annual reports 398.
 - **The download is not the gap between A and B.** The 129 MB register file downloads in 2.9 s (45 MB/s). The register alone through the CLI on a fresh dir took 237 s, with the CPU at 94% from other jobs, against 196-202 s in B.
 - **Same rows under a new file hash** (B, register): 23.5 s, 456,256 records unchanged, 0 statement writes, write tx p95 251 ms, max 252 ms.
-- **Where the register's time goes** (B, register only, two runs): 196.5 s with SQLite's default WAL auto-checkpoint, 107.3 s with `wal_autocheckpoint = 0`. Checkpointing on `COMMIT` costs about 45% of the load. With checkpoints off, one transaction stalled 9.8 s, so moving the checkpoint needs its own design.
+- **Where the register's time goes** (B, register only, two runs, the second with the same script plus `PRAGMA main.wal_autocheckpoint = 0` on its connection): 196.5 s with SQLite's default WAL auto-checkpoint, 107.3 s with `wal_autocheckpoint = 0`. Checkpointing on `COMMIT` costs about 45% of the load. With checkpoints off, one transaction stalled 9.8 s, so moving the checkpoint needs its own design.
 - **The slow transactions are mid-load, not the search pass.** The worst register transaction was #536 of 767 in one run and #463 of 712 in another. The end-of-sync search transactions ran 35-545 ms.
 
 **Against cto's S05 targets:**

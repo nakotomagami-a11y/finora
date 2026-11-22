@@ -11,7 +11,7 @@ import { LV_BIRTH_DATE_CANARY, LV_LIQUIDATION_GROUND_CANARY, LV_RISK_CANARIES, l
 import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureProfileFor } from "./src/index.ts";
-import { fxLvUrOfficers, fxLvUrRegister, fxLvUrSanctionsLinks } from "./src/loaders.ts";
+import { fxLvUrRegister, fxLvUrSanctionsLinks } from "./src/loaders.ts";
 
 const FIXTURE_PROFILE = fixtureProfileFor(DEFAULT_LOADER_CONFIG);
 
@@ -20,6 +20,8 @@ const noNetwork = async (): Promise<never> => {
 };
 const LV = FIXTURE_PROFILE.map((p) => p.loader).filter((l) => /^lv-(ur|vid)-/.test(l.meta.id));
 const COMPANY_PARTY_TYPES = ["LEGAL_ENTITY", "FOREIGN_ENTITY"];
+/** The officers fixture file, fetched by a loader built for an explicit mode (no default-built loader, J1). */
+const officersFixture = { fetch: async (ctx: { now: string }) => ({ artifacts: [{ name: "officers.csv", bytes: lvOfficersCsv(), fetchedAt: ctx.now }] }) };
 
 /** Values no mode may store: person codes, birth dates and the dropped free text around people. */
 const ALWAYS = [lvMaskedCodeCanary(), LV_BIRTH_DATE_CANARY, lvRiskMaskedCode(), LV_RISK_CANARIES.birthDate, LV_RISK_CANARIES.debtorAddress, LV_RISK_CANARIES.bailiff, LV_RISK_CANARIES.typeDetails, LV_RISK_CANARIES.groundFor, LV_RISK_CANARIES.nationality, LV_RISK_CANARIES.legalBase, LV_LIQUIDATION_GROUND_CANARY, "Test Person S"];
@@ -48,7 +50,7 @@ async function loadAll(mode: LvPersonRows): Promise<{ dataDir: string; rawDir: s
   const rawDir = mkdtempSync(join(tmpdir(), "finora-lv-raw-"));
   dirs.push(dataDir, rawDir);
   const store = openStore({ dataDir });
-  const officers = { ...lvUrOfficersLoader({ personRows: mode }), fetch: fxLvUrOfficers.fetch };
+  const officers = { ...lvUrOfficersLoader({ personRows: mode }), fetch: officersFixture.fetch };
   for (const loader of LV.map((l) => (l.meta.id === "lv-ur-officers" ? officers : l))) {
     const outcome = await runSync(store.db, loader, { fetcher: noNetwork, rawCacheDir: rawDir, companyPartyTypes: COMPANY_PARTY_TYPES });
     expect(outcome.kind, loader.meta.id).toBe("content");
@@ -73,7 +75,7 @@ describe("LV fixture load: data dir and raw dir byte scan", () => {
   it("never stores a foreign holder the party gate does not prove a company, in any mode (SEC-9)", async () => {
     for (const mode of ["names_no_id", "role_counts"] as const) {
       const { db, close } = openStore({ dataDir: null });
-      const officers = { ...lvUrOfficersLoader({ personRows: mode }), fetch: fxLvUrOfficers.fetch };
+      const officers = { ...lvUrOfficersLoader({ personRows: mode }), fetch: officersFixture.fetch };
       const outcome = await runSync(db, officers, { fetcher: noNetwork, companyPartyTypes: [] });
       expect(outcome.report?.dropped.party_not_proven).toBeGreaterThan(0);
       expect(scanStore(db, ["Sample Holdings Ltd"])).toEqual([]);
@@ -109,7 +111,7 @@ describe("LV fixture load: data dir and raw dir byte scan", () => {
 
   it("keeps every person line under its own company's officer set, and no person row id anywhere else (legal)", async () => {
     const { db, close } = openStore({ dataDir: null });
-    const officers = { ...lvUrOfficersLoader({ personRows: "names_no_id" }), fetch: fxLvUrOfficers.fetch };
+    const officers = { ...lvUrOfficersLoader({ personRows: "names_no_id" }), fetch: officersFixture.fetch };
     for (const loader of LV.map((l) => (l.meta.id === "lv-ur-officers" ? officers : l))) await runSync(db, loader, { fetcher: noNetwork, companyPartyTypes: COMPANY_PARTY_TYPES });
     const PERSON_ROW = /\bp-\d+-\d+\b/;
     const persons = db.prepare("SELECT e.id, e.eid FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE s.name = 'Person'").all() as { id: number; eid: string }[];
