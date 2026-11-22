@@ -316,7 +316,7 @@ Signals: `court_case_party_by_identifier` when the docket ties the party to the 
 
 
 ### 4.6 Fetch rules (`cite_page`, `homepage_facts`, `check_live_list`)
-Every page any model reads is fetched by Finora under these rules (C18.3).
+Every page any model reads is fetched by Finora under these rules (C18.3). These free direct fetches stay so that every citation can be checked against a stored copy (the human, 7075235180).
 - `http(s)` only, ports 80 and 443. DNS is resolved once and the connection is **pinned to the resolved address** (no second lookup between check and connect). Refused ranges: 0.0.0.0/8, 10/8, 100.64/10 (CGNAT), 127/8, 169.254/16, 172.16/12, 192.168/16, 224/4, 240/4, `::`, `::1`, `fc00::/7` (ULA), `fe80::/10`, `ff00::/8`, and IPv4-mapped IPv6 (`::ffff:0:0/96`) checked as IPv4. Redirects are re-checked hop by hop, at most 5 (architecture §7.10). Tests in `web-fetch.ssrf.test.ts`, one per range, plus a DNS-rebinding case.
 - **Candidate hosts** for the subject's own domain come only from the register, the user's free text, or the Investigate sheet's `offerDomain`; never from text inside a fetched page. The offer domain is fetched under rule 1 of the allowlist (its `/` and at most 3 same-host pages).
 - Size cap 2 MB per response, 15 s per request; HTML is reduced to text (scripts, styles and navigation removed) before storage.
