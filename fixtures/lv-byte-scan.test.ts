@@ -78,4 +78,37 @@ describe("LV fixture load: data dir and raw dir byte scan", () => {
       close();
     }
   });
+
+  it("keeps every person line under its own company's officer set, and no person row id anywhere else (legal)", async () => {
+    const { db, close } = openStore({ dataDir: null });
+    const officers = { ...lvUrOfficersLoader({ personRows: "names_no_id" }), fetch: fxLvUrOfficers.fetch };
+    for (const loader of LV.map((l) => (l.meta.id === "lv-ur-officers" ? officers : l))) await runSync(db, loader, { fetcher: noNetwork, companyPartyTypes: COMPANY_PARTY_TYPES });
+    const PERSON_ROW = /\bp-\d+-\d+\b/;
+    const persons = db.prepare("SELECT e.id, e.eid FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id WHERE s.name = 'Person'").all() as { id: number; eid: string }[];
+    expect(persons.length).toBeGreaterThan(0);
+    for (const person of persons) {
+      // The row holds its name only, from one officer set.
+      const own = db.prepare("SELECT p.name AS prop, r.record_key FROM main.statements st JOIN main.props p ON p.id = st.prop_id JOIN main.records r ON r.id = st.record_id WHERE st.entity_id = ?").all(person.id) as { prop: string; record_key: string }[];
+      expect(new Set(own.map((o) => o.prop))).toEqual(new Set(["name"]));
+      const [setKey, ...others] = [...new Set(own.map((o) => o.record_key))];
+      expect(others).toEqual([]);
+      expect(setKey).toMatch(/^lv-\d{11}\|officers$/);
+      // It is named only as the director of a Directorship in that set, whose organization is the set's company.
+      const refs = db.prepare("SELECT p.name AS prop, st.entity_id, r.record_key FROM main.statements st JOIN main.props p ON p.id = st.prop_id JOIN main.records r ON r.id = st.record_id WHERE st.value = ?").all(person.eid) as { prop: string; entity_id: number; record_key: string }[];
+      expect(refs.length).toBeGreaterThan(0);
+      for (const ref of refs) {
+        expect([ref.prop, ref.record_key]).toEqual(["director", setKey]);
+        const org = db.prepare("SELECT st.value FROM main.statements st JOIN main.props p ON p.id = st.prop_id WHERE st.entity_id = ? AND p.name = 'organization'").all(ref.entity_id) as { value: string }[];
+        expect(org.map((o) => o.value)).toEqual([setKey!.split("|")[0]]);
+      }
+    }
+    // No person row id in event data, record keys, line ids or any other value.
+    const events = db.prepare("SELECT data FROM main.events WHERE data IS NOT NULL").all() as { data: string }[];
+    expect(events.filter((e) => PERSON_ROW.test(e.data))).toEqual([]);
+    const keys = db.prepare("SELECT record_key, line_ids FROM main.records").all() as { record_key: string; line_ids: string | null }[];
+    expect(keys.filter((k) => PERSON_ROW.test(k.record_key) || PERSON_ROW.test(k.line_ids ?? ""))).toEqual([]);
+    const elsewhere = db.prepare("SELECT p.name AS prop, st.value FROM main.statements st JOIN main.props p ON p.id = st.prop_id WHERE p.name <> 'director'").all() as { prop: string; value: string }[];
+    expect(elsewhere.filter((v) => PERSON_ROW.test(v.value))).toEqual([]);
+    close();
+  });
 });

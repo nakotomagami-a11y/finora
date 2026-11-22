@@ -15,7 +15,8 @@ export const LV_MEMBERS_HEADER = [
 
 /** A masked LV person code as the files print it (`DDMMYY-*****`): the canary that must never survive a parse. */
 export const lvMaskedCodeCanary = () => [["01", "01", "90"].join(""), "*".repeat(5)].join("-");
-export const LV_BIRTH_DATE_CANARY = "1990-01-01";
+/** An impossible date (qa NIT on S05): a date scan never meets it in real data. */
+export const LV_BIRTH_DATE_CANARY = "1990-02-30";
 
 type Officer = { id: number; n: number; type?: string; position?: string; body?: string; name?: string; holder?: string; rights?: string; atLeast?: string; registered?: string };
 

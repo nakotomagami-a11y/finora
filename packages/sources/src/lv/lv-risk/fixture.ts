@@ -28,7 +28,7 @@ export const LV_RISK_CANARIES = {
   groundFor: "Decision of Test Person D, tax inspector",
   sanctionedPerson: "Test Person C",
   nationality: "Fixtureland",
-  birthDate: "1971-07-07",
+  birthDate: "1971-02-31", // impossible on purpose (qa NIT on S05)
   legalBase: "Regulation on Test Person C",
 };
 export const lvRiskMaskedCode = () => [["07", "07", "71"].join(""), "*".repeat(5)].join("-");
