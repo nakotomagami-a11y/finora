@@ -1,7 +1,7 @@
 // cto's write-path fixes on S05 (one write path, 7075394106) and the agreed proof that no person
 // value outlives a sync in the connection (qa 7082809281, legal 7082812770, cto 7082802021).
 import { DatabaseSync } from "node:sqlite";
-import { balticCheckDigit } from "@finora/domain";
+import { balticCheckDigit, normalizeText } from "@finora/domain";
 import { lvUrOfficersLoader, lvUrRegister, type SourceLoader } from "@finora/sources";
 import { LV_BIRTH_DATE_CANARY, lvMaskedCodeCanary, lvOfficersCsv, lvRegisterCsv } from "@finora/sources/testing";
 import { beginSync, openStore, rebuildSearch, searchCompanies, upsertSource, writeRecord } from "@finora/store";
@@ -229,16 +229,29 @@ describe("the statement cache keeps nothing past the sync (legal, qa, cto)", () 
   });
 
   it("never binds a refused value: a planted personal code, a role_counts name, a birth date (bind recorder)", async () => {
+    // Every bind as text: strings, buffers decoded, named-parameter objects by value, numbers;
+    // and every SQL text run through exec (H3 in the S05 security re-check).
     const bound: unknown[] = [];
+    const record = (value: unknown): void => {
+      if (value instanceof Uint8Array) bound.push(new TextDecoder().decode(value));
+      else if (value !== null && typeof value === "object") for (const v of Object.values(value)) record(v);
+      else if (typeof value === "string") bound.push(value);
+      else if (typeof value === "number" || typeof value === "bigint") bound.push(String(value));
+    };
     const prepare = DatabaseSync.prototype.prepare;
+    const exec = DatabaseSync.prototype.exec;
     DatabaseSync.prototype.prepare = function (this: DatabaseSync, sql: string) {
       const statement = prepare.call(this, sql);
       for (const method of ["run", "get", "all", "iterate"] as const) {
         const original = statement[method].bind(statement) as (...args: unknown[]) => unknown;
-        Object.defineProperty(statement, method, { value: (...args: unknown[]) => (bound.push(...args), original(...args)) });
+        Object.defineProperty(statement, method, { value: (...args: unknown[]) => (args.forEach(record), original(...args)) });
       }
       return statement;
     } as typeof prepare;
+    DatabaseSync.prototype.exec = function (this: DatabaseSync, sql: string) {
+      record(sql);
+      return exec.call(this, sql);
+    } as typeof exec;
     try {
       const store = openStore({ dataDir: null, sync: true });
       const first10 = ["4", "900101", "123"].join("");
@@ -267,18 +280,32 @@ describe("the statement cache keeps nothing past the sync (legal, qa, cto)", () 
       expect(names.length).toBeGreaterThan(0);
       // The recorder saw the role_counts syncs' writes, so an empty result below means something.
       expect(scanned.filter((v) => typeof v === "string").length).toBeGreaterThan(100);
-      // Every sentinel is matched inside a value, not only as the whole value (F5).
-      // Each sentinel as itself and JSON-escaped, as a value inside a JSON string holds it (G4).
-      const sentinels = [lvMaskedCodeCanary(), LV_BIRTH_DATE_CANARY, planted, quoted, ...names].flatMap((s) => [s, JSON.stringify(s).slice(1, -1)]);
-      const hits = (values: unknown[]) => values.filter((v) => typeof v === "string" && sentinels.some((s) => v.includes(s)));
+      // Every sentinel is matched inside a value, not only as the whole value (F5): as itself, JSON-escaped
+      // once (G4) and twice, and in its search-normalised form, against the bound text normalised too (H3).
+      const escape = (text: string) => JSON.stringify(text).slice(1, -1);
+      const raw = [lvMaskedCodeCanary(), LV_BIRTH_DATE_CANARY, planted, quoted, ...names];
+      const sentinels = raw.flatMap((s) => [s, escape(s), escape(escape(s))]);
+      const normalised = raw.map((s) => normalizeText(s)).filter((s) => s.length >= 4);
+      const hits = (values: unknown[]) =>
+        values.filter((v) => typeof v === "string" && (sentinels.some((s) => v.includes(s)) || normalised.some((s) => normalizeText(v).includes(s))));
       // The positive controls: the matcher finds every name the names_no_id run binds, and a sentinel inside a JSON value.
       for (const name of names) expect(hits(namedBinds.filter((v) => typeof v === "string" && v.includes(name))).length, name).toBeGreaterThan(0);
       expect(hits([JSON.stringify({ born: LV_BIRTH_DATE_CANARY }), JSON.stringify({ officer: names[0] }), `ref ${planted}.`, JSON.stringify({ holder: quoted })])).toHaveLength(4);
       // Only the escaped form can match there: the raw quoted name is not inside its JSON.
       expect(JSON.stringify({ holder: quoted }).includes(quoted)).toBe(false);
+      // H3's controls: a buffer, a named-parameter object, a double-escaped JSON value and an upper-cased
+      // name are each caught once recorded; and exec SQL was recorded (BEGIN, COMMIT at least).
+      const probe = bound.length;
+      record(new TextEncoder().encode(`x ${names[0]} y`));
+      record({ $name: planted });
+      record(JSON.stringify(JSON.stringify({ holder: quoted })));
+      record(String(names[0]).toUpperCase());
+      expect(hits(bound.splice(probe))).toHaveLength(4);
+      expect(scanned.some((v) => v === "COMMIT")).toBe(true);
       expect(hits(scanned)).toEqual([]);
     } finally {
       DatabaseSync.prototype.prepare = prepare;
+      DatabaseSync.prototype.exec = exec;
     }
   });
 });

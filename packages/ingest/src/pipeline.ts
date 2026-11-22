@@ -201,6 +201,10 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     throw new Error(`${meta.id}: a ${storage} source is never synced in bulk`);
   }
 
+  // Before the lease: nothing that can throw runs between taking it and the try that releases it (H4).
+  const started = now();
+  const startedAt = started.toISOString();
+  const report = emptyReport(storage);
   const resource = `sync:${meta.id}`;
   const lease = acquireLease(db, resource, holder, ttl, now().getTime());
   let workDir: string | null = null;
@@ -242,9 +246,6 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     }
   };
 
-  const started = now();
-  const startedAt = started.toISOString();
-  const report = emptyReport(storage);
   /** Null until the sync row exists: an error before it ends the sync with no row to close. */
   let syncId: number | null = null;
   const finish = (kind: Exclude<SyncKind, "already_running">, extra: { reason?: string; upstreamAsOf?: string | null; asOfBasis?: string | null } = {}): SyncOutcome => {
