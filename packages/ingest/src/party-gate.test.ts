@@ -145,4 +145,17 @@ describe("a party that needs another (PartyRef.needs)", () => {
     links.state.asOf = { in_file_field: "2026-11-02" };
     expect((await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report?.unchanged).toBe(1);
   });
+
+  it("G4: an unproven FOREIGN_ENTITY holder's quoted name, changed alone, leaves the hash as it was", async () => {
+    const db = memoryDb();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+    const foreign = (name: string): PartyRef => ({ type: "FOREIGN_ENTITY", needs: 0, entities: [{ eid: "org-00000000000000000098", schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
+    const record = (name: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), foreign(name)]), hashInput: [JSON.stringify(["link", "FOREIGN_ENTITY", name])] });
+    // No company types configured, as under role_counts with no proof: the holder is unproven.
+    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record('Sample "Quoted" Trading A')] });
+    await sync(db, links);
+    links.state.records = [record('Sample "Quoted" Trading B')];
+    links.state.asOf = { in_file_field: "2026-11-02" };
+    expect((await sync(db, links)).report?.unchanged).toBe(1);
+  });
 });
