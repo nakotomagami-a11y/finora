@@ -15,7 +15,7 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 | Budget | Value |
 |---|---|
 | Disk | LV ≤ 2.5 GB · EE ≤ 3 GB (+ ≤ 0.25 GB share-alike) · LT ≤ 2 GB · cross-border ≤ 1 GB · US ≤ 1 GB · whole store ≤ 10 GB (binding; history inside it). Estimate ≈ 7.75 GB, ≈ 8.75 GB with a year of history |
-| First core load | ≤ 30 min; LV and LT searchable in ≈ 2 min, EE in ≈ 6 min |
+| First core load | **Amended by the council, 2026-11-23 (7087181944):** each country is searchable within its budget (LV 150 s, LT 150 s, EE 6 min) on a quiet machine, with the download counted or a stated download budget added; the whole core first load completes in ≤ 60 min on `dev-desktop-1`, shown up front ("About N min to finish. You can search Latvia now"). Every lane's register loads first, before any history source. Re-measure trigger: any country over its searchable budget on a quiet machine, or the complete core load over 60 min; then option C (history sources start after the first search) before any budget moves. *Was:* ≤ 30 min; LV and LT searchable in ≈ 2 min, EE in ≈ 6 min |
 | Daily refresh | ≤ 5 min, never blocking reads |
 | Unchanged reload | one `syncs` row, 0 statement writes |
 | Raw cache | ≤ 1.5 GB (latest artifact per source, gzip; measured gzip ratios: LV register x4.7, LT legal entities x4.0, LV members x4.5; estimate ≈ 1.3 GB) |

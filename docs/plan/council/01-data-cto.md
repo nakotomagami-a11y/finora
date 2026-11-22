@@ -183,3 +183,14 @@ P10 gains **US ≤ 1 GB** (data-us estimates ≈ 0.75 GB, plus GLEIF ≈ 0.45 GB
 1. **GLEIF: a weekly full load in v1**, not daily deltas (a delta can't define removals). ≈ 0.6 GB download, ≈ 2.5 min parse; it runs outside the 5-minute daily budget, staggered so it never shares a window with the EE general-data parse. Deltas stay a later optimisation.
 2. **`window` sources** (SEC insider and Form D sets, FJC index): records whose period aged out of the window are expected and not counted against the guard; records missing inside the window count against `max(2%, 5x measured)`. Test: a new quarter that drops the oldest passes; a file missing half of a quarter still inside the window ends `purge_guard`.
 3. **Live states, re-fetch on view:** an empty or not-found response is not proof of removal. Keep the cached rows and show "[state] registry did not return this company on [date]"; delete only when the registry marks the record withdrawn or corrected (the CT rule). Test: an empty re-fetch keeps the rows; a withdrawn record removes them.
+
+## P10 amendment: first core load (council 7087181944, 2026-11-23)
+
+cto's measured option B is adopted with a fixed ceiling. The promise is **"searchable fast, complete in the background"**:
+- each country is searchable within its budget: LV 150 s, LT 150 s, EE 6 min, on a quiet machine, with the download counted or a stated download budget added;
+- the whole core first load completes in **≤ 60 min** on `dev-desktop-1`, shown up front;
+- the scheduler runs every lane's register first, before any history source.
+
+This replaces "first load complete in ≤ 30 min". The complete-load figure is recorded from the first real core run (S12). A run over 60 min comes back to the council; it does not set a new budget after the fact. **Re-measure trigger:** any country over its searchable budget on a quiet machine, or the core load over 60 min. The next step then is option C (history sources start after the first search), before any budget moves.
+
+**Reasons:** the projection of 31-43 min sits inside the ceiling; the fix came first (fix 7 more than halves LV: 1,840 s to 848 s); multi-row inserts measure at about 1.2x, and `synchronous=OFF` is refused because it risks corruption. **Dissent:** cto proposed setting the complete-load budget from the first real run, but the council fixed the 60-min ceiling so that the measurement confirms a promise rather than writing one.
