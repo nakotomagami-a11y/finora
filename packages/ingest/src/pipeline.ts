@@ -150,6 +150,10 @@ class LeaseLost extends Error {}
  * The next batch's size from the last one's rate, so the write lock is held about `maxMs`: a slow
  * disk shrinks it, a fast one grows it, between 50 (or the cap, if lower) and the cap (cto's fix 1).
  */
+/** A finite number floored into [min, max]; undefined for anything else, so the caller's default applies. */
+const finiteIn = (value: number | undefined, min: number, max: number) =>
+  value !== undefined && Number.isFinite(value) ? Math.min(max, Math.max(min, Math.floor(value))) : undefined;
+
 export function nextBatchSize(inBatch: number, maxMs: number, elapsedMs: number, cap = 5000): number {
   return Math.min(cap, Math.max(Math.min(50, cap), Math.floor((inBatch * maxMs) / Math.max(1, elapsedMs))));
 }
@@ -163,9 +167,18 @@ const RETRY_MARKER = "\u0000reference_retry";
 const retryable = (hashInput: string[], retry: boolean) => (retry ? [...hashInput, RETRY_MARKER] : hashInput);
 
 /** Every string a value of `refused` appears in is masked, so no row hash covers a personal code. */
+/**
+ * The hash input with every refused value replaced by a marker of its own, in one pass: with a
+ * shared marker, a proven value changing from "12" to "21" would mask the same as soon as "1" and
+ * "2" were refused, and the change would never be written (coordinator, qa on 400f7d6).
+ */
 function masked(hashInput: readonly string[], refused: readonly string[]): string[] {
-  if (refused.length === 0) return [...hashInput];
-  return hashInput.map((h) => refused.reduce((text, value) => (value ? text.split(value).join("[withheld]") : text), h));
+  const values = [...new Set(refused.filter((v) => v !== ""))].sort();
+  if (values.length === 0) return [...hashInput];
+  const marker = new Map(values.map((v, i) => [v, `[withheld ${i}]`]));
+  // Longest first, so a value inside a longer refused value never splits it.
+  const pattern = new RegExp([...values].sort((a, b) => b.length - a.length).map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+  return hashInput.map((h) => h.replace(pattern, (v) => marker.get(v) as string));
 }
 
 export async function runSync(db: DatabaseSync, loader: SourceLoader, options: SyncOptions): Promise<SyncOutcome> {
@@ -194,11 +207,6 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     logger.info("sync already running", { sourceId: meta.id });
     return { kind: "already_running", syncId: null, report: null };
   }
-  // This sync holds the source's lease, so any work dir of this source under this store's own work
-  // base is an orphan of a sync that never reached its own cleanup: removed before anything is
-  // downloaded. The shared default base is not swept: a lease covers one store, and another store's
-  // sync of the same source may be live there.
-  if (options.workDir) removeWorkDirs(options.workDir, [meta.id]);
   // Heartbeat from acquisition to release (SEC-3, qa M2): a long download or parse keeps the
   // lease; a lease taken over by another holder stops this sync before it writes again.
   let lost = false;
@@ -247,6 +255,11 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
   };
 
   try {
+    // This sync holds the source's lease, so any work dir of this source under this store's own work
+    // base is an orphan of a sync that never reached its own cleanup: removed before anything is
+    // downloaded, inside the try so a failure here still releases the lease (F2). The shared default
+    // base is not swept: a lease covers one store, and another store's sync of the source may be live there.
+    if (options.workDir) removeWorkDirs(options.workDir, [meta.id]);
     // A sync cut off before its search pass left marks: they are written first (qa condition 1).
     rebuildSearch(db, { begin });
     const previous = lastContentSync(db, meta.id);
@@ -313,9 +326,9 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     let complete = true;
 
     if (storage === "store") beginStaging(db);
-    const maxMs = options.batch?.maxMs ?? 250;
-    // The caller's batch size is the upper bound; the floor is 50, or the bound if lower.
-    const batchCap = options.batch?.maxRecords ?? 5000;
+    const maxMs = finiteIn(options.batch?.maxMs, 1, 60_000) ?? 250;
+    // The caller's batch size is the upper bound, at most 5,000; the floor is 50, or the bound if lower (F3).
+    const batchCap = finiteIn(options.batch?.maxRecords, 1, 5000) ?? 5000;
     let maxRecords = batchCap;
     let inBatch = 0;
     let batchStart = 0;
@@ -474,7 +487,9 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     if (!lost) releaseLease(db, lease);
     // Streamed downloads live only for their sync; the raw cache keeps its own compressed copy.
     if (workDir) rmSync(workDir, { recursive: true, force: true });
-    // No statement keeps a value bound by this sync (legal on the statement cache).
+    // The cache lets go of this sync's statements. A dropped statement is finalized when its connection
+    // closes, which for the sync worker's is at batch end: only then is no value bound by this sync left
+    // in it (F4; legal on the statement cache).
     clearStatementCache(db);
   }
 }

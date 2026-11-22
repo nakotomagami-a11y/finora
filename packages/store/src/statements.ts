@@ -1,8 +1,9 @@
 // Reused prepared statements on the sync worker's connection only (cto's write-path fix 2; legal,
 // qa on S05). Compiling the write path's ~25 statements per record cost most of a load; a cached
 // statement keeps its last bound value in SQLite, so the cache lives only on a connection that is
-// closed when its batch ends (the worker's), which finalizes every statement, and it is emptied at
-// the end of every sync. Any other connection prepares as before and keeps nothing.
+// closed when its batch ends (the worker's), which finalizes every statement. It is emptied at the end
+// of every sync; a statement it drops is finalized at that close too. Any other connection prepares
+// as before and keeps nothing.
 import type { DatabaseSync, StatementSync } from "node:sqlite";
 
 const caches = new WeakMap<DatabaseSync, Map<string, StatementSync>>();

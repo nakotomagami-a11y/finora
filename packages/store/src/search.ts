@@ -82,16 +82,17 @@ export function searchCompanies(db: DatabaseSync, query: string, options: { coun
   const ids = [...found.keys()];
   const rows = db
     .prepare(
-      `SELECT id, eid, caption, country, legal_form, status, code, natural_person FROM main.entities
-       WHERE id IN (${ids.map(() => "?").join(", ")})${options.country ? " AND country = ?" : ""}`,
+      `SELECT e.id, e.eid, e.caption, e.country, e.legal_form, e.status, e.code, e.natural_person, s.name AS schema
+       FROM main.entities e JOIN main.schemas s ON s.id = e.schema_id
+       WHERE e.id IN (${ids.map(() => "?").join(", ")})${options.country ? " AND e.country = ?" : ""}`,
     )
     .all(...ids, ...(options.country ? [options.country] : [])) as {
-    id: number; eid: string; caption: string; country: string; legal_form: string | null; status: string | null; code: string | null; natural_person: number;
+    id: number; eid: string; caption: string; country: string; legal_form: string | null; status: string | null; code: string | null; natural_person: number; schema: string;
   }[];
   return rows
-    // The second layer (legal on 8661a89): a natural person is found by registry code only, even if a
-    // name row for it were ever left in the index.
-    .filter((r) => r.natural_person === 0 || found.get(r.id)!.match === "code")
+    // The second layer (legal on 8661a89), whatever the index holds: never a Person row or a sanctions
+    // list entry, and a natural person by registry code only.
+    .filter((r) => r.schema !== "Person" && !r.eid.startsWith("sanc-") && (r.natural_person === 0 || found.get(r.id)!.match === "code"))
     .map((r) => {
       const hit = found.get(r.id)!;
       return { eid: r.eid, caption: r.caption, country: r.country, legalForm: r.legal_form, status: r.status, code: r.code, match: hit.match, score: hit.score };

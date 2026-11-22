@@ -98,4 +98,16 @@ describe("a party that needs another (PartyRef.needs)", () => {
     expect((await run("99999999999"))?.unchanged).toBe(1);
     expect((await run("00000000001"))?.written).toBe(1);
   });
+
+  it("each refused value has its own marker: a proven value going from 12 to 21 is written though 1 and 2 are refused (qa, coordinator)", async () => {
+    const db = memoryDb();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+    const short = (n: number, value: string): PartyRef => ({ type: "JOINT_OWNERS", entities: [{ eid: `org-${String(n).padStart(20, "0")}`, schema: "Organization", country: "intl", statements: [{ prop: "name", value, itemId: "S04.LV.01" }] }] });
+    const record = (shares: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), short(1, "1"), short(2, "2")]), hashInput: ["shares", shares] });
+    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record("12")] });
+    await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
+    links.state.records = [record("21")];
+    links.state.asOf = { in_file_field: "2026-11-02" };
+    expect((await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report?.written).toBe(1);
+  });
 });

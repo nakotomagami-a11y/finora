@@ -22,6 +22,26 @@ describe("fix 1: the batch is sized from the last one's rate", () => {
   });
 });
 
+describe("F3: the caller's batch cap is bounded", () => {
+  it("is at most 5,000, and a cap that is not finite falls back to 5,000; the control, 100, commits more often", async () => {
+    const commits = async (maxRecords: number) => {
+      const { db } = openStore({ dataDir: null });
+      const exec = db.exec.bind(db);
+      let n = 0;
+      db.exec = (sql: string) => {
+        if (sql === "COMMIT") n++;
+        return exec(sql);
+      };
+      await runSync(db, fakeSource({}, { records: companies(1, 5100) }), { fetcher: noNetwork, batch: { maxRecords, maxMs: 60_000 } });
+      return n;
+    };
+    const standard = await commits(5000);
+    expect(await commits(20_000)).toBe(standard);
+    expect(await commits(Number.NaN)).toBe(standard);
+    expect(await commits(100)).toBeGreaterThan(standard);
+  }, 120_000);
+});
+
 describe("fix 3: search rows are written in one pass at the sync's end", () => {
   it("leaves no mark after a sync, and every company is searchable", async () => {
     const { db } = openStore({ dataDir: null });
@@ -102,6 +122,26 @@ describe("the deferred pass never leaves a natural person searchable (qa MUST, l
     db.prepare("INSERT INTO main.entities_trigram (rowid, search_text) VALUES (?, ?)").run(id, name.toLowerCase());
     expect(searchCompanies(db, name)).toEqual([]);
     expect(searchCompanies(db, "00000000001").length).toBe(1);
+  });
+
+  it("the second layer: a name row left for a Person row or a sanctions list entry is never a hit", () => {
+    const { db } = setup();
+    const syncId = beginSync(db, { sourceId: "fake-register", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-22T08:00:00.000Z" });
+    writeRecord(db, {
+      syncId,
+      sourceId: "fake-register",
+      recordKey: "k2",
+      hashInput: ["k2"],
+      entities: [
+        { eid: "p-9-1", schema: "Person", country: "lv", statements: [{ prop: "name", value: name, itemId: "S01.LV.01" }] },
+        { eid: "sanc-eu-9", schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S01.LV.01" }] },
+      ],
+    });
+    for (const eid of ["p-9-1", "sanc-eu-9"]) {
+      const id = (db.prepare("SELECT id FROM main.entities WHERE eid = ?").get(eid) as { id: number }).id;
+      db.prepare("INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)").run(id, name.toLowerCase());
+    }
+    expect(searchCompanies(db, name)).toEqual([]);
   });
 
   it("the pass skips an entity that is gone and drops its mark, without failing the sync (qa SHOULD)", () => {
@@ -203,25 +243,32 @@ describe("the statement cache keeps nothing past the sync (legal, qa, cto)", () 
       const store = openStore({ dataDir: null, sync: true });
       const first10 = ["4", "900101", "123"].join("");
       const planted = `${first10}${balticCheckDigit(first10)}`;
-      const officers = fromFile(lvUrOfficersLoader({ personRows: "role_counts" }), "officers.csv", lvOfficersCsv);
-      await runSync(store.db, fromFile(lvUrRegister, "register.csv", lvRegisterCsv), { fetcher: noNetwork });
-      await runSync(store.db, officers, { fetcher: noNetwork });
+      const register = () => fromFile(lvUrRegister, "register.csv", lvRegisterCsv);
+      // The register loads first and is not scanned: a sole trader's register name holds a person's name.
+      await runSync(store.db, register(), { fetcher: noNetwork });
+      bound.length = 0;
+      await runSync(store.db, fromFile(lvUrOfficersLoader({ personRows: "role_counts" }), "officers.csv", lvOfficersCsv), { fetcher: noNetwork });
       await runSync(store.db, fakeSource({ id: "planted" }, { records: [companyRecord(9, { extra: [{ prop: "notes", value: `ref ${planted}`, itemId: "S01.LV.01" }] })] }), { fetcher: noNetwork });
+      const scanned = bound.splice(0);
       // The names the officers file holds, read the names_no_id way in a store of their own.
       const named = openStore({ dataDir: null });
-      const before = bound.length;
-      await runSync(named.db, fromFile(lvUrRegister, "register.csv", lvRegisterCsv), { fetcher: noNetwork });
+      await runSync(named.db, register(), { fetcher: noNetwork });
+      bound.length = 0;
       await runSync(named.db, fromFile(lvUrOfficersLoader({ personRows: "names_no_id" }), "officers.csv", lvOfficersCsv), { fetcher: noNetwork });
+      const namedBinds = bound.splice(0);
       const names = (named.db.prepare("SELECT DISTINCT st.value FROM main.statements st JOIN main.entities e ON e.id = st.entity_id JOIN main.schemas s ON s.id = e.schema_id WHERE s.name = 'Person'").all() as { value: string }[]).map((r) => r.value);
-      bound.length = before;
       named.close();
       store.close();
       expect(names.length).toBeGreaterThan(0);
       // The recorder saw the role_counts syncs' writes, so an empty result below means something.
-      expect(bound.filter((v) => typeof v === "string").length).toBeGreaterThan(100);
+      expect(scanned.filter((v) => typeof v === "string").length).toBeGreaterThan(100);
+      // Every sentinel is matched inside a value, not only as the whole value (F5).
       const sentinels = [lvMaskedCodeCanary(), LV_BIRTH_DATE_CANARY, planted, ...names];
-      const leaked = bound.filter((v) => typeof v === "string" && sentinels.some((s) => v === s || v.includes(planted) || v.includes(lvMaskedCodeCanary())));
-      expect(leaked).toEqual([]);
+      const hits = (values: unknown[]) => values.filter((v) => typeof v === "string" && sentinels.some((s) => v.includes(s)));
+      // The positive controls: the matcher finds every name the names_no_id run binds, and a sentinel inside a JSON value.
+      for (const name of names) expect(hits(namedBinds.filter((v) => typeof v === "string" && v.includes(name))).length, name).toBeGreaterThan(0);
+      expect(hits([JSON.stringify({ born: LV_BIRTH_DATE_CANARY }), JSON.stringify({ officer: names[0] }), `ref ${planted}.`])).toHaveLength(3);
+      expect(hits(scanned)).toEqual([]);
     } finally {
       DatabaseSync.prototype.prepare = prepare;
     }

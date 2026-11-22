@@ -136,10 +136,11 @@ export function lanesOf(loaders: readonly SourceLoader[]): Map<string, string[]>
 export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: WorkerLimits = {}): Promise<WorkerOutcome[]> {
   const holder = batch.options.holder ?? `worker-${process.pid}-${Math.random().toString(36).slice(2)}`;
   const ttl = batch.options.leaseTtlMs ?? 60_000;
+  // A work base of the store's own, so the parent may remove what a terminated worker left there.
+  const workDir = batch.options.workDir ?? join(batch.dataDir, "work");
   const data: WorkerBatch = {
     ...batch,
-    // A work base of the store's own, so the parent may remove what a terminated worker left there.
-    options: { ...batch.options, holder, workDir: batch.options.workDir ?? join(batch.dataDir, "work") },
+    options: { ...batch.options, holder, workDir },
     liveViewsHeld: batch.liveViewsHeld ?? batch.sourceIds.filter((id) => liveView(id) !== null),
     personListsHeld: batch.personListsHeld ?? batch.sourceIds.filter((id) => personListHeld(id)),
   };
@@ -164,7 +165,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
       void worker.terminate().then(() => {
         // The terminated thread never reached its own cleanup: its downloads go now, before the
         // lease is released, for every source of the batch that had not finished (legal condition 1).
-        removeWorkDirs(data.options.workDir as string, batch.sourceIds.filter((id) => !finished.has(id)));
+        removeWorkDirs(workDir, batch.sourceIds.filter((id) => !finished.has(id)));
         const store = openStore({ dataDir: batch.dataDir });
         try {
           if (current) {

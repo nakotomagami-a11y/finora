@@ -361,7 +361,7 @@ describe("qa S8, S9: explicit deletes and person fields", () => {
     const id = ["010190", "12345"].join("");
     const record = companyRecord(9, { legalForm: "lv-ik", extra: [{ prop: "registrationNumber", value: id, itemId: "S01.LV.01" }] });
     record.hashInput = [record.recordKey, id];
-    const twin = { ...record, hashInput: [record.recordKey, "[withheld]"] };
+    const twin = { ...record, hashInput: [record.recordKey, "[withheld 0]"] };
     await sync(db, fakeSource({}, { records: [record] }));
     const stored = db.prepare("SELECT row_hash FROM main.records").get() as { row_hash: Uint8Array };
     const db2 = memoryDb();
