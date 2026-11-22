@@ -9,7 +9,6 @@ import {
   isNaturalPerson,
   isProp,
   item,
-  NAME_PROPS,
   naturalPersonDrop,
   PERSON_EID,
   freeTextHoldsPersonalCode,
@@ -26,8 +25,11 @@ export type GateResult = {
   events: NonNullable<ParsedRecord["events"]>;
   withheld: { entityEid: string; prop: string; reason: string }[];
   drops: Drop[];
-  /** Values refused as personal codes: masked in the record's hash input, so no hash covers them. */
-  refused: string[];
+  /**
+   * Per party of the record, whether it loaded. The record hash keeps an unproven party's slot with
+   * no value, so adding or removing a party still changes it (legal on J2).
+   */
+  partySlots: boolean[];
   /** A reference waits for its target: the record's hash is salted, so the next sync writes it again. */
   retry: boolean;
 };
@@ -100,7 +102,6 @@ export function applyGates(
     drops.push({ reason, ...(prop !== undefined && isProp(prop) ? { prop } : {}), ...(rowRef ? { rowRef } : {}) });
   for (const d of record.dropped ?? []) drop(d.reason, d.prop);
   const withheld: GateResult["withheld"] = [];
-  const refused: string[] = [];
   let retry = false;
 
   const parties: ParsedEntity[] = [];
@@ -118,13 +119,7 @@ export function applyGates(
       partyEvents.push(...(party.events ?? []));
     } else {
       drop("party_not_proven");
-      for (const e of party.entities) {
-        unproven.add(e.eid);
-        // Its names are not stored, so no record hash covers them either (masked, like a refused code).
-        // Only names: codes, counts and dates are no guessable name, so their changes still change the
-        // hash (legal 7083504293, 7083515683).
-        for (const s of e.statements) if (s.value && (NAME_PROPS as readonly string[]).includes(s.prop)) refused.push(s.value);
-      }
+      for (const e of party.entities) unproven.add(e.eid);
     }
   }
 
@@ -170,7 +165,6 @@ export function applyGates(
         if (!leaksPerson(s.value)) return true;
         drop("personal_code", s.prop);
         withheld.push({ entityEid: entity.eid, prop: s.prop, reason: "personal_code" });
-        refused.push(s.value);
         return false;
       }
       const byRule = naturalPersonDrop(s);
@@ -179,7 +173,6 @@ export function applyGates(
       const leaks = ownId ? idIsPersonalCode(entity.country, s.value) : freeTextHoldsPersonalCode(s.value);
       if (leaks) {
         drop("personal_code", s.prop);
-        refused.push(s.value);
         if (ownId) withheld.push({ entityEid: entity.eid, prop: s.prop, reason: "personal_code" });
         return false;
       }
@@ -239,12 +232,10 @@ export function applyGates(
         // shaped like a Baltic register eid that fails its check is not a company (qa M4).
         // Already counted once, as the party's party_not_proven.
         if (typeof value === "string" && unproven.has(value) && !recordEids.has(value)) {
-          refused.push(value);
           continue;
         }
         if (typeof value === "string" && (isInternalEid(value) || (/^(lv|ee|lt)-\d{6,}$/.test(value) && !companyEidShape(value)))) {
           drop(isInternalEid(value) ? "person_field" : "invalid_code");
-          refused.push(value);
           continue;
         }
         const shaped = typeof value === "string" && companyEidShape(value);
@@ -256,7 +247,6 @@ export function applyGates(
         })();
         if (heldAsPerson) {
           drop("natural_person_party");
-          refused.push(value as string);
           continue;
         }
         if (shaped && !reference) {
@@ -266,12 +256,11 @@ export function applyGates(
         }
         if (typeof value === "string" && !reference && leaksPerson(value)) {
           drop("personal_code");
-          refused.push(value);
           continue;
         }
         data[key] = value;
       }
       return { ...e, data };
     });
-  return { entities, reports, events, withheld, drops, refused, retry };
+  return { entities, reports, events, withheld, drops, partySlots: loaded, retry };
 }

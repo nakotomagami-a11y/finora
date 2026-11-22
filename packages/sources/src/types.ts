@@ -99,6 +99,7 @@ export type { DropReason } from "@finora/domain";
 
 export type ParsedRecord = {
   recordKey: string;
+  /** No longer hashed (J2 on S05): the store hashes what the gate keeps of the record. Still checked for person keys. */
   hashInput: string[];
   entities: ParsedEntity[];
   reports?: FactReportInput[];

@@ -83,7 +83,7 @@ describe("a party that needs another (PartyRef.needs)", () => {
     expect(loaded([named(1, 1), subject("1")])).toEqual([]);
   });
 
-  it("an unproven party's name is masked in the record hash: a change to it alone writes nothing (control: proven, it is written)", async () => {
+  it("an unproven party's name is in no hash: a change to it alone writes nothing (control: proven, it is written)", async () => {
     const run = async (code: string) => {
       const db = memoryDb();
       await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
@@ -98,77 +98,84 @@ describe("a party that needs another (PartyRef.needs)", () => {
     expect((await run("99999999999"))?.unchanged).toBe(1);
     expect((await run("00000000001"))?.written).toBe(1);
   });
+});
 
-  it("each refused value has its own marker: a proven value going from 12 to 21 is written though 1 and 2 are refused (qa, coordinator)", async () => {
+// J2 in the S05 security re-check (legal 7086981397): the record hash is built from what the gate
+// keeps, each unproven party's slot with no value, so no withheld name is in it and none can be
+// confirmed against it, nor its equality with another.
+describe("the record hash is what the gate keeps (J2)", () => {
+  const subject = (value: string): PartyRef => ({ code: { country: "lv", value }, entities: [] });
+  const holder = (n: number, name: string, type = "JOINT_OWNERS"): PartyRef => ({ type, entities: [{ eid: `org-${String(n).padStart(20, "0")}`, schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
+  const record = (parties: PartyRef[], hashInput = ["link"]): ParsedRecord => ({ ...membersRecord(parties), hashInput });
+  const withRegister = async () => {
     const db = memoryDb();
     await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
-    const short = (n: number, value: string): PartyRef => ({ type: "JOINT_OWNERS", entities: [{ eid: `org-${String(n).padStart(20, "0")}`, schema: "Organization", country: "intl", statements: [{ prop: "name", value, itemId: "S04.LV.01" }] }] });
-    const record = (shares: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), short(1, "1"), short(2, "2")]), hashInput: ["shares", shares] });
-    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record("12")] });
+    return db;
+  };
+  /** The stored row hash of one record of a fresh store. */
+  const hashOf = async (r: ParsedRecord) => {
+    const db = await withRegister();
+    await sync(db, fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [r] }), { companyPartyTypes: COMPANY_TYPES });
+    return Buffer.from((db.prepare("SELECT row_hash FROM main.records WHERE source_id = 'lv-links'").get() as { row_hash: Uint8Array }).row_hash).toString("hex");
+  };
+  /** The second sync's report after a first one with `first`. */
+  const change = async (first: ParsedRecord, second: ParsedRecord) => {
+    const db = await withRegister();
+    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [first] });
     await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
-    links.state.records = [record("21")];
+    links.state.records = [second];
     links.state.asOf = { in_file_field: "2026-11-02" };
-    expect((await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report?.written).toBe(1);
+    return (await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report;
+  };
+  const NAME = ["Same", "Fictional", "Holding"].join(" ");
+
+  it("legal's acceptance test: two equal withheld names and a proven field holding that name hash as two different withheld names do", async () => {
+    const same = record([subject("00000000001"), holder(1, NAME), holder(2, NAME), holder(3, NAME, "LEGAL_ENTITY")], ["link", NAME, NAME, NAME]);
+    const different = record([subject("00000000001"), holder(1, "Other Fictional A"), holder(2, "Other Fictional B"), holder(3, NAME, "LEGAL_ENTITY")], ["link", "Other Fictional A", "Other Fictional B", NAME]);
+    expect(await hashOf(same)).toBe(await hashOf(different));
   });
 
-  it("only names are masked: a change to an unproven party's code still changes the hash (legal scope)", () => {
-    const party = (code: string): PartyRef => ({ type: "JOINT_OWNERS", entities: [{ eid: "org-00000000000000000009", schema: "Organization", country: "intl", statements: [{ prop: "name", value: "Scope Holding", itemId: "S04.LV.01" }, { prop: "alias", value: "Scope Alias", itemId: "S04.LV.01" }, { prop: "registrationNumber", value: code, itemId: "S04.LV.01" }] }] });
-    const refused = applyGates(membersRecord([subject("00000000001"), party("777")]), { companyPartyTypes: COMPANY_TYPES, lookup }).refused;
-    expect(refused).toEqual(expect.arrayContaining(["Scope Holding", "Scope Alias"]));
-    expect(refused).not.toContain("777");
+  it("each party keeps its slot: adding an unproven party changes the hash, and the change is written", async () => {
+    const one = record([subject("00000000001"), holder(1, "Slot Holding A")]);
+    const two = record([subject("00000000001"), holder(1, "Slot Holding A"), holder(2, "Slot Holding B")]);
+    expect(await hashOf(one)).not.toBe(await hashOf(two));
+    expect((await change(one, two))?.written).toBe(1);
   });
 
-  it("a quoted name inside a JSON hash element is masked too: a change to it alone writes nothing (legal: any name in a member line)", async () => {
-    const run = async (proven: boolean) => {
-      const db = memoryDb();
-      await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
-      const holder = (name: string): PartyRef => ({ type: proven ? "LEGAL_ENTITY" : "JOINT_OWNERS", entities: [{ eid: "org-00000000000000000007", schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
-      const record = (name: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), holder(name)]), hashInput: [JSON.stringify(["", "JOINT_OWNERS", "", name, "10"])] });
-      const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record('SIA "Quoted Holding A"')] });
-      await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
-      links.state.records = [record('SIA "Quoted Holding B"')];
-      links.state.asOf = { in_file_field: "2026-11-02" };
-      return (await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report;
-    };
-    expect((await run(false))?.unchanged).toBe(1);
-    expect((await run(true))?.written).toBe(1);
+  it("a stored value's change is written, though withheld names hold its parts (the 12-to-21 case)", async () => {
+    const parties = (shares: string) => [subject("00000000001"), holder(1, "1"), holder(2, "2"), holder(3, `Holding ${shares}`, "LEGAL_ENTITY")];
+    expect((await change(record(parties("12")), record(parties("21"))))?.written).toBe(1);
   });
 
-  it("markers follow the gate's order, not sort order: renaming one refused name past another writes nothing (G2)", async () => {
-    const db = memoryDb();
-    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
-    const unproven = (n: number, name: string): PartyRef => ({ type: "JOINT_OWNERS", entities: [{ eid: `org-${String(n).padStart(20, "0")}`, schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
-    const record = (first: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), unproven(1, first), unproven(2, "Mid Holding")]), hashInput: ["link", first, "Mid Holding"] });
-    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record("Beta Holding")] });
-    await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
-    links.state.records = [record("Zeta Holding")];
-    links.state.asOf = { in_file_field: "2026-11-02" };
-    expect((await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report?.unchanged).toBe(1);
+  it("renaming one of two same-name unproven parties writes nothing; a proven value change does (G2's duplicate case)", async () => {
+    const parties = (second: string, proven: string) => [subject("00000000001"), holder(1, NAME), holder(2, second), holder(3, proven, "LEGAL_ENTITY")];
+    expect((await change(record(parties(NAME, "Proven A")), record(parties("Renamed Fictional", "Proven A"))))?.unchanged).toBe(1);
+    expect((await change(record(parties(NAME, "Proven A")), record(parties(NAME, "Proven B"))))?.written).toBe(1);
   });
 
-  it("G4: an unproven FOREIGN_ENTITY holder's quoted name, changed alone, leaves the hash as it was", async () => {
-    const db = memoryDb();
-    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
-    const foreign = (name: string): PartyRef => ({ type: "FOREIGN_ENTITY", needs: 0, entities: [{ eid: "org-00000000000000000098", schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
-    const record = (name: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), foreign(name)]), hashInput: [JSON.stringify(["link", "FOREIGN_ENTITY", name])] });
-    // No company types configured, as under role_counts with no proof: the holder is unproven.
-    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record('Sample "Quoted" Trading A')] });
+  it("renaming one withheld name past another in sort order writes nothing (G2)", async () => {
+    const parties = (first: string) => [subject("00000000001"), holder(1, first), holder(2, "Mid Holding")];
+    expect((await change(record(parties("Beta Holding")), record(parties("Zeta Holding"))))?.unchanged).toBe(1);
+  });
+
+  it("a quoted withheld name, changed alone, writes nothing; proven, the change is written", async () => {
+    const run = (type: string) => change(record([subject("00000000001"), holder(7, 'SIA "Quoted Holding A"', type)]), record([subject("00000000001"), holder(7, 'SIA "Quoted Holding B"', type)]));
+    expect((await run("JOINT_OWNERS"))?.unchanged).toBe(1);
+    expect((await run("LEGAL_ENTITY"))?.written).toBe(1);
+  });
+
+  it("G4: an unproven FOREIGN_ENTITY holder's quoted name, changed alone, writes nothing (no company types)", async () => {
+    const db = await withRegister();
+    const foreign = (name: string) => record([subject("00000000001"), { ...holder(8, name, "FOREIGN_ENTITY"), needs: 0 }]);
+    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [foreign('Sample "Quoted" Trading A')] });
     await sync(db, links);
-    links.state.records = [record('Sample "Quoted" Trading B')];
+    links.state.records = [foreign('Sample "Quoted" Trading B')];
     links.state.asOf = { in_file_field: "2026-11-02" };
     expect((await sync(db, links)).report?.unchanged).toBe(1);
   });
 
-  it("a renamed duplicate moves no other value's marker (qa NIT on a866354)", async () => {
-    const db = memoryDb();
-    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
-    const unproven = (n: number, name: string): PartyRef => ({ type: "JOINT_OWNERS", entities: [{ eid: `org-${String(n).padStart(20, "0")}`, schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
-    // Only the third name is in the hash input: its marker is all the hash can follow.
-    const record = (second: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), unproven(1, "Same Holding"), unproven(2, second), unproven(3, "Other Holding")]), hashInput: ["link", "Other Holding"] });
-    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record("Same Holding")] });
-    await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
-    links.state.records = [record("Renamed Holding")];
-    links.state.asOf = { in_file_field: "2026-11-02" };
-    expect((await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report?.unchanged).toBe(1);
+  it("the loader's own hash input no longer counts: a change only there writes nothing", async () => {
+    const parties = [subject("00000000001"), holder(3, "Proven Holding", "LEGAL_ENTITY")];
+    expect((await change(record(parties, ["a"]), record(parties, ["b"])))?.unchanged).toBe(1);
   });
 });

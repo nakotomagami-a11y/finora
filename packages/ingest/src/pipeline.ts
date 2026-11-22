@@ -166,28 +166,33 @@ export function nextBatchSize(inBatch: number, maxMs: number, elapsedMs: number,
 const RETRY_MARKER = "\u0000reference_retry";
 const retryable = (hashInput: string[], retry: boolean) => (retry ? [...hashInput, RETRY_MARKER] : hashInput);
 
+/** JSON with every object's keys sorted and undefined fields left out: one text per value, whatever the key order. */
+const canonical = (value: unknown): string =>
+  JSON.stringify(value, (_key, v: unknown) =>
+    v !== null && typeof v === "object" && !Array.isArray(v) && !(v instanceof Uint8Array)
+      ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : v,
+  );
+
 /**
- * The hash input with every refused value replaced by a marker of its own, in one pass, so no row
- * hash covers a refused value. With a shared marker, a proven value changing from "12" to "21" would
- * mask the same as soon as "1" and "2" were refused, and the change would never be written
- * (coordinator, qa on 400f7d6). A loader may put a value into its hash input inside JSON, so the
- * value's JSON-escaped form is masked too: `SIA "Example"` stands there as `SIA \"Example\"`.
+ * The record's hash input: what the gate keeps, never the loader's raw input (J2 in the S05
+ * security re-check; legal 7086981397). A refused or withheld value, an unproven party's name
+ * included, is in no hash, so nothing can be confirmed against one, and two equal withheld names
+ * reveal nothing. Each party keeps its slot (loaded or not), so adding or removing a party still
+ * changes the hash. Everything the store keeps of the record is here, so every stored change writes.
  */
-function masked(hashInput: readonly string[], refused: readonly string[]): string[] {
-  // Numbered by each value's first place in the gate's push list, never sorted and never after
-  // deduplication: a refused name renamed past another in sort order, or a duplicate renamed, must not
-  // move any other value's marker, or the hash would follow values it may not cover (G2; qa NIT).
-  const marker = new Map<string, string>();
-  refused.forEach((v, i) => {
-    if (v === "" || marker.has(v)) return;
-    marker.set(v, `[withheld ${i}]`);
-    const escaped = JSON.stringify(v).slice(1, -1);
-    if (!marker.has(escaped)) marker.set(escaped, `[withheld ${i}]`);
-  });
-  if (marker.size === 0) return [...hashInput];
-  // Longest first, so a value inside a longer refused value never splits it.
-  const pattern = new RegExp([...marker.keys()].sort((a, b) => b.length - a.length).map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
-  return hashInput.map((h) => h.replace(pattern, (v) => marker.get(v) as string));
+export function gatedHashInput(record: ParsedRecord, gated: GateResult): string[] {
+  return [
+    canonical({
+      entities: gated.entities,
+      reports: gated.reports,
+      events: gated.events,
+      withheld: gated.withheld,
+      lineIds: record.lineIds ?? null,
+      period: record.period ?? null,
+      parties: gated.partySlots,
+    }),
+  ];
 }
 
 export async function runSync(db: DatabaseSync, loader: SourceLoader, options: SyncOptions): Promise<SyncOutcome> {
@@ -416,7 +421,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
           batchStart = Date.now();
           inBatch = 0;
         }
-        writeParsed(db, { syncId, sourceId: meta.id, day, deferSearch: true }, { ...record, hashInput: retryable(masked(record.hashInput, gated.refused), gated.retry) }, gated, report);
+        writeParsed(db, { syncId, sourceId: meta.id, day, deferSearch: true }, { ...record, hashInput: retryable(gatedHashInput(record, gated), gated.retry) }, gated, report);
         if (++inBatch >= maxRecords || Date.now() - batchStart > maxMs) commit();
       }
     } catch (error) {

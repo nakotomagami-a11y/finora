@@ -356,17 +356,15 @@ describe("qa S8, S9: explicit deletes and person fields", () => {
     expect(count(db, "SELECT COUNT(*) AS n FROM main.entities WHERE eid LIKE 'p-%'")).toBe(0);
   });
 
-  it("masks a refused sole-trader id in the hash input, so no row hash covers it", async () => {
-    const db = memoryDb();
-    const id = ["010190", "12345"].join("");
-    const record = companyRecord(9, { legalForm: "lv-ik", extra: [{ prop: "registrationNumber", value: id, itemId: "S01.LV.01" }] });
-    record.hashInput = [record.recordKey, id];
-    const twin = { ...record, hashInput: [record.recordKey, "[withheld 0]"] };
-    await sync(db, fakeSource({}, { records: [record] }));
-    const stored = db.prepare("SELECT row_hash FROM main.records").get() as { row_hash: Uint8Array };
-    const db2 = memoryDb();
-    await sync(db2, fakeSource({}, { records: [twin] }));
-    expect(Buffer.from(stored.row_hash).equals(Buffer.from((db2.prepare("SELECT row_hash FROM main.records").get() as { row_hash: Uint8Array }).row_hash))).toBe(true);
+  it("no row hash covers a refused sole-trader id: two different refused ids store the same hash (J2)", async () => {
+    const hashWith = async (id: string) => {
+      const db = memoryDb();
+      const record = companyRecord(9, { legalForm: "lv-ik", extra: [{ prop: "registrationNumber", value: id, itemId: "S01.LV.01" }] });
+      record.hashInput = [record.recordKey, id];
+      await sync(db, fakeSource({}, { records: [record] }));
+      return Buffer.from((db.prepare("SELECT row_hash FROM main.records").get() as { row_hash: Uint8Array }).row_hash).toString("hex");
+    };
+    expect(await hashWith(["010190", "12345"].join(""))).toBe(await hashWith(["020285", "54321"].join("")));
   });
 });
 
