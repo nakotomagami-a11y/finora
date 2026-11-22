@@ -8,8 +8,9 @@ import { join } from "node:path";
 import { DEFAULT_LOADER_CONFIG, politeFetch, type SourceMeta } from "@finora/sources";
 import { openStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
-import { fakeSource } from "./testing/fake-source.ts";
-import { records, tempDir } from "./test-helpers.ts";
+import { runSync } from "./pipeline.ts";
+import { companies, fakeSource, noNetwork } from "./testing/fake-source.ts";
+import { memoryDb, records, tempDir } from "./test-helpers.ts";
 import { runSyncInWorker, sourceFetchOptions, type WorkerJob } from "./worker.ts";
 
 const dirs: { remove(): void }[] = [];
@@ -75,5 +76,22 @@ describe("a worker batch without its config loads nothing (qa on 69a9568)", () =
     expect(records(store.db)).toBe(0);
     store.close();
     expect((await runSyncInWorker(entry, job)).kind).toBe("content");
+  });
+});
+
+describe("G3: an error right after the lease is taken still releases it", () => {
+  it("an onStart that throws ends failed, leaves no lease and no running row; the next sync runs", async () => {
+    const db = memoryDb();
+    const loader = fakeSource({}, { records: companies(1, 3) });
+    const failedStart = await runSync(db, loader, {
+      fetcher: noNetwork,
+      onStart: () => {
+        throw new Error("start");
+      },
+    });
+    expect(failedStart.kind).toBe("failed");
+    expect(db.prepare("SELECT COUNT(*) AS n FROM main.leases").get()).toEqual({ n: 0 });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM main.syncs WHERE kind = 'running'").get()).toEqual({ n: 0 });
+    expect((await runSync(db, loader, { fetcher: noNetwork })).kind).toBe("content");
   });
 });

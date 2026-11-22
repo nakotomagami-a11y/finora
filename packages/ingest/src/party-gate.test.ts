@@ -133,4 +133,16 @@ describe("a party that needs another (PartyRef.needs)", () => {
     expect((await run(false))?.unchanged).toBe(1);
     expect((await run(true))?.written).toBe(1);
   });
+
+  it("markers follow the gate's order, not sort order: renaming one refused name past another writes nothing (G2)", async () => {
+    const db = memoryDb();
+    await sync(db, fakeSource({ id: "lv-register" }, { records: [companyRecord(1)] }));
+    const unproven = (n: number, name: string): PartyRef => ({ type: "JOINT_OWNERS", entities: [{ eid: `org-${String(n).padStart(20, "0")}`, schema: "Organization", country: "intl", statements: [{ prop: "name", value: name, itemId: "S04.LV.01" }] }] });
+    const record = (first: string): ParsedRecord => ({ ...membersRecord([subject("00000000001"), unproven(1, first), unproven(2, "Mid Holding")]), hashInput: ["link", first, "Mid Holding"] });
+    const links = fakeSource({ id: "lv-links", items: ["S04.LV.01"] }, { records: [record("Beta Holding")] });
+    await sync(db, links, { companyPartyTypes: COMPANY_TYPES });
+    links.state.records = [record("Zeta Holding")];
+    links.state.asOf = { in_file_field: "2026-11-02" };
+    expect((await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report?.unchanged).toBe(1);
+  });
 });

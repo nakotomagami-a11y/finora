@@ -248,7 +248,12 @@ describe("the statement cache keeps nothing past the sync (legal, qa, cto)", () 
       await runSync(store.db, register(), { fetcher: noNetwork });
       bound.length = 0;
       await runSync(store.db, fromFile(lvUrOfficersLoader({ personRows: "role_counts" }), "officers.csv", lvOfficersCsv), { fetcher: noNetwork });
-      await runSync(store.db, fakeSource({ id: "planted" }, { records: [companyRecord(9, { extra: [{ prop: "notes", value: `ref ${planted}`, itemId: "S01.LV.01" }] })] }), { fetcher: noNetwork });
+      // A foreign holder with a quoted name, unproven (no company types): never bound, in any form (G4).
+      const quoted = ['SIA "Quoted', 'Sentinel', 'Holding"'].join(" ");
+      const holder = { type: "FOREIGN_ENTITY", entities: [{ eid: "org-00000000000000000099", schema: "Organization" as const, country: "intl", statements: [{ prop: "name", value: quoted, itemId: "S04.LV.01" }] }] };
+      const plantedRecord = { ...companyRecord(9, { extra: [{ prop: "notes", value: `ref ${planted}`, itemId: "S01.LV.01" }] }), parties: [holder] };
+      plantedRecord.hashInput = [...plantedRecord.hashInput, JSON.stringify(["holder", quoted])];
+      await runSync(store.db, fakeSource({ id: "planted", items: ["S01.LV.01", "S04.LV.01"] }, { records: [plantedRecord] }), { fetcher: noNetwork });
       const scanned = bound.splice(0);
       // The names the officers file holds, read the names_no_id way in a store of their own.
       const named = openStore({ dataDir: null });
@@ -263,11 +268,14 @@ describe("the statement cache keeps nothing past the sync (legal, qa, cto)", () 
       // The recorder saw the role_counts syncs' writes, so an empty result below means something.
       expect(scanned.filter((v) => typeof v === "string").length).toBeGreaterThan(100);
       // Every sentinel is matched inside a value, not only as the whole value (F5).
-      const sentinels = [lvMaskedCodeCanary(), LV_BIRTH_DATE_CANARY, planted, ...names];
+      // Each sentinel as itself and JSON-escaped, as a value inside a JSON string holds it (G4).
+      const sentinels = [lvMaskedCodeCanary(), LV_BIRTH_DATE_CANARY, planted, quoted, ...names].flatMap((s) => [s, JSON.stringify(s).slice(1, -1)]);
       const hits = (values: unknown[]) => values.filter((v) => typeof v === "string" && sentinels.some((s) => v.includes(s)));
       // The positive controls: the matcher finds every name the names_no_id run binds, and a sentinel inside a JSON value.
       for (const name of names) expect(hits(namedBinds.filter((v) => typeof v === "string" && v.includes(name))).length, name).toBeGreaterThan(0);
-      expect(hits([JSON.stringify({ born: LV_BIRTH_DATE_CANARY }), JSON.stringify({ officer: names[0] }), `ref ${planted}.`])).toHaveLength(3);
+      expect(hits([JSON.stringify({ born: LV_BIRTH_DATE_CANARY }), JSON.stringify({ officer: names[0] }), `ref ${planted}.`, JSON.stringify({ holder: quoted })])).toHaveLength(4);
+      // Only the escaped form can match there: the raw quoted name is not inside its JSON.
+      expect(JSON.stringify({ holder: quoted }).includes(quoted)).toBe(false);
       expect(hits(scanned)).toEqual([]);
     } finally {
       DatabaseSync.prototype.prepare = prepare;

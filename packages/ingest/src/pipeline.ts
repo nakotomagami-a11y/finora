@@ -174,7 +174,9 @@ const retryable = (hashInput: string[], retry: boolean) => (retry ? [...hashInpu
  * value's JSON-escaped form is masked too: `SIA "Example"` stands there as `SIA \"Example\"`.
  */
 function masked(hashInput: readonly string[], refused: readonly string[]): string[] {
-  const values = [...new Set(refused.filter((v) => v !== ""))].sort();
+  // Numbered in the gate's push order, never sorted: a refused name renamed past another in sort
+  // order must not swap their markers, or the hash would follow a value it may not cover (G2).
+  const values = [...new Set(refused.filter((v) => v !== ""))];
   if (values.length === 0) return [...hashInput];
   const marker = new Map<string, string>();
   values.forEach((v, i) => {
@@ -240,26 +242,31 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
 
   const started = now();
   const startedAt = started.toISOString();
-  upsertSource(db, { id: meta.id, storage, purgeScope: meta.purgeScope }, startedAt);
-  const syncId = beginSync(db, { sourceId: meta.id, licenceId: meta.licence, storage, parserVersion: loader.parserVersion, startedAt });
-  options.onStart?.(syncId);
   const report = emptyReport(storage);
+  /** Null until the sync row exists: an error before it ends the sync with no row to close. */
+  let syncId: number | null = null;
   const finish = (kind: Exclude<SyncKind, "already_running">, extra: { reason?: string; upstreamAsOf?: string | null; asOfBasis?: string | null } = {}): SyncOutcome => {
     report.durationMs = now().getTime() - started.getTime();
     if (extra.reason) report.reason = extra.reason;
-    finishSync(db, syncId, {
-      kind,
-      finishedAt: now().toISOString(),
-      ...(extra.upstreamAsOf ? { upstreamAsOf: extra.upstreamAsOf } : {}),
-      ...(extra.asOfBasis ? { asOfBasis: extra.asOfBasis } : {}),
-      report,
-    });
+    if (syncId !== null) {
+      finishSync(db, syncId, {
+        kind,
+        finishedAt: now().toISOString(),
+        ...(extra.upstreamAsOf ? { upstreamAsOf: extra.upstreamAsOf } : {}),
+        ...(extra.asOfBasis ? { asOfBasis: extra.asOfBasis } : {}),
+        report,
+      });
+    }
     // Counts only: a sync log line never carries a value (P3, live-no-store condition 1).
     logger.info("sync finished", { sourceId: meta.id, kind, read: report.read, written: report.written, deleted: report.deleted, dropped: report.dropped });
     return { kind, syncId, report };
   };
 
+  // From here on every path ends in the finally below, which releases the lease (G3).
   try {
+    upsertSource(db, { id: meta.id, storage, purgeScope: meta.purgeScope }, startedAt);
+    syncId = beginSync(db, { sourceId: meta.id, licenceId: meta.licence, storage, parserVersion: loader.parserVersion, startedAt });
+    options.onStart?.(syncId);
     // This sync holds the source's lease, so any work dir of this source under this store's own work
     // base is an orphan of a sync that never reached its own cleanup: removed before anything is
     // downloaded, inside the try so a failure here still releases the lease (F2). The shared default
