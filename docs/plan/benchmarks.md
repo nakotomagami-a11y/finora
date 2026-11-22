@@ -138,5 +138,52 @@ V8 does not hand memory back between sources, so the batch peak (787 MB) is abov
 - **Store:** `finora.db` 1.4 GB (LV ≤ 2.5 GB: **passes**). It holds 1.04 M entities, 5.77 M statements, 1.83 M fact reports with 7.46 M facts, 0.84 M events and 2.90 M records, about 480 bytes per record with indexes and FTS. Raw cache 207 MB.
 - **Peak RSS: 1,649 MB** for the one worker over all 19 sources (**fails** ≤ 1 GB). The largest single source, `lv-ur-annual-reports`, peaks at about 1.2 GB on its own: its three files (≈ 500 MB) are held as buffers (`RawArtifact.bytes`) and joined in memory.
 - **Time: fails.** The register lands after 479 s (budget ≈ 2 min), and the LV total alone is about twice the 30-minute budget for the whole store.
-- **Where the time goes:** parsing is a small part of it. The register's 129 MB parse takes 2.8 s, and every LV parse together less than a minute. The rest is the per-record write path, at about 0.7 ms per record on disk: a CPU profile of 50,000 register rows puts `refreshEntity`, `write`, `writeRecord` and `upsertEntity` at about 64% of the time, all SQLite execution, about 20 statements per record. Caching prepared statements and skipping the FTS refresh each changed nothing measurable. What would move it is a first-load bulk path (no per-record lookups or history snapshot on an empty source, multi-row inserts, FTS and trigram built once after the load), which is open with the architect. S05 records the time and memory budgets as failing; whether the slice ships before that fix is qa's and the coordinator's call.
+- **Where the time goes:** parsing is a small part of it. The register's 129 MB parse takes 2.8 s, and every LV parse together less than a minute. The rest is the per-record write path, at about 0.7 ms per record on disk: a CPU profile of 50,000 register rows puts `refreshEntity`, `write`, `writeRecord` and `upsertEntity` at about 64% of the time, all SQLite execution, about 20 statements per record. In that 50,000-row run, caching prepared statements and skipping the FTS refresh showed no gain; the run was too short, and the halving batch size hid both. At full size on disk they did matter: 549 s → 451 s and 262 s → 151 s (cto 7075424485; correction recorded with the re-measure below). What would move it is a first-load bulk path (no per-record lookups or history snapshot on an empty source, multi-row inserts, FTS and trigram built once after the load), which is open with the architect. S05 records the time and memory budgets as failing; whether the slice ships before that fix is qa's and the coordinator's call.
 - **Unchanged reload: passes.** The same command against the loaded store, about an hour later and before the portal's nightly regeneration: all 19 sources end `unchanged` with 0 records read or written, in 37 s for the whole LV set (downloads and content hashes included), peak RSS 966 MB.
+
+### LV re-measure after the write-path fixes (data-baltics, S05, 2026-11-22/23, `dev-desktop-1`)
+
+At `9dd06f4`, which holds the architect's write path (`8661a89`: adaptive batch, statement cache, deferred search pass, `temp_store` MEMORY, 64 MB page cache, hash before snapshot) and data-baltics' streamed, chunked LV parsing. **Other agents' jobs held the CPU at 40-94% throughout, so times are high and vary by up to 2x between runs.** Two passes:
+- **A.** `finora-cli data sync --country lv` on a fresh data dir, downloading from data.gov.lv.
+- **B.** The same loaders and `runSync` on a `sync: true` connection, fed from local copies of the same files, with `BEGIN`..`COMMIT` timed from outside the product code. B separates parse and write from the download, and gives transaction times and per-source memory.
+
+| Source | A: CLI | B: local | B: write tx p95 / max | B: heap peak |
+|---|---|---|---|---|
+| `lv-ur-register` | 434 s | 202 s | 936 / 5,226 ms | 96 MB |
+| `lv-ur-name-history` | 64 s | 55 s | 2,091 / 2,507 ms | 105 MB |
+| `lv-ur-liquidations` | 12 s | 11 s | 5,943 / 5,943 ms | 43 MB |
+| `lv-ur-reorganizations` | 8 s | 21 s | 4,510 / 10,296 ms | 83 MB |
+| `lv-ur-equity-capitals` | 55 s | 98 s | 1,550 / 6,209 ms | 115 MB |
+| `lv-ur-memorandum-dates` | 79 s | 33 s | 335 / 481 ms | 43 MB |
+| `lv-ur-officers` | 161 s | 84 s | 423 / 3,272 ms | 453 MB |
+| `lv-ur-members` | 21 s | 11 s | 730 / 1,365 ms | 73 MB |
+| `lv-ur-insolvency` | 7 s | 2 s | 278 / 278 ms | 56 MB |
+| `lv-ur-securing-measures` | 10 s | 2 s | 318 / 318 ms | 56 MB |
+| `lv-ur-suspensions` | 4 s | 1 s | 231 / 231 ms | 45 MB |
+| `lv-ur-sanctions-links` | 1 s | 0 s | 9 / 9 ms | 16 MB |
+| `lv-ur-annual-reports` | 333 s | 204 s | 567 / 8,078 ms | 443 MB |
+| `lv-vid-taxes-quarterly` | 199 s | 102 s | 333 / 558 ms | 106 MB |
+| `lv-vid-taxes-yearly` | 129 s | 84 s | 812 / 4,009 ms | 151 MB |
+| `lv-vid-rating` | 50 s | 36 s | 446 / 622 ms | 92 MB |
+| `lv-vid-vat-payers` | 173 s | 157 s | 652 / 1,254 ms | 259 MB |
+| `lv-vid-suspensions` | 17 s | 18 s | 365 / 423 ms | 62 MB |
+| `lv-fid-frozen` | 1 s | (not in B) | | |
+| **All** | **1,758 s (29.3 min)** | **1,117 s** | **769 / 10,296 ms, 5 at ≥ 5 s** | |
+
+- **The store:** 2.90 M records, 5.76 M statements, 7.46 M facts and 0.84 M events. 374k entities are searchable, 0 search marks are left, and the files take 1,366 MB.
+- **Memory:** peak RSS is 834 MB in A, for the one lane worker over all 19 sources (was 1,649 MB), and 849 MB in B. The CLI's per-source heap peaks are 424 MB at most (annual reports). Parse alone, measured separately: register 146 MB, officers 206, annual reports 398.
+- **The download is not the gap between A and B.** The 129 MB register file downloads in 2.9 s (45 MB/s). The register alone through the CLI on a fresh dir took 237 s, with the CPU at 94% from other jobs, against 196-202 s in B.
+- **Same rows under a new file hash** (B, register): 23.5 s, 456,256 records unchanged, 0 statement writes, write tx p95 251 ms, max 252 ms.
+- **Where the register's time goes** (B, register only, two runs): 196.5 s with SQLite's default WAL auto-checkpoint, 107.3 s with `wal_autocheckpoint = 0`. Checkpointing on `COMMIT` costs about 45% of the load. With checkpoints off, one transaction stalled 9.8 s, so moving the checkpoint needs its own design.
+- **The slow transactions are mid-load, not the search pass.** The worst register transaction was #536 of 767 in one run and #463 of 712 in another. The end-of-sync search transactions ran 35-545 ms.
+
+**Against cto's S05 targets:**
+
+| Target | Measured | |
+|---|---|---|
+| 1. Register synced and searchable ≤ 150 s | 196-202 s local (B), 237 s and 434 s through the CLI | **fails** |
+| 2. All 19 LV sources ≤ 15 min | 1,758 s (A), 1,117 s (B) | **fails** |
+| 3. Lane peak RSS ≤ 1 GB | 834 MB (A), 849 MB (B) | **passes** |
+| 4. Write tx p95 ≤ 400 ms, none ≥ 5 s | p95 769 ms; 5 transactions ≥ 5 s (max 10.3 s) | **fails** |
+| 5. Same rows, new hash: register ≤ 45 s, 0 statement writes | 23.5 s, 0 writes | **passes** |
+
