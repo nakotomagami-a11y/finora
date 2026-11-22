@@ -123,7 +123,7 @@ Header: `id;legal_entity_registration_number;liquidation_type;liquidation_type_t
 |---|---|---|---|---|---|
 | `id` | int | record key | S02.LV.01 (R) | no | - |
 | `legal_entity_registration_number` | text | the event's entity | S02.LV.01 (R) | no | unknown code → `code_not_in_register` |
-| `liquidation_type` | enum | event `register.liquidation`, `data.kind` | S02.LV.01 | no | `LIQUIDATION`, `ACTIVITY_TERMINATED`, `ACTIVITY_TERMINATED_BY_COURT`, `NON_REREGISTRATION`, `REFORM_OF_POLITICAL_PARTIES`, `REFORM_OF_ASSOCIATIONS`. Unknown → kept, counted `unknown_enum` |
+| `liquidation_type` | enum | event `register.liquidation`, `data.kind` | S02.LV.01 | no | `LIQUIDATION`, `ACTIVITY_TERMINATED`, `ACTIVITY_TERMINATED_BY_COURT`, `NON_REREGISTRATION`, `REFORM_OF_POLITICAL_PARTIES`, `REFORM_OF_ASSOCIATIONS`. Unknown → `unspecified`, counted `unknown_enum` (closed set, S05 review SEC-2) |
 | `liquidation_type_text` | text (lv) | UI label table only | S02.LV.01 | no | - |
 | `date_from` | date | event date | S02.LV.01 | no | ISO |
 | `grounds_for_liquidation` | text | dropped, reason `free_text` | - | possibly | Free text can name people (courts, liquidators) |
@@ -150,7 +150,7 @@ Header: `id;legal_entity_registration_number;equity_capital_type;equity_capital_
 | `legal_entity_registration_number` + `equity_capital_type` | text | record key `<code>|<type>` | S01.LV.01 (R) | no | If a key has several rows, keep the one with the latest `date_from`, then the highest `id` |
 | `equity_capital_type` | enum | which statement | S01.LV.01 | no | `PAID_UP_EQUITY` or `REGISTERED_EQUITY` → statement `capital`. `INVESTMENT`, `CONDITIONAL_EQUITY`, `EQUITY_KB`, `MINIMUM_RESERVES` → not loaded, counted `no_item` |
 | `amount` | decimal | statement `capital` value | S01.LV.01 | no | Value written as `<amount> <currency>`, e.g. `2800.00 EUR`. Paid-up wins over registered when both exist |
-| `currency` | `EUR` / `LVL` | part of the value | S01.LV.01 | no | LVL kept as LVL, never converted |
+| `currency` | `EUR` / `LVL` | part of the value | S01.LV.01 | no | LVL kept as LVL, never converted. Any other value must be an ISO 4217 code; otherwise the row is `invalid_record` |
 | `date_from` | date | `finora.capital_changed` compares on change | S01.LV.01 | no | - |
 | `id`, `equity_capital_type_text`, `last_modified_at` | - | as-of only (`last_modified_at`) | - | - | - |
 
@@ -298,3 +298,9 @@ The LV total across the five LV specs is ≈ 1.25 GB of rows, ≈ 1.6 GB with se
 1. **New names** (once): status `reorganised` (closed code `R`); drop reasons `no_item`, `free_text`, `natural_person_name`, `natural_person_address`, `unknown_enum`; extension prop `finora:addressId` (needs a line in `schema/ftm-subset.test.ts`). FtM props used: `registrationNumber`, `legalForm`, `incorporationDate`, `dissolutionDate`, `status`, `address`, `country`, `previousName`, `capital`.
 2. **Label tables.** Legal-form, register-type and liquidation-type labels are Latvian only in the files. Proposal: a bundled `domain/config/labels/lv.ts` (Latvian from the files plus our English gloss), counted in `parserVersion` only where the parser reads it (legal forms).
 3. **Purge-guard floor on small files.** 0.02 of a few thousand records is fine here. For the 63-row sanctions-links file (`lv-risk.md`) it allows only one removal per sync. Proposal: max(share, 5 records).
+
+## S05 review changes (SEC-2, SEC-8, M6, memory)
+
+- Liquidation and reorganisation kinds are closed sets: unknown → `unspecified`, counted `unknown_enum`.
+- The reorganisation hash input holds only the checked codes, or `""` for a rejected one, never the raw column value (SEC-8).
+- No LV file is kept in the raw cache (`rawCache: false`): the register holds sole traders' names and addresses, and the other LV files hold natural persons. Each file streams to the sync's work dir (`toFile`) and is decoded and parsed in 1 MiB chunks (`csvRowsChunked`), so no file is ever one string in memory.

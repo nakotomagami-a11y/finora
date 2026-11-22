@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { LEGAL_FORMS, legalForm, type DropReason } from "@finora/domain";
 import { parserVersion } from "../../parser-version.ts";
 import type { EventInput, FieldMap, ParseContext, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
-import { artifact, cleanCode, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
+import { artifact, caseNumber, cleanCode, closedValue, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
 
 const S09 = "S09.LV.01";
 const S11 = "S11.LV.01";
@@ -24,6 +24,8 @@ const meta = (id: string, title: string, items: string[]): SourceMeta => ({
   licence: "cc0-1.0",
   attribution: `Source: Register of Enterprises of the Republic of Latvia, ${title}, data.gov.lv, CC0 1.0`,
   storage: "store",
+  // M6 (S05 review): LV files hold natural persons or sole traders, so no LV file is kept in the raw cache.
+  rawCache: false,
   cadence: "daily",
   publishedAtUtc: "21:40",
   asOf: ["max_date_in_data", "portal_metadata", "http_last_modified"],
@@ -82,12 +84,12 @@ function loader(f: Family): SourceLoader {
         raw,
         f.file,
         function* (file) {
-          for (const row of readCsv(file.bytes, ";", [f.dateColumn])) yield row.get(f.dateColumn);
+          for (const row of readCsv(file, ";", [f.dateColumn])) yield row.get(f.dateColumn);
         },
         today(raw),
       ),
     *parse(raw, ctx) {
-      for (const row of readCsv(artifact(raw, f.file).bytes, ";", f.columns)) {
+      for (const row of readCsv(artifact(raw, f.file), ";", f.columns)) {
         const record = f.row(row, ctx);
         if (record) yield record;
       }
@@ -95,7 +97,6 @@ function loader(f: Family): SourceLoader {
   };
 }
 
-const known = (values: ReadonlySet<string>, value: string, prop: string): Dropped[] => (value && !values.has(value) ? [{ reason: "unknown_enum", prop }] : []);
 const withDropped = (record: ParsedRecord, dropped: Dropped[]): ParsedRecord => (dropped.length > 0 ? { ...record, dropped } : record);
 
 // ---------------------------------------------------------------- lv-ur-insolvency
@@ -131,13 +132,21 @@ function insolvencyRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
     return null;
   }
   const closed = isoDate(row.get("proceeding_ended_on"));
-  const [form, scope, subtype] = [row.get("proceeding_form"), row.get("proceeding_type"), row.get("proceeding_subtype")];
+  const dropped: Dropped[] = [];
+  const form = closedValue(PROCEEDING_FORMS, row.get("proceeding_form"), "proceeding_form", dropped);
+  const scope = row.get("proceeding_type") ? closedValue(PROCEEDING_TYPES, row.get("proceeding_type"), "proceeding_type", dropped) : null;
+  const subtype = row.get("proceeding_subtype") ? closedValue(PROCEEDING_SUBTYPES, row.get("proceeding_subtype"), "proceeding_subtype", dropped) : null;
+  // The resolution is a register code (`M06`, `T14`): anything else is not stored.
+  const rawResolution = row.get("proceeding_resolution_type");
+  const resolution = /^[A-Z]\d{2}$/.test(rawResolution) ? rawResolution : null;
+  if (rawResolution && !resolution) dropped.push({ reason: "unknown_enum", prop: "proceeding_resolution_type" });
   const entityEid = `lv-${code}`;
-  const shared = { form, scope: scope || null, subtype: subtype || null };
+  const shared = { form, scope, subtype };
+  const courtCase = caseNumber(row.get("court_case_initial_number"), "court_case_initial_number", dropped);
   const events: EventInput[] = [
-    { entityEid, type: "register.insolvency_opened", date: opened, itemId: S09, data: { ...shared, courtCase: row.get("court_case_initial_number") || null, court: row.get("court_name") || null } },
+    { entityEid, type: "register.insolvency_opened", date: opened, itemId: S09, data: { ...shared, courtCase, court: row.get("court_name") || null } },
   ];
-  if (closed) events.push({ entityEid, type: "register.insolvency_closed", date: closed, itemId: S09, data: { ...shared, resolution: row.get("proceeding_resolution_type") || null } });
+  if (closed) events.push({ entityEid, type: "register.insolvency_closed", date: closed, itemId: S09, data: { ...shared, resolution } });
   return withDropped(
     {
       recordKey: row.get("proceeding_id"),
@@ -146,7 +155,7 @@ function insolvencyRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
       entities: [],
       events,
     },
-    [...known(PROCEEDING_FORMS, form, "proceeding_form"), ...known(PROCEEDING_TYPES, scope, "proceeding_type"), ...known(PROCEEDING_SUBTYPES, subtype, "proceeding_subtype")],
+    dropped,
   );
 }
 
@@ -166,12 +175,14 @@ export const LV_UR_SECURING_MEASURES_FIELD_MAP: FieldMap = [
 const MEASURE_TYPES = new Set(["PROHIBITION", "LIEN", "ATTACHMENT"]);
 
 /**
- * The imposing institution as `lv-<code>`, only for a code with a register check digit: many are
- * sworn bailiffs, who are natural persons, so anything else is never kept.
+ * The imposing institution's own code, only with a register check digit: many are sworn bailiffs,
+ * who are natural persons, so anything else is never kept. A public body sits in the public-persons
+ * register, not the enterprise register, so this is a bare code: as an `lv-` id it would stay an
+ * unresolved reference on every sync (S05 ruling 4).
  */
 function authorityOf(value: string): string | null {
   const code = cleanCode(value);
-  return code !== "" && lvCodeProblem(code) === null ? `lv-${code}` : null;
+  return code !== "" && lvCodeProblem(code) === null ? code : null;
 }
 
 function securingRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
@@ -182,20 +193,21 @@ function securingRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
     ctx.onDrop?.("invalid_record");
     return null;
   }
-  const kind = row.get("securing_measure_type");
+  const dropped: Dropped[] = [];
+  const kind = closedValue(MEASURE_TYPES, row.get("securing_measure_type"), "securing_measure_type", dropped);
   const authority = authorityOf(row.get("institution_registration_number"));
-  const dropped: Dropped[] = [
-    ...known(MEASURE_TYPES, kind, "securing_measure_type"),
+  const caseNo = caseNumber(row.get("case_number"), "case_number", dropped);
+  dropped.push(
     ...(row.get("institution_name") ? [{ reason: "free_text" as const, prop: "institution_name" }] : []),
     ...(row.get("type_details") ? [{ reason: "free_text" as const, prop: "type_details" }] : []),
-  ];
+  );
   return withDropped(
     {
       recordKey: row.get("id"),
       rowRef: `line ${row.line}`,
-      hashInput: [`lv-${code}`, kind, row.get("date_from"), row.get("case_number"), authority ?? ""],
+      hashInput: [`lv-${code}`, kind, date, caseNo ?? "", authority ?? ""],
       entities: [],
-      events: [{ entityEid: `lv-${code}`, type: "register.securing_measure", date, itemId: S09, data: { kind: kind || "unspecified", case: row.get("case_number") || null, authority } }],
+      events: [{ entityEid: `lv-${code}`, type: "register.securing_measure", date, itemId: S09, data: { kind, case: caseNo, authorityCode: authority } }],
     },
     dropped,
   );
@@ -221,16 +233,18 @@ function suspensionRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
     ctx.onDrop?.("invalid_record");
     return null;
   }
-  const kind = row.get("suspension_code");
+  const dropped: Dropped[] = [];
+  const kind = closedValue(SUSPENSION_CODES, row.get("suspension_code"), "suspension_code", dropped);
+  if (row.get("ground_for")) dropped.push({ reason: "free_text", prop: "ground_for" });
   return withDropped(
     {
       recordKey: row.get("id"),
       rowRef: `line ${row.line}`,
-      hashInput: [`lv-${code}`, kind, row.get("date_from")],
+      hashInput: [`lv-${code}`, kind, date],
       entities: [],
-      events: [{ entityEid: `lv-${code}`, type: "register.suspension", date, itemId: S09, data: { kind: kind || "unspecified", authority: "ur" } }],
+      events: [{ entityEid: `lv-${code}`, type: "register.suspension", date, itemId: S09, data: { kind, authority: "ur" } }],
     },
-    [...known(SUSPENSION_CODES, kind, "suspension_code"), ...(row.get("ground_for") ? [{ reason: "free_text" as const, prop: "ground_for" }] : [])],
+    dropped,
   );
 }
 
@@ -303,9 +317,9 @@ function sanctionsRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
     ctx.onDrop?.("invalid_record");
     return null;
   }
-  const position = row.get("position");
-  const list = row.get("list");
-  const dropped: Dropped[] = [...known(LINK_POSITIONS, position, "position"), ...known(LISTS, list, "list")];
+  const dropped: Dropped[] = [];
+  const position = closedValue(LINK_POSITIONS, row.get("position"), "position", dropped);
+  const list = row.get("list") ? closedValue(LISTS, row.get("list"), "list", dropped) : null;
   let party: string | null = null;
   let partyName: string | null = null;
   let partyCountry: string | null = null;
@@ -319,7 +333,9 @@ function sanctionsRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
     if (entityType === "LEGAL_ENTITY" && company && code && lvCodeProblem(code) === null) party = `lv-${code}`;
     else if (company) {
       partyName = row.get("legal_entity_name").replace(/\s+/g, " ") || null;
-      partyCountry = row.get("legal_entity_country").toLowerCase() || null;
+      const country = row.get("legal_entity_country").toLowerCase();
+      partyCountry = /^[a-z]{2,3}$/.test(country) ? country : null;
+      if (country && !partyCountry) dropped.push({ reason: "unknown_enum", prop: "country" });
     } else if (row.get("legal_entity_name")) dropped.push({ reason: "natural_person_party" });
   }
   const rawUrl = row.get("legal_base_url");
@@ -331,13 +347,13 @@ function sanctionsRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
     type: "register.sanctions_link",
     date,
     itemId: S11,
-    data: { role: position || "unspecified", partyType, party, partyName, partyCountry, list: list || null, programme: row.get("program") || null, legalBaseUrl, registeredOn },
+    data: { role: position, partyType, party, partyName, partyCountry, list, programme: row.get("program") || null, legalBaseUrl, registeredOn },
   };
   return withDropped(
     {
       recordKey: row.get("id"),
       rowRef: `line ${row.line}`,
-      hashInput: [`lv-${subject}`, position, entityType, party ?? "", partyName ?? "", partyCountry ?? "", list, row.get("program"), row.get("entry_date"), legalBaseUrl ?? ""],
+      hashInput: [`lv-${subject}`, position, entityType, party ?? "", partyName ?? "", partyCountry ?? "", list ?? "", row.get("program"), row.get("entry_date"), legalBaseUrl ?? ""],
       entities: [],
       // The subject must resolve to a register entity that is not a natural-person form (party gate).
       parties: [{ code: { country: "lv", value: subject }, entities: [], events: [event] }],
@@ -357,7 +373,7 @@ export const lvUrInsolvency = loader({
   columns: INSOLVENCY_COLUMNS,
   dateColumn: "entry_created_on",
   fieldMap: LV_UR_INSOLVENCY_FIELD_MAP,
-  revision: 1,
+  revision: 2,
   row: insolvencyRow,
 });
 
@@ -370,7 +386,7 @@ export const lvUrSecuringMeasures = loader({
   columns: ["id", "legal_entity_registration_number", "securing_measure_type", "type_details", "date_from", "case_number", "institution_registration_number", "institution_name"],
   dateColumn: "date_from",
   fieldMap: LV_UR_SECURING_MEASURES_FIELD_MAP,
-  revision: 1,
+  revision: 2,
   row: securingRow,
 });
 
@@ -383,7 +399,7 @@ export const lvUrSuspensions = loader({
   columns: ["id", "legal_entity_registration_number", "suspension_code", "date_from", "ground_for"],
   dateColumn: "date_from",
   fieldMap: LV_UR_SUSPENSIONS_FIELD_MAP,
-  revision: 1,
+  revision: 2,
   row: suspensionRow,
 });
 
@@ -396,7 +412,7 @@ export const lvUrSanctionsLinks = loader({
   columns: SANCTIONS_COLUMNS,
   dateColumn: "registered_on",
   fieldMap: LV_UR_SANCTIONS_LINKS_FIELD_MAP,
-  revision: 1,
+  revision: 2,
   row: sanctionsRow,
 });
 

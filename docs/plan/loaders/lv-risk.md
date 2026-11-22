@@ -62,7 +62,7 @@ Header: `proceeding_id;debtor_name;debtor_registration_number;debtor_cleaned_nam
 | `debtor_registration_number` | text | the subject entity (party gate) | S09.LV.01 (R) | no | check digit; gate below |
 | `proceeding_started_on` | date | event `register.insolvency_opened`, date | S09.LV.01 | no | ISO |
 | `proceeding_ended_on` | date | event `register.insolvency_closed`, date | S09.LV.01 | no | empty (4.5%) → the proceeding is open: no closed event |
-| `proceeding_form` | enum | `data.form` on both events | S09.LV.01 | no | `INSOLVENCY`, `LEGAL_PROTECTION`, `OUT_OF_COURT_LEGAL_PROTECTION`. Unknown → kept, `unknown_enum`. Only an open `INSOLVENCY` sets entity status `insolvent` (ingest step 7); an open legal protection is shown as an event, not a status |
+| `proceeding_form` | enum | `data.form` on both events | S09.LV.01 | no | `INSOLVENCY`, `LEGAL_PROTECTION`, `OUT_OF_COURT_LEGAL_PROTECTION`. Unknown → `unspecified`, counted `unknown_enum` (closed set, S05 review SEC-2). Only an open `INSOLVENCY` sets entity status `insolvent` (ingest step 7); an open legal protection is shown as an event, not a status |
 | `proceeding_type` | enum | `data.scope` | S09.LV.01 | no | `NATIONAL`, `CROSS_BORDER` |
 | `proceeding_subtype` | enum | `data.subtype` | S09.LV.01 | no | `MAIN`, `SECONDARY`; 99.6% empty |
 | `proceeding_resolution_type` | code (e.g. `M06`) | `data.resolution` on the closed event | S09.LV.01 | no | 35 codes; labels in the UI table |
@@ -82,10 +82,10 @@ Header: `id;legal_entity_registration_number;securing_measure_type;securing_meas
 |---|---|---|---|---|---|
 | `id` | int | record key | S09.LV.01 (R) | no | - |
 | `legal_entity_registration_number` | text | the subject entity | S09.LV.01 (R) | no | empty (2.1%) → `no_code`; gate below |
-| `securing_measure_type` | enum | event `register.securing_measure`, `data.kind` | S09.LV.01 | no | `PROHIBITION` (ban on register changes), `LIEN` (attachment), `ATTACHMENT` (arrest). Empty (78) → `unspecified` |
+| `securing_measure_type` | enum | event `register.securing_measure`, `data.kind` | S09.LV.01 | no | `PROHIBITION` (ban on register changes), `LIEN` (attachment), `ATTACHMENT` (arrest). Empty (78) → `unspecified`. Unknown → `unspecified`, counted `unknown_enum` (closed set, S05 review SEC-2) |
 | `date_from` | date | event date | S09.LV.01 | no | ISO |
 | `case_number` | text | `data.case` | S09.LV.01 | no | trim |
-| `institution_registration_number` | text | `data.authority` = `lv-<code>` when it resolves to a non-NP register entity | S09.LV.01 | no | 71.7% empty. Many imposing institutions are sworn bailiffs, who are natural persons |
+| `institution_registration_number` | text | `data.authorityCode` = the code when it passes the LV check digit. A public body sits in the public-persons register, not the enterprise register, so this is a bare code, never an `lv-` entity reference that would stay unresolved (S05 ruling 4) | S09.LV.01 | no | 71.7% empty. Many imposing institutions are sworn bailiffs, who are natural persons |
 | `institution_name` | text | **dropped** | - | possibly | reason `free_text`: bailiffs are named personally |
 | `type_details` | text | **dropped** | - | possibly | reason `free_text` |
 | `securing_measure_type_text`, `institution_identifier` | - | not read | - | - | - |
@@ -113,7 +113,7 @@ The *sanctions subject* (`sanctions_subject_*`) is the Latvian register entity. 
 |---|---|---|---|---|---|
 | `id` | int | record key | S11.LV.01 (R) | no | - |
 | `sanctions_subject_registration_number` | text | the event's entity (party gate on the subject) | S11.LV.01 (R) | no | gate below |
-| `position` | enum | event `register.sanctions_link`, `data.role` | S11.LV.01 | no | `BENEFICIAL_OWNER`, `SHAREHOLDER`, `MEMBER_OF_THE_BOARD`, `CHAIRPERSON_OF_THE_BOARD`, `FOUNDER`, `OWNER`, `PARTNER`, `PERSON_ACTUALLY_EXERCISING_CONTROL`, `BENEFICIARY_CONTROL_LEGAL_ENTITY`, `HUSBAND`; empty (3%) → `unspecified`. `data.role` is shown, but the BO and shareholder role names don't disclose who the owner is |
+| `position` | enum | event `register.sanctions_link`, `data.role` | S11.LV.01 | no | `BENEFICIAL_OWNER`, `SHAREHOLDER`, `MEMBER_OF_THE_BOARD`, `CHAIRPERSON_OF_THE_BOARD`, `FOUNDER`, `OWNER`, `PARTNER`, `PERSON_ACTUALLY_EXERCISING_CONTROL`, `BENEFICIARY_CONTROL_LEGAL_ENTITY`, `HUSBAND`; empty (3%) → `unspecified`. Unknown → `unspecified`, counted `unknown_enum` (closed set, S05 review SEC-2). `data.role` is shown, but the BO and shareholder role names don't disclose who the owner is |
 | `entity_type` | enum | `data.partyType` = `person` / `company` / `foreign_company` | S11.LV.01 | no | `NATURAL_PERSON`, `LEGAL_ENTITY`, `FOREIGN_ENTITY` |
 | `legal_entity_registration_number` | text | `data.party` = `lv-<code>` for `LEGAL_ENTITY` parties that resolve to a non-NP register entity | S11.LV.01 | no | - |
 | `legal_entity_name`, `legal_entity_country` | text | `data.partyName`, `data.partyCountry` for `FOREIGN_ENTITY` and unresolved `LEGAL_ENTITY` parties | S11.LV.01 | no | trim; ISO country lower-case |
@@ -218,3 +218,10 @@ The sanctions-link *party* gets a second check: natural-person parties keep only
 2. **Insolvency deep link:** a one-time manual check that the portal's `/insolvency/:proceedingId` route takes the file's `proceeding_id`. Until then the link is the company page.
 3. **Closed: purge-guard floor.** The architect adopted `max(ceil(share × records), 5)` (§4.4 step 6, `7d7f1d0`), so the 58-record sanctions-links file may lose up to 5 per sync.
 4. **Court portal link:** the Court Administration portal (`manas.tiesas.lv`) timed out from our probe machine on 2026-11-20. Before the slice, open it in a browser and record the case-search URL pattern for a case number; until then the S09 events show the case number as text with no link.
+
+## S05 review changes (SEC-2, M6)
+
+- Every enum that reaches event data is a closed set: proceeding form, type and subtype, securing-measure type, suspension code, sanctions-link role and list. Unknown → `unspecified`, counted `unknown_enum`. The insolvency resolution is kept only in the register's code shape (`M06`, `T14`).
+- Case numbers (`court_case_initial_number`, `case_number`) are kept only as digits with capital letters and separators (`/`, `.`, `-`, `_`, space), at most 40 characters; anything else is dropped as `free_text`, so a name in the column is never stored.
+- A sanctions-link party's country is kept only as a 2- or 3-letter code.
+- No LV file is kept in the raw cache (`rawCache: false`): the files hold natural persons. Each file streams to the sync's work dir and is parsed from there in chunks.

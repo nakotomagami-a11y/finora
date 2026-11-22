@@ -188,3 +188,9 @@ This fits within LV ≤ 2.5 GB (LV total ≈ 1.6 GB, `lv-register.md`).
 1. **Size class for check 5 (optional refinement):** the law's terms differ by size class, which the files don't carry. The council's single 7-month window can only under-flag micro and small companies. A size rule from the statements (turnover, assets, employees, per the law's thresholds) could narrow it later; nothing blocks the slice.
 2. **Consolidated reports** (`UKGP`) are dropped, so one report per company-year stays. Group figures would need a new `fact_reports.kind`, `annual_accounts_consolidated`.
 3. **New names** (once): drop reasons `consolidated_report`, `struck_off_identity_only`.
+
+## S05 review changes (SEC-6, memory)
+
+- The three files go through the shared RFC 4180 reader (`readCsv` on `csvRowsChunked`), with its field and row limits: a quoted line break keeps its row, and a quote left open fails the file as `csv_malformed`. The earlier line-split reader is gone.
+- The files stream to the sync's work dir and are decoded in 1 MiB chunks; only the selected statements of the window are held in memory for the join.
+- No LV file is kept in the raw cache (`rawCache: false`): sole traders' reports are in the files.

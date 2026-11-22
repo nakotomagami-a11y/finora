@@ -103,6 +103,8 @@ function loader(s: Source): SourceLoader {
     licence: "cc0-1.0",
     attribution: `Source: State Revenue Service of Latvia, ${s.title}, data.gov.lv, CC0 1.0`,
     storage: "store",
+    // M6 (S05 review): LV files hold natural persons or sole traders, so no LV file is kept in the raw cache.
+    rawCache: false,
     cadence: s.cadence,
     publishedAtUtc: "06:30",
     asOf: s.asOf,
@@ -129,10 +131,10 @@ function loader(s: Source): SourceLoader {
 }
 
 /** Rows of a VID file: `,`-separated, every field quoted, a byte-order mark, Latvian headers. */
-const rows = (raw: RawArtifact[], file: string, columns: readonly string[]) => readCsv(artifact(raw, file).bytes, ",", columns);
+const rows = (raw: RawArtifact[], file: string, columns: readonly string[]) => readCsv(artifact(raw, file), ",", columns);
 
 function* datesIn(file: RawArtifact, columns: readonly string[], toIso: (value: string) => string | null): Generator<string> {
-  for (const row of readCsv(file.bytes, ",", columns)) {
+  for (const row of readCsv(file, ",", columns)) {
     for (const c of columns) {
       const d = toIso(row.get(c));
       if (d) yield d;

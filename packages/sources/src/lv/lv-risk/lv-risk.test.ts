@@ -56,7 +56,7 @@ describe("lv-ur-securing-measures (lv-risk.md)", () => {
   it("writes one event per type, unspecified for an empty type", async () => {
     const { records } = await parse();
     expect(records.map((r) => r.events?.[0]?.data?.kind)).toEqual(["PROHIBITION", "LIEN", "ATTACHMENT", "unspecified", "PROHIBITION", "LIEN"]);
-    expect(byKey(records, "6101").events).toEqual([{ entityEid: eid(22), type: "register.securing_measure", date: "2026-11-17", itemId: "S09.LV.01", data: { kind: "PROHIBITION", case: "11-0001-26", authority: null } }]);
+    expect(byKey(records, "6101").events).toEqual([{ entityEid: eid(22), type: "register.securing_measure", date: "2026-11-17", itemId: "S09.LV.01", data: { kind: "PROHIBITION", case: "11-0001-26", authorityCode: null } }]);
   });
 
   it("drops the bailiff's name and the type details as free text, and links only a checked authority code", async () => {
@@ -66,8 +66,8 @@ describe("lv-ur-securing-measures (lv-risk.md)", () => {
       { reason: "free_text", prop: "institution_name" },
       { reason: "free_text", prop: "type_details" },
     ]);
-    expect(byKey(records, "6103").events?.[0]?.data?.authority).toBe(`lv-${LV_RISK_AUTHORITY_CODE}`);
-    expect(byKey(records, "6107").events?.[0]?.data?.authority).toBeNull();
+    expect(byKey(records, "6103").events?.[0]?.data?.authorityCode).toBe(LV_RISK_AUTHORITY_CODE);
+    expect(byKey(records, "6107").events?.[0]?.data?.authorityCode).toBeNull();
   });
 
   it("counts an empty code, and leaves a sole trader's row to the gate", async () => {

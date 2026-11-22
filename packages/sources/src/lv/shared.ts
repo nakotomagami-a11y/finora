@@ -2,7 +2,9 @@
 // that finds a dataset's current file, a header-checked CSV reader, register codes, dates and the
 // as-of strategies the UR and VID files support.
 import { isFixtureRegisterCode, isValidRegisterCode, type DropReason } from "@finora/domain";
-import { columns, csvRows } from "@finora/formats";
+import { columns, csvRowsChunked } from "@finora/formats";
+import { join } from "node:path";
+import { artifactText, streamedArtifact } from "../artifacts.ts";
 import type { AsOfStrategy, FetchContext, RawArtifact } from "../types.ts";
 
 export const LV_PORTAL_HOST = "data.gov.lv";
@@ -30,10 +32,11 @@ export async function fetchCkanFile(ctx: FetchContext, slug: string, fileName: s
   const resources = (JSON.parse(new TextDecoder().decode(portal.bytes)) as { result?: { resources?: CkanResource[] } }).result?.resources ?? [];
   const resource = resources.find((r) => r.url && r.url.split("?")[0]!.split("/").at(-1) === fileName && (r.format ?? "").toUpperCase() === "CSV");
   if (!resource?.url) throw new ResourceMissing();
-  const file = await ctx.fetcher(resource.url);
+  // The file streams to the sync's work dir, never held whole in memory (S05 memory, cto).
+  const file = await ctx.fetcher(resource.url, ctx.workDir ? { toFile: join(ctx.workDir, fileName) } : {});
   const metadata = new TextEncoder().encode(JSON.stringify({ lastModified: resource.last_modified ?? null }));
   return [
-    { name: fileName, bytes: file.bytes, headers: file.headers, fetchedAt: ctx.now },
+    file.file ? streamedArtifact(fileName, file, ctx.now) : { name: fileName, bytes: file.bytes, headers: file.headers, fetchedAt: ctx.now },
     { name: "resource.json", bytes: metadata, fetchedAt: ctx.now },
   ];
 }
@@ -51,10 +54,15 @@ export type CsvRecord = { line: number; get: (column: string) => string };
  * Rows of a CSV with a checked header: every column the loader reads must be present (an extra
  * column is fine). Values are trimmed; a missing cell reads as "".
  */
-export function* readCsv(bytes: Uint8Array, separator: string, needed: readonly string[]): Generator<CsvRecord> {
-  const rows = csvRows(new TextDecoder().decode(bytes), separator);
+export function* readCsv(source: RawArtifact | Uint8Array, separator: string, needed: readonly string[], options: { requireHeader?: boolean } = {}): Generator<CsvRecord> {
+  // Decoded in chunks, from memory or the streamed file: the file is never one string.
+  const file: RawArtifact = source instanceof Uint8Array ? { name: "", bytes: source, fetchedAt: "" } : source;
+  const rows = csvRowsChunked(artifactText(file), separator);
   const header = rows.next();
-  if (header.done) return;
+  if (header.done) {
+    if (options.requireHeader) throw new SchemaChanged("empty file");
+    return;
+  }
   const { at, missing } = columns(header.value.map((h) => h.trim()), needed);
   if (missing.length > 0) throw new SchemaChanged(`missing columns: ${missing.join(", ")}`);
   const index = at as Record<string, number>;
@@ -63,6 +71,33 @@ export function* readCsv(bytes: Uint8Array, separator: string, needed: readonly 
     line++;
     yield { line, get: (column) => (row[index[column] ?? -1] ?? "").trim() };
   }
+}
+
+export type Dropped = { reason: DropReason; prop?: string };
+
+/**
+ * A value from a closed set (SEC-2 in the S05 review): an enum column could carry free text, a
+ * person's name included, so only a listed value is stored. Empty or unknown is "unspecified";
+ * unknown is counted.
+ */
+export function closedValue(values: ReadonlySet<string>, value: string, prop: string, dropped: Dropped[]): string {
+  if (values.has(value)) return value;
+  if (value !== "") dropped.push({ reason: "unknown_enum", prop });
+  return "unspecified";
+}
+
+/** ISO 4217 codes, plus the Latvian lats the register still holds for capital set before 2014. */
+export const CURRENCIES: ReadonlySet<string> = new Set([...Intl.supportedValuesOf("currency"), "LVL"]);
+
+/**
+ * A court or case number as the files write it: digits with capital letters and separators only, so
+ * a name in the column is never stored. Anything else is dropped, counted.
+ */
+export function caseNumber(value: string, prop: string, dropped: Dropped[]): string | null {
+  if (value === "") return null;
+  if (value.length <= 40 && /\d/.test(value) && /^[A-Z0-9 ./_-]+$/.test(value)) return value;
+  dropped.push({ reason: "free_text", prop });
+  return null;
 }
 
 /** An LV register code as the files write it: spaces and a stray `'` quoting stripped. */

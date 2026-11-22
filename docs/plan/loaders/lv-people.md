@@ -68,9 +68,9 @@ Header: `id;uri;at_legal_entity_registration_number;entity_type;position;governi
 | `at_legal_entity_registration_number` | text, 11 digits | the set's company; `Directorship.organization` → `lv-<code>` | S03.LV.01 (R) | no | Check digit (`lv-register.md`). Not in the register → the line is skipped `code_not_in_register` |
 | `entity_type` | enum | the holder | S03.LV.01 | no | `NATURAL_PERSON` (282,262 rows) → `Person` row `p-<record id>-<position>`. `LEGAL_ENTITY` (1,007) → the company `lv-<legal_entity_registration_number>`. `FOREIGN_ENTITY` (61) → `Organization` `org-<20 hex>` (§3.4; see Identity and joins). Any other value: the line is dropped `unknown_enum` (fail closed) |
 | `name` | text | `Person.name` (in `names_no_id` mode) or `Organization.name` (foreign entity). Not read for `LEGAL_ENTITY` | S03.LV.01 | NATURAL_PERSON: yes | NFC, trim, collapse whitespace. In `role_counts` mode a natural person's name is **not read**: no `Person` row, dropped `lv_person_rows_role_counts`. Never in FTS, caption, URL, log line or event |
-| `position` | enum | `Directorship.role` | S03.LV.01 | no | 15 values: `BOARD_MEMBER`, `CHAIR_OF_BOARD`, `OWNER`, `LIQUIDATOR`, `MEMBER`, `REPRESENTATIVE_MANAGER`, `ADMINISTRATOR`, `CO_OWNER`, `AUTHORISED_REPRESENTATIVE`, `PRESIDENT`, `MANAGER`, `ESTATE_TRUSTEE`, `MANAGING_DIRECTOR`, `CHAIR_OF_SUPERVISORY_BOARD`, `REPRESENTATIVE_OF_THE_LIQUIDATOR`. Empty (29%) → `unspecified`. Unknown → kept, counted `unknown_enum` |
-| `governing_body` | enum | `Directorship.summary` = body code (UI label table) | S03.LV.01 | no | 10 values (`EXECUTIVE_BOARD`, `EXECUTIVE_BODY`, `MANAGEMENT_BODY`, `LIQUIDATION_COMMITTEE`, `DIRECTORATE`, `EXECUTIVE_COMMITTEE`, `SUPERVISORY_BOARD`, `STAFF_COMMITTEE`, `SENATE`, `AUDITOR`); empty allowed |
-| `rights_of_representation_type` + `representation_with_at_least` | enum + int | `Directorship.description` = signing-rights code (`WITH_AT_LEAST:2`) | S03.LV.01 | no | 8 types; 0 → number omitted |
+| `position` | enum | `Directorship.role` | S03.LV.01 | no | 15 values: `BOARD_MEMBER`, `CHAIR_OF_BOARD`, `OWNER`, `LIQUIDATOR`, `MEMBER`, `REPRESENTATIVE_MANAGER`, `ADMINISTRATOR`, `CO_OWNER`, `AUTHORISED_REPRESENTATIVE`, `PRESIDENT`, `MANAGER`, `ESTATE_TRUSTEE`, `MANAGING_DIRECTOR`, `CHAIR_OF_SUPERVISORY_BOARD`, `REPRESENTATIVE_OF_THE_LIQUIDATOR`. Empty (29%) → `unspecified`. Unknown → `unspecified`, counted `unknown_enum` (closed set, S05 review SEC-2) |
+| `governing_body` | enum | `Directorship.summary` = body code (UI label table) | S03.LV.01 | no | 10 values (`EXECUTIVE_BOARD`, `EXECUTIVE_BODY`, `MANAGEMENT_BODY`, `LIQUIDATION_COMMITTEE`, `DIRECTORATE`, `EXECUTIVE_COMMITTEE`, `SUPERVISORY_BOARD`, `STAFF_COMMITTEE`, `SENATE`, `AUDITOR`); empty allowed. Unknown → not stored, counted `unknown_enum` |
+| `rights_of_representation_type` + `representation_with_at_least` | enum + int | `Directorship.description` = signing-rights code (`WITH_AT_LEAST:2`) | S03.LV.01 | no | Tokens `INDIVIDUALLY`, `WITH_AT_LEAST`, `WITH_ALL`, `WITH_CHAIR`, `WITH_DEPUTY_CHAIR`, joined by `/`; the count is 0-99, 0 → omitted. Any other token or count → not stored, counted `unknown_enum` |
 | `registered_on` | date | `Directorship.startDate` | S03.LV.01 | NATURAL_PERSON: yes | ISO; empty (0.03%) → none |
 | `legal_entity_registration_number` | text | the holder company of a `LEGAL_ENTITY` line | S03.LV.01 (R) | no | Not in the register, or an NP form → the line shows "a company" with no link, counted `code_not_in_register` / `natural_person_form` |
 | `latvian_identity_number_masked` | text `DDMMYY-*****` | **`dropped: personal_code`** (PS6) | - | yes | Never a key, never a hash input, never stored. For 97% of rows the visible digits are a birth date |
@@ -102,7 +102,7 @@ Header: `id;uri;at_legal_entity_registration_number;entity_type;name;latvian_ide
 | `name` | text | `Organization.name` of a `FOREIGN_ENTITY` holder | S04.LV.01 | no (gate passed) | trim; not read for `LEGAL_ENTITY` |
 | `number_of_shares` | decimal | `Ownership.sharesCount` | S04.LV.01 | no | - |
 | `share_nominal_value` | decimal | `Ownership.sharesValue` | S04.LV.01 | no | - |
-| `share_currency` | `EUR` / `LVL` | `Ownership.sharesCurrency` | S04.LV.01 | no | LVL kept |
+| `share_currency` | `EUR` / `LVL` | `Ownership.sharesCurrency` | S04.LV.01 | no | LVL kept. Any other value must be an ISO 4217 code; otherwise the share value is not stored, counted `unknown_enum` |
 | `date_from` | date | `Ownership.startDate` | S04.LV.01 | no | - |
 | `latvian_identity_number_masked`, `birth_date` | text | **`dropped: personal_code`** | - | yes | only on gated-out person lines; counted anyway if a corporate line carries one |
 | `uri`, `registered_on`, `last_modified_at` | - | as-of only (`registered_on`, `last_modified_at`) | - | - | - |
@@ -154,7 +154,7 @@ Header: `id;uri;at_legal_entity_registration_number;entity_type;name;latvian_ide
 
 **Hash input and sort order.**
 - Officers' `hashInput` = for each line in source order: `id`, `entity_type`, `position`, `governing_body`, normalised `name` (omitted in `role_counts` mode and for `LEGAL_ENTITY` lines), `legal_entity_registration_number`, `rights_of_representation_type`, `representation_with_at_least`, `registered_on`.
-- Members' `hashInput` = for each corporate line in source order: `id`, `entity_type`, `legal_entity_registration_number`, `name` (foreign only), `number_of_shares`, `share_nominal_value`, `share_currency`, `date_from`.
+- Members' `hashInput` = for each corporate line in source order: the line id (or `""` when nulled), `entity_type`, `legal_entity_registration_number`, `name` (foreign only), and the parsed share count, nominal value, currency (only a known one) and start date.
 - No code or birth-date field is in either. `row_hash` = sha256 truncated to 16 bytes.
 - The files are **not grouped by company** (officers: 18,837 contiguity breaks; members: 7,314), so the parser groups lines through a temp table keyed by company, keeping each line's file row number, then emits sets in company-code order.
 
@@ -242,3 +242,11 @@ A storage-class or licence-class change (A7) is a full reload into the new class
 1. **`org-` id input:** §3.4 lists (source, company eid, record key). With a set record, one record holds several foreign holders, so this spec adds the line `id`. Architect: confirm.
 2. **Where the previous set's line identities live for the role-end diff.** §3.3 says they are used "only inside the diff" but names no store. Proposal: an internal `records.line_ids` BLOB (sorted 8-byte truncated hashes of the line ids). It is never read by any query path, export or API, and is covered by the PS5 store canary test.
 3. **New names** (once): drop reasons `lv_person_rows_role_counts`, `duplicate_key`, `unknown_enum`; FtM props `Directorship.summary` (governing body) and `Directorship.description` (signing rights). Confirm these, or add the extensions `finora:governingBody` and `finora:signingRights`.
+
+## S05 review changes (SEC-2, SEC-9, M6)
+
+- Only closed-set values are stored: an unknown position is `unspecified`; an unknown governing body or signing right is not stored; each is counted `unknown_enum`. A free-text name in any of those columns never reaches the store, in either mode.
+- A line id with the shape of a personal code (any Baltic shape, the LV hyphenated form, or a person row id) is nulled in `lineIds` and in the hash input, counted `personal_code` (legal). The foreign holder's `org-` id then uses the line's position.
+- The officers' hash input holds the stored values (closed-set role, body, signing right, parsed start date), not the raw columns.
+- A foreign officer (`FOREIGN_ENTITY`) loads only through the party gate, like a member: a party the gate proves a company keeps its company name, in both `LV_PERSON_ROWS` modes; an unproven one is dropped as `party_not_proven` in every mode (legal on SEC-9).
+- No LV file is kept in the raw cache (`rawCache: false`); a mode switch re-fetches. Tested by the data-dir and raw-dir byte scan after a full LV fixture load in both modes (`fixtures/lv-byte-scan.test.ts`).

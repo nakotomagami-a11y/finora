@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { legalForm, type DropReason, type SchemaName } from "@finora/domain";
 import { parserVersion } from "../../parser-version.ts";
 import type { FieldMap, ParseContext, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
-import { artifact, cleanCode, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
+import { artifact, cleanCode, closedValue, CURRENCIES, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord, type Dropped } from "../shared.ts";
 
 const S01 = "S01.LV.01";
 const S02 = "S02.LV.01";
@@ -21,6 +21,8 @@ const meta = (id: string, title: string, items: string[], maxBytes: number): Sou
   licence: "cc0-1.0",
   attribution: `Source: Register of Enterprises of the Republic of Latvia, ${title}, data.gov.lv, CC0 1.0`,
   storage: "store",
+  // M6 (S05 review): LV files hold natural persons or sole traders, so no LV file is kept in the raw cache.
+  rawCache: false,
   cadence: "daily",
   publishedAtUtc: "21:40",
   asOf: ["max_date_in_data", "portal_metadata", "http_last_modified"],
@@ -42,7 +44,7 @@ const today = (raw: RawArtifact[]) => (raw[0]?.fetchedAt ?? new Date().toISOStri
 
 function datesOf(file: RawArtifact, columns: string[]): Generator<string> {
   return (function* () {
-    for (const row of readCsv(file.bytes, ";", columns)) for (const c of columns) yield row.get(c);
+    for (const row of readCsv(file, ";", columns)) for (const c of columns) yield row.get(c);
   })();
 }
 
@@ -82,7 +84,7 @@ export function lvStatus(closed: string, terminated: string): "active" | "struck
 }
 
 function* registerRecords(raw: RawArtifact[], _file: string, ctx: ParseContext): Generator<ParsedRecord> {
-  for (const row of readCsv(artifact(raw, REGISTER_FILE).bytes, ";", REGISTER_COLUMNS)) {
+  for (const row of readCsv(artifact(raw, REGISTER_FILE), ";", REGISTER_COLUMNS)) {
     const coded = codeOf(row, "regcode");
     if ("drop" in coded) {
       ctx.onDrop?.(coded.drop);
@@ -174,7 +176,7 @@ export const LV_UR_NAME_HISTORY_FIELD_MAP: FieldMap = [
 ];
 
 function* nameHistory(raw: RawArtifact[], file: string, ctx: ParseContext): Generator<ParsedRecord> {
-  for (const row of readCsv(artifact(raw, file).bytes, ";", ["regcode", "date_to", "name"])) {
+  for (const row of readCsv(artifact(raw, file), ";", ["regcode", "date_to", "name"])) {
     const coded = codeOf(row, "regcode");
     if ("drop" in coded) {
       ctx.onDrop?.(coded.drop);
@@ -209,13 +211,14 @@ const LIQUIDATION_TYPES = new Set(["LIQUIDATION", "ACTIVITY_TERMINATED", "ACTIVI
 
 function* liquidations(raw: RawArtifact[], file: string, ctx: ParseContext): Generator<ParsedRecord> {
   const cols = ["id", "legal_entity_registration_number", "liquidation_type", "date_from"];
-  for (const row of readCsv(artifact(raw, file).bytes, ";", cols)) {
+  for (const row of readCsv(artifact(raw, file), ";", cols)) {
     const coded = codeOf(row, "legal_entity_registration_number");
     if ("drop" in coded) {
       ctx.onDrop?.(coded.drop);
       continue;
     }
-    const kind = row.get("liquidation_type");
+    const dropped: Dropped[] = [{ reason: "free_text", prop: "grounds_for_liquidation" }];
+    const kind = closedValue(LIQUIDATION_TYPES, row.get("liquidation_type"), "liquidation_type", dropped);
     const date = isoDate(row.get("date_from"));
     if (!date) {
       ctx.onDrop?.("invalid_record");
@@ -227,7 +230,7 @@ function* liquidations(raw: RawArtifact[], file: string, ctx: ParseContext): Gen
       hashInput: [coded.code, kind, date],
       entities: [attach(coded.code)],
       events: [{ entityEid: `lv-${coded.code}`, type: "register.liquidation", date, itemId: S02, data: { kind } }],
-      dropped: [{ reason: "free_text", prop: "grounds_for_liquidation" }, ...(LIQUIDATION_TYPES.has(kind) ? [] : [{ reason: "unknown_enum" as const, prop: "liquidation_type" }])],
+      dropped,
     };
   }
 }
@@ -244,8 +247,9 @@ const REORGANIZATION_TYPES = new Set(["ACQUISITION", "TRANSFORMATION", "SEPARATI
 
 function* reorganizations(raw: RawArtifact[], file: string, ctx: ParseContext): Generator<ParsedRecord> {
   const cols = ["id", "reorganization_type", "source_entity_regcode", "final_entity_regcode", "registered"];
-  for (const row of readCsv(artifact(raw, file).bytes, ";", cols)) {
-    const kind = row.get("reorganization_type");
+  for (const row of readCsv(artifact(raw, file), ";", cols)) {
+    const dropped: Dropped[] = [];
+    const kind = closedValue(REORGANIZATION_TYPES, row.get("reorganization_type"), "reorganization_type", dropped);
     const registered = isoDate(row.get("registered"));
     const date = registered ?? today(raw);
     const sides = (["source", "final"] as const).map((role) => {
@@ -260,7 +264,8 @@ function* reorganizations(raw: RawArtifact[], file: string, ctx: ParseContext): 
     yield {
       recordKey: row.get("id"),
       rowRef: `line ${row.line}`,
-      hashInput: [kind, row.get("source_entity_regcode"), row.get("final_entity_regcode"), row.get("registered")],
+      // SEC-8: only the checked codes are hashed, never a rejected column value.
+      hashInput: [kind, sides[0]!.code ?? "", sides[1]!.code ?? "", registered ?? ""],
       entities: known.map((s) => attach(s.code!)),
       events: known.map((s) => {
         const other = sides.find((o) => o.role !== s.role)?.code ?? null;
@@ -272,7 +277,7 @@ function* reorganizations(raw: RawArtifact[], file: string, ctx: ParseContext): 
           data: { kind, role: s.role, other: other ? `lv-${other}` : null, ...(registered ? {} : { date_estimated: 1 }) },
         };
       }),
-      ...(REORGANIZATION_TYPES.has(kind) ? {} : { dropped: [{ reason: "unknown_enum" as const, prop: "reorganization_type" }] }),
+      ...(dropped.length > 0 ? { dropped } : {}),
     };
   }
 }
@@ -294,7 +299,7 @@ function* equity(raw: RawArtifact[], file: string, ctx: ParseContext): Generator
   const cols = ["id", "legal_entity_registration_number", "equity_capital_type", "amount", "currency", "date_from"];
   type Kept = { code: string; rank: number; date: string; id: number; amount: string; currency: string; line: number };
   const kept = new Map<string, Kept>();
-  for (const row of readCsv(artifact(raw, file).bytes, ";", cols)) {
+  for (const row of readCsv(artifact(raw, file), ";", cols)) {
     const coded = codeOf(row, "legal_entity_registration_number");
     if ("drop" in coded) {
       ctx.onDrop?.(coded.drop);
@@ -306,11 +311,12 @@ function* equity(raw: RawArtifact[], file: string, ctx: ParseContext): Generator
       continue;
     }
     const amount = Number(row.get("amount").replace(",", "."));
-    if (!Number.isFinite(amount)) {
+    const currency = row.get("currency") || "EUR";
+    if (!Number.isFinite(amount) || !CURRENCIES.has(currency)) {
       ctx.onDrop?.("invalid_record");
       continue;
     }
-    const next: Kept = { code: coded.code, rank, date: isoDate(row.get("date_from")) ?? "", id: Number(row.get("id")) || 0, amount: amount.toFixed(2), currency: row.get("currency") || "EUR", line: row.line };
+    const next: Kept = { code: coded.code, rank, date: isoDate(row.get("date_from")) ?? "", id: Number(row.get("id")) || 0, amount: amount.toFixed(2), currency, line: row.line };
     const prev = kept.get(coded.code);
     const better = !prev || [next.rank - prev.rank, next.date.localeCompare(prev.date), next.id - prev.id].find((d) => d !== 0)! > 0;
     if (better) kept.set(coded.code, next);
@@ -333,7 +339,7 @@ export const LV_UR_MEMORANDUM_FIELD_MAP: FieldMap = [
 ];
 
 function* memorandum(raw: RawArtifact[], file: string, ctx: ParseContext): Generator<ParsedRecord> {
-  for (const row of readCsv(artifact(raw, file).bytes, ";", ["id", "legal_entity_registration_number", "document_date", "registered_on"])) {
+  for (const row of readCsv(artifact(raw, file), ";", ["id", "legal_entity_registration_number", "document_date", "registered_on"])) {
     const coded = codeOf(row, "legal_entity_registration_number");
     if ("drop" in coded) {
       ctx.onDrop?.(coded.drop);
@@ -394,7 +400,7 @@ export const lvUrLiquidations = loader({
   maxBytes: 50 * 1024 ** 2,
   dateColumns: ["registered_on", "last_modified_at"],
   fieldMap: LV_UR_LIQUIDATIONS_FIELD_MAP,
-  revision: 1,
+  revision: 2,
   records: liquidations,
 });
 
@@ -407,7 +413,7 @@ export const lvUrReorganizations = loader({
   maxBytes: 50 * 1024 ** 2,
   dateColumns: ["registered"],
   fieldMap: LV_UR_REORGANIZATIONS_FIELD_MAP,
-  revision: 1,
+  revision: 2,
   records: reorganizations,
 });
 
@@ -420,7 +426,7 @@ export const lvUrEquityCapitals = loader({
   maxBytes: 50 * 1024 ** 2,
   dateColumns: ["last_modified_at"],
   fieldMap: LV_UR_EQUITY_FIELD_MAP,
-  revision: 1,
+  revision: 2,
   records: equity,
 });
 

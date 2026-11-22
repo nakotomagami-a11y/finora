@@ -225,3 +225,7 @@ The yearly row is written at load. Tax history grows by about 155,000 quarterly 
 3. **Label table:** the rating explanation is Latvian only. The English gloss for A/B/C/N/J lives in the bundled `domain/config/labels/lv.ts` (see `lv-register.md`).
 
 Average salary (S07) stays LATER. When it ships (LV, 10 or more employees), it is a "Derived by Finora" value from the stored social contributions and employees, with no loader change.
+
+## S05 review changes (M6, memory)
+
+- No LV file is kept in the raw cache (`rawCache: false`): the tax files hold sole traders keyed by their register code. Each file streams to the sync's work dir and is parsed in chunks.

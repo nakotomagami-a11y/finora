@@ -4,10 +4,10 @@
 // person members never get past the type check. Beneficial owners, joint-stock shareholders and
 // joint owners are never fetched.
 import { createHash } from "node:crypto";
-import { LEGAL_FORMS, type DropReason } from "@finora/domain";
+import { freeTextHoldsPersonalCode, LEGAL_FORMS, type DropReason } from "@finora/domain";
 import { parserVersion } from "../../parser-version.ts";
 import type { FetchContext, FieldMap, ParseContext, ParsedEntity, ParsedRecord, PartyRef, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
-import { artifact, cleanCode, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
+import { artifact, cleanCode, closedValue, CURRENCIES, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
 
 const S03 = "S03.LV.01";
 const S04 = "S04.LV.01";
@@ -44,6 +44,8 @@ const meta = (id: string, title: string, items: string[]): SourceMeta => ({
   licence: "cc0-1.0",
   attribution: `Source: Register of Enterprises of the Republic of Latvia, ${title}, data.gov.lv, CC0 1.0`,
   storage: "store",
+  // M6 (S05 review): LV files hold natural persons or sole traders, so no LV file is kept in the raw cache.
+  rawCache: false,
   cadence: "daily",
   publishedAtUtc: "21:40",
   asOf: ["max_date_in_data", "portal_metadata", "http_last_modified"],
@@ -65,7 +67,7 @@ const LV_FORMS = createHash("sha256")
 const today = (raw: RawArtifact[]) => (raw[0]?.fetchedAt ?? new Date().toISOString()).slice(0, 10);
 
 function* datesOf(file: RawArtifact): Generator<string> {
-  for (const row of readCsv(file.bytes, ";", ["registered_on", "last_modified_at"])) {
+  for (const row of readCsv(file, ";", ["registered_on", "last_modified_at"])) {
     yield row.get("registered_on");
     yield row.get("last_modified_at");
   }
@@ -87,6 +89,17 @@ const orgEid = (sourceId: string, code: string, recordKey: string, lineId: strin
   `org-${createHash("sha256").update(JSON.stringify([sourceId, `lv-${code}`, recordKey, lineId])).digest("hex").slice(0, 20)}`;
 
 type Dropped = { reason: DropReason; prop?: string };
+
+/**
+ * A line's own row id, kept for role-end detection (§3.3). An id with the shape of a personal code
+ * is nulled and counted (legal on the S05 review): it would otherwise sit in `line_ids` and the hash.
+ */
+function lineId(value: string, dropped: Dropped[]): string | null {
+  if (value === "") return null;
+  if (!freeTextHoldsPersonalCode(value) && !/\bp-\d+-\d+\b/.test(value)) return value;
+  dropped.push({ reason: "personal_code" });
+  return null;
+}
 
 /** The rows of a file grouped by company in file order; sets come out in company-code order. */
 function groupByCompany<T>(rows: Iterable<{ code: string; line: T }>): [string, T[]][] {
@@ -142,12 +155,18 @@ const GOVERNING_BODIES = new Set([
   "EXECUTIVE_BOARD", "EXECUTIVE_BODY", "MANAGEMENT_BODY", "LIQUIDATION_COMMITTEE", "DIRECTORATE", "EXECUTIVE_COMMITTEE", "SUPERVISORY_BOARD", "STAFF_COMMITTEE", "SENATE", "AUDITOR",
 ]);
 const HOLDER_TYPES = new Set(["NATURAL_PERSON", "LEGAL_ENTITY", "FOREIGN_ENTITY"]);
+/** The signing-rights tokens of the register (`INDIVIDUALLY`, or several joined by `/`). */
+const RIGHTS = new Set(["INDIVIDUALLY", "WITH_AT_LEAST", "WITH_ALL", "WITH_CHAIR", "WITH_DEPUTY_CHAIR"]);
 
-/** The signing-rights code: the type, and the number of co-signers when it is not 0 (`WITH_AT_LEAST:2`). */
+/**
+ * The signing-rights code: the type, and the number of co-signers when it is not 0 (`WITH_AT_LEAST:2`).
+ * Every token must be a register value and the number a small integer; anything else is null (SEC-2).
+ */
 export function signingRights(type: string, atLeast: string): string | null {
-  if (!type) return null;
+  if (!type || !type.split("/").every((t) => RIGHTS.has(t))) return null;
+  if (atLeast !== "" && !/^\d{1,2}$/.test(atLeast)) return null;
   const n = Number(atLeast);
-  return Number.isInteger(n) && n > 0 ? `${type}:${n}` : type;
+  return n > 0 ? `${type}:${n}` : type;
 }
 
 type OfficerLine = {
@@ -173,19 +192,25 @@ function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mod
   const parties: PartyRef[] = [];
   const dropped: Dropped[] = [];
   const hashInput: string[] = [];
+  const lineIds: (string | null)[] = [];
   lines.forEach((l, i) => {
     const pos = i + 1;
     const rel = `rel-${n}-${pos}`;
-    const role = l.position || "unspecified";
-    if (l.position && !POSITIONS.has(l.position)) dropped.push({ reason: "unknown_enum", prop: "role" });
-    if (l.body && !GOVERNING_BODIES.has(l.body)) dropped.push({ reason: "unknown_enum", prop: "finora:governingBody" });
+    const id = lineId(l.id, dropped);
+    lineIds.push(id);
+    // Closed sets only (SEC-2): an unknown position is "unspecified", an unknown body or signing
+    // right is not stored; each is counted.
+    const role = closedValue(POSITIONS, l.position, "role", dropped);
+    const body = GOVERNING_BODIES.has(l.body) ? l.body : null;
+    if (l.body && !body) dropped.push({ reason: "unknown_enum", prop: "finora:governingBody" });
     for (let k = 0; k < l.personalFields; k++) dropped.push({ reason: "personal_code" });
     const rights = signingRights(l.rights, l.atLeast);
+    if (l.rights && !rights) dropped.push({ reason: "unknown_enum", prop: "finora:signingRights" });
     const start = isoDate(l.registeredOn);
     const statements = [
       { prop: "organization", value: company, itemId: S03, line: i },
       { prop: "role", value: role, itemId: S03, line: i },
-      ...(l.body ? [{ prop: "finora:governingBody", value: l.body, itemId: S03, line: i }] : []),
+      ...(body ? [{ prop: "finora:governingBody", value: body, itemId: S03, line: i }] : []),
       ...(rights ? [{ prop: "finora:signingRights", value: rights, itemId: S03, line: i }] : []),
       ...(start ? [{ prop: "startDate", value: start, itemId: S03, line: i }] : []),
     ];
@@ -200,10 +225,17 @@ function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mod
         hashedName = l.name;
       }
     } else if (l.type === "FOREIGN_ENTITY") {
+      // A foreign holder known by name loads only through the party gate, which proves it a company
+      // by its register type; unproven, it is dropped in every mode (legal on SEC-9).
       if (l.name) {
-        const org = orgEid(sourceId, code, recordKey, l.id);
-        entities.push({ eid: org, schema: "Organization", country: "intl", statements: [{ prop: "name", value: l.name, itemId: S03, line: i }] });
-        statements.push({ prop: "director", value: org, itemId: S03, line: i });
+        const org = orgEid(sourceId, code, recordKey, id ?? `#${pos}`);
+        parties.push({
+          type: "FOREIGN_ENTITY",
+          entities: [
+            { eid: org, schema: "Organization", country: "intl", statements: [{ prop: "name", value: l.name, itemId: S03, line: i }] },
+            { eid: rel, schema: "Directorship", country: "lv", statements: [{ prop: "director", value: org, itemId: S03, line: i }] },
+          ],
+        });
         hashedName = l.name;
       }
     } else {
@@ -217,14 +249,14 @@ function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mod
       }
     }
     entities.push({ eid: rel, schema: "Directorship", country: "lv", statements });
-    hashInput.push(JSON.stringify([l.id, l.type, l.position, l.body, hashedName, hashedHolder, l.rights, l.atLeast, l.registeredOn]));
+    hashInput.push(JSON.stringify([id ?? "", l.type, role, body ?? "", hashedName, hashedHolder, rights ?? "", start ?? ""]));
   });
   return {
     recordKey,
     rowRef: `line ${lines[0]!.line}`,
     hashInput,
     entities,
-    lineIds: lines.map((l) => l.id || null),
+    lineIds,
     ...(parties.length > 0 ? { parties } : {}),
     ...(dropped.length > 0 ? { dropped } : {}),
   };
@@ -232,7 +264,7 @@ function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mod
 
 function* officers(raw: RawArtifact[], sourceId: string, mode: LvPersonRows, ctx: ParseContext): Generator<ParsedRecord> {
   function* lines(): Generator<{ code: string; line: OfficerLine }> {
-    for (const row of readCsv(artifact(raw, OFFICERS_FILE).bytes, ";", OFFICER_COLUMNS)) {
+    for (const row of readCsv(artifact(raw, OFFICERS_FILE), ";", OFFICER_COLUMNS)) {
       const code = companyOf(row, ctx);
       if (code === null) continue;
       const type = row.get("entity_type");
@@ -270,7 +302,7 @@ export function lvUrOfficersLoader(config: LvPeopleConfig = LV_PEOPLE_DEFAULT_CO
   if (!LV_PERSON_ROWS_MODES.includes(mode)) throw new Error("LV_PERSON_ROWS must be names_no_id or role_counts");
   return {
     meta: m,
-    parserVersion: `${parserVersion(m.id, 1, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
+    parserVersion: `${parserVersion(m.id, 2, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
     fieldMap: LV_UR_OFFICERS_FIELD_MAP,
     fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "officers", OFFICERS_FILE) }),
     asOf: (raw) => lvAsOf(raw, OFFICERS_FILE, datesOf, today(raw)),
@@ -330,13 +362,20 @@ function memberRecord(sourceId: string, code: string, lines: MemberLine[], seen:
   const parties: PartyRef[] = [];
   const dropped: Dropped[] = [];
   const hashInput: string[] = [];
+  const lineIds: (string | null)[] = [];
   lines.forEach((l, i) => {
     const pos = i + 1;
-    if (seen.has(l.id)) dropped.push({ reason: "duplicate_key" });
-    seen.add(l.id);
+    const id = lineId(l.id, dropped);
+    lineIds.push(id);
+    if (id !== null && seen.has(id)) dropped.push({ reason: "duplicate_key" });
+    if (id !== null) seen.add(id);
     for (let k = 0; k < l.personalFields; k++) dropped.push({ reason: "personal_code" });
     const shares = decimal(l.shares);
-    const nominal = decimal(l.nominal);
+    // The share value needs an ISO 4217 currency (or LVL); without one it is not stored (SEC-2).
+    const currency = l.currency || "EUR";
+    const knownCurrency = CURRENCIES.has(currency);
+    if (!knownCurrency) dropped.push({ reason: "unknown_enum", prop: "sharesValue" });
+    const nominal = knownCurrency ? decimal(l.nominal) : null;
     const start = isoDate(l.dateFrom);
     const ownership = (owner: string, ownerItem: string): ParsedEntity => ({
       eid: `rel-${n}-${pos}`,
@@ -346,21 +385,21 @@ function memberRecord(sourceId: string, code: string, lines: MemberLine[], seen:
         { prop: "asset", value: company, itemId: S04, line: i },
         { prop: "owner", value: owner, itemId: ownerItem, line: i },
         ...(shares !== null ? [{ prop: "sharesCount", value: shares, itemId: S04, line: i }] : []),
-        ...(nominal !== null ? [{ prop: "sharesValue", value: `${nominal} ${l.currency || "EUR"}`, itemId: S04, line: i }] : []),
+        ...(nominal !== null ? [{ prop: "sharesValue", value: `${nominal} ${currency}`, itemId: S04, line: i }] : []),
         ...(start ? [{ prop: "startDate", value: start, itemId: S04, line: i }] : []),
       ],
     });
     if (l.type === "LEGAL_ENTITY") {
       // Loaded only when the holder's code resolves to a register entity that is not a natural-person form.
       parties.push({ code: { country: "lv", value: l.holder }, entities: [ownership(`lv-${l.holder}`, S17)] });
-      hashInput.push(JSON.stringify([l.id, l.type, `lv-${l.holder}`, "", l.shares, l.nominal, l.currency, l.dateFrom]));
+      hashInput.push(JSON.stringify([id ?? "", l.type, `lv-${l.holder}`, "", shares ?? "", nominal ?? "", knownCurrency ? currency : "", start ?? ""]));
     } else {
-      const org = orgEid(sourceId, code, recordKey, l.id);
+      const org = orgEid(sourceId, code, recordKey, id ?? `#${pos}`);
       parties.push({
         type: "FOREIGN_ENTITY",
         entities: [{ eid: org, schema: "Organization", country: "intl", statements: [{ prop: "name", value: l.name, itemId: S04, line: i }] }, ownership(org, S04)],
       });
-      hashInput.push(JSON.stringify([l.id, l.type, "", l.name, l.shares, l.nominal, l.currency, l.dateFrom]));
+      hashInput.push(JSON.stringify([id ?? "", l.type, "", l.name, shares ?? "", nominal ?? "", knownCurrency ? currency : "", start ?? ""]));
     }
   });
   return {
@@ -369,14 +408,14 @@ function memberRecord(sourceId: string, code: string, lines: MemberLine[], seen:
     hashInput,
     entities: [attach(code)],
     parties,
-    lineIds: lines.map((l) => l.id || null),
+    lineIds,
     ...(dropped.length > 0 ? { dropped } : {}),
   };
 }
 
 function* members(raw: RawArtifact[], sourceId: string, ctx: ParseContext): Generator<ParsedRecord> {
   function* lines(): Generator<{ code: string; line: MemberLine }> {
-    for (const row of readCsv(artifact(raw, MEMBERS_FILE).bytes, ";", MEMBER_COLUMNS)) {
+    for (const row of readCsv(artifact(raw, MEMBERS_FILE), ";", MEMBER_COLUMNS)) {
       // The party gate reads the type first: a person's line is dropped before any other field is read.
       const type = row.get("entity_type");
       const personType = PERSON_MEMBER_TYPES[type];
@@ -426,7 +465,7 @@ const MEMBERS_META = meta("lv-ur-members", "Members", [S04, S17]);
 
 export const lvUrMembers: SourceLoader = {
   meta: MEMBERS_META,
-  parserVersion: `${parserVersion(MEMBERS_META.id, 1, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
+  parserVersion: `${parserVersion(MEMBERS_META.id, 2, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
   fieldMap: LV_UR_MEMBERS_FIELD_MAP,
   fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "members", MEMBERS_FILE) }),
   asOf: (raw) => lvAsOf(raw, MEMBERS_FILE, datesOf, today(raw)),

@@ -85,11 +85,14 @@ describe("lv-ur-officers (lv-people.md)", () => {
     expect(JSON.stringify(demo.entities)).not.toContain("Example Timber");
     const works = setOf(records, 5, "officers")!;
     expect(works.parties?.[0]?.code).toEqual({ country: "lv", value: lvFx(4).code });
+    // A foreign holder goes through the party gate too, proven by its register type (SEC-9).
     const bakery = setOf(records, 3, "officers")!;
-    const org = bakery.entities.find((e) => e.schema === "Organization")!;
+    const foreign = bakery.parties!.find((p) => p.type === "FOREIGN_ENTITY")!;
+    const org = foreign.entities.find((e) => e.schema === "Organization")!;
+    expect(bakery.entities.find((e) => e.schema === "Organization")).toBeUndefined();
     expect(org.eid).toMatch(/^org-[0-9a-f]{20}$/);
     expect(org.statements).toEqual([{ prop: "name", value: "Sample Holdings Ltd", itemId: "S03.LV.01", line: 2 }]);
-    expect(prop(bakery, `rel-${set1(3)}-3`, "director")).toBe(org.eid);
+    expect(foreign.entities.find((e) => e.eid === `rel-${set1(3)}-3`)?.statements).toEqual([{ prop: "director", value: org.eid, itemId: "S03.LV.01", line: 2 }]);
   });
 
   it("drops an unknown holder type whole, counted", async () => {
@@ -123,7 +126,8 @@ describe("lv-ur-officers (lv-people.md)", () => {
     expect(prop(timber, `rel-${set1(1)}-2`, "startDate")).toBe("2017-06-15");
     expect(timber.dropped?.filter((d) => d.reason === "lv_person_rows_role_counts")).toHaveLength(3);
     // Company and foreign holders are company data: kept in both modes.
-    expect(values(setOf(records, 3, "officers"), "name")).toEqual(["Sample Holdings Ltd"]);
+    const foreign = setOf(records, 3, "officers")!.parties!.find((p) => p.type === "FOREIGN_ENTITY")!;
+    expect(foreign.entities.flatMap((e) => e.statements).filter((st) => st.prop === "name").map((st) => st.value)).toEqual(["Sample Holdings Ltd"]);
     expect(setOf(records, 2, "officers")!.parties).toHaveLength(1);
   });
 

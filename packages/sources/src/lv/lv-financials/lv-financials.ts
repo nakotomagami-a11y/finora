@@ -1,11 +1,9 @@
 // The Latvian annual-report financial data (lv-financials.md): three files of one data.gov.lv
 // dataset joined on the statement id, one fact report and one filing event per company fiscal year
 // of the 5 newest fiscal years. Cash flow and consolidated reports are not loaded.
-import { Buffer } from "node:buffer";
-import { csvRows } from "@finora/formats";
 import { parserVersion } from "../../parser-version.ts";
 import type { DropReason, FactReportInput, FieldMap, ParseContext, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
-import { artifact, cleanCode, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, SchemaChanged } from "../shared.ts";
+import { artifact, cleanCode, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
 
 const S06 = "S06.LV.01";
 const S13 = "S13.LV.01";
@@ -54,45 +52,24 @@ export const LV_FINANCIALS_FIELD_MAP: FieldMap = [
 
 // ---------------------------------------------------------------- reading
 
-type Row = { line: number; get: (column: string) => string };
-
 /**
- * The rows of a `;` file, read line by line straight from the bytes, so no value keeps a whole
- * decoded file alive. `keep` sees a line's first field and may skip the line unparsed (the line
- * files are about 70% statements outside the window). A line with a quote goes through the CSV reader.
+ * The rows of a `;` file through the shared chunked CSV reader (SEC-6 in the S05 review: quoted
+ * line breaks, field and row limits), from memory or the streamed file. `keep` sees a row's first
+ * column and may skip it (the line files are about 70% statements outside the window).
  */
-export function* readTable(bytes: Uint8Array, needed: readonly string[], keep?: (first: string) => boolean): Generator<Row> {
-  const buf = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let start = buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf ? 3 : 0;
-  let index: Record<string, number> | null = null;
-  let line = 0;
-  while (start < buf.length) {
-    let end = buf.indexOf(0x0a, start);
-    if (end < 0) end = buf.length;
-    const stop = end > start && buf[end - 1] === 0x0d ? end - 1 : end;
-    const from = start;
-    start = end + 1;
-    line++;
-    if (stop === from) continue;
-    const text = buf.toString("utf8", from, stop);
-    if (index === null) {
-      const header = text.split(";").map((h) => h.trim());
-      const missing = needed.filter((c) => !header.includes(c));
-      if (missing.length > 0) throw new SchemaChanged(`missing columns: ${missing.join(", ")}`);
-      index = Object.fromEntries(needed.map((c) => [c, header.indexOf(c)]));
-      if (keep && index[needed[0]!] !== 0) keep = undefined;
-      continue;
-    }
-    if (keep && !text.includes('"') && !keep(text.split(";", 1)[0]!.trim())) continue;
-    const cells = text.includes('"') ? (csvRows(text, ";").next().value ?? []) : text.split(";");
-    const at = index;
-    yield { line, get: (column) => (cells[at[column] ?? -1] ?? "").trim() };
+export function* readTable(source: RawArtifact | Uint8Array, needed: readonly string[], keep?: (first: string) => boolean): Generator<CsvRecord> {
+  for (const row of readCsv(source, ";", needed, { requireHeader: true })) {
+    if (keep && !keep(row.get(needed[0]!))) continue;
+    yield row;
   }
-  if (index === null) throw new SchemaChanged("empty file");
 }
 
 // ---------------------------------------------------------------- selection
 
+/**
+ * A selected statement, kept compact: the window holds about 547,000 of them for the join (S05
+ * memory). Amounts are numbers, NaN where the file is empty and Infinity where it is not a number.
+ */
 type Statement = {
   id: number;
   code: string;
@@ -103,9 +80,18 @@ type Statement = {
   employees: string;
   rounded: string;
   currency: string;
-  balance?: string[];
-  income?: string[];
+  balance?: number[];
+  income?: number[];
 };
+
+/**
+ * A copy of a value that does not keep the reader's 1 MiB text chunk alive: a substring of 13 or
+ * more characters is a slice of its parent string in V8, so a kept timestamp would pin every chunk.
+ */
+const own = (value: string) => (value.length < 13 ? value : (JSON.parse(JSON.stringify(value)) as string));
+
+/** An amount as reported: NaN when empty (no fact, never 0), Infinity when not a number (counted). */
+const amountOf = (value: string) => (value === "" ? NaN : /^-?\d+(\.\d+)?$/.test(value) ? Number(value) : Infinity);
 
 /** The later filing wins a fiscal year: the latest `created_at`, then the highest `id`. */
 const supersedes = (a: Statement, b: Statement) => (a.created !== b.created ? a.created > b.created : a.id > b.id);
@@ -135,7 +121,7 @@ function select(raw: RawArtifact[], ctx: ParseContext): Map<string, Statement[]>
   const byCompany = new Map<string, Statement[]>();
   const drop = (reason: DropReason) => ctx.onDrop?.(reason);
   const start = lvFinancialsWindowStart(raw) ?? "";
-  for (const row of readTable(artifact(raw, STATEMENTS_FILE).bytes, STATEMENT_COLUMNS)) {
+  for (const row of readTable(artifact(raw, STATEMENTS_FILE), STATEMENT_COLUMNS)) {
     const ended = isoDate(row.get("year_ended_on"));
     // A year that has left the window is an expected absence, not a skip.
     if (ended && ended < start) continue;
@@ -166,7 +152,7 @@ function select(raw: RawArtifact[], ctx: ParseContext): Map<string, Statement[]>
       line: row.line,
       ended,
       started: isoDate(row.get("year_started_on")),
-      created: row.get("created_at"),
+      created: own(row.get("created_at")),
       employees: row.get("employees"),
       rounded,
       currency: row.get("currency"),
@@ -179,25 +165,20 @@ function select(raw: RawArtifact[], ctx: ParseContext): Map<string, Statement[]>
 }
 
 /** Attaches each selected statement's balance or income line; rows of other statements are skipped unparsed. */
-function join(bytes: Uint8Array, columns: readonly string[], selected: Map<number, Statement>, side: "balance" | "income", ctx: ParseContext): void {
-  for (const row of readTable(bytes, ["statement_id", ...columns], (first) => selected.has(Number(first)))) {
+function join(file: RawArtifact, columns: readonly string[], selected: Map<number, Statement>, side: "balance" | "income", ctx: ParseContext): void {
+  for (const row of readTable(file, ["statement_id", ...columns], (first) => selected.has(Number(first)))) {
     const statement = selected.get(Number(row.get("statement_id")));
     if (!statement) continue;
     if (statement[side]) {
       ctx.onDrop?.("conflicting_line");
       continue;
     }
-    statement[side] = columns.map((c) => row.get(c));
+    statement[side] = columns.map((c) => amountOf(row.get(c)));
   }
 }
 
 // ---------------------------------------------------------------- records
 
-/** An amount as reported: empty is no fact (never 0); anything not a number is no fact either, counted. */
-function amount(value: string): number | null | "bad" {
-  if (value === "") return null;
-  return /^-?\d+(\.\d+)?$/.test(value) ? Number(value) : "bad";
-}
 
 const attach = (code: string) => ({ eid: `lv-${code}`, schema: "Company" as const, country: "lv", code, ref: true, statements: [] });
 
@@ -205,14 +186,14 @@ function record(s: Statement): ParsedRecord {
   const eid = `lv-${s.code}`;
   const facts: FactReportInput["facts"] = [];
   const dropped: NonNullable<ParsedRecord["dropped"]> = [];
-  const add = (concept: string, value: string) => {
-    const n = amount(value);
-    if (n === "bad") dropped.push({ reason: "invalid_record" });
-    else if (n !== null) facts.push({ concept, value: n });
+  const add = (concept: string, n: number) => {
+    if (n === Infinity) dropped.push({ reason: "invalid_record" });
+    else if (!Number.isNaN(n)) facts.push({ concept, value: n });
   };
-  add("employees_avg", s.employees);
-  const balance = s.balance ?? BALANCE_LINES.map(() => "");
-  const income = s.income ?? INCOME_LINES.map(() => "");
+  add("employees_avg", amountOf(s.employees));
+  const balance = s.balance ?? BALANCE_LINES.map(() => NaN);
+  const income = s.income ?? INCOME_LINES.map(() => NaN);
+  const hashed = (n: number) => (Number.isNaN(n) ? "" : n === Infinity ? "bad" : String(n));
   BALANCE_LINES.forEach(([, concept], i) => add(concept, balance[i]!));
   INCOME_LINES.forEach(([, concept], i) => add(concept, income[i]!));
   const filed = isoDate(s.created);
@@ -220,7 +201,7 @@ function record(s: Statement): ParsedRecord {
     recordKey: `${s.code}|${s.ended}`,
     rowRef: `line ${s.line}`,
     period: s.ended,
-    hashInput: [String(s.id), s.created, s.started ?? "", s.ended, s.employees, s.rounded, s.currency, ...balance, ...income],
+    hashInput: [String(s.id), s.created, s.started ?? "", s.ended, s.employees, s.rounded, s.currency, ...balance.map(hashed), ...income.map(hashed)],
     entities: [attach(s.code)],
     reports: [{ entityEid: eid, kind: "annual_accounts", periodStart: s.started, periodEnd: s.ended, currency: s.currency || null, unitScale: UNIT_SCALE[s.rounded]!, itemId: S06, facts }],
     events: filed ? [{ entityEid: eid, type: "filing.annual_report", date: filed, itemId: S13, data: { periodEnd: s.ended } }] : [],
@@ -232,8 +213,8 @@ function* annualReports(raw: RawArtifact[], ctx: ParseContext): Generator<Parsed
   const byCompany = select(raw, ctx);
   const selected = new Map<number, Statement>();
   for (const list of byCompany.values()) for (const s of list) selected.set(s.id, s);
-  join(artifact(raw, BALANCE_FILE).bytes, BALANCE_LINES.map(([c]) => c), selected, "balance", ctx);
-  join(artifact(raw, INCOME_FILE).bytes, INCOME_LINES.map(([c]) => c), selected, "income", ctx);
+  join(artifact(raw, BALANCE_FILE), BALANCE_LINES.map(([c]) => c), selected, "balance", ctx);
+  join(artifact(raw, INCOME_FILE), INCOME_LINES.map(([c]) => c), selected, "income", ctx);
   selected.clear();
   for (const [code, list] of byCompany) {
     byCompany.delete(code);
@@ -246,22 +227,22 @@ function* annualReports(raw: RawArtifact[], ctx: ParseContext): Generator<Parsed
 const today = (raw: RawArtifact[]) => (raw[0]?.fetchedAt ?? new Date().toISOString()).slice(0, 10);
 
 type Summary = { lastFiled: string | null; newestYear: number | null };
-const summaries = new WeakMap<Uint8Array, Map<string, Summary>>();
+const summaries = new WeakMap<RawArtifact, Map<string, Summary>>();
 
 /** The latest filing date and the newest fiscal year in the statements file, ignoring dates after `day`. */
-function summary(bytes: Uint8Array, day: string): Summary {
-  const cached = summaries.get(bytes)?.get(day);
+function summary(file: RawArtifact, day: string): Summary {
+  const cached = summaries.get(file)?.get(day);
   if (cached) return cached;
   let lastFiled: string | null = null;
   let newestYear: number | null = null;
-  for (const row of readTable(bytes, ["created_at", "year_ended_on"])) {
+  for (const row of readTable(file, ["created_at", "year_ended_on"])) {
     const filed = isoDate(row.get("created_at"));
     if (filed && filed <= day && (lastFiled === null || filed > lastFiled)) lastFiled = filed;
     const ended = isoDate(row.get("year_ended_on"));
     if (ended && ended <= day && (newestYear === null || Number(ended.slice(0, 4)) > newestYear)) newestYear = Number(ended.slice(0, 4));
   }
   const result = { lastFiled, newestYear };
-  summaries.set(bytes, (summaries.get(bytes) ?? new Map()).set(day, result));
+  summaries.set(file, (summaries.get(file) ?? new Map()).set(day, result));
   return result;
 }
 
@@ -271,7 +252,7 @@ function summary(bytes: Uint8Array, day: string): Summary {
  */
 export function lvFinancialsWindowStart(raw: RawArtifact[]): string | null {
   const file = raw.find((a) => a.name === STATEMENTS_FILE);
-  const newest = file ? summary(file.bytes, today(raw)).newestYear : null;
+  const newest = file ? summary(file, today(raw)).newestYear : null;
   return newest === null ? null : `${newest - (WINDOW_YEARS - 1)}-01-01`;
 }
 
@@ -288,6 +269,8 @@ const meta: SourceMeta = {
   licence: "cc0-1.0",
   attribution: "Source: Register of Enterprises of the Republic of Latvia, Annual report financial data, data.gov.lv, CC0 1.0",
   storage: "store",
+  // M6 (S05 review): LV files hold natural persons or sole traders, so no LV file is kept in the raw cache.
+  rawCache: false,
   cadence: "weekly",
   publishedAtUtc: "21:40",
   asOf: ["max_date_in_data", "portal_metadata", "http_last_modified"],
@@ -302,7 +285,7 @@ const meta: SourceMeta = {
 
 export const lvUrAnnualReports: SourceLoader = {
   meta,
-  parserVersion: parserVersion(meta.id, 1, LV_FINANCIALS_FIELD_MAP, ITEMS),
+  parserVersion: parserVersion(meta.id, 2, LV_FINANCIALS_FIELD_MAP, ITEMS),
   fieldMap: LV_FINANCIALS_FIELD_MAP,
   fetch: async (ctx) => {
     const artifacts: RawArtifact[] = [];
@@ -313,7 +296,7 @@ export const lvUrAnnualReports: SourceLoader = {
     }
     return { artifacts };
   },
-  asOf: (raw) => lvAsOf(raw, STATEMENTS_FILE, (file) => [summary(file.bytes, today(raw)).lastFiled ?? ""], today(raw)),
+  asOf: (raw) => lvAsOf(raw, STATEMENTS_FILE, (file) => [summary(file, today(raw)).lastFiled ?? ""], today(raw)),
   parse: (raw, ctx) => annualReports(raw, ctx),
   windowStart: lvFinancialsWindowStart,
 };
