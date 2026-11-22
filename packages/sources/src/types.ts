@@ -88,6 +88,11 @@ export type PartyRef = {
   code?: { country: string; value: string } | null;
   /** Entities to load when the party is proven a company (the relationship row, the party itself). */
   entities: ParsedEntity[];
+  /**
+   * The index of another party of the same record that must be proven too: a counterparty known by
+   * name loads only alongside the subject it is linked to (an LV sanctions link, N4 on S05).
+   */
+  needs?: number;
 };
 
 export type { DropReason } from "@finora/domain";

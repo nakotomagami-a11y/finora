@@ -90,15 +90,42 @@ export function closedValue(values: ReadonlySet<string>, value: string, prop: st
 export const CURRENCIES: ReadonlySet<string> = new Set([...Intl.supportedValuesOf("currency"), "LVL"]);
 
 /**
- * A court or case number as the files write it: digits with capital letters and separators only, so
- * a name in the column is never stored. Anything else is dropped, counted.
+ * The letter parts of real LV case numbers (`C12345678`, `12345/123/2024-NOS`, `11.1-2.13.1/L-1234`):
+ * the court and authority prefixes and suffixes, measured on the 2026-11 insolvency and securing files
+ * (each seen 20 times or more). A case number may hold digits, these letter codes and separators only.
+ */
+export const CASE_LETTER_CODES: ReadonlySet<string> = new Set(["C", "L", "NOS", "NP", "NNVP", "P"]);
+
+/**
+ * A court or case number in one of the real formats: digits, separators and only the known letter
+ * codes (N2 in the S05 security re-check), so a name in the column is never stored, capitalised or
+ * not. Anything else is dropped, counted.
  */
 export function caseNumber(value: string, prop: string, dropped: Dropped[]): string | null {
   if (value === "") return null;
-  if (value.length <= 40 && /\d/.test(value) && /^[A-Z0-9 ./_-]+$/.test(value)) return value;
+  const shaped = value.length <= 40 && /\d/.test(value) && /^[A-Z0-9 ./_-]+$/.test(value);
+  if (shaped && (value.match(/[A-Z]+/g) ?? []).every((letters) => CASE_LETTER_CODES.has(letters))) return value;
   dropped.push({ reason: "free_text", prop });
   return null;
 }
+
+/** ISO 3166-1 alpha-2 country codes, lower-case (N5 in the S05 security re-check). */
+export const COUNTRIES: ReadonlySet<string> = new Set([
+  "ad", "ae", "af", "ag", "ai", "al", "am", "ao", "aq", "ar", "as", "at", "au", "aw", "ax", "az", "ba", "bb",
+  "bd", "be", "bf", "bg", "bh", "bi", "bj", "bl", "bm", "bn", "bo", "bq", "br", "bs", "bt", "bv", "bw", "by",
+  "bz", "ca", "cc", "cd", "cf", "cg", "ch", "ci", "ck", "cl", "cm", "cn", "co", "cr", "cu", "cv", "cw", "cx",
+  "cy", "cz", "de", "dj", "dk", "dm", "do", "dz", "ec", "ee", "eg", "eh", "er", "es", "et", "fi", "fj", "fk",
+  "fm", "fo", "fr", "ga", "gb", "gd", "ge", "gf", "gg", "gh", "gi", "gl", "gm", "gn", "gp", "gq", "gr", "gs",
+  "gt", "gu", "gw", "gy", "hk", "hm", "hn", "hr", "ht", "hu", "id", "ie", "il", "im", "in", "io", "iq", "ir",
+  "is", "it", "je", "jm", "jo", "jp", "ke", "kg", "kh", "ki", "km", "kn", "kp", "kr", "kw", "ky", "kz", "la",
+  "lb", "lc", "li", "lk", "lr", "ls", "lt", "lu", "lv", "ly", "ma", "mc", "md", "me", "mf", "mg", "mh", "mk",
+  "ml", "mm", "mn", "mo", "mp", "mq", "mr", "ms", "mt", "mu", "mv", "mw", "mx", "my", "mz", "na", "nc", "ne",
+  "nf", "ng", "ni", "nl", "no", "np", "nr", "nu", "nz", "om", "pa", "pe", "pf", "pg", "ph", "pk", "pl", "pm",
+  "pn", "pr", "ps", "pt", "pw", "py", "qa", "re", "ro", "rs", "ru", "rw", "sa", "sb", "sc", "sd", "se", "sg",
+  "sh", "si", "sj", "sk", "sl", "sm", "sn", "so", "sr", "ss", "st", "sv", "sx", "sy", "sz", "tc", "td", "tf",
+  "tg", "th", "tj", "tk", "tl", "tm", "tn", "to", "tr", "tt", "tv", "tw", "tz", "ua", "ug", "um", "us", "uy",
+  "uz", "va", "vc", "ve", "vg", "vi", "vn", "vu", "wf", "ws", "ye", "yt", "za", "zm", "zw",
+]);
 
 /** An LV register code as the files write it: spaces and a stray `'` quoting stripped. */
 export const cleanCode = (value: string) => value.replace(/[\s']/g, "");

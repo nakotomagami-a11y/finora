@@ -28,4 +28,14 @@ describe("csvRowsChunked", () => {
     };
     expect(() => [...csvRowsChunked(long())]).toThrow(CsvError);
   });
+
+  it("reads each character once, however small the chunks (N7)", () => {
+    const big = `a,"${"x".repeat(400_000)}"
+1,2
+`;
+    const started = performance.now();
+    const rows = [...csvRowsChunked(big.split(""))];
+    expect(rows.map((r) => r[1]!.length)).toEqual([400_000, 1]);
+    expect(performance.now() - started).toBeLessThan(5_000);
+  });
 });

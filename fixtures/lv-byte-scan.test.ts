@@ -11,7 +11,7 @@ import { LV_BIRTH_DATE_CANARY, LV_LIQUIDATION_GROUND_CANARY, LV_RISK_CANARIES, l
 import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { FIXTURE_PROFILE } from "./src/index.ts";
-import { fxLvUrOfficers } from "./src/loaders.ts";
+import { fxLvUrOfficers, fxLvUrRegister, fxLvUrSanctionsLinks } from "./src/loaders.ts";
 
 const noNetwork = async (): Promise<never> => {
   throw new Error("the fixture profile never fetches");
@@ -77,6 +77,32 @@ describe("LV fixture load: data dir and raw dir byte scan", () => {
       expect(scanStore(db, ["Sample Holdings Ltd"])).toEqual([]);
       close();
     }
+  });
+
+  it("loads a sanctions counterparty known by name only through the party gate (N4)", async () => {
+    const counterparty = async (types: string[]) => {
+      const { db, close } = openStore({ dataDir: null });
+      await runSync(db, fxLvUrRegister, { fetcher: noNetwork });
+      const outcome = await runSync(db, fxLvUrSanctionsLinks, { fetcher: noNetwork, companyPartyTypes: types });
+      const parties = (db.prepare("SELECT data FROM main.events WHERE data LIKE '%foreign_company%'").all() as { data: string }[]).map((r) => (JSON.parse(r.data) as { party: string | null }).party);
+      const result = { outcome, parties, names: scanStore(db, ["Sample Trading LLC"]).length, orgs: (db.prepare("SELECT COUNT(*) AS n FROM main.entities WHERE eid LIKE 'org-%'").get() as { n: number }).n };
+      close();
+      return result;
+    };
+    const unproven = await counterparty([]);
+    expect(unproven.outcome.report?.dropped.party_not_proven).toBeGreaterThan(0);
+    expect(unproven.names).toBe(0);
+    expect(unproven.orgs).toBe(0);
+    // The subject's link stays; the unproven counterparty is withheld for good, not retried.
+    expect(unproven.parties).toEqual([undefined]);
+    expect(unproven.outcome.report?.dropped.reference_unresolved).toBeUndefined();
+    const proven = await counterparty(COMPANY_PARTY_TYPES);
+    expect(proven.names).toBeGreaterThan(0);
+    // One org: link 8107's subject is in no register, so its counterparty is not loaded either (needs).
+    expect(proven.orgs).toBe(1);
+    expect(proven.parties).toHaveLength(1);
+    expect(proven.parties[0]).toMatch(/^org-[0-9a-f]{20}$/);
+    expect(proven.outcome.report?.dropped.reference_unresolved).toBeUndefined();
   });
 
   it("keeps every person line under its own company's officer set, and no person row id anywhere else (legal)", async () => {

@@ -39,7 +39,7 @@ export const LV_RISK_UNKNOWN_CODE = lvFixtureCode(96);
 
 const insolvency = (id: string, n: number | string, started: string, ended: string, form: string, type: string, subtype: string, resolution: string, court: string) => [
   id, "Debtor Name", typeof n === "number" ? lvFx(n).code : n, "debtor name", LV_RISK_CANARIES.debtorAddress, started, ended, form, type, subtype,
-  resolution, resolution ? "Lietas izbeigšana" : "", `${started} 10:00:00`, court, "C01", court ? "Fixture District Court" : "", "", "", "", "", "", "L-1", "1",
+  resolution, resolution ? "Lietas izbeigšana" : "", `${started} 10:00:00`, court, "C01", court ? "Rīgas pilsētas tiesa" : "", "", "", "", "", "", "L-1", "1",
 ];
 
 export const lvInsolvencyCsv = () =>

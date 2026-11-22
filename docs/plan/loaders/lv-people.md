@@ -250,3 +250,4 @@ A storage-class or licence-class change (A7) is a full reload into the new class
 - The officers' hash input holds the stored values (closed-set role, body, signing right, parsed start date), not the raw columns.
 - A foreign officer (`FOREIGN_ENTITY`) loads only through the party gate, like a member: a party the gate proves a company keeps its company name, in both `LV_PERSON_ROWS` modes; an unproven one is dropped as `party_not_proven` in every mode (legal on SEC-9).
 - No LV file is kept in the raw cache (`rawCache: false`); a mode switch re-fetches. Tested by the data-dir and raw-dir byte scan after a full LV fixture load in both modes (`fixtures/lv-byte-scan.test.ts`).
+- **Line ids (N1 in the security re-check):** only the register's shape is kept, 1-12 digits (the 2026-11 files hold 1-8) that fit no personal-code shape. Anything else is nulled and counted: `personal_code` for a code shape, `free_text` otherwise.

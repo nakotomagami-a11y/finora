@@ -6,8 +6,8 @@
 import { createHash } from "node:crypto";
 import { LEGAL_FORMS, legalForm, type DropReason } from "@finora/domain";
 import { parserVersion } from "../../parser-version.ts";
-import type { EventInput, FieldMap, ParseContext, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
-import { artifact, caseNumber, cleanCode, closedValue, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
+import type { EventInput, FieldMap, ParseContext, ParsedRecord, PartyRef, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
+import { artifact, caseNumber, cleanCode, closedValue, COUNTRIES, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
 
 const S09 = "S09.LV.01";
 const S11 = "S11.LV.01";
@@ -122,6 +122,21 @@ const INSOLVENCY_COLUMNS = [
 const PROCEEDING_FORMS = new Set(["INSOLVENCY", "LEGAL_PROTECTION", "OUT_OF_COURT_LEGAL_PROTECTION"]);
 const PROCEEDING_TYPES = new Set(["NATIONAL", "CROSS_BORDER"]);
 const PROCEEDING_SUBTYPES = new Set(["MAIN", "SECONDARY"]);
+/**
+ * The courts that hear LV insolvency cases, as the file names them (public bodies; all 46 in the
+ * 2026-11 file). Any other value is not stored, counted (N3 in the S05 security re-check).
+ */
+export const LV_COURTS: ReadonlySet<string> = new Set([
+  "Rīgas pilsētas Vidzemes priekšpilsētas tiesa", "Rīgas pilsētas Latgales priekšpilsētas tiesa", "Rīgas rajona tiesa", "Rīgas pilsētas tiesa",
+  "Rīgas pilsētas Kurzemes rajona tiesa", "Rīgas pilsētas Centra rajona tiesa", "Rīgas pilsētas Zemgales priekšpilsētas tiesa",
+  "Rīgas pilsētas Ziemeļu rajona tiesa", "Liepājas tiesa", "Daugavpils tiesa", "Rīgas pilsētas Pārdaugavas tiesa", "Zemgales rajona tiesa",
+  "Kurzemes rajona tiesa", "Jelgavas tiesa", "Rēzeknes tiesa", "Vidzemes rajona tiesa", "Ogres rajona tiesa", "Ventspils tiesa", "Cēsu rajona tiesa",
+  "Valmieras rajona tiesa", "Tukuma rajona tiesa", "Siguldas tiesa", "Saldus rajona tiesa", "Kuldīgas rajona tiesa", "Limbažu rajona tiesa",
+  "Jūrmalas pilsētas tiesa", "Madonas rajona tiesa", "Latgales rajona tiesa", "Talsu rajona tiesa", "Preiļu rajona tiesa", "Bauskas rajona tiesa",
+  "Gulbenes rajona tiesa", "Jēkabpils rajona tiesa", "Valkas rajona tiesa", "Aizkraukles rajona tiesa", "Rīgas rajona tiesa Jūrmalas tiesu nams",
+  "Alūksnes rajona tiesa", "Dobeles rajona tiesa", "Ludzas rajona tiesa", "Balvu rajona tiesa", "Krāslavas rajona tiesa", "Rīgas apgabaltiesa",
+  "Augstākā tiesa", "Kurzemes apgabaltiesa", "Vidzemes apgabaltiesa Valmierā", "Latgales apgabaltiesa Rēzeknē",
+]);
 
 function insolvencyRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
   const code = subjectOf(row, "debtor_registration_number", ctx);
@@ -143,15 +158,19 @@ function insolvencyRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
   const entityEid = `lv-${code}`;
   const shared = { form, scope, subtype };
   const courtCase = caseNumber(row.get("court_case_initial_number"), "court_case_initial_number", dropped);
+  const courtName = row.get("court_name");
+  const court = LV_COURTS.has(courtName) ? courtName : null;
+  if (courtName && !court) dropped.push({ reason: "unknown_enum", prop: "court_name" });
   const events: EventInput[] = [
-    { entityEid, type: "register.insolvency_opened", date: opened, itemId: S09, data: { ...shared, courtCase, court: row.get("court_name") || null } },
+    { entityEid, type: "register.insolvency_opened", date: opened, itemId: S09, data: { ...shared, courtCase, court } },
   ];
   if (closed) events.push({ entityEid, type: "register.insolvency_closed", date: closed, itemId: S09, data: { ...shared, resolution } });
   return withDropped(
     {
       recordKey: row.get("proceeding_id"),
       rowRef: `line ${row.line}`,
-      hashInput: [`lv-${code}`, ...INSOLVENCY_COLUMNS.slice(2, 10).map((c) => row.get(c))],
+      // The stored values only, never a raw column (a name in court_name stays out of the hash).
+      hashInput: [`lv-${code}`, opened, closed ?? "", form, scope ?? "", subtype ?? "", resolution ?? "", courtCase ?? "", court ?? ""],
       entities: [],
       events,
     },
@@ -280,6 +299,8 @@ const LINK_POSITIONS = new Set([
   "PERSON_ACTUALLY_EXERCISING_CONTROL", "BENEFICIARY_CONTROL_LEGAL_ENTITY", "HUSBAND",
 ]);
 const LISTS = new Set(["ES_SANCTIONS", "LV_SANCTIONS", "SDN_OFAC_SANCTIONS"]);
+/** The sanctions programmes the file names (all 7 in the 2026-11 file); any other is not stored, counted (N3). */
+const PROGRAMMES = new Set(["UKR", "RUSSIA-EO14024", "BLR", "GLOMAG", "DPRK", "BELARUS-EO14038", "KRIEVIJA"]);
 const PARTY_TYPES: Readonly<Record<string, string>> = { NATURAL_PERSON: "person", LEGAL_ENTITY: "company", FOREIGN_ENTITY: "foreign_company" };
 
 /** Hosts a legal-base link may point at: the EU and Latvian official journals. */
@@ -303,6 +324,10 @@ export function companyForm(formCode: string): boolean {
   return suffix ? legalForm(`lv-${suffix.toLowerCase()}`)?.naturalPerson === false : false;
 }
 
+/** `org-<20 hex>` for a counterparty known only by name (§3.4): scoped to the subject and the row. */
+const counterpartyEid = (subject: string, rowId: string) =>
+  `org-${createHash("sha256").update(JSON.stringify(["lv-ur-sanctions-links", `lv-${subject}`, rowId])).digest("hex").slice(0, 20)}`;
+
 function sanctionsRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
   const subject = subjectOf(row, "sanctions_subject_registration_number", ctx);
   if (subject === null) return null;
@@ -320,9 +345,11 @@ function sanctionsRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
   const dropped: Dropped[] = [];
   const position = closedValue(LINK_POSITIONS, row.get("position"), "position", dropped);
   const list = row.get("list") ? closedValue(LISTS, row.get("list"), "list", dropped) : null;
+  const programme = row.get("program") ? closedValue(PROGRAMMES, row.get("program"), "program", dropped) : null;
   let party: string | null = null;
-  let partyName: string | null = null;
   let partyCountry: string | null = null;
+  /** A counterparty known only by name: it loads through the party gate, as a holder does (N4). */
+  let named: PartyRef | null = null;
   if (entityType === "NATURAL_PERSON") {
     // Only the type and the role survive: the person's identity comes from the official lists.
     for (const column of ["name", "nationality"]) if (row.get(column)) dropped.push({ reason: "natural_person_party" });
@@ -332,10 +359,16 @@ function sanctionsRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
     const code = cleanCode(row.get("legal_entity_registration_number"));
     if (entityType === "LEGAL_ENTITY" && company && code && lvCodeProblem(code) === null) party = `lv-${code}`;
     else if (company) {
-      partyName = row.get("legal_entity_name").replace(/\s+/g, " ") || null;
       const country = row.get("legal_entity_country").toLowerCase();
-      partyCountry = /^[a-z]{2,3}$/.test(country) ? country : null;
+      partyCountry = COUNTRIES.has(country) ? country : null;
       if (country && !partyCountry) dropped.push({ reason: "unknown_enum", prop: "country" });
+      const name = row.get("legal_entity_name").replace(/\s+/g, " ").trim();
+      if (name) {
+        // The register types the party; the gate decides whether that type proves a company. Unproven,
+        // the name is dropped as party_not_proven in every LV_PERSON_ROWS mode (legal on SEC-9).
+        party = counterpartyEid(subject, row.get("id"));
+        named = { type: entityType, needs: 0, entities: [{ eid: party, schema: "Organization", country: partyCountry ?? "intl", statements: [{ prop: "name", value: name, itemId: S11 }] }] };
+      }
     } else if (row.get("legal_entity_name")) dropped.push({ reason: "natural_person_party" });
   }
   const rawUrl = row.get("legal_base_url");
@@ -347,16 +380,16 @@ function sanctionsRow(row: CsvRecord, ctx: ParseContext): ParsedRecord | null {
     type: "register.sanctions_link",
     date,
     itemId: S11,
-    data: { role: position, partyType, party, partyName, partyCountry, list, programme: row.get("program") || null, legalBaseUrl, registeredOn },
+    data: { role: position, partyType, party, partyCountry, list, programme, legalBaseUrl, registeredOn },
   };
   return withDropped(
     {
       recordKey: row.get("id"),
       rowRef: `line ${row.line}`,
-      hashInput: [`lv-${subject}`, position, entityType, party ?? "", partyName ?? "", partyCountry ?? "", list ?? "", row.get("program"), row.get("entry_date"), legalBaseUrl ?? ""],
+      hashInput: [`lv-${subject}`, position, entityType, party ?? "", named?.entities[0]?.statements[0]?.value ?? "", partyCountry ?? "", list ?? "", programme ?? "", date, legalBaseUrl ?? ""],
       entities: [],
       // The subject must resolve to a register entity that is not a natural-person form (party gate).
-      parties: [{ code: { country: "lv", value: subject }, entities: [], events: [event] }],
+      parties: [{ code: { country: "lv", value: subject }, entities: [], events: [event] }, ...(named ? [named] : [])],
     },
     dropped,
   );
@@ -373,7 +406,7 @@ export const lvUrInsolvency = loader({
   columns: INSOLVENCY_COLUMNS,
   dateColumn: "entry_created_on",
   fieldMap: LV_UR_INSOLVENCY_FIELD_MAP,
-  revision: 2,
+  revision: 3,
   row: insolvencyRow,
 });
 
@@ -386,7 +419,7 @@ export const lvUrSecuringMeasures = loader({
   columns: ["id", "legal_entity_registration_number", "securing_measure_type", "type_details", "date_from", "case_number", "institution_registration_number", "institution_name"],
   dateColumn: "date_from",
   fieldMap: LV_UR_SECURING_MEASURES_FIELD_MAP,
-  revision: 2,
+  revision: 3,
   row: securingRow,
 });
 
@@ -412,7 +445,7 @@ export const lvUrSanctionsLinks = loader({
   columns: SANCTIONS_COLUMNS,
   dateColumn: "registered_on",
   fieldMap: LV_UR_SANCTIONS_LINKS_FIELD_MAP,
-  revision: 2,
+  revision: 3,
   row: sanctionsRow,
 });
 

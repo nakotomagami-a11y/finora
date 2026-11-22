@@ -225,3 +225,10 @@ The sanctions-link *party* gets a second check: natural-person parties keep only
 - Case numbers (`court_case_initial_number`, `case_number`) are kept only as digits with capital letters and separators (`/`, `.`, `-`, `_`, space), at most 40 characters; anything else is dropped as `free_text`, so a name in the column is never stored.
 - A sanctions-link party's country is kept only as a 2- or 3-letter code.
 - No LV file is kept in the raw cache (`rawCache: false`): the files hold natural persons. Each file streams to the sync's work dir and is parsed from there in chunks.
+
+## S05 security re-check (N2-N5)
+
+- **Case numbers (N2):** kept only when every letter run is a known code (`C`, `L`, `NOS`, `NP`, `NNVP`, `P`, each seen 20 or more times in the 2026-11 files), with digits and separators; anything else is dropped as `free_text`.
+- **Court and programme (N3):** `court_name` is kept only from the 46 courts in the 2026-11 file, and `program` only from its 7 programmes; anything else is not stored, counted `unknown_enum`. The insolvency hash holds the stored values only.
+- **A counterparty known by name (N4):** a `FOREIGN_ENTITY`, or a `LEGAL_ENTITY` with a company form and no usable code, becomes an `Organization` (`org-<20 hex>`, name only) in its own party, typed with the register's entity type, with `needs: 0`. It loads only when the party gate proves its type a company and the link's subject is proven too. The event holds `party: org-…`, never the name. An unproven counterparty's id is refused for good, never retried as `reference_unresolved`.
+- **Country (N5):** `partyCountry` is kept only as an ISO 3166-1 alpha-2 code.

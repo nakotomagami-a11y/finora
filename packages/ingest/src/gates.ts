@@ -104,11 +104,18 @@ export function applyGates(
 
   const parties: ParsedEntity[] = [];
   const partyEvents: NonNullable<ParsedRecord["events"]> = [];
-  for (const party of record.parties ?? []) {
-    if (partyProven(party, options.companyPartyTypes, options.lookup)) {
+  // Entities of a party the gate did not prove: a value naming one is refused for good, never
+  // retried as an unresolved reference (an LV sanctions counterparty known by name, N4 on S05).
+  const unproven = new Set<string>();
+  const proven = (record.parties ?? []).map((party) => partyProven(party, options.companyPartyTypes, options.lookup));
+  for (const [i, party] of (record.parties ?? []).entries()) {
+    if (proven[i] && (party.needs === undefined || proven[party.needs] === true)) {
       parties.push(...party.entities);
       partyEvents.push(...(party.events ?? []));
-    } else drop("party_not_proven");
+    } else {
+      drop("party_not_proven");
+      for (const e of party.entities) unproven.add(e.eid);
+    }
   }
 
   const natural = new Set<string>();
@@ -220,6 +227,11 @@ export function applyGates(
         // (legal). A company eid the store does not hold yet is withheld and retried (qa M5).
         // A person or relationship row id never travels in event data (PS5; qa M4 on S05), and an id
         // shaped like a Baltic register eid that fails its check is not a company (qa M4).
+        // Already counted once, as the party's party_not_proven.
+        if (typeof value === "string" && unproven.has(value) && !recordEids.has(value)) {
+          refused.push(value);
+          continue;
+        }
         if (typeof value === "string" && (isInternalEid(value) || (/^(lv|ee|lt)-\d{6,}$/.test(value) && !companyEidShape(value)))) {
           drop(isInternalEid(value) ? "person_field" : "invalid_code");
           refused.push(value);

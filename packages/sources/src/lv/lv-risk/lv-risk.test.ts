@@ -22,7 +22,7 @@ describe("lv-ur-insolvency (lv-risk.md)", () => {
   it("writes an opened event, and a closed event only when the proceeding ended", async () => {
     const { records } = await parse();
     expect(byKey(records, "5001").events).toEqual([
-      { entityEid: eid(17), type: "register.insolvency_opened", date: "2026-10-01", itemId: "S09.LV.01", data: { form: "INSOLVENCY", scope: "NATIONAL", subtype: null, courtCase: "C30-0001-26", court: "Fixture District Court" } },
+      { entityEid: eid(17), type: "register.insolvency_opened", date: "2026-10-01", itemId: "S09.LV.01", data: { form: "INSOLVENCY", scope: "NATIONAL", subtype: null, courtCase: "C30-0001-26", court: "Rīgas pilsētas tiesa" } },
     ]);
     expect(byKey(records, "5002").events?.[1]).toEqual({ entityEid: eid(6), type: "register.insolvency_closed", date: "2019-04-04", itemId: "S09.LV.01", data: { form: "INSOLVENCY", scope: "NATIONAL", subtype: null, resolution: "M06" } });
     expect(byKey(records, "5006").events?.[0]?.data).toMatchObject({ scope: "CROSS_BORDER", subtype: "MAIN" });
@@ -105,20 +105,28 @@ describe("lv-ur-sanctions-links (lv-risk.md)", () => {
       type: "register.sanctions_link",
       date: "2022-04-08",
       itemId: "S11.LV.01",
-      data: { role: "BENEFICIAL_OWNER", partyType: "person", party: null, partyName: null, partyCountry: null, list: "ES_SANCTIONS", programme: "UKR", legalBaseUrl: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0269", registeredOn: "2026-10-20" },
+      data: { role: "BENEFICIAL_OWNER", partyType: "person", party: null, partyCountry: null, list: "ES_SANCTIONS", programme: "UKR", legalBaseUrl: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0269", registeredOn: "2026-10-20" },
     });
     expect(byKey(records, "8101").dropped).toEqual([{ reason: "natural_person_party" }, { reason: "natural_person_party" }, { reason: "personal_code" }, { reason: "personal_code" }]);
     for (const r of records) for (const h of r.hashInput) expect(h).not.toContain(LV_RISK_CANARIES.sanctionedPerson);
   });
 
-  it("loads every link only through the party gate on its subject, and never creates an entity", async () => {
+  it("loads every link only through the party gate on its subject, and a named counterparty only through its own", async () => {
     const { records, drops } = await parse();
     for (const r of records) {
       expect(r.entities).toEqual([]);
       expect(r.events).toBeUndefined();
-      expect(r.parties).toHaveLength(1);
       expect(r.parties![0]!.type).toBeUndefined();
+      expect(r.parties![0]!.entities).toEqual([]);
+      // A second party is the counterparty known by name, gated on its register type (N4).
+      for (const p of r.parties!.slice(1)) {
+        expect(p.code).toBeUndefined();
+        expect(p.events).toBeUndefined();
+        expect(p.entities.map((e) => e.schema)).toEqual(["Organization"]);
+      }
     }
+    expect(byKey(records, "8103").parties!.map((p) => p.type)).toEqual([undefined, "FOREIGN_ENTITY"]);
+    expect(byKey(records, "8102").parties).toHaveLength(1);
     expect(byKey(records, "8105").parties![0]!.code).toEqual({ country: "lv", value: lvFx(4).code });
     expect(byKey(records, "8107").parties![0]!.code).toEqual({ country: "lv", value: LV_RISK_UNKNOWN_CODE });
     expect(drops).toEqual(["no_code"]);
@@ -126,9 +134,13 @@ describe("lv-ur-sanctions-links (lv-risk.md)", () => {
 
   it("links a company party by its code, keeps a foreign party's name and country, and never names an NP-form party", async () => {
     const { records } = await parse();
-    expect(linkOf(records, "8102").data).toMatchObject({ role: "SHAREHOLDER", partyType: "company", party: eid(1), partyName: null, list: "SDN_OFAC_SANCTIONS" });
-    expect(linkOf(records, "8103").data).toMatchObject({ role: "FOUNDER", partyType: "foreign_company", party: null, partyName: "Sample Trading LLC", partyCountry: "ru", list: "LV_SANCTIONS" });
-    expect(linkOf(records, "8104").data).toMatchObject({ role: "unspecified", partyType: "company", party: null, partyName: null, partyCountry: null });
+    expect(linkOf(records, "8102").data).toMatchObject({ role: "SHAREHOLDER", partyType: "company", party: eid(1), list: "SDN_OFAC_SANCTIONS" });
+    const foreign = byKey(records, "8103").parties![1]!.entities[0]!;
+    expect(foreign).toMatchObject({ schema: "Organization", country: "ru", statements: [{ prop: "name", value: "Sample Trading LLC", itemId: "S11.LV.01" }] });
+    expect(foreign.eid).toMatch(/^org-[0-9a-f]{20}$/);
+    expect(linkOf(records, "8103").data).toMatchObject({ role: "FOUNDER", partyType: "foreign_company", party: foreign.eid, partyCountry: "ru", list: "LV_SANCTIONS" });
+    expect(JSON.stringify(linkOf(records, "8103").data)).not.toContain("Sample Trading");
+    expect(linkOf(records, "8104").data).toMatchObject({ role: "unspecified", partyType: "company", party: null, partyCountry: null });
     expect(byKey(records, "8104").dropped).toEqual([{ reason: "natural_person_party" }]);
     expect(JSON.stringify(records)).not.toContain("IK Test Person A");
   });

@@ -9,8 +9,8 @@ import { lvCsv } from "./fixture-csv.ts";
 import { lvFx } from "./fixture-world.ts";
 import { lvMembersCsv, lvOfficersCsv } from "./lv-people/fixture.ts";
 import { lvUrMembers, lvUrOfficers, lvUrOfficersLoader } from "./lv-people/lv-people.ts";
-import { LV_SANCTIONS_HEADER, LV_SECURING_HEADER, LV_SUSPENSIONS_HEADER } from "./lv-risk/fixture.ts";
-import { lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions } from "./lv-risk/lv-risk.ts";
+import { LV_INSOLVENCY_HEADER, LV_SANCTIONS_HEADER, LV_SECURING_HEADER, LV_SUSPENSIONS_HEADER } from "./lv-risk/fixture.ts";
+import { lvUrInsolvency, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions } from "./lv-risk/lv-risk.ts";
 import { lvUrLiquidations, lvUrReorganizations } from "./lv-ur-register/lv-ur-register.ts";
 
 /** A fictional name placed in every enum column: it must never survive a parse. */
@@ -109,5 +109,55 @@ describe("LV event data stores closed sets and case-number shapes only", () => {
     const b = await parseAll(lvUrReorganizations, [art("reorganizations.csv", rows("rejected 2"))]);
     expect(a.records[0]!.hashInput).toEqual(b.records[0]!.hashInput);
     expect(JSON.stringify(a.records[0]!.hashInput)).not.toContain("rejected");
+  });
+});
+
+// The S05 security re-check (N1-N5): each field below once let a name through.
+describe("names in id, case-number, court, programme and country columns are never stored", () => {
+  const row = (header: readonly string[], values: Record<string, string>) => header.map((h) => values[h] ?? "");
+
+  it("keeps only digit ids of up to 12 digits (N1), in both modes and in members", async () => {
+    for (const loader of [lvUrOfficers, lvUrOfficersLoader({ personRows: "role_counts" })]) {
+      const { records } = await parseAll(loader, [art("officers.csv", lvOfficersCsv([{ id: "Test Person Canary" as never, n: 1, position: "BOARD_MEMBER", name: "Test Person Q1", rights: "INDIVIDUALLY", registered: "2020-01-01" }, { id: 5003, n: 1, position: "BOARD_MEMBER", name: "Test Person Q2", rights: "INDIVIDUALLY", registered: "2020-01-01" }]))]);
+      expect(JSON.stringify(records)).not.toContain("Canary");
+      expect(records[0]!.lineIds).toEqual([null, "5003"]);
+      expect(records[0]!.dropped).toContainEqual({ reason: "free_text" });
+    }
+    const members = await parseAll(lvUrMembers, [art("members.csv", lvMembersCsv([{ id: "TEST PERSON CANARY 1" as never, n: 2, type: "FOREIGN_ENTITY", name: "Sample Holdings Ltd", shares: "5", nominal: "1.00" }]))]);
+    expect(members.records[0]!.lineIds).toEqual([null]);
+    expect(JSON.stringify(members.records)).not.toContain("CANARY");
+  });
+
+  it("keeps a case number only with the known letter codes, so a capitalised name with a digit is dropped (N2)", async () => {
+    const securing = (caseNo: string) => lvCsv(LV_SECURING_HEADER, [["6301", lvFx(22).code, "LIEN", "", "", "2026-11-17", caseNo, "", "", ""]]);
+    for (const caseNo of ["TEST PERSON 1", "CANARY-12", "12345/123/2024-NOSX"]) {
+      const { records } = await parseAll(lvUrSecuringMeasures, [art("securing_measures.csv", securing(caseNo))]);
+      expect(records[0]!.events![0]!.data!.case, caseNo).toBeNull();
+      expect(records[0]!.dropped).toContainEqual({ reason: "free_text", prop: "case_number" });
+    }
+    for (const caseNo of ["12345/123/2024-NOS", "11.1-2.13.1/L-1234", "C30-0001-26", "12.3/45.67.8/12345"]) {
+      const { records } = await parseAll(lvUrSecuringMeasures, [art("securing_measures.csv", securing(caseNo))]);
+      expect(records[0]!.events![0]!.data!.case, caseNo).toBe(caseNo);
+    }
+  });
+
+  it("keeps a court only from the courts list and a programme only from the programme list (N3)", async () => {
+    const insolvency = lvCsv(LV_INSOLVENCY_HEADER, [
+      row(LV_INSOLVENCY_HEADER, { proceeding_id: "5101", debtor_registration_number: lvFx(17).code, proceeding_started_on: "2026-10-01", proceeding_form: "INSOLVENCY", proceeding_type: "NATIONAL", court_case_initial_number: "C30-0002-26", court_name: NAME }),
+      row(LV_INSOLVENCY_HEADER, { proceeding_id: "5102", debtor_registration_number: lvFx(17).code, proceeding_started_on: "2026-10-02", proceeding_form: "INSOLVENCY", proceeding_type: "NATIONAL", court_name: "Liepājas tiesa" }),
+    ]);
+    const { records } = await parseAll(lvUrInsolvency, [art("insolvency_legal_person_proceeding.csv", insolvency)]);
+    expect(JSON.stringify(records)).not.toContain("Canary");
+    expect(records.map((r) => r.events![0]!.data!.court)).toEqual([null, "Liepājas tiesa"]);
+    expect(records[0]!.dropped).toContainEqual({ reason: "unknown_enum", prop: "court_name" });
+    const link = (program: string, country: string) =>
+      lvCsv(LV_SANCTIONS_HEADER, [row(LV_SANCTIONS_HEADER, { id: "9201", registered_on: "2022-04-08", entity_type: "FOREIGN_ENTITY", legal_entity_name: "Sample Trading LLC", legal_entity_country: country, position: "FOUNDER", list: "ES_SANCTIONS", program, sanctions_subject_registration_number: lvFx(1).code, entry_date: "2022-04-08" })]);
+    const named = await parseAll(lvUrSanctionsLinks, [art("sanctions.csv", link(NAME, "ZZ"))]);
+    expect(JSON.stringify(named.records)).not.toContain("Canary");
+    const data = named.records[0]!.parties![0]!.events![0]!.data!;
+    // N5: "zz" has the shape of a country code but is not an ISO 3166-1 code.
+    expect([data.programme, data.partyCountry]).toEqual(["unspecified", null]);
+    const known = await parseAll(lvUrSanctionsLinks, [art("sanctions.csv", link("RUSSIA-EO14024", "GB"))]);
+    expect(known.records[0]!.parties![0]!.events![0]!.data).toMatchObject({ programme: "RUSSIA-EO14024", partyCountry: "gb" });
   });
 });

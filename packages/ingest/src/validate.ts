@@ -46,6 +46,7 @@ const record = z.strictObject({
         code: z.strictObject({ country: text, value: text }).nullish(),
         entities: z.array(entity),
         events: z.array(event).optional(),
+        needs: z.number().int().nonnegative().optional(),
       }),
     )
     .optional(),
