@@ -9,6 +9,7 @@ import {
   isNaturalPerson,
   isProp,
   item,
+  NAME_PROPS,
   naturalPersonDrop,
   PERSON_EID,
   freeTextHoldsPersonalCode,
@@ -119,8 +120,10 @@ export function applyGates(
       drop("party_not_proven");
       for (const e of party.entities) {
         unproven.add(e.eid);
-        // Its values are not stored, so no record hash covers them either (masked, like a refused code).
-        for (const s of e.statements) if (s.value) refused.push(s.value);
+        // Its names are not stored, so no record hash covers them either (masked, like a refused code).
+        // Only names: codes, counts and dates are no guessable name, so their changes still change the
+        // hash (legal 7083504293, 7083515683).
+        for (const s of e.statements) if (s.value && (NAME_PROPS as readonly string[]).includes(s.prop)) refused.push(s.value);
       }
     }
   }

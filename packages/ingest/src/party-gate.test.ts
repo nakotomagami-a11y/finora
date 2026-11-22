@@ -110,4 +110,11 @@ describe("a party that needs another (PartyRef.needs)", () => {
     links.state.asOf = { in_file_field: "2026-11-02" };
     expect((await sync(db, links, { companyPartyTypes: COMPANY_TYPES })).report?.written).toBe(1);
   });
+
+  it("only names are masked: a change to an unproven party's code still changes the hash (legal scope)", () => {
+    const party = (code: string): PartyRef => ({ type: "JOINT_OWNERS", entities: [{ eid: "org-00000000000000000009", schema: "Organization", country: "intl", statements: [{ prop: "name", value: "Scope Holding", itemId: "S04.LV.01" }, { prop: "alias", value: "Scope Alias", itemId: "S04.LV.01" }, { prop: "registrationNumber", value: code, itemId: "S04.LV.01" }] }] });
+    const refused = applyGates(membersRecord([subject("00000000001"), party("777")]), { companyPartyTypes: COMPANY_TYPES, lookup }).refused;
+    expect(refused).toEqual(expect.arrayContaining(["Scope Holding", "Scope Alias"]));
+    expect(refused).not.toContain("777");
+  });
 });
