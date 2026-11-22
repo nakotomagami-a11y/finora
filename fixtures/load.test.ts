@@ -1,7 +1,10 @@
 import { runSync } from "@finora/ingest";
+import { DEFAULT_LOADER_CONFIG } from "@finora/sources";
 import { openStore, scanStore, searchCompanies } from "@finora/store";
 import { describe, expect, it } from "vitest";
-import { FIXTURE_PROFILE } from "./src/loaders.ts";
+import { fixtureProfileFor } from "./src/loaders.ts";
+
+const FIXTURE_PROFILE = fixtureProfileFor(DEFAULT_LOADER_CONFIG);
 
 const noNetwork = async (): Promise<never> => {
   throw new Error("the fixture profile never fetches");
@@ -56,14 +59,17 @@ describe("the fixture profile loads end to end (S04f)", () => {
   });
 
   it("loads within the relative budget (the absolute number is in docs/plan/benchmarks.md)", async () => {
+    // 53-58 units on dev-desktop-1 (about 0.5 s); the limit leaves room for slow CI runners.
+    const LIMIT = 400;
     const times: number[] = [];
-    for (let i = 0; i < 2; i++) {
+    // At least 2 rounds, and more (up to 6) while the best is over the limit: contention from other
+    // test files slows some rounds, a real regression slows every one, so it still fails (qa NIT).
+    while (times.length < 2 || (Math.min(...times) >= LIMIT && times.length < 6)) {
       const unit = calibrate();
       const start = performance.now();
       await loadAll();
       times.push((performance.now() - start) / Math.min(unit, calibrate()));
     }
-    // 53-58 units on dev-desktop-1 (about 0.5 s); the limit leaves room for slow CI runners.
-    expect(Math.min(...times)).toBeLessThan(400);
-  }, 120_000);
+    expect(Math.min(...times)).toBeLessThan(LIMIT);
+  }, 300_000);
 });

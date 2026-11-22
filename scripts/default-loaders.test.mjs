@@ -1,7 +1,7 @@
-// The default-config loader lists (LOADERS, FIXTURE_PROFILE) are for tests and listings only: a
-// product module that synced from one would store officer names for a user who chose role_counts
-// (SEC-1 on S05; qa NIT on 2cba19a). A sync builds its own list with loadersFor(config) or
-// fixtureProfileFor(config).
+// No product module builds loaders on the default config: one that synced from them would store
+// officer names for a user who chose role_counts (SEC-1 on S05; qa, legal). A sync builds its list
+// with loadersFor(config) or fixtureProfileFor(config) from the run's own config; listings use the
+// meta-only SOURCE_METAS.
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -9,9 +9,9 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const LISTS = /\b(LOADERS|FIXTURE_PROFILE)\b/;
-/** Where the lists are defined and re-exported. */
-const DEFINED = new Set(["packages/sources/src/registry.ts", "packages/sources/src/index.ts", "fixtures/src/loaders.ts", "fixtures/src/index.ts"]);
+const LISTS = /\bDEFAULT_LOADER_CONFIG\b/;
+/** Where the default is defined, re-exported, and compared against (the fixture officers file). */
+const DEFINED = new Set(["packages/sources/src/registry.ts", "packages/sources/src/index.ts", "fixtures/src/loaders.ts"]);
 const isTest = (path) => /\.test\.tsx?$/.test(path) || /\.spec\.tsx?$/.test(path) || path.includes("/testing/") || path.includes("/e2e/");
 
 /** Every product source file of the workspace, as a repo-relative path. */
@@ -32,13 +32,13 @@ function productFiles(root = ROOT) {
   });
 }
 
-test("no product module uses a default-config loader list", () => {
+test("no product module uses the default loader config", () => {
   const files = productFiles();
   assert.ok(files.length > 100, "the scan sees the workspace");
   const users = files.filter((p) => !DEFINED.has(p) && LISTS.test(readFileSync(join(ROOT, p), "utf8")));
   assert.deepEqual(users, []);
 });
 
-test("the control: the scan finds the lists where they are defined", () => {
+test("the control: the scan finds the default where it is defined", () => {
   for (const path of DEFINED) assert.ok(LISTS.test(readFileSync(join(ROOT, path), "utf8")), path);
 });

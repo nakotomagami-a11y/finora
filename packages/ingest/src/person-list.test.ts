@@ -4,7 +4,7 @@
 import fs, { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { clearPersonList, PERSON_LISTS, personListHeld, screenPersons } from "@finora/resolve";
-import { euFsf, LOADERS, lvFidFrozen, type PoliteFetch } from "@finora/sources";
+import { euFsf, lvFidFrozen, SOURCE_METAS, type PoliteFetch } from "@finora/sources";
 import { lvFidXlsx } from "@finora/sources/testing";
 import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -101,7 +101,7 @@ describe("a sanctions list with individuals (eu-fsf fixture)", () => {
 
 describe("the person lists the index reports on", () => {
   it("are exactly the loaders that feed it", () => {
-    expect([...PERSON_LISTS].sort()).toEqual(LOADERS.filter((l) => l.meta.personIndex).map((l) => l.meta.id).sort());
+    expect([...PERSON_LISTS].sort()).toEqual(SOURCE_METAS.filter((m) => m.personIndex).map((m) => m.id).sort());
   });
 });
 

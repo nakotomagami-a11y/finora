@@ -11,7 +11,7 @@ import { lvPeopleLoaders, type LvPersonRows } from "./lv/lv-people/lv-people.ts"
 import { LV_RISK_LOADERS } from "./lv/lv-risk/lv-risk.ts";
 import { LV_TAX_LOADERS } from "./lv/lv-tax/lv-tax.ts";
 import { lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations } from "./lv/lv-ur-register/lv-ur-register.ts";
-import type { SourceLoader } from "./types.ts";
+import type { SourceLoader, SourceMeta } from "./types.ts";
 
 /** Settings a loader is built with: the lawyer switches that change what a loader keeps (§10.2). */
 export type LoaderConfig = { lvPersonRows: LvPersonRows };
@@ -29,7 +29,7 @@ export const loadersFor = (config: LoaderConfig): SourceLoader[] => [
 ];
 
 /**
- * The catalogue, built with the default config: for tests and listings, never for a sync, which
- * builds its own with `loadersFor(config)`. No product module imports it (scripts/default-loaders.test.mjs).
+ * Every shipped source's meta, for listings: nothing here can be fetched or parsed, so no caller can
+ * run a sync on a default config (legal, qa on S05). A sync builds its loaders with `loadersFor(config)`.
  */
-export const LOADERS: readonly SourceLoader[] = loadersFor(DEFAULT_LOADER_CONFIG);
+export const SOURCE_METAS: readonly SourceMeta[] = loadersFor(DEFAULT_LOADER_CONFIG).map((loader) => loader.meta);

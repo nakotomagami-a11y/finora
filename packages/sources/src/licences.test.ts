@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { AGENT_ONLY_LISTS } from "./intl/sanctions/agent-only.ts";
 import { checkSource, LICENCES } from "./licences.ts";
-import { LOADERS } from "./registry.ts";
+import { DEFAULT_LOADER_CONFIG, loadersFor } from "./registry.ts";
+
+const LOADERS = loadersFor(DEFAULT_LOADER_CONFIG);
 import type { FieldMap, SourceMeta } from "./types.ts";
 
 const meta = (overrides: Partial<SourceMeta> = {}): SourceMeta => ({

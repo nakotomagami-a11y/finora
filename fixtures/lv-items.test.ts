@@ -2,10 +2,13 @@
 // fixture world, with its source and licence; the LV HIDE items and natural-person members never do.
 import { ITEMS } from "@finora/domain";
 import { runSync } from "@finora/ingest";
+import { DEFAULT_LOADER_CONFIG } from "@finora/sources";
 import { openStore } from "@finora/store";
 import type { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
-import { FIXTURE_PROFILE } from "./src/loaders.ts";
+import { fixtureProfileFor } from "./src/loaders.ts";
+
+const FIXTURE_PROFILE = fixtureProfileFor(DEFAULT_LOADER_CONFIG);
 
 const noNetwork = async (): Promise<never> => {
   throw new Error("the fixture profile never fetches");

@@ -2,12 +2,15 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { FIXTURE_PROFILE } from "@finora/fixtures";
+import { fixtureProfileFor } from "@finora/fixtures";
 import { laneOf, workerStartCount } from "@finora/ingest";
+import { DEFAULT_LOADER_CONFIG } from "@finora/sources";
 import { openStore, suppressItem } from "@finora/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { backup, dataStatus, dataSync, doctor, resolveSanctions, search, show, type Io } from "./commands.ts";
 import { loadCliEnv, repoRoot } from "./env.ts";
+
+const FIXTURE_PROFILE = fixtureProfileFor(DEFAULT_LOADER_CONFIG);
 
 let dir: string;
 let lines: string[];

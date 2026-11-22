@@ -6,12 +6,14 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runSync } from "@finora/ingest";
-import { lvUrOfficersLoader, type LvPersonRows } from "@finora/sources";
+import { DEFAULT_LOADER_CONFIG, lvUrOfficersLoader, type LvPersonRows } from "@finora/sources";
 import { LV_BIRTH_DATE_CANARY, LV_LIQUIDATION_GROUND_CANARY, LV_RISK_CANARIES, lvFx, lvMaskedCodeCanary, lvOfficersCsv, lvRiskMaskedCode } from "@finora/sources/testing";
 import { openStore, scanStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
-import { FIXTURE_PROFILE } from "./src/index.ts";
+import { fixtureProfileFor } from "./src/index.ts";
 import { fxLvUrOfficers, fxLvUrRegister, fxLvUrSanctionsLinks } from "./src/loaders.ts";
+
+const FIXTURE_PROFILE = fixtureProfileFor(DEFAULT_LOADER_CONFIG);
 
 const noNetwork = async (): Promise<never> => {
   throw new Error("the fixture profile never fetches");

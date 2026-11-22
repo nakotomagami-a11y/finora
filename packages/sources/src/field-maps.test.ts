@@ -1,7 +1,9 @@
 import { ITEMS } from "@finora/domain";
 import { describe, expect, it } from "vitest";
 import { checkFieldMap } from "./field-maps.ts";
-import { LOADERS } from "./registry.ts";
+import { DEFAULT_LOADER_CONFIG, loadersFor } from "./registry.ts";
+
+const LOADERS = loadersFor(DEFAULT_LOADER_CONFIG);
 import type { FieldMap } from "./types.ts";
 
 describe("load rule 2 at the field map", () => {

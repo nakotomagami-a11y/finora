@@ -19,7 +19,8 @@ describe("work dirs never outlive their sync (qa, legal condition 1 on 9ec97db)"
     // No work dir given: the worker's default is the store's own `<data dir>/work`, so it is cleaned too.
     { id: "fake-stream-crash", limits: {}, options: {}, reason: "worker_exit_3", defaultWorkDir: true },
     { id: "fake-stream-oom", limits: { maxHeapMb: 128 }, options: {}, reason: "worker_out_of_memory" },
-    { id: "fake-stream-stall", limits: { timeoutMs: 3000, startupMs: 20_000 }, options: {}, reason: "worker_timeout" },
+    // The timeout runs from the worker's start, so it is set well above a loaded machine's start-up (qa).
+    { id: "fake-stream-stall", limits: { timeoutMs: 15_000, startupMs: 20_000 }, options: {}, reason: "worker_timeout" },
   ];
   for (const c of cases) {
     it(`a terminated worker (${c.reason}) leaves no download behind`, async () => {
@@ -30,6 +31,8 @@ describe("work dirs never outlive their sync (qa, legal condition 1 on 9ec97db)"
       const entry = new URL("./testing/test-sync-worker.ts", import.meta.url);
       const outcome = await runSyncInWorker(entry, { dataDir: dir.path, sourceId: c.id, userAgent: "t", config: DEFAULT_LOADER_CONFIG, options: { ...c.options, ...(c.defaultWorkDir ? {} : { workDir: work }) } }, c.limits);
       expect(outcome.report?.reason).toBe(c.reason);
+      // The download existed before the worker ended, so an empty work dir proves the cleanup.
+      expect(existsSync(join(dir.path, `${c.id}.downloaded`))).toBe(true);
       expect(readdirSync(work).filter((n) => n.startsWith("finora-"))).toEqual([]);
     }, 60_000);
   }
