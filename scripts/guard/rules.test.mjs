@@ -114,6 +114,12 @@ describe("paths", () => {
   it("blocks local-only folders and key files", () => {
     assert.ok(checkPath("research/.cache/lv/officers.csv").includes("path:local-only-dir"));
     assert.ok(checkPath(".local/notes.md").includes("path:local-only-dir"));
+    assert.ok(checkPath("research/local/lv/members.csv").includes("path:local-only-dir"));
+    assert.ok(checkPath(".data/finora.db").includes("path:local-only-dir"));
+    assert.ok(checkPath("apps/cli/.data/finora.db-wal").includes("path:local-only-dir"));
+    // The control: names that only look alike are not local-only.
+    assert.ok(!checkPath("research/locale/notes.md").includes("path:local-only-dir"));
+    assert.ok(!checkPath("packages/x/src/data/rows.ts").includes("path:local-only-dir"));
     assert.ok(checkPath("deploy/server.pem").includes("path:key-file"));
   });
 

@@ -37,7 +37,8 @@ const PHONE = /(?<![\w+])\+\d[\d ()-]{7,18}\d(?!\w)/g;
 
 const BLOCKED_PATHS = [
   [/(?:^|\/)\.env(?:\.(?!example$)[^/]*)?$/, "env-file"],
-  [/(?:^|\/)(?:research\/\.cache|\.local|\.guard|node_modules)\//, "local-only-dir"],
+  // research/local/ and .data/ hold personal data by design, like .gitignore says (qa, legal 7087477142).
+  [/(?:^|\/)(?:research\/\.cache|research\/local|\.local|\.data|\.guard|node_modules)\//, "local-only-dir"],
   [/\.(?:pem|key|p12|pfx|keystore)$/i, "key-file"],
   [/(?:^|\/)id_(?:rsa|ed25519|ecdsa)(?:\.pub)?$/, "key-file"],
 ];

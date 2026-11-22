@@ -26,7 +26,7 @@ const DEFAULTS = [
 const DEFINED = new Map([
   ["packages/sources/src/registry.ts", "defines DEFAULT_LOADER_CONFIG and builds loaders from a config"],
   ["packages/sources/src/index.ts", "re-exports"],
-  ["packages/sources/src/lv/lv-people/lv-people.ts", "defines the people loaders and their modes"],
+  ["packages/sources/src/lv/lv-people/lv-people.ts", "names the two LV_PERSON_ROWS modes; it builds no default loader (data-baltics 3077a78)"],
   ["fixtures/src/loaders.ts", "fixtureProfileFor(config) swaps the officers loader by config"],
   ["apps/cli/src/env.ts", "reads LV_PERSON_ROWS, whose documented default is names_no_id"],
   ["apps/server/src/env.ts", "reads LV_PERSON_ROWS, whose documented default is names_no_id"],

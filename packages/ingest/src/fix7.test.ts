@@ -5,7 +5,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { ParsedRecord, RawArtifact } from "@finora/sources";
-import { beginSync, checkpoint, maintenanceDue, openStore, runMaintenance, runRetention, startIdleMaintenance, upsertSource, writeRecord, type Store } from "@finora/store";
+import { checkpoint, maintenanceDue, openStore, runMaintenance, runRetention, sqliteSupported, startIdleMaintenance, type Store } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { fetchOnView, type DatasetAnswer, type LiveCachedLoader } from "./live-cache.ts";
 import { runSync } from "./pipeline.ts";
@@ -88,28 +88,23 @@ describe("legal's purge rule: no deleted person value survives in the store file
     expect(scan(dir, "Quillmont Newname")).toContain("finora.db");
   });
 
-  it("a company reclassified as a sole trader leaves no former search term once merged; without the merge one stays", async () => {
-    const { store, dir } = onDisk();
-    const source = fakeSource({ id: "lv-register" }, { records: [register("Example Zorvexa SIA")] });
-    await run(store, source);
-    source.state.records = [register("IK Quillmont", "lv-ik")];
-    source.state.asOf = { in_file_field: "2026-11-02" };
-    const outcome = await run(store, source);
-    expect(outcome.report?.maintenance?.map((m) => m.kind)).toEqual(["fts_merge", "wal_truncate"]);
-    expect(maintenanceDue(store.db)).toEqual([]);
-    expect(scan(dir, "Zorvexa")).toEqual([]);
-
-    // cto's finding, the control: the same delete with its merge skipped leaves the term in the index.
-    const other = onDisk();
-    upsertSource(other.store.db, { id: "lv-register", storage: "store" }, "2026-11-23T08:00:00.000Z");
-    const syncId = beginSync(other.store.db, { sourceId: "lv-register", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-23T08:00:00.000Z" });
-    for (let i = 2; i < 400; i++) writeRecord(other.store.db, { syncId, sourceId: "lv-register", recordKey: `k${i}`, hashInput: [`${i}`], entities: companies(i, i)[0]!.entities });
-    writeRecord(other.store.db, { syncId, sourceId: "lv-register", recordKey: "lv-00000000001", hashInput: ["a"], entities: register("Example Zorvexa SIA").entities });
-    writeRecord(other.store.db, { syncId, sourceId: "lv-register", recordKey: "lv-00000000001", hashInput: ["b"], deferSearch: true, entities: register("IK Quillmont", "lv-ik").entities });
-    expect(maintenanceDue(other.store.db)).toEqual(["fts_merge"]);
-    other.store.db.exec("DELETE FROM main.maintenance_due");
-    checkpoint(other.store.db, "TRUNCATE");
-    expect(scan(other.dir, "Zorvexa")).toContain("finora.db");
+  it("a company reclassified as a sole trader leaves no former search term; with FTS5's secure-delete off one stays", async () => {
+    const reclassify = async (ftsSecureDelete: boolean) => {
+      const { store, dir } = onDisk();
+      if (!ftsSecureDelete) for (const t of ["entities_fts", "entities_trigram"]) store.db.exec(`INSERT INTO main.${t} (${t}, rank) VALUES ('secure-delete', 0)`);
+      // Enough other companies that the index has older segments the term could stay in.
+      await run(store, fakeSource({ id: "lv-others" }, { records: companies(2, 400) }));
+      const source = fakeSource({ id: "lv-register" }, { records: [register("Example Zorvexa SIA")] });
+      await run(store, source);
+      source.state.records = [register("IK Quillmont", "lv-ik")];
+      source.state.asOf = { in_file_field: "2026-11-02" };
+      const outcome = await run(store, source);
+      expect(outcome.report?.maintenance?.map((m) => m.kind)).toEqual(["wal_truncate"]);
+      return scan(dir, "Zorvexa");
+    };
+    expect(await reclassify(true)).toEqual([]);
+    // cto's finding, the control: a plain FTS5 delete keeps the term in an older segment.
+    expect(await reclassify(false)).toContain("finora.db");
   });
 
   it("a TTL purge of person rows, then the maintenance owed, leaves no trace", async () => {
@@ -169,25 +164,23 @@ describe("legal's purge rule: no deleted person value survives in the store file
   });
 });
 
-describe("the maintenance owed (qa's checks on the FTS merge flag)", () => {
-  it("a sync with no such delete runs no merge", async () => {
-    const { store } = onDisk();
-    const outcome = await run(store, fakeSource({}, { records: companies(1, 20) }));
-    expect(outcome.report?.maintenance?.map((m) => m.kind)).toEqual(["wal_truncate"]);
+describe("the search indexes and the SQLite they need (qa, legal)", () => {
+  it("both search tables carry FTS5's secure-delete option", () => {
+    const store = openStore({ dataDir: null });
+    stores.push(store);
+    for (const t of ["entities_fts", "entities_trigram"]) expect(store.db.prepare(`SELECT v FROM main.${t}_config WHERE k = 'secure-delete'`).get(), t).toEqual({ v: 1 });
   });
 
-  it("a merge a killed sync owed is run by the next sync of any source", async () => {
-    const { store } = onDisk();
-    await run(store, fakeSource({ id: "lv-register" }, { records: [register("Example Zorvexa SIA")] }));
-    // Cut off after the delete, before the sync's end: the mark is a row, so it survives.
-    const syncId = beginSync(store.db, { sourceId: "lv-register", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-23T09:00:00.000Z" });
-    writeRecord(store.db, { syncId, sourceId: "lv-register", recordKey: "lv-00000000001", hashInput: ["b"], deferSearch: true, entities: register("IK Quillmont", "lv-ik").entities });
-    expect(maintenanceDue(store.db)).toEqual(["fts_merge"]);
-    const next = await run(store, fakeSource({ id: "another-source" }, { records: companies(5, 6) }));
-    expect(next.report?.maintenance?.map((m) => m.kind)).toEqual(["fts_merge", "wal_truncate"]);
-    expect(maintenanceDue(store.db)).toEqual([]);
+  it("the store refuses an SQLite older than 3.42; the bundled one passes", () => {
+    expect(["3.41.2", "3.9.0", "2.99.99"].map(sqliteSupported)).toEqual([false, false, false]);
+    expect(["3.42.0", "3.53.4", "4.0.0"].map(sqliteSupported)).toEqual([true, true, true]);
+    const store = openStore({ dataDir: null });
+    stores.push(store);
+    expect(sqliteSupported((store.db.prepare("SELECT sqlite_version() AS v").get() as { v: string }).v)).toBe(true);
   });
+});
 
+describe("the TRUNCATE owed", () => {
   it("a TRUNCATE a reader blocks is reported busy, stays owed, and completes once the reader ends", async () => {
     const { store, dir } = onDisk();
     await run(store, fakeSource({ id: "lv-register" }, { records: [register("Example Company SIA")] }));
@@ -249,5 +242,36 @@ describe("cto's and qa's WAL tests", () => {
     stop();
     expect(steps.length).toBe(1);
     expect(Math.max(...sizes)).toBeLessThan(6 * 1024 * 1024);
+  });
+});
+
+describe("no write path hashes the loader's raw input (qa on live-cache.ts, J2)", () => {
+  it("a live-cached record's unproven party, renamed alone, writes nothing; proven, the change is written", async () => {
+    const eid = "us-ct-FX0001";
+    const json = (records: ParsedRecord[]): RawArtifact[] => [{ name: "r.json", bytes: new TextEncoder().encode(JSON.stringify({ records })), fetchedAt: "" }];
+    const master = (holder: string, type: string): ParsedRecord => ({
+      recordKey: "master",
+      hashInput: ["active", holder],
+      entities: [{ eid, schema: "Company", country: "us", legalForm: "us-llc", status: "active", code: "FX0001", statements: [{ prop: "name", value: "Example Holdings LLC", itemId: "S01.US.02" }] }],
+      parties: [{ type, entities: [{ eid: "org-00000000000000000077", schema: "Organization", country: "intl", statements: [{ prop: "name", value: holder, itemId: "S01.US.02" }] }] }],
+    });
+    const hashAfterRename = async (type: string) => {
+      const { store } = onDisk();
+      const answers: DatasetAnswer[] = [{ dataset: "master", status: "ok", artifacts: json([master("Zorvexa Holder A", type)]) }];
+      const loader: LiveCachedLoader = Object.assign(fakeSource({ id: "us-ct-business", country: "us", storage: "live-cached", cacheTtl: { refetchHours: 24, purgeUnviewedDays: 30 }, items: ["S01.US.02"] }), {
+        async fetchRecord() {
+          return answers;
+        },
+      });
+      const view = (hours: number) => fetchOnView(store.db, loader, { recordKey: "FX0001", entityEid: eid, datasets: ["master"] }, { fetcher: noNetwork, keys: {}, now: new Date(clock + hours * 3_600_000), companyPartyTypes: ["LEGAL_ENTITY"] });
+      const hash = () => Buffer.from((store.db.prepare("SELECT row_hash FROM main.records WHERE source_id = 'us-ct-business'").get() as { row_hash: Uint8Array }).row_hash).toString("hex");
+      await view(0);
+      const before = hash();
+      answers[0] = { dataset: "master", status: "ok", artifacts: json([master("Zorvexa Holder B", type)]) };
+      await view(25);
+      return before === hash();
+    };
+    expect(await hashAfterRename("JOINT_OWNERS")).toBe(true);
+    expect(await hashAfterRename("LEGAL_ENTITY")).toBe(false);
   });
 });

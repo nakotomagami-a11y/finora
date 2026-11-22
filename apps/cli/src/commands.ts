@@ -99,7 +99,7 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     const outcome = byId.get(loader.meta.id)!;
     if (outcome.kind === "failed" || outcome.kind === "partial") failed++;
     const r = outcome.report;
-    io.out(`${loader.meta.id}: ${outcome.kind}${r ? `, read ${r.read}, written ${r.written}, unchanged ${r.unchanged}, deleted ${r.deleted}, dropped ${dropsLine(r.dropped)}` : ""}${outcome.peakHeapMb !== undefined ? `, heap peak ${outcome.peakHeapMb} MB` : ""}`);
+    io.out(`${loader.meta.id}: ${outcome.kind}${r ? `, read ${r.read}, written ${r.written}, unchanged ${r.unchanged}, deleted ${r.deleted}, dropped ${dropsLine(r.dropped)}${r.reason ? `, reason ${r.reason}` : ""}` : ""}${outcome.peakHeapMb !== undefined ? `, heap peak ${outcome.peakHeapMb} MB` : ""}`);
     // Target 3 from the product's own output (cto's fix 7): write transactions, the sync's checkpoints,
     // and each maintenance write on its own line.
     const t = r?.timings;

@@ -28,13 +28,19 @@ function createLog(path: string): void {
   }
 }
 
+/** The oldest SQLite the store runs on: FTS5's `secure-delete` option came in 3.42. Node 24.20 bundles 3.53.4. */
+export const MIN_SQLITE = "3.42.0";
+export function sqliteSupported(version: string): boolean {
+  const [a, b, c] = version.split(".").map(Number);
+  const [x, y, z] = MIN_SQLITE.split(".").map(Number);
+  return a! > x! || (a === x && (b! > y! || (b === y && (c ?? 0) >= z!)));
+}
+
 /**
  * Opens the four store files and attaches them as `main`, `user`, `sa` and `cc` (architecture §3.5,
  * §8, §16). `cc` is connector-cache.db: licensed market series, never exported or backed up (R17).
  * `dataDir: null` opens all four in memory, for tests. The logs are created with a new
  * user file only: a log missing beside an existing store is damage, and reads and repairs refuse.
- */
-/**
  * `sync`: the sync worker's connection, closed when its batch ends. It gets the statement cache and a
  * 64 MB page cache (cto's fixes 2 and 5); no other connection does.
  */
@@ -49,9 +55,15 @@ export function openStore(options: { dataDir: string | null; sync?: boolean }): 
     : { main: ":memory:", user: ":memory:", sa: ":memory:", cc: ":memory:" };
   if (options.dataDir) mkdirSync(options.dataDir, { recursive: true });
   const db = new DatabaseSync(paths.main);
-  // First, so that two processes opening one store at once wait for each other instead of failing.
-  // Opening waits long: the other may be migrating a fresh store on a busy machine (qa NIT on S05).
+  // First, so that two processes opening one store at once wait for each other instead of failing:
+  // even a first read meets another connection's lock (a migration, a TRUNCATE checkpoint). Opening
+  // waits long: the other may be migrating a fresh store on a busy machine (qa NIT on S05).
   db.exec("PRAGMA busy_timeout = 60000");
+  const version = (db.prepare("SELECT sqlite_version() AS v").get() as { v: string }).v;
+  if (!sqliteSupported(version)) {
+    db.close();
+    throw new Error(`SQLite ${version} is older than ${MIN_SQLITE}: FTS5's secure-delete needs it (legal on fix 7)`);
+  }
   // Before the attaches, which take it over: a deleted row's bytes are overwritten, on every
   // connection, the sync's included, since a rewrite deletes the value it replaces (legal on fix 7).
   db.exec("PRAGMA secure_delete = ON");

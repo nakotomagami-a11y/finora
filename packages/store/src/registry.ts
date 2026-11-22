@@ -1,5 +1,4 @@
 // The registry write path the ingest pipeline builds on (architecture §3.2-§3.3, §4.4 step 5).
-import { markMaintenance } from "./maintenance.ts";
 import { prepared } from "./statements.ts";
 import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
@@ -201,7 +200,7 @@ function write(db: DatabaseSync, input: RecordInput, hash: Buffer, existingId: n
     // as a sole trader is never found by name, not even until the pass (L2, L3; qa, legal on 8661a89).
     if (input.deferSearch) {
       const entity = refreshCaption(db, entityId);
-      if (entity && !searchable(entity)) deleteUnsearchableRows(db, entityId);
+      if (entity && !searchable(entity)) deleteSearchRows(db, entityId);
       prepared(db, "INSERT OR IGNORE INTO main.search_dirty (entity_id) VALUES (?)").run(entityId);
     } else refreshEntity(db, entityId);
   }
@@ -265,7 +264,7 @@ export function dropIfOrphan(db: DatabaseSync, entityId: number): boolean {
     )
     .run(entityId).changes;
   if (deleted === 0) return false;
-  deleteUnsearchableRows(db, entityId);
+  deleteSearchRows(db, entityId);
   return true;
 }
 
@@ -304,13 +303,7 @@ function deleteSearchRows(db: DatabaseSync, entityId: number): number {
   );
 }
 
-/**
- * An entity that is not searchable any more lost its search rows: an FTS5 delete leaves the terms in
- * older index segments until they are merged, so the merge is owed (cto 7087224181, legal).
- */
-function deleteUnsearchableRows(db: DatabaseSync, entityId: number): void {
-  if (deleteSearchRows(db, entityId) > 0) markMaintenance(db, "fts_merge");
-}
+
 
 /** The entity and its names; null when it is gone. */
 function entityForSearch(db: DatabaseSync, entityId: number): { entity: EntityForSearch; names: string[] } | null {
@@ -346,8 +339,8 @@ export function refreshCaption(db: DatabaseSync, entityId: number): EntityForSea
 /** The entity's two search rows, rewritten from its names. */
 export function refreshSearchRows(db: DatabaseSync, entityId: number): void {
   const found = entityForSearch(db, entityId);
-  if (!found || !searchable(found.entity)) return void deleteUnsearchableRows(db, entityId);
   deleteSearchRows(db, entityId);
+  if (!found || !searchable(found.entity)) return;
   const text = normalizeText([...new Set(found.names)].join(" "));
   prepared(db, "INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)").run(entityId, text);
   prepared(db, "INSERT INTO main.entities_trigram (rowid, search_text) VALUES (?, ?)").run(entityId, text);

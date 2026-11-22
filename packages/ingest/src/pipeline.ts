@@ -489,7 +489,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
           batchStart = Date.now();
           inBatch = 0;
         }
-        writeParsed(db, { syncId, sourceId: meta.id, day, deferSearch: true }, { ...record, hashInput: retryable(gatedHashInput(record, gated), gated.retry) }, gated, report);
+        writeParsed(db, { syncId, sourceId: meta.id, day, deferSearch: true }, record, gated, report);
         if (++inBatch >= maxRecords || Date.now() - batchStart > maxMs) commit();
       }
     } catch (error) {
@@ -591,8 +591,11 @@ export function writeParsed(
   gated: GateResult,
   report: SyncReport,
 ): void {
+  // The hash is always built here, from what the gate keeps, whoever calls: no write path hashes the
+  // loader's raw input (J2; qa on live-cache.ts). A record waiting on a reference adds the retry marker.
+  const hashInput = retryable(gatedHashInput(raw, gated), gated.retry);
   // The daily case first: an unchanged record is counted before any snapshot is read (cto's fix 6).
-  if (recordUnchanged(db, sync.sourceId, raw.recordKey, raw.hashInput)) {
+  if (recordUnchanged(db, sync.sourceId, raw.recordKey, hashInput)) {
     report.unchanged++;
     return;
   }
@@ -604,7 +607,7 @@ export function writeParsed(
       syncId: sync.syncId,
       sourceId: sync.sourceId,
       recordKey: raw.recordKey,
-      hashInput: raw.hashInput,
+      hashInput,
       entities: gated.entities,
       reports: gated.reports,
       events: gated.events,

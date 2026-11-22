@@ -362,6 +362,20 @@ export const MIGRATIONS: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  {
+    // Legal's purge rule on S05 (qa 7087260108, legal 7087266344): FTS5 removes a deleted row's terms
+    // from the index at once instead of keeping a tombstone until a merge (SQLite 3.42 or later; openStore
+    // refuses older). One optimize clears what earlier deletes left in a store made before this.
+    // ('fts_merge' above is no longer written: this option replaced the merge it marked.)
+    target: "main",
+    name: "fts secure delete",
+    sql: `
+      INSERT INTO main.entities_fts (entities_fts, rank) VALUES ('secure-delete', 1);
+      INSERT INTO main.entities_trigram (entities_trigram, rank) VALUES ('secure-delete', 1);
+      INSERT INTO main.entities_fts (entities_fts) VALUES ('optimize');
+      INSERT INTO main.entities_trigram (entities_trigram) VALUES ('optimize');
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */
