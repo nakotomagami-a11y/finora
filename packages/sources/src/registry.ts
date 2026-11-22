@@ -28,5 +28,8 @@ export const loadersFor = (config: LoaderConfig): SourceLoader[] => [
   euFsf, usOfacSdn, usOfacCons, ukSanctionsList, esmaNcasp, ...lvLoaders(config), lvFidFrozen,
 ];
 
-export const LV_LOADERS: readonly SourceLoader[] = lvLoaders(DEFAULT_LOADER_CONFIG);
+/**
+ * The catalogue, built with the default config: for tests and listings, never for a sync, which
+ * builds its own with `loadersFor(config)`. No product module imports it (scripts/default-loaders.test.mjs).
+ */
 export const LOADERS: readonly SourceLoader[] = loadersFor(DEFAULT_LOADER_CONFIG);

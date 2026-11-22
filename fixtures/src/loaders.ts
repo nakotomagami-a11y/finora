@@ -239,7 +239,11 @@ export const fxLvVidRating = fromFiles(lvVidRating, lvFile("reitings_uznemumi.cs
 export const fxLvVidVatPayers = fromFiles(lvVidVatPayers, lvFile("pdb_pvnmaksataji_odata.csv", lvVidVatCsv));
 export const fxLvVidSuspensions = fromFiles(lvVidSuspensions, lvFile("pdb_saimndarbibaaptureta_odata.csv", lvVidSuspensionsCsv));
 
-/** Every bulk loader of the profile, in load order: registers first, so the others can join. */
+/**
+ * Every bulk loader of the profile, in load order: registers first, so the others can join. Built with
+ * the default config: a sync uses `fixtureProfileFor(config)`, and no product module imports this
+ * list (scripts/default-loaders.test.mjs).
+ */
 export const FIXTURE_PROFILE: readonly { exportName: string; loader: SourceLoader }[] = [
   { exportName: "fxLvRegister", loader: fxLvRegister },
   { exportName: "fxLvUrRegister", loader: fxLvUrRegister },

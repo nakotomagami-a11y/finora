@@ -4,10 +4,10 @@
 import { existsSync, readdirSync, readFileSync, statfsSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { eidKind, isInternalEid, naturalPersonCaption } from "@finora/domain";
-import { FIXTURE_PROFILE } from "@finora/fixtures";
+import { fixtureProfileFor } from "@finora/fixtures";
 import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, sweepWorkDirs, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
-import { LOADERS } from "@finora/sources";
+import { loadersFor, type LoaderConfig } from "@finora/sources";
 import { companyValues, openStore, rebuildSearch, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
 
@@ -41,7 +41,9 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     io.out(`unknown profile "${args.profile}" (fixtures or core)`);
     return 2;
   }
-  const pool = args.profile === "core" ? LOADERS.map((loader) => ({ loader })) : FIXTURE_PROFILE;
+  // Built for this run's config, as the worker builds its own: never a default-config list (qa NIT on 2cba19a).
+  const config: LoaderConfig = { lvPersonRows: io.env.lvPersonRows };
+  const pool = args.profile === "core" ? loadersFor(config).map((loader) => ({ loader })) : fixtureProfileFor(config);
   const chosen = pool.filter((p) => (!args.source || p.loader.meta.id === args.source) && (!args.country || p.loader.meta.country === args.country));
   if (chosen.length === 0) {
     io.out(`no ${args.profile} source${args.source ? ` "${args.source}"` : ""}${args.country ? ` for ${args.country}` : ""}`);
@@ -76,7 +78,7 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
         sourceIds,
         userAgent: args.profile === "fixtures" ? "Finora (fixtures)" : PORTAL_USER_AGENT,
         // The lawyer switch travels with the job, so the worker builds the officers loader for it (SEC-1 on S05).
-        config: { lvPersonRows: io.env.lvPersonRows },
+        config,
         options: {
           shareAlikeMode: io.env.shareAlikeMode,
           allowMassPurge: args.allowMassPurge === true,
