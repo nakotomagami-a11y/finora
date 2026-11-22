@@ -1,11 +1,13 @@
 // The polite fetcher (architecture §4.4 step 1, §12): official hosts only, no private address
 // after DNS (the connection is pinned to the address that was checked, so a second lookup cannot
 // swap it), a per-source rate limit, retries with backoff, a size cap and a total deadline.
+import { createHash } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
+import { closeSync, openSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
 import { BlockList, isIP } from "node:net";
-import type { PoliteFetch } from "./types.ts";
+import type { ArtifactFile, PoliteFetch } from "./types.ts";
 
 export class FetchError extends Error {
   readonly code: "host_not_official" | "private_address" | "too_large" | "http_status" | "too_many_redirects" | "insecure_redirect" | "deadline" | "network";
@@ -69,17 +71,32 @@ export function isPrivateAddress(address: string): boolean {
   return BLOCKED_V6.check(g.map((x) => x.toString(16)).join(":"), "ipv6");
 }
 
-export type TransportResponse = { status: number; headers: Record<string, string>; bytes: Uint8Array };
+export type TransportResponse = { status: number; headers: Record<string, string>; bytes: Uint8Array; file?: ArtifactFile };
 export type Transport = (
   url: URL,
-  options: { headers: Record<string, string>; address: string; family: number; maxBytes: number; deadline: number; body?: string },
+  options: { headers: Record<string, string>; address: string; family: number; maxBytes: number; deadline: number; body?: string; toFile?: string },
 ) => Promise<TransportResponse>;
 export type Resolver = (hostname: string) => Promise<{ address: string; family: number }[]>;
 
 /** node:http(s) with the connection pinned to the checked address, an idle timeout and a total deadline. */
-export const nodeTransport: Transport = (url, { headers, address, family, maxBytes, deadline, body }) =>
+export const nodeTransport: Transport = (url, { headers, address, family, maxBytes, deadline, body, toFile }) =>
   new Promise((resolve, reject) => {
     let failed = false;
+    // Streamed to disk, hashed on the way: a multi-gigabyte file never sits in memory (architecture §4.5).
+    const fd = toFile === undefined ? null : openSync(toFile, "w", 0o600);
+    const hash = fd === null ? null : createHash("sha256");
+    // The descriptor is closed exactly once: a second close could hit a number the OS has reused.
+    let open = fd !== null;
+    const close = () => {
+      if (!open || fd === null) return;
+      open = false;
+      closeSync(fd);
+    };
+    const discard = () => {
+      if (fd === null) return;
+      close();
+      rmSync(toFile as string, { force: true });
+    };
     const client = url.protocol === "https:" ? https : http;
     const request = client.request(
       url,
@@ -95,24 +112,39 @@ export const nodeTransport: Transport = (url, { headers, address, family, maxByt
         const chunks: Buffer[] = [];
         let size = 0;
         response.on("data", (chunk: Buffer) => {
+          // Chunks still in flight after a refusal are ignored: the file is already closed and removed.
+          if (failed) return;
           size += chunk.length;
           if (size > maxBytes) {
             failed = true;
             clearTimeout(timer);
+            discard();
             reject(new FetchError("too_large", `${url.hostname}: response larger than ${maxBytes} bytes`));
             request.destroy();
             return;
           }
-          chunks.push(chunk);
+          if (fd === null) chunks.push(chunk);
+          else {
+            writeSync(fd, chunk);
+            hash?.update(chunk);
+          }
         });
         response.on("end", () => {
           clearTimeout(timer);
           if (failed) return;
           const out: Record<string, string> = {};
           for (const [k, v] of Object.entries(response.headers)) if (v !== undefined) out[k] = Array.isArray(v) ? v.join(", ") : v;
+          if (fd !== null) {
+            close();
+            resolve({ status: response.statusCode ?? 0, headers: out, bytes: new Uint8Array(), file: { path: toFile as string, size, sha256: hash?.digest("hex") ?? "" } });
+            return;
+          }
           resolve({ status: response.statusCode ?? 0, headers: out, bytes: new Uint8Array(Buffer.concat(chunks)) });
         });
-        response.on("error", (error) => reject(error instanceof FetchError ? error : new FetchError("network", `${url.hostname}: ${error.message}`)));
+        response.on("error", (error) => {
+          discard();
+          reject(error instanceof FetchError ? error : new FetchError("network", `${url.hostname}: ${error.message}`));
+        });
       },
     );
     // A slow drip never outlives the deadline, however often a byte arrives.
@@ -122,6 +154,7 @@ export const nodeTransport: Transport = (url, { headers, address, family, maxByt
       clearTimeout(timer);
       if (failed) return;
       failed = true;
+      discard();
       reject(error instanceof FetchError ? error : new FetchError("network", `${url.hostname}: ${error.message}`));
     });
     request.end(body);
@@ -133,6 +166,8 @@ export type PoliteFetchOptions = {
   requestsPerSecond?: number;
   /** Per source; the default keeps a buffered body well inside memory. */
   maxBytes?: number;
+  /** The cap for a body streamed to a file (`toFile`); default 8 GiB. */
+  maxFileBytes?: number;
   /** Time one request may take in total, redirects and retries included. */
   deadlineMs?: number;
   retries?: number;
@@ -165,6 +200,7 @@ export function politeFetch(options: PoliteFetchOptions): PoliteFetch {
   const now = options.now ?? Date.now;
   const interval = 1000 / (options.requestsPerSecond ?? 2);
   const maxBytes = options.maxBytes ?? 512 * 1024 ** 2;
+  const maxFileBytes = options.maxFileBytes ?? 8 * 1024 ** 3;
   const deadlineMs = options.deadlineMs ?? 15 * 60_000;
   const retries = options.retries ?? 3;
   const backoff = options.backoffMs ?? 500;
@@ -179,7 +215,7 @@ export function politeFetch(options: PoliteFetchOptions): PoliteFetch {
     if (slot > t) await sleep(slot - t);
   }
 
-  async function once(url: URL, headers: Record<string, string>, deadline: number, body: string | undefined): Promise<TransportResponse> {
+  async function once(url: URL, headers: Record<string, string>, deadline: number, body: string | undefined, toFile: string | undefined): Promise<TransportResponse> {
     if (url.protocol !== "https:" && url.protocol !== "http:") throw new FetchError("host_not_official", `${url.protocol} is not fetched`);
     if (!options.officialHosts.includes(url.hostname)) throw new FetchError("host_not_official", `${url.hostname} is not an official host of this source`);
     const addresses = isIP(url.hostname) ? [{ address: url.hostname, family: isIP(url.hostname) }] : await resolve(url.hostname);
@@ -189,7 +225,21 @@ export function politeFetch(options: PoliteFetchOptions): PoliteFetch {
     }
     await pace();
     if (now() > deadline) throw new FetchError("deadline", `${url.hostname}: no complete answer before the deadline`);
-    return transport(url, { headers, address: target.address, family: target.family, maxBytes, deadline, ...(body === undefined ? {} : { body }) });
+    const response = await transport(url, {
+      headers,
+      address: target.address,
+      family: target.family,
+      maxBytes: toFile === undefined ? maxBytes : maxFileBytes,
+      deadline,
+      ...(body === undefined ? {} : { body }),
+      ...(toFile === undefined ? {} : { toFile }),
+    });
+    // A transport that buffers (a test double) still honours `toFile`.
+    if (toFile !== undefined && response.file === undefined) {
+      writeFileSync(toFile, response.bytes, { mode: 0o600 });
+      return { ...response, bytes: new Uint8Array(), file: { path: toFile, size: response.bytes.byteLength, sha256: createHash("sha256").update(response.bytes).digest("hex") } };
+    }
+    return response;
   }
 
   return async (input, init) => {
@@ -203,7 +253,7 @@ export function politeFetch(options: PoliteFetchOptions): PoliteFetch {
       let response: TransportResponse | undefined;
       for (let attempt = 0; ; attempt++) {
         try {
-          response = await once(url, headers, deadline, body);
+          response = await once(url, headers, deadline, body, init?.toFile);
         } catch (error) {
           if (!(error instanceof FetchError) || error.code !== "network" || attempt >= retriesFor) throw error;
           await sleep(backoff * 2 ** attempt);
@@ -221,7 +271,10 @@ export function politeFetch(options: PoliteFetchOptions): PoliteFetch {
         url = target;
         continue;
       }
-      if (response.status >= 400) throw new FetchError("http_status", `${url.hostname}: HTTP ${response.status}`, response.status);
+      if (response.status >= 400) {
+        if (response.file) rmSync(response.file.path, { force: true });
+        throw new FetchError("http_status", `${url.hostname}: HTTP ${response.status}`, response.status);
+      }
       return response;
     }
   };

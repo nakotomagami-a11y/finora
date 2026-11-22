@@ -65,6 +65,7 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
           shareAlikeMode: io.env.shareAlikeMode,
           allowMassPurge: args.allowMassPurge === true,
           rawCacheDir: join(io.env.dataDir, "raw"),
+          workDir: join(io.env.dataDir, "work"),
           companyPartyTypes: COMPANY_PARTY_TYPES,
         },
       });

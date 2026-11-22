@@ -3,6 +3,9 @@
 // `sync:<id>` lease, kept alive by a heartbeat for the whole sync, so two syncs of one source
 // never overlap.
 import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
 import type { ParsedRecord, PersonEntry, PoliteFetch, RawArtifact, SourceLoader, StorageClass } from "@finora/sources";
@@ -72,6 +75,8 @@ export type SyncOptions = {
   now?: () => Date;
   /** Where the latest artifacts are kept; null keeps none. */
   rawCacheDir?: string | null;
+  /** Where a sync's streamed downloads go (one fresh directory per sync, removed after it); default the OS temp dir. */
+  workDir?: string;
   /** `SHARE_ALIKE_MODE`: "live-no-store" keeps a share-alike source in memory only. */
   shareAlikeMode?: "store" | "live-no-store";
   allowMassPurge?: boolean;
@@ -105,7 +110,13 @@ export function effectiveStorage(loader: SourceLoader, mode: SyncOptions["shareA
 
 function contentHash(artifacts: readonly RawArtifact[]): string {
   const hash = createHash("sha256");
-  for (const a of artifacts) hash.update(a.name).update("\0").update(a.bytes).update("\0");
+  // A streamed artifact contributes the sha256 taken while it streamed in.
+  for (const a of artifacts) {
+    hash.update(a.name).update("\0");
+    if (a.file) hash.update("file:").update(a.file.sha256);
+    else hash.update(a.bytes);
+    hash.update("\0");
+  }
   return hash.digest("hex");
 }
 
@@ -141,6 +152,15 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
 
   const resource = `sync:${meta.id}`;
   const lease = acquireLease(db, resource, holder, ttl, now().getTime());
+  let workDir: string | null = null;
+  /** This sync's directory for streamed downloads, made on first use. */
+  const syncWorkDir = () => {
+    if (workDir) return workDir;
+    const base = options.workDir ?? tmpdir();
+    mkdirSync(base, { recursive: true });
+    workDir = mkdtempSync(join(base, `finora-${meta.id}-`));
+    return workDir;
+  };
   if (!lease) {
     logger.info("sync already running", { sourceId: meta.id });
     return { kind: "already_running", syncId: null, report: null };
@@ -204,16 +224,16 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       (storage === "live-no-store" && !(options.liveViewHeld ?? liveView(meta.id) !== null)) ||
       (meta.personIndex === true && !(options.personListHeld ?? personListHeld(meta.id)));
 
-    let fetched = await loader.fetch({ fetcher: options.fetcher, keys: options.keys ?? {}, now: startedAt, lastToken: mustParse ? null : lastToken(db, meta.id) });
+    let fetched = await loader.fetch({ fetcher: options.fetcher, keys: options.keys ?? {}, now: startedAt, lastToken: mustParse ? null : lastToken(db, meta.id), workDir: syncWorkDir() });
     assertLease();
     if (fetched.token) report.token = fetched.token;
     let artifacts: RawArtifact[] | null = fetched.unchanged ? null : fetched.artifacts;
     const sameParser = previous?.parserVersion === loader.parserVersion;
     if (artifacts === null) {
       if (sameParser && !mustParse) return finish("unchanged", { upstreamAsOf: previous?.upstreamAsOf ?? null });
-      artifacts = keepRaw ? loadRaw(options.rawCacheDir as string, meta.id) : null;
+      artifacts = keepRaw ? await loadRaw(options.rawCacheDir as string, meta.id, syncWorkDir()) : null;
       if (artifacts === null) {
-        fetched = await loader.fetch({ fetcher: options.fetcher, keys: options.keys ?? {}, now: startedAt, lastToken: null });
+        fetched = await loader.fetch({ fetcher: options.fetcher, keys: options.keys ?? {}, now: startedAt, lastToken: null, workDir: syncWorkDir() });
         assertLease();
         if (fetched.unchanged) return finish("failed", { reason: "raw_cache_missing" });
         artifacts = fetched.artifacts;
@@ -232,7 +252,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       return finish("stale_skipped", { upstreamAsOf: previous.upstreamAsOf, reason: "older_than_last_sync" });
     }
     // Only a file that passed the as-of check replaces the cached one (qa M5).
-    if (keepRaw) saveRaw(options.rawCacheDir as string, meta.id, artifacts);
+    if (keepRaw) await saveRaw(options.rawCacheDir as string, meta.id, artifacts);
 
     const gateOptions = {
       companyPartyTypes: options.companyPartyTypes ?? [],
@@ -390,6 +410,8 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
   } finally {
     clearInterval(timer);
     if (!lost) releaseLease(db, lease);
+    // Streamed downloads live only for their sync; the raw cache keeps its own compressed copy.
+    if (workDir) rmSync(workDir, { recursive: true, force: true });
   }
 }
 

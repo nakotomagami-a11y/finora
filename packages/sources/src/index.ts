@@ -1,4 +1,5 @@
 export { checkFieldMap } from "./field-maps.ts";
+export { artifactHead, artifactSize, artifactStream, streamedArtifact } from "./artifacts.ts";
 export { FetchError, isPrivateAddress, nodeTransport, politeFetch, retryAfterMs, type PoliteFetchOptions, type Resolver, type Transport } from "./fetcher.ts";
 export { checkSource, LICENCES, SOURCE_ID, type Licence } from "./licences.ts";
 export type {
@@ -19,6 +20,7 @@ export type {
   PersonEntry,
   PoliteFetch,
   PurgeScope,
+  ArtifactFile,
   RawArtifact,
   SourceLoader,
   SourceMeta,

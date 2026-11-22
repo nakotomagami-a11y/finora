@@ -110,7 +110,14 @@ export type ParsedRecord = {
   dropped?: { reason: DropReason; prop?: string }[];
 };
 
-export type RawArtifact = { name: string; bytes: Uint8Array; headers?: Record<string, string>; fetchedAt: string };
+/** A downloaded file kept on disk instead of in memory: its size and sha256 were taken while it streamed in. */
+export type ArtifactFile = { path: string; size: number; sha256: string };
+
+/**
+ * One fetched file. Small files are held as `bytes`. A streamed file (a loader that fetched with
+ * `toFile`) has empty `bytes` and its content in `file`: read it with `artifactStream`, never whole.
+ */
+export type RawArtifact = { name: string; bytes: Uint8Array; headers?: Record<string, string>; fetchedAt: string; file?: ArtifactFile };
 
 export type FetchContext = {
   fetcher: PoliteFetch;
@@ -119,6 +126,8 @@ export type FetchContext = {
   now: string;
   /** The last change token seen, if the source has one. */
   lastToken: string | null;
+  /** A directory for this sync's streamed downloads (`toFile`); the pipeline removes it afterwards. */
+  workDir?: string;
 };
 export type FetchResult = { unchanged: true; token?: string } | { unchanged?: false; artifacts: RawArtifact[]; token?: string };
 /**
@@ -147,7 +156,10 @@ export type ParseContext = {
  * GET, or POST when `body` is given (a JSON-RPC read such as a block header); never a write to the source.
  * A POST is retried only when the caller marks it `idempotent`.
  */
-export type PoliteFetch = (url: string, init?: { headers?: Record<string, string>; body?: string; idempotent?: boolean }) => Promise<{ status: number; headers: Record<string, string>; bytes: Uint8Array }>;
+export type PoliteFetch = (
+  url: string,
+  init?: { headers?: Record<string, string>; body?: string; idempotent?: boolean; /** Stream the body into this file (a path inside `ctx.workDir`) instead of memory. */ toFile?: string },
+) => Promise<{ status: number; headers: Record<string, string>; bytes: Uint8Array; file?: ArtifactFile }>;
 
 export interface SourceLoader {
   meta: SourceMeta;
