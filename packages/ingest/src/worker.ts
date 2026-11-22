@@ -4,13 +4,14 @@
 // serves them (qa M1), and a hung or crashed worker ends as a failed sync, never a `running` row
 // (SEC-12). One worker runs a batch of sources in order, each under its own lease: starting and stopping many short-lived worker isolates
 // occasionally crashed V8 on Windows (a JIT page check), so a CLI run uses one worker.
+import { join } from "node:path";
 import { getHeapStatistics } from "node:v8";
 import { parentPort, Worker, workerData } from "node:worker_threads";
 import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
 import { politeFetch, type LoaderConfig, type PoliteFetchOptions, type SourceLoader, type SourceMeta } from "@finora/sources";
 import { failSync, openStore, releaseLease } from "@finora/store";
 import { liveView, setLiveView, type LiveView } from "./live-views.ts";
-import { removeWorkDirs, workBase } from "./work-dirs.ts";
+import { removeWorkDirs } from "./work-dirs.ts";
 import { runSync, type SyncOptions, type SyncOutcome } from "./pipeline.ts";
 
 type JobOptions = Omit<SyncOptions, "fetcher" | "signal" | "logger" | "now" | "onLiveView" | "onPersonList">;
@@ -137,7 +138,8 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
   const ttl = batch.options.leaseTtlMs ?? 60_000;
   const data: WorkerBatch = {
     ...batch,
-    options: { ...batch.options, holder },
+    // A work base of the store's own, so the parent may remove what a terminated worker left there.
+    options: { ...batch.options, holder, workDir: batch.options.workDir ?? join(batch.dataDir, "work") },
     liveViewsHeld: batch.liveViewsHeld ?? batch.sourceIds.filter((id) => liveView(id) !== null),
     personListsHeld: batch.personListsHeld ?? batch.sourceIds.filter((id) => personListHeld(id)),
   };
@@ -162,7 +164,7 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
       void worker.terminate().then(() => {
         // The terminated thread never reached its own cleanup: its downloads go now, before the
         // lease is released, for every source of the batch that had not finished (legal condition 1).
-        removeWorkDirs(workBase(batch.options.workDir), batch.sourceIds.filter((id) => !finished.has(id)));
+        removeWorkDirs(data.options.workDir as string, batch.sourceIds.filter((id) => !finished.has(id)));
         const store = openStore({ dataDir: batch.dataDir });
         try {
           if (current) {

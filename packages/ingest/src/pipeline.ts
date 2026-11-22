@@ -84,7 +84,11 @@ export type SyncOptions = {
   now?: () => Date;
   /** Where the latest artifacts are kept; null keeps none. */
   rawCacheDir?: string | null;
-  /** Where a sync's streamed downloads go (one fresh directory per sync, removed after it); default the OS temp dir. */
+  /**
+   * Where a sync's streamed downloads go (one fresh directory per sync, removed after it). Set it to a
+   * directory of this store's own (the CLI and the worker use `<data dir>/work`): only then are a cut-off
+   * sync's leftovers swept. The default, a folder in the OS temp dir, may be shared by several stores.
+   */
   workDir?: string;
   /** `SHARE_ALIKE_MODE`: "live-no-store" keeps a share-alike source in memory only. */
   shareAlikeMode?: "store" | "live-no-store";
@@ -190,9 +194,11 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     logger.info("sync already running", { sourceId: meta.id });
     return { kind: "already_running", syncId: null, report: null };
   }
-  // This sync holds the source's lease, so any work dir of this source is an orphan of a sync that
-  // never reached its own cleanup: removed before anything is downloaded.
-  removeWorkDirs(workBase(options.workDir), [meta.id]);
+  // This sync holds the source's lease, so any work dir of this source under this store's own work
+  // base is an orphan of a sync that never reached its own cleanup: removed before anything is
+  // downloaded. The shared default base is not swept: a lease covers one store, and another store's
+  // sync of the same source may be live there.
+  if (options.workDir) removeWorkDirs(options.workDir, [meta.id]);
   // Heartbeat from acquisition to release (SEC-3, qa M2): a long download or parse keeps the
   // lease; a lease taken over by another holder stops this sync before it writes again.
   let lost = false;

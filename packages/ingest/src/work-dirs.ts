@@ -12,7 +12,10 @@ const PREFIX = "finora-";
 /** mkdtemp appends six characters to `finora-<sourceId>-`. */
 const sourceOf = (name: string) => (name.startsWith(PREFIX) && name.length > PREFIX.length + 7 ? name.slice(PREFIX.length, -7) : null);
 
-/** The work base: the configured one, else a Finora folder of its own in the OS temp dir (never the whole temp dir, which a sweep would list). */
+/**
+ * The work base: the configured one, else a Finora folder in the OS temp dir (never the whole temp
+ * dir). That default may be shared by several stores, so only a configured base is ever swept.
+ */
 export const workBase = (workDir: string | undefined) => workDir ?? join(tmpdir(), "finora-work");
 
 function entries(base: string): string[] {
