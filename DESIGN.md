@@ -307,7 +307,8 @@ Rows: country code, name, code and time, a status note when relevant (one agent 
 No keys in v1 (H5): every tile runs on a keyless source or is not drawn. Commercial sources appear under coded aliases (H4); their real names live in a local provider file.
 
 - **Distance from peak** strip: one row per market sorted by drop, bar plus signed percentage with an arrow; "peak not known yet" instead of a bar where needed.
-- **US national debt:** a ticking figure labelled `estimate`, the official figure with its date, the 30-day change.
+- **US national debt:** a ticking figure labelled `estimate`, the official figure with its date, and the change between two published figures (`change30d`), labelled with both dates: "Change, 18 Oct to 18 Nov 2026 · +$214 billion". That change is two official figures, never the ticker's estimate.
+- **Peak window** (`peakSince`, the user's setting, default 1 Jan 2025): the strip header and "How it's calculated" read "since [peakSince]"; rows whose peak basis is `all_time` or `seeded` say so on their own line. Settings → Data has the row "Crash monitor peaks: highest daily close since [date] · Change", with "Moving it earlier fetches every series again."
 - **Tiles: M01 US stocks, M03 Asia and Pacific, M05 gold, M06 crypto, M07 oil.** Title, id, the drawdown in large type, a context line (as-of, peak date), extra rows, the council caveat, and source chips in the footer.
   - **M01:** the quarterly official row (US equity value, keeps "value below peak") plus daily rows per series ("US large companies", "US broad market", "US technology"; index names never appear). The daily rows' caveat says: personal use only, the index owner's copyright (the owner is named from the local provider file), via FRED, 1-day lag; drawdown only, and the series never leaves the machine.
   - **M03:** Japan, broad index (citation required, kept on this machine) and Taiwan. Taiwan: "Peak not known yet: tracking since [date]", never 0%.
