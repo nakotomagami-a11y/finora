@@ -419,23 +419,41 @@ A source lists only the strategies its spec proved on real files. Test: `ingest/
 
 ### 4.3 The loader contract
 
+`packages/sources/src/types.ts` is the contract and `packages/ingest/src/validate.ts` checks every record against it, strictly. This is its shape (M1-F1); `docs/contributing/add-a-loader.md` walks through adding one, and its example record is validated by a test.
+
 ```ts
 interface SourceLoader {
-  meta: SourceMeta;
-  fetch(ctx: FetchContext): Promise<FetchResult>;              // raw artifacts into the raw cache (a source may fetch several, e.g. the LT UUID-to-code map beside its dataset), or { unchanged: true }
-  parse(raw: RawArtifact[], ctx: ParseContext): AsyncIterable<ParsedRecord>;
+  meta: SourceMeta;                 // id, country, publisher, officialHosts, licence, storage, cadence, asOf, purgeScope, items, limits, ...
+  parserVersion: string;            // moves whenever the parser, its field map or the item list changes (A1)
+  fieldMap: FieldMap;               // every (item, prop) the loader stores, plus resolution keys and drops (load rule 2, M1-F2)
+  fetch(ctx: FetchContext): Promise<FetchResult>;                    // raw artifacts, or { unchanged: true }
+  asOf(raw: RawArtifact[]): Partial<Record<AsOfStrategy, string | null>>;
+  parse(raw: RawArtifact[], ctx: ParseContext): AsyncIterable<ParsedRecord> | Iterable<ParsedRecord>;
+  windowStart?(raw: RawArtifact[]): string | null;                  // window sources only
 }
 
-type ParsedRecord = {
-  recordKey: string;                // stable key per loader spec: the row's key, or the report / company-period key for long-format sources
-  hashInput: string[];              // no longer hashed (J2 on S05): row_hash is built from the gated record, see below; kept until the loader contract drops it
-  entity?: EntityInput;             // eid, schema, country, legal form, natural_person, status, caption
-  statements: StatementInput[];     // { prop, value, lang?, itemId }
-  reports: FactReportInput[];       // { kind, period, currency, unitScale, facts: { concept, value }[] }
-  events: EventInput[];             // { type, date, data?, itemId }
-  parties: PartyRef[];              // members, debtors, insolvency subjects, sanctions links: go through the party gate
-  dropped: DropReason[];            // fields dropped by rule: 'hide_item' | 'later_item' | 'personal_code' | ...
+type FieldMapEntry = {
+  field: string;                    // the source column, or `derived:<prop>` for a link or a constant
+  target: { prop: string } | { concept: string } | { event: string } | { resolutionKey: string } | { dropped: DropReason };
+  itemId?: string;                  // the Part G item, for every target but a resolution key or a drop
+  personal: boolean;
 };
+
+type ParsedRecord = {
+  recordKey: string;                // stable key per loader spec: the row's key, or the report / company-period key
+  hashInput: string[];              // checked for person keys; no longer hashed (J2): row_hash is built from the gated record
+  entities: ParsedEntity[];         // { eid, schema, country, legalForm?, status?, code?, statements, ref? }
+  reports?: FactReportInput[];      // { entityEid, kind, periodStart?, periodEnd, currency?, unitScale?, itemId, facts: { concept, value }[] }
+  events?: EventInput[];            // { entityEid, type, date, data?, itemId }
+  parties?: PartyRef[];             // { type?, code?, entities, events?, needs? }: members, debtors, sanctions links; through the party gate
+  lineIds?: (string | null)[];      // role-line identities, in line order (§3.3)
+  rowRef?: string;                  // a row-local reference for drop reports; never a code or a name
+  period?: string;                  // window and periods_in_file sources
+  op?: "upsert" | "delete";         // change feeds
+  dropped?: { reason: DropReason; prop?: string }[];   // fields the parser dropped by rule, counted
+};
+
+type ParsedStatement = { prop: string; value: string; itemId: string; lang?: string; line?: number };
 ```
 
 `parse` is pure given the artifacts, so `sources/src/<cc>/<id>/<id>.test.ts` runs it on committed synthetic fixtures with no network.

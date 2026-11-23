@@ -3,7 +3,7 @@
 import { backup, dataStatus, dataSync, doctor, resolveSanctions, search, show, type Io } from "./commands.ts";
 import { loadCliEnv } from "./env.ts";
 
-const USAGE = `usage: finora-cli <command>
+const USAGE = `usage: finora-cli <command>   (finora-cli --help shows this)
   data sync [source] [--profile fixtures|core] [--country lv|ee|lt|us] [--allow-mass-purge]
   data status
   search <query> [--country lv|ee|lt|us]
@@ -18,6 +18,11 @@ function flag(args: string[], name: string): string | undefined {
 }
 
 async function main(argv: string[]): Promise<number> {
+  // Help first: it needs no environment, and it is an answer, not an error (M1-F1).
+  if (argv.length > 0 && ["--help", "-h", "help"].includes(argv[0]!)) {
+    process.stdout.write(`${USAGE}\n`);
+    return 0;
+  }
   const io: Io = { env: loadCliEnv(), out: (line) => process.stdout.write(`${line}\n`) };
   const [command, sub, ...rest] = argv;
   if (command === "data" && sub === "sync") {
