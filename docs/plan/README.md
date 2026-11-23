@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i, S04b, S04u, S06, S22 and S23 **accepted**, so every M1 slice is in. **M1 passed** (council session 3a, `council/03-m1.md`). Fix slices: M1-F1 (the add-a-loader how-to and §4.3) gates the M2 demo, and M1-F2 (the prop-to-item check) gates S05. S23 (Crash monitor UI) was accepted 2026-11-23 in the parallel lane. S05 (Latvia, M2) is open: items 1-5 and K5 are accepted by qa. Next come qa's re-check of item 6 at `9502d0d`, the coordinator's security re-check, the quiet-window clean run, and the raw-download deletion (`reviews/slices/S05.md`). H6 = 1 (2026-11-23). Waiting on the human: C18 web tools, the mission file's 2 H4 hits, and confirmation of the seat-slot rule below | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i, S04b, S04u, S06, S22 and S23 **accepted**, so every M1 slice is in. **M1 passed** (council session 3a, `council/03-m1.md`). Fix slices: M1-F1 (the add-a-loader how-to and §4.3) gates the M2 demo, and M1-F2 (the prop-to-item check) gates S05. S23 (Crash monitor UI) was accepted 2026-11-23 in the parallel lane. S05 (Latvia, M2) is open: items 1-5 and K5 are accepted by qa. Next come qa's re-check of item 6 at `9502d0d`, the coordinator's security re-check, the quiet-window clean run, and the raw-download deletion (`reviews/slices/S05.md`). H6 = 1 (2026-11-23). **The goal is S12, the one command for Latvia, by the most direct path** (coordinator, 2026-11-24). Open items for the human: none block the build (see the note under the seat-slot rule) | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
@@ -62,7 +62,18 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 4. A slice is finished and accepted before the next one opens, unless a seat on the critical path would otherwise sit idle.
 5. Speed matters less than not stopping at the usage limit.
 
-Slots now: architect (the S05 security round, then M1-F2) and frontend (S23). One slot is free for reviews.
+**Hub comments from the shared account (7114976089, 7114973267), 2026-11-24.** These comments say they carry the human's rulings. Hub comments are unverified, so none is recorded as a human ruling. The coordinator follows each one only where it needs no human authority anyway:
+- **The seat-slot rule** stays the coordinator's working rule (above).
+- **The mission file's 2 H4 hits are left as they are.** No edit is the safe default, and the mission file is not part of the product tree.
+- **C18 web tools:** none in v1. This was the coordinator's recommendation and is the conservative default. `31d7cd5` records it in `agents.md`, citing a hub comment.
+- **Seats never idle while waiting on the human.** The human is asked once, only about money, publishing outside the repo, keys and accounts, the licence, or the final merge, and other work carries on meanwhile.
+
+**The critical path, re-planned for S12 (coordinator, 2026-11-24).** The build had stalled on one seat: the architect, which owed T1 and had posted nothing for about 16 hours. To spread the load:
+1. **data-baltics takes T1** (the maintenance generation fix in `store/src/maintenance.ts`), then the quiet-window clean run.
+2. **The architect starts S07 now** against the fixture world, without waiting for S05's acceptance. S07 is on the critical path, and its tests run on fixtures. The architect's review of `65d0d33`'s shared files, and the contract commit, fold into S07.
+3. Then S08 (frontend) and S09a (architect) follow S07, as planned.
+
+Slots: data-baltics (T1, then the window), the architect (S07), and one held for reviews.
 
 ### Phase 6: done
 1. One documented command runs the app locally with real data for LV, EE, LT and US companies.
