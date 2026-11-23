@@ -174,3 +174,35 @@ describe("names in id, case-number, court, programme and country columns are nev
     expect(known.records[0]!.parties![0]!.events![0]!.data).toMatchObject({ programme: "RUSSIA-EO14024", partyCountry: "gb" });
   });
 });
+
+// T2 in the S05 security re-check: the register's FOREIGN_ENTITY type alone does not prove a company.
+describe("a foreign holder known only by name must carry a company-form word", () => {
+  const PERSON = "Test Person Foreignname";
+
+  it("drops a person-shaped name typed FOREIGN_ENTITY from members, counted, and keeps a company-form name", async () => {
+    const { records, drops } = await parseAll(lvUrMembers, [
+      art("members.csv", lvMembersCsv([
+        { id: 7001, n: 2, type: "FOREIGN_ENTITY", name: PERSON, shares: "5", nominal: "1.00" },
+        { id: 7002, n: 2, type: "FOREIGN_ENTITY", name: "Example Holding GmbH", shares: "5", nominal: "1.00" },
+      ])),
+    ]);
+    expect(JSON.stringify(records)).not.toContain("Foreignname");
+    expect(drops).toContain("unproven_party");
+    const names = records.flatMap((r) => r.parties ?? []).flatMap((p) => p.entities).flatMap((e) => e.statements).filter((s) => s.prop === "name").map((s) => s.value);
+    expect(names).toEqual(["Example Holding GmbH"]);
+  });
+
+  it("keeps a foreign officer's role line with no holder when the name carries no company-form word", async () => {
+    const { records } = await parseAll(lvUrOfficers, [
+      art("officers.csv", lvOfficersCsv([
+        { id: 7101, n: 1, type: "FOREIGN_ENTITY", position: "BOARD_MEMBER", name: PERSON, rights: "INDIVIDUALLY", registered: "2020-01-01" },
+        { id: 7102, n: 1, type: "FOREIGN_ENTITY", position: "BOARD_MEMBER", name: "Example Trading Ltd", rights: "INDIVIDUALLY", registered: "2020-01-01" },
+      ])),
+    ]);
+    const record = records[0]!;
+    expect(JSON.stringify(record)).not.toContain("Foreignname");
+    expect(record.dropped).toContainEqual({ reason: "unproven_party", prop: "name" });
+    expect(record.parties?.map((p) => p.entities[0]!.statements[0]!.value)).toEqual(["Example Trading Ltd"]);
+    expect(record.entities.filter((e) => e.schema === "Directorship")).toHaveLength(2);
+  });
+});
