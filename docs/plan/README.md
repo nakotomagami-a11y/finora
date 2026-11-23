@@ -180,6 +180,10 @@ Slots now: architect (the S05 security round, then M1-F2) and frontend (S23). On
     - `retryable()` refuses when a `Test Files N failed` line matches, and vitest may print that line for a crashed file even when no test failed. The tests use synthetic output. **Owed (architect):** add a real crashed run's output as a test fixture, and show that `retryable()` returns the file. Until then, the green runs show only that the crash did not happen.
     - **NIT:** a V8 fatal plus an unrelated fork death reruns both, which masks the second. Retry only when every crash line comes with the fatal.
     - **NIT:** `spawnSync` buffers about 2 minutes of output. Stream it live and keep a copy for the check.
+  - **Proven (`2578aad`, `817ad85`):**
+    - A real crashed run's output is now a fixture. vitest printed "Errors 1 error" and never "failed", and `retryable()` returns the crashed file.
+    - A retry now needs a fatal for every crashed fork, and output streams live.
+    - The worker-starting files run in their own forks project, one file at a time: 10 of 10 consecutive runs were green, at about 145 s (within the 3 min budget).
 
 - **Native review of the `lt`, `lv` and `et` texts** (legal, S02): the Baltic UI and terms texts are drafted by the frontend seat and listed in `packages/i18n/REVIEW.md`; no seat is a native speaker. They ship marked as drafts, and native review goes to the session 3 agenda (the human may know a reviewer, or accept drafts for v1). Legal reviews the terms texts as a second pass after native review.
 
