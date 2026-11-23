@@ -386,6 +386,15 @@ export const MIGRATIONS: readonly Migration[] = [
       INSERT INTO main.entities_trigram (entities_trigram, rank) VALUES ('secure-delete', 0);
     `,
   },
+  {
+    // Item 6 on S05 (cto, qa, legal): the full open records the versions it migrated every file to,
+    // so a sync-only open, which attaches main and sa only, can tell the store is complete.
+    target: "main",
+    name: "store meta",
+    sql: `
+      CREATE TABLE main.store_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */

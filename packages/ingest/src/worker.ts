@@ -144,6 +144,9 @@ export function runSyncsInWorker(entry: URL, batch: WorkerBatch, options: Worker
     liveViewsHeld: batch.liveViewsHeld ?? batch.sourceIds.filter((id) => liveView(id) !== null),
     personListsHeld: batch.personListsHeld ?? batch.sourceIds.filter((id) => personListHeld(id)),
   };
+  // The full store is opened (and migrated) here first: a worker's sync-only open never migrates and
+  // refuses a store that is not complete (item 6 on S05).
+  openStore({ dataDir: batch.dataDir }).close();
   return new Promise((resolve) => {
     // A heap cap per worker: a loader or reader that runs away ends its own lane's sync as failed,
     // never the parent process (SEC-1 on S06, qa).

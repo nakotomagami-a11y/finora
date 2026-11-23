@@ -2,7 +2,8 @@
 // (secure_delete on every connection, an FTS merge when search rows of an unsearchable entity go, a
 // TRUNCATE checkpoint after every delete) and qa's tests. Every byte scan reads the store files while
 // the store is open, so the -wal and -shm files are read too, and every value is fictional.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ParsedRecord, RawArtifact } from "@finora/sources";
 import { acquireLease, beginSync, checkpoint, maintenanceDue, openStore, releaseLease, runMaintenance, runRetention, startIdleMaintenance, upsertSource, writeRecord, type CheckpointResult, type Store } from "@finora/store";
@@ -387,5 +388,47 @@ describe("no write path hashes the loader's raw input (qa on live-cache.ts, J2)"
     };
     expect(await hashAfterRename("JOINT_OWNERS")).toBe(true);
     expect(await hashAfterRename("LEGAL_ENTITY")).toBe(false);
+  });
+});
+
+describe("the sync-only open (item 6 on S05)", () => {
+  const attached = (store: Store) => (store.db.prepare("PRAGMA database_list").all() as { name: string }[]).map((r) => r.name).filter((n) => n !== "temp");
+
+  it("refuses a fresh data dir with store_not_migrated, and creates nothing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "finora-syncopen-"));
+    try {
+      expect(() => openStore({ dataDir: dir, sync: true })).toThrow(expect.objectContaining({ code: "store_not_migrated" }));
+      expect(readdirSync(dir)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("opens after the full open, with main and sa only, also after a full sync", async () => {
+    const { dir } = onDisk();
+    const sync = openStore({ dataDir: dir, sync: true });
+    stores.push(sync);
+    expect(attached(sync)).toEqual(["main", "sa"]);
+    await runSync(sync.db, fakeSource({}, { records: companies(1, 50) }), { fetcher: noNetwork });
+    expect(attached(sync)).toEqual(["main", "sa"]);
+  });
+
+  it("refuses a store whose recorded versions are behind this build's", () => {
+    const { store, dir } = onDisk();
+    store.db.prepare("UPDATE main.store_meta SET value = ? WHERE key = 'migrated'").run(JSON.stringify({ main: 1, user: 1, sa: 1, cc: 1 }));
+    expect(() => openStore({ dataDir: dir, sync: true })).toThrow(expect.objectContaining({ code: "store_not_migrated" }));
+  });
+});
+
+describe("K5, option (a): a company rename owes no FTS merge (qa's check)", () => {
+  it("a fictional company renamed with no former-name statement leaves no fts_merge mark", async () => {
+    const { store } = onDisk();
+    const source = fakeSource({ id: "lv-register" }, { records: [register("Example Zorvexa SIA")] });
+    await run(store, source);
+    source.state.records = [register("Example Quillmont SIA")];
+    source.state.asOf = { in_file_field: "2026-11-02" };
+    const outcome = await run(store, source);
+    expect(outcome.kind).toBe("content");
+    expect(outcome.report?.maintenance?.map((m) => m.kind)).toEqual(["wal_truncate"]);
   });
 });
