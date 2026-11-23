@@ -184,7 +184,7 @@ Slots: data-baltics (T1, then the window), the architect (S07), and one held for
   - **S12: one child process per lane, not a worker thread** (cto's technical call), so a V8 fatal stays in its lane;
   - S12 measures a process-wide memory figure and the free-disk check against EE and GLEIF;
   - `pnpm test` has a budget of 3 min (`benchmarks.md`).
-  - **S12 measures the longest `main` checkpoint on the four-country store** against the bound (TTL minus 2 beat intervals). If it approaches the bound, checkpoints move off the sync thread (council 7115842072).
+  - **S12 measures the longest `main` checkpoint on the four-country store** against the 30 s bound (council 7116435768). If any checkpoint passes 30 s, moving checkpoints off the sync thread is a MUST before S12 is accepted.
   - The architect ran 6 full runs at the tip with logs kept: 6 of 6 passed, 1264 of 1264, with no fatal. qa's 3 of 3 at `62b9bb2` agree, and the 15-failure run has not repeated.
   - `82d370a`: `pnpm test` runs through `scripts/vitest-run.mjs`. It reruns a file once only when the known V8 teardown fatal killed its fork and no test failed. Any failed test, or any other fork death, still fails the run, which four tests in `scripts/vitest-run.test.mjs` cover. The rerun is noted in `docs/running.md`.
   - If the 15-failure case recurs with output, the architect takes it.
