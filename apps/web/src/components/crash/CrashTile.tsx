@@ -3,8 +3,8 @@
 import { Icon } from "@finora/ui";
 import { useTranslations } from "next-intl";
 import { formatDate } from "@finora/i18n";
-import { type RowView, type TileView } from "./model.ts";
-import { AsOf, Caveat, Drawdown, RetryButton, RowSkeleton, SetupHelp, SourceChips, useLocaleId, useMoney } from "./parts.tsx";
+import { formatMarketValue, type RowView, type TileView } from "./model.ts";
+import { AsOf, Caveat, Drawdown, LastGood, RetryButton, RowSkeleton, SetupHelp, SourceChips, useLocaleId, useMoney } from "./parts.tsx";
 
 type TileProps = { tile: TileView; now: Date; onRetry: () => void };
 
@@ -65,7 +65,13 @@ function LeadBlock({ tile, now, onRetry }: TileProps) {
           <Icon name="warn" className="mt-0.5 size-3.5 text-warn" />
           <span>{t("error")}</span>
         </span>
-        <span className="text-small text-muted">{t("errorHidden")}</span>
+        {lead.lastGood && formatMarketValue(locale, lead.unit, lead.lastGood.value) !== undefined ? (
+          <span className="text-small">
+            <LastGood row={lead} now={now} />
+          </span>
+        ) : (
+          <span className="text-small text-muted">{t("errorHidden")}</span>
+        )}
         <RetryButton onRetry={onRetry} />
       </div>
     );
@@ -111,6 +117,7 @@ function RowLine({ row, now, onRetry }: { row: RowView; now: Date; onRetry: () =
     body = (
       <span className="flex max-w-[15rem] flex-col items-start gap-0.5 text-left @[20rem]:items-end @[20rem]:text-right">
         <span className="text-muted">{row.invalid ? t("strip.failedCheck") : t("error")}</span>
+        <LastGood row={row} now={now} />
         <RetryButton onRetry={onRetry} />
       </span>
     );

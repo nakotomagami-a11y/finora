@@ -84,6 +84,7 @@
     "stale": "uz {value}, vecāks nekā parasti",
     "error": "Nav pārbaudīts: avots neatbildēja.",
     "errorHidden": "Skaitlis netiek rādīts, nevis iespējami novecojis.",
+    "lastGood": "Pēdējā derīgā vērtība {value}, uz {when}, vecāka nekā parasti",
     "retry": "Mēģināt vēlreiz",
     "notConfiguredOne": "Nav iestatīts: pievienojiet pakalpojumu sniedzēju {codes} savā sniedzēju failā.",
     "notConfiguredMany": "Nav iestatīts: pievienojiet pakalpojumu sniedzējus {codes} savā sniedzēju failā.",

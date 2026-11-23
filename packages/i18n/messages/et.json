@@ -84,6 +84,7 @@
     "stale": "seisuga {value}, tavapärasest vanem",
     "error": "Kontrollimata: allikas ei vastanud.",
     "errorHidden": "Numbrit ei näidata, mitte võimalik aegunud numbrit.",
+    "lastGood": "Viimane kehtiv väärtus {value}, seisuga {when}, tavapärasest vanem",
     "retry": "Proovi uuesti",
     "notConfiguredOne": "Seadistamata: lisage oma pakkujate faili pakkuja {codes}.",
     "notConfiguredMany": "Seadistamata: lisage oma pakkujate faili pakkujad {codes}.",

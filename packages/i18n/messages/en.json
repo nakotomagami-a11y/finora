@@ -84,6 +84,7 @@
     "stale": "as of {value}, older than its usual refresh",
     "error": "Not checked: the source did not answer.",
     "errorHidden": "No number is shown rather than one that may be out of date.",
+    "lastGood": "Last good value {value}, as of {when}, older than its usual refresh",
     "retry": "Retry",
     "notConfiguredOne": "Not configured: add provider {codes} to your local provider file.",
     "notConfiguredMany": "Not configured: add providers {codes} to your local provider file.",

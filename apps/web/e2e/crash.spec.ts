@@ -50,6 +50,14 @@ test.describe("crash monitor, every state (FINORA_DEMO=1)", () => {
     await expect(page.getByRole("button", { name: "How to set it up" }).first()).toBeFocused(); // focus returns to the opener
   });
 
+  test("a row that is not configured names the provider code the response gives", async ({ page }) => {
+    await page.goto("/en/crash?state=not-configured");
+    await expect(page.getByText("Not configured: add fred-cited to your local provider file").first()).toBeVisible();
+    await expect(page.getByText(/Not configured: add providers e1 and fred-cited to your local provider file/u).first()).toBeVisible();
+    await page.getByRole("button", { name: "How to set it up" }).first().click();
+    await expect(page.getByRole("dialog", { name: "Set up a provider" })).toContainText("fred-cited");
+  });
+
   test("stale rows say they are older than their usual refresh, in words and colour", async ({ page }) => {
     await page.goto("/en/crash?state=stale");
     await expect(page.getByText(/older than its usual refresh/u).first()).toBeVisible();
@@ -61,6 +69,8 @@ test.describe("crash monitor, every state (FINORA_DEMO=1)", () => {
     await expect(page.getByRole("alert").filter({ hasText: "One source failed" })).toBeVisible();
     await expect(page.getByText("Not checked: the source did not answer.").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Retry" }).first()).toBeVisible();
+    // The row that has a stored value shows it with its date, worded as old, and keeps Retry; the others show none.
+    await expect(page.getByText("Last good value $70,500, as of 05:10, older than its usual refresh")).toBeVisible();
     // The strip does not drop a market that failed: it is listed, as not checked, after the drops.
     await expect(page.getByRole("table", { name: "Distance from peak" }).getByRole("cell", { name: "not checked" })).toHaveCount(3);
   });

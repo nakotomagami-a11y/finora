@@ -4,7 +4,7 @@ import { Badge, Button, Chip, Dialog, Icon, Popover, Skeleton } from "@finora/ui
 import { formatDateTime, type Locale } from "@finora/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
-import { asOfText, formatAsOfDate, formatDrawdown, formatMoneyAmount, type RowView, type SourceView } from "./model.ts";
+import { asOfText, formatAsOfDate, formatDrawdown, formatMarketValue, formatMoneyAmount, type RowView, type SourceView } from "./model.ts";
 
 /** The current time, refreshed every `everyMs`: for "Updated N min ago" and the debt estimate. Starts as null on the server. */
 export function useNow(everyMs: number): Date | null {
@@ -130,6 +130,21 @@ export function Caveat({ children }: { children: ReactNode }) {
       <span>{children}</span>
     </span>
   );
+}
+
+/**
+ * An error row's last stored value, dated and worded as old: "Last good value $70,500, as of 05:10, older than its usual
+ * refresh". It is shown in amber like a stale date and never as the row's figure; Retry stays beside it. A value that
+ * may not be written (an index level) shows nothing.
+ */
+export function LastGood({ row, now }: { row: RowView; now: Date }) {
+  const t = useTranslations("crash");
+  const locale = useLocaleId();
+  if (!row.lastGood) return null;
+  const value = formatMarketValue(locale, row.unit, row.lastGood.value);
+  const as = asOfText(locale, row.cadence, row.lastGood.asOf, now);
+  if (value === undefined || as.kind === "none") return null;
+  return <span className="text-warn">{t("lastGood", { value, when: as.text })}</span>;
 }
 
 /** One source behind a set of rows, with the row whose figure it is: the chip shows that row's as-of, not the retrieval date. */

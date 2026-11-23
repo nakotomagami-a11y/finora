@@ -84,6 +84,7 @@
     "stale": "{value}, senesnis nei įprastai",
     "error": "Nepatikrinta: šaltinis neatsakė.",
     "errorHidden": "Skaičius nerodomas, kad nebūtų rodomas galbūt pasenęs.",
+    "lastGood": "Paskutinė tinkama vertė {value}, {when}, senesnė nei įprastai",
     "retry": "Bandyti dar kartą",
     "notConfiguredOne": "Nenustatyta: pridėkite teikėją {codes} savo teikėjų faile.",
     "notConfiguredMany": "Nenustatyta: pridėkite teikėjus {codes} savo teikėjų faile.",

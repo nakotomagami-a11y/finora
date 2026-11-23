@@ -47,9 +47,11 @@ describe("buildPageView", () => {
 
   it("lists the providers a tile still needs, as codes, once each", () => {
     const tiles = fixture("not-configured").tiles;
-    expect(tiles.find((t) => t.id === "M06")?.missingProviders).toEqual(["C1", "X4"]);
+    // The codes are the response's own `provider`, as the user must write them in the provider file.
+    expect(tiles.find((t) => t.id === "M06")?.missingProviders).toEqual(["c1", "x4"]);
+    expect(tiles.find((t) => t.id === "M03")?.missingProviders).toEqual(["e1", "fred-cited"]);
     expect(tiles.find((t) => t.id === "M06")?.allNotConfigured).toBe(true);
-    expect(tiles.find((t) => t.id === "M01")?.missingProviders).toEqual(["F1", "F2", "F3"]);
+    expect(tiles.find((t) => t.id === "M01")?.missingProviders).toEqual(["fred-cited"]);
     expect(tiles.find((t) => t.id === "M01")?.allNotConfigured).toBe(false);
   });
 
@@ -246,5 +248,16 @@ describe("the peak window and the debt change", () => {
     const debt = fixture("live").debt;
     expect(debt?.change30d).toEqual({ valueUsd: 214_000_000_000, from: "2026-10-18", to: "2026-11-18" });
     for (const row of fixture("live").tiles.flatMap((t) => t.all)) if (row.itemId !== "M08.X.01") expect(row.change30d).toBeUndefined();
+  });
+});
+
+describe("an error row's last good value, and the provider of a row that is not configured", () => {
+  it("keeps lastGood only on an error row, and reads the provider from the row, not from its key", () => {
+    const rows = fixture("error").tiles.flatMap((t) => t.all);
+    expect(rows.find((r) => r.labelId === "bitcoin")?.lastGood).toEqual({ value: 70_500, asOf: "2026-11-22T05:10:00Z" });
+    expect(rows.filter((r) => r.state !== "error").every((r) => r.lastGood === undefined)).toBe(true);
+    const unconfigured = fixture("not-configured").tiles.flatMap((t) => t.all).filter((r) => r.state === "not_configured");
+    expect(unconfigured.map((r) => r.providerCode)).toEqual(["fred-cited", "fred-cited", "fred-cited", "fred-cited", "e1", "x4", "x4", "c1"]);
+    expect(fixture("live").tiles.flatMap((t) => t.all).every((r) => r.providerCode === undefined)).toBe(true);
   });
 });

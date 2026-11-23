@@ -20,18 +20,6 @@ export const TILES: readonly { id: TileKey; lead: string }[] = [
   { id: "M07", lead: "M07.X.01:wti" },
 ];
 
-/** The coded provider a row needs from the local provider file (H4: codes only, the real names live in that file). */
-const PROVIDER_CODE: Record<string, string> = {
-  "M01.X.03:us_large": "F1",
-  "M01.X.03:us_broad": "F2",
-  "M01.X.03:us_tech": "F3",
-  "M03.X.01:japan": "F5",
-  "M03.X.01:taiwan": "E1",
-  "M06.X.01b:bitcoin": "X4",
-  "M06.X.01b:ether": "X4",
-  "M06.X.02:total_crypto": "C1",
-};
-
 /** What the last label of a row's catalogue key is: `crash.rows.us_large` gives `us_large`. */
 export const rowLabelId = (label: string): string => label.replace(/^crash\.rows\./u, "");
 
@@ -55,7 +43,10 @@ export type RowView = {
   unit: MarketRow["unit"];
   attribution: string | undefined;
   ticker: MarketRow["ticker"];
+  /** The provider code a `not_configured` row needs in the local provider file, as the response names it (H4: a code only). */
   providerCode: string | undefined;
+  /** An error row only: the last stored value, too old to count as current, with its date (U9 7). */
+  lastGood: { value: number; asOf: string } | undefined;
   /** The latest time any of its sources was checked or retrieved, for "updated" lines. */
   checkedAt: string | undefined;
   /** The sources behind the figure, for the tile's source chips and their popovers. */
@@ -93,7 +84,8 @@ export function toRowView(source: MarketRow): RowView {
     unit: row.unit,
     attribution: row.attribution,
     ticker: row.ticker,
-    providerCode: PROVIDER_CODE[row.rowKey],
+    providerCode: row.provider,
+    lastGood: row.state === "error" ? row.lastGood : undefined,
     checkedAt: times.sort().at(-1),
     sources: row.sources.map((src) => ({ sourceId: src.sourceId, licenceId: src.licenceId, asOf: src.asOf ?? undefined, retrievedAt: src.retrievedAt, checkedAt: src.checkedAt ?? undefined, accessTier: src.accessTier, derived: src.derived })),
     invalid,
@@ -109,7 +101,7 @@ export type TileView = {
   all: RowView[];
   /** Every row of the tile is `not_configured`: the tile draws its empty shape. */
   allNotConfigured: boolean;
-  /** The coded providers the tile's unconfigured rows need, sorted: "C1", "X4". */
+  /** The provider codes the tile's unconfigured rows need, once each, sorted: "c1", "x4". */
   missingProviders: string[];
   /** Any row is stale. */
   stale: boolean;

@@ -160,6 +160,41 @@ describe("the peak window and the debt change", () => {
   });
 });
 
+describe("an error row's last good value", () => {
+  it("shows the value with its date, worded as old, beside Retry, and no value on a row that has none", () => {
+    // Only the date is faked, to the fixture's day: a figure from today shows its time, an older one its date.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-22T08:30:00Z") });
+    mount({ fixture: fixture("error") });
+    const tile = screen.getByRole("region", { name: "Crypto" });
+    // The time is the machine's local time (DESIGN.md 9.4), so only its shape is pinned here; the e2e pins the zone.
+    expect(within(tile).getByText(/^Last good value \$70,500, as of \d{2}:\d{2}, older than its usual refresh$/u)).toBeInTheDocument();
+    expect(within(tile).getAllByText("Not checked: the source did not answer.").length).toBeGreaterThan(1);
+    expect(within(tile).getAllByRole("button", { name: "Retry" }).length).toBe(3); // the lead row's and both rows', each keeps Retry
+    // Ether has no stored value: it shows none, rather than a made-up one.
+    expect(within(tile).getAllByText(/^Last good value/u)).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("never writes a last good value for an index series", () => {
+    const body = structuredClone(FIXTURES.error!);
+    const row = body.tiles.flatMap((t) => t.rows).find((r) => r.rowKey.endsWith("bitcoin"))!;
+    row.unit = "index_points";
+    mount({ fixture: body });
+    expect(screen.queryByText(/^Last good value/u)).toBeNull();
+  });
+});
+
+describe("the provider of a row that is not configured", () => {
+  it("is the code the response names, not one mapped from the row key", () => {
+    const body = structuredClone(FIXTURES["not-configured"]!);
+    body.tiles.flatMap((t) => t.rows).find((r) => r.rowKey.endsWith("us_large"))!.provider = "o3";
+    mount({ fixture: body });
+    expect(screen.getByText("Not configured: add o3 to your local provider file")).toBeInTheDocument();
+    expect(screen.getAllByText(/add providers e1 and fred-cited to your local provider file/u).length).toBeGreaterThan(0);
+    expect(document.body.textContent).not.toMatch(/F[1-5]/u);
+  });
+});
+
 describe("source chips, by their own names", () => {
   const chips = (tileName: string) =>
     within(screen.getByRole("region", { name: tileName }))
