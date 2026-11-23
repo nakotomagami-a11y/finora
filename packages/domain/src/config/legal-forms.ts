@@ -117,3 +117,20 @@ export function namesCompany(name: string): boolean {
     .split(" ")
     .some((token) => token.length >= 3 && LEGAL_FORM_TOKENS.has(token));
 }
+
+/**
+ * Two-letter company forms as companies write them (OÜ, AS, AB, Oy, AG, SA, BV, NV, dotted forms
+ * included). A personal name rarely ends in one of these words in this spelling: none of the
+ * 451,863 names the LV register types as natural persons does (2026-11 officers and members files).
+ */
+export const SHORT_COMPANY_FORMS: ReadonlySet<string> = new Set(["OÜ", "OU", "AS", "AB", "Oy", "OY", "AG", "SA", "S.A.", "BV", "B.V.", "NV", "N.V."]);
+
+/**
+ * Whether a name of two words or more ends in a short company form, spelt as the form is (legal on
+ * S05 T2): "Example AS" does, "Test Person As" and a bare "AS" do not.
+ */
+export function endsWithShortCompanyForm(name: string): boolean {
+  const words = name.trim().split(/\s+/);
+  return words.length >= 2 && SHORT_COMPANY_FORMS.has(words.at(-1)!.replace(/[,;]$/, ""));
+}
+

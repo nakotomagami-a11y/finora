@@ -206,3 +206,21 @@ describe("a foreign holder known only by name must carry a company-form word", (
     expect(record.entities.filter((e) => e.schema === "Directorship")).toHaveLength(2);
   });
 });
+
+// Legal 7093040951: a short company form, spelt as the form, as the last word of two words or more.
+describe("a foreign holder whose name ends in a short company form", () => {
+  it("keeps 'Example AS' and 'Example B.V.', and refuses a person-shaped name ending in a listed token", async () => {
+    const { records, drops } = await parseAll(lvUrMembers, [
+      art("members.csv", lvMembersCsv([
+        { id: 7201, n: 2, type: "FOREIGN_ENTITY", name: "Example Shipping AS", shares: "5", nominal: "1.00" },
+        { id: 7202, n: 2, type: "FOREIGN_ENTITY", name: "Example Trade B.V.", shares: "5", nominal: "1.00" },
+        { id: 7203, n: 2, type: "FOREIGN_ENTITY", name: "Test Personas As", shares: "5", nominal: "1.00" },
+        { id: 7204, n: 2, type: "FOREIGN_ENTITY", name: "AS", shares: "5", nominal: "1.00" },
+      ])),
+    ]);
+    const names = records.flatMap((r) => r.parties ?? []).flatMap((p) => p.entities).flatMap((e) => e.statements).filter((s) => s.prop === "name").map((s) => s.value);
+    expect(names).toEqual(["Example Shipping AS", "Example Trade B.V."]);
+    expect(JSON.stringify(records)).not.toContain("Personas");
+    expect(drops.filter((d) => d === "unproven_party")).toHaveLength(2);
+  });
+});

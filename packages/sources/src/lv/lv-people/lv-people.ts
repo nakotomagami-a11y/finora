@@ -4,7 +4,7 @@
 // person members never get past the type check. Beneficial owners, joint-stock shareholders and
 // joint owners are never fetched.
 import { createHash } from "node:crypto";
-import { LEGAL_FORMS, namesCompany, type DropReason } from "@finora/domain";
+import { endsWithShortCompanyForm, LEGAL_FORMS, namesCompany, type DropReason } from "@finora/domain";
 import { parserVersion } from "../../parser-version.ts";
 import type { FetchContext, FieldMap, ParseContext, ParsedEntity, ParsedRecord, PartyRef, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
 import { artifact, cleanCode, closedValue, CURRENCIES, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
@@ -88,6 +88,12 @@ const orgEid = (sourceId: string, code: string, recordKey: string, lineId: strin
   `org-${createHash("sha256").update(JSON.stringify([sourceId, `lv-${code}`, recordKey, lineId])).digest("hex").slice(0, 20)}`;
 
 type Dropped = { reason: DropReason; prop?: string };
+
+/**
+ * A foreign holder's name proves a company: a company-form word of three letters or more, or a
+ * short form spelt as companies write it as the last of two words or more (legal 7093040951).
+ */
+const foreignCompanyName = (name: string) => namesCompany(name) || endsWithShortCompanyForm(name);
 
 /**
  * A line's own row id, kept for role-end detection (§3.3). Only the register's id shape is kept: at
@@ -231,7 +237,7 @@ function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mod
       // by its register type; unproven, it is dropped in every mode (legal on SEC-9). The type alone
       // is not proof enough: the name must carry a company-form word, as the FID gate requires (T2).
       // Without one the role line stays, with no holder, as a natural person's line does in role_counts.
-      if (l.name && !namesCompany(l.name)) dropped.push({ reason: "unproven_party", prop: "name" });
+      if (l.name && !foreignCompanyName(l.name)) dropped.push({ reason: "unproven_party", prop: "name" });
       else if (l.name) {
         const org = orgEid(sourceId, code, recordKey, id ?? `#${pos}`);
         parties.push({
@@ -308,7 +314,7 @@ export function lvUrOfficersLoader(config: LvPeopleConfig): SourceLoader {
   if (!LV_PERSON_ROWS_MODES.includes(mode)) throw new Error("LV_PERSON_ROWS must be names_no_id or role_counts");
   return {
     meta: m,
-    parserVersion: `${parserVersion(m.id, 5, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
+    parserVersion: `${parserVersion(m.id, 6, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
     fieldMap: LV_UR_OFFICERS_FIELD_MAP,
     fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "officers", OFFICERS_FILE) }),
     asOf: (raw) => lvAsOf(raw, OFFICERS_FILE, datesOf, today(raw)),
@@ -449,7 +455,7 @@ function* members(raw: RawArtifact[], sourceId: string, ctx: ParseContext): Gene
       }
       // A foreign holder known only by name must carry a company-form word (T2, as the FID gate):
       // the register's type alone does not prove a company, so the line is dropped whole.
-      if (type === "FOREIGN_ENTITY" && !namesCompany(name)) {
+      if (type === "FOREIGN_ENTITY" && !foreignCompanyName(name)) {
         ctx.onDrop?.("unproven_party");
         continue;
       }
@@ -478,7 +484,7 @@ const MEMBERS_META = meta("lv-ur-members", "Members", [S04, S17]);
 
 export const lvUrMembers: SourceLoader = {
   meta: MEMBERS_META,
-  parserVersion: `${parserVersion(MEMBERS_META.id, 5, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
+  parserVersion: `${parserVersion(MEMBERS_META.id, 6, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
   fieldMap: LV_UR_MEMBERS_FIELD_MAP,
   fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "members", MEMBERS_FILE) }),
   asOf: (raw) => lvAsOf(raw, MEMBERS_FILE, datesOf, today(raw)),
