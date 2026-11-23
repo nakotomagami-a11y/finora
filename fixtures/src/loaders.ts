@@ -39,25 +39,23 @@ function meta(id: string, country: SourceMeta["country"], storage: StorageClass,
   };
 }
 
-/** The field map a fixture's records imply: one entry per (item, prop) pair they write. */
-function declaredPairs(records: readonly ParsedRecord[]): FieldMap {
-  const pairs = new Map<string, { itemId: string; prop: string }>();
-  for (const r of records) for (const e of [...r.entities, ...(r.parties ?? []).flatMap((p) => p.entities)]) for (const st of e.statements) pairs.set(`${st.itemId} ${st.prop}`, { itemId: st.itemId, prop: st.prop });
-  return [...pairs.values()].map(({ itemId, prop }) => ({ field: `${itemId}:${prop}`, target: { prop }, itemId, personal: itemId.startsWith("S03.") }));
+/**
+ * A fixture loader's field map, written out like a real loader's (M1-F2, council 7092078338): the
+ * (item, prop) pairs it may store. A fixture that starts writing a new pair is refused
+ * `prop_not_in_item`, as a real loader would be, until the pair is declared here.
+ */
+function declare(itemId: string, props: readonly string[], personal: readonly string[] = []): FieldMap {
+  return props.map((prop) => ({ field: `${itemId}:${prop}`, target: { prop }, itemId, personal: personal.includes(prop) }));
 }
 
 /** A loader whose artifact is the JSON of its records: parse is pure, a change moves the hash. */
-function jsonLoader(m: SourceMeta, records: () => ParsedRecord[]): SourceLoader {
-  let fieldMap: FieldMap | undefined;
+export function jsonLoader(m: SourceMeta, fieldMap: FieldMap, records: () => ParsedRecord[]): SourceLoader {
   return {
     meta: m,
     parserVersion: `fixtures-${DEFAULT_SEED}-1`,
-    // A fixture stands in for a real loader: its map declares the (item, prop) pairs its records
-    // write, so the prop-to-item check (M1-F2) sees the fixture world as a loader would declare it.
-    get fieldMap(): FieldMap {
-      fieldMap ??= declaredPairs(records());
-      return fieldMap;
-    },
+    // A fixture stands in for a real loader: its map is written out, never derived from its own
+    // records, so the prop-to-item check (M1-F2) refuses a pair no one declared.
+    fieldMap,
     async fetch() {
       const bytes = new TextEncoder().encode(JSON.stringify(records()));
       return { artifacts: [{ name: `${m.id}.json`, bytes, fetchedAt: new Date().toISOString() }] };
@@ -95,7 +93,10 @@ export function companyEntity(c: FixtureCompany): ParsedEntity {
 }
 
 const register = (country: "lv" | "ee" | "lt" | "us") =>
-  jsonLoader(meta(`fx-${country}-register`, country, "store", country === "us" ? ["S01.US.01", "S01.ALL.01"] : [`S01.${country.toUpperCase()}.01`, "S01.ALL.01"], { order: 0 }), () =>
+  jsonLoader(meta(`fx-${country}-register`, country, "store", country === "us" ? ["S01.US.01", "S01.ALL.01"] : [`S01.${country.toUpperCase()}.01`, "S01.ALL.01"], { order: 0 }), [
+    ...declare(country === "us" ? "S01.US.01" : `S01.${country.toUpperCase()}.01`, country === "us" ? ["name", "address", "capital", "registrationNumber", "ticker"] : ["name", "address", "capital", "registrationNumber"]),
+    ...declare("S01.ALL.01", ["leiCode"]),
+  ], () =>
     world()
       .companies.filter((c) => c.country === country)
       .map((c) => ({ recordKey: c.eid, rowRef: `row-${c.code}`, hashInput: [JSON.stringify(c)], entities: [companyEntity(c)] })),
@@ -107,7 +108,7 @@ export const fxLtRegister = register("lt");
 export const fxUsRegister = register("us");
 
 const officers = (country: "lv" | "ee") =>
-  jsonLoader(meta(`fx-${country}-officers`, country, "store", [`S03.${country.toUpperCase()}.01`]), () =>
+  jsonLoader(meta(`fx-${country}-officers`, country, "store", [`S03.${country.toUpperCase()}.01`]), declare(`S03.${country.toUpperCase()}.01`, ["name", "organization", "director", "role", "startDate"], ["name", "startDate"]), () =>
     world()
       .roleSets.filter((r) => r.country === country)
       .map((set, n) => {
@@ -139,7 +140,8 @@ export const fxEeOfficers = officers("ee");
 
 /** Annual reports per country, so each loads in its country's lane after the register. */
 const financials = (country: "lv" | "ee" | "lt") =>
-  jsonLoader(meta(`fx-${country}-financials`, country, "store", [`S06.${country.toUpperCase()}.01`]), () =>
+  // Reports only: no statement, so no (item, prop) pair to declare.
+  jsonLoader(meta(`fx-${country}-financials`, country, "store", [`S06.${country.toUpperCase()}.01`]), [], () =>
     world()
       .reports.filter((r) => r.country === country)
       .map((r) => ({
@@ -168,7 +170,7 @@ export const fxEeFinancials = financials("ee");
 export const fxLtFinancials = financials("lt");
 
 /** EE taxes paid: share-alike, so finora-sa.db only (or memory only in live-no-store mode). */
-export const fxEeTax = jsonLoader(meta("fx-ee-tax", "ee", "share-alike-store", ["S08.EE.01b"]), () =>
+export const fxEeTax = jsonLoader(meta("fx-ee-tax", "ee", "share-alike-store", ["S08.EE.01b"]), [], () =>
   world().eeTaxes.map((t) => ({
     recordKey: `${t.companyEid}:${t.quarterEnd}`,
     hashInput: [String(t.taxesPaid)],
@@ -178,7 +180,7 @@ export const fxEeTax = jsonLoader(meta("fx-ee-tax", "ee", "share-alike-store", [
 );
 
 /** A small daily list read into memory at refresh and never written. */
-export const fxLtArrears = jsonLoader(meta("fx-lt-arrears", "lt", "live-no-store", ["S08.LT.01"]), () =>
+export const fxLtArrears = jsonLoader(meta("fx-lt-arrears", "lt", "live-no-store", ["S08.LT.01"]), [], () =>
   world().ltArrears.map((a) => ({
     recordKey: a.companyEid,
     hashInput: [String(a.amount)],
@@ -187,8 +189,11 @@ export const fxLtArrears = jsonLoader(meta("fx-lt-arrears", "lt", "live-no-store
   })),
 );
 
-/** Raw-layout rows of every HIDE item: all of it must be dropped at load and counted. */
-export const fxHide = jsonLoader(meta("fx-hide", "intl", "store", []), () =>
+/**
+ * Raw-layout rows of every HIDE item: all of it must be dropped at load and counted. Every statement
+ * is under a HIDE item, refused `hide_item` before any prop check, so its map declares nothing.
+ */
+export const fxHide = jsonLoader(meta("fx-hide", "intl", "store", []), [], () =>
   world().hide.map((h) => {
     const [code] = h.rows[0] ?? [];
     const owner = world().companies.find((c) => c.code === code);
@@ -296,7 +301,7 @@ const fixtureProfile = (config: LoaderConfig): readonly { exportName: string; lo
 
 
 /** A live-cached US state register: answers one company at a time, per dataset (§3.5). */
-export const fxUsState = Object.assign(jsonLoader(meta("fx-us-state", "us", "live-cached", ["S01.US.02", "S03.US.03"], { cacheTtl: { refetchHours: 24, purgeUnviewedDays: 30 } }), () => []), {
+export const fxUsState = Object.assign(jsonLoader(meta("fx-us-state", "us", "live-cached", ["S01.US.02", "S03.US.03"], { cacheTtl: { refetchHours: 24, purgeUnviewedDays: 30 } }), [...declare("S01.US.02", ["name"]), ...declare("S03.US.03", ["name", "organization", "director", "role"], ["name"])], () => []), {
   async fetchRecord(_ctx: unknown, recordKey: string) {
     const record = world().stateRecords.find((r) => r.code === recordKey);
     const bytes = (records: ParsedRecord[]): RawArtifact[] => [{ name: "r.json", bytes: new TextEncoder().encode(JSON.stringify(records)), fetchedAt: "" }];
