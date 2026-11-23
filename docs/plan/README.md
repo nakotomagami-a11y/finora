@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i, S04b, S04u, S06 and S22 **accepted**, so every M1 slice is in. **M1 passed** (council session 3a, `council/03-m1.md`). Fix slices: M1-F1 (the add-a-loader how-to and §4.3) gates the M2 demo, and M1-F2 (the prop-to-item check) gates S05. S05 (Latvia, M2) is open: items 1-5 and K5 are accepted by qa. Next come qa's re-check of item 6 at `9502d0d`, the coordinator's security re-check, the quiet-window clean run, and the raw-download deletion (`reviews/slices/S05.md`). H6 = 1 (2026-11-23). Waiting on the human: C18 web tools, the mission file's 2 H4 hits, and confirmation of the seat-slot rule below | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i, S04b, S04u, S06 and S22 **accepted**, so every M1 slice is in. **M1 passed** (council session 3a, `council/03-m1.md`). Fix slices: M1-F1 (the add-a-loader how-to and §4.3) gates the M2 demo, and M1-F2 (the prop-to-item check) gates S05. **S23 (Crash monitor UI) is open in the parallel lane** (frontend, `reviews/slices/S23.md`). S05 (Latvia, M2) is open: items 1-5 and K5 are accepted by qa. Next come qa's re-check of item 6 at `9502d0d`, the coordinator's security re-check, the quiet-window clean run, and the raw-download deletion (`reviews/slices/S05.md`). H6 = 1 (2026-11-23). Waiting on the human: C18 web tools, the mission file's 2 H4 hits, and confirmation of the seat-slot rule below | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
@@ -62,7 +62,7 @@ Slices land in the approved order. Each slice: tests green, qa review with no op
 4. A slice is finished and accepted before the next one opens, unless a seat on the critical path would otherwise sit idle.
 5. Speed matters less than not stopping at the usage limit.
 
-Slots now: architect (S05 items 1-6), qa (S04u review), and one free slot, which is held for web-qa after qa.
+Slots now: architect (the S05 security round, then M1-F2) and frontend (S23). One slot is free for reviews.
 
 ### Phase 6: done
 1. One documented command runs the app locally with real data for LV, EE, LT and US companies.
