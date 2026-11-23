@@ -106,6 +106,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
      | LAW-DISPUTE-WINDOW | `store/src/disputes.test.ts` |
      | LAW-MARKET-CAP | `markets/src/items.test.ts` (no value lost without quoted terms) |
      | LAW-AGPL-HOSTED | no hosted build in v1; `web/e2e/source-link.spec.ts` (R18) |
+     | LAW-SUBSCRIPTION-TERMS | `server/src/routes/v1/investigations/**/route.contract.test.ts` (one investigation at a time), `agents/src/plan-limit.test.ts`, `agents/src/backends/cli.test.ts` (H6 = 1: the five conditions) |
 - **Tests:** `scripts/check-deps.test.mjs`, `scripts/check-lawyer-register.test.mjs`, `scripts/gen-items.test.mjs`, `tooling/eslint/rules.test.ts`, `tooling/eslint/rules/denylist.test.ts`, `domain/src/items/items.generated.test.ts`.
 - **Demo:** clone into a new folder, run the four commands, see them pass; open the hub PR checks and see `ci` and `guard` green.
 
