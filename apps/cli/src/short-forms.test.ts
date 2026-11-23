@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { SyncReport } from "@finora/ingest";
+import { beginSync, finishSync, openStore } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { dataStatus, dataSync, shortFormsOn, tripShortForms, type Io } from "./commands.ts";
 
@@ -67,4 +68,28 @@ describe("the LV short-form switch", () => {
     dataStatus(status);
     expect(status.lines).toContain("short-form rule: not checked in role_counts");
   }, 120_000);
+
+  it("re-derives a trip a killed run measured but never recorded (U1), and not one from before the switch-on", async () => {
+    dir = mkdtempSync(join(tmpdir(), "finora-cli-sf-"));
+    expect(await dataSync(io(), { profile: "fixtures", country: "lv" })).toBe(0);
+    // A run that died after its officers sync committed: the tripping counts are stored, the flag is not.
+    const killed = () => {
+      const store = openStore({ dataDir: dir });
+      try {
+        const id = beginSync(store.db, { sourceId: "lv-ur-officers", licenceId: "cc0-1.0", storage: "store", parserVersion: "killed", startedAt: "2026-11-21T11:00:00Z" });
+        finishSync(store.db, id, { kind: "content", finishedAt: "2026-11-21T11:01:00Z", report: { checks: { lv_person_names: 10, lv_person_names_short_form: 1 } } });
+      } finally {
+        store.close();
+      }
+    };
+    killed();
+    const next = io();
+    expect(await dataSync(next, { profile: "fixtures", country: "lv" })).toBe(0);
+    expect(next.lines[0]).toMatch(/^short-form rule: switched off \(1 of 10 person names would pass it/);
+    expect(membersVersions()).toEqual(["-sf1", "-sf0"]);
+    // The manual switch-on marks the newest sync: that old tripping report never trips it again.
+    shortFormsOn(io());
+    expect(await dataSync(io(), { profile: "fixtures", country: "lv" })).toBe(0);
+    expect(membersVersions()).toEqual(["-sf1", "-sf0", "-sf1"]);
+  }, 180_000);
 });

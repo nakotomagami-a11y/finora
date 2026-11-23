@@ -426,6 +426,17 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE main.maintenance_due ADD COLUMN done INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    // U3 on S05 (security re-check): the LV short-form switch lives in user.settings, which backups
+    // keep (no main table is backed up: main is re-derived from the sources). It reads as off unless
+    // its value is "0", so a lost or garbled row fails closed; a store that never tripped starts on.
+    target: "user",
+    name: "lv short-form switch",
+    sql: `
+      INSERT INTO user.settings (key, value) VALUES ('lv_short_forms_off', '0') ON CONFLICT (key) DO NOTHING;
+      INSERT INTO user.settings (key, value) VALUES ('lv_short_forms_on_after', '0') ON CONFLICT (key) DO NOTHING;
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */

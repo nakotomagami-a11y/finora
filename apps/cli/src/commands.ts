@@ -8,7 +8,7 @@ import { fixtureProfileFor } from "@finora/fixtures";
 import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, sweepWorkDirs, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { loadersFor, shortFormRuleTrips, type LoaderConfig } from "@finora/sources";
-import { companyValues, lvShortFormsOff, openStore, rebuildSearch, runMaintenance, searchCompanies, setLvShortFormsOff, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
+import { companyValues, lvOfficersChecksSinceOn, lvShortFormsOff, openStore, rebuildSearch, runMaintenance, searchCompanies, setLvShortFormsOff, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
 
 export type Io = { env: CliEnv; out: (line: string) => void; now?: () => Date };
@@ -64,6 +64,13 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
   // and search rows a killed sync still owed are written (qa condition 1 on the write path).
   let shortFormsOff = false;
   withStore(io, (store) => {
+    // U1: a trip the last run measured but died before recording is re-derived from the officers
+    // sync that measured it (newer than the last manual switch-on), before any job is built.
+    const measured = lvOfficersChecksSinceOn(store.db);
+    if (measured && !lvShortFormsOff(store.db) && shortFormRuleTrips(measured)) {
+      setLvShortFormsOff(store.db, true);
+      io.out(`short-form rule: switched off (${shortFormCause(measured)}); re-run the count on fresh files, then \`finora-cli data short-forms on\``);
+    }
     shortFormsOff = lvShortFormsOff(store.db);
     sweepWorkDirs(store.db, join(io.env.dataDir, "work"));
     rebuildSearch(store.db);

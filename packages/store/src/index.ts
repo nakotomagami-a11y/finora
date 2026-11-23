@@ -48,6 +48,7 @@ export {
   failSync,
   holdsLease,
   isCompanyEid,
+  lvOfficersChecksSinceOn,
   lvShortFormsOff,
   setLvShortFormsOff,
   lastContentStorage,

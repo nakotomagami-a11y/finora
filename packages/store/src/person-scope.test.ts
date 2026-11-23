@@ -87,6 +87,7 @@ describe("PS2: people exist only inside one company", () => {
       "liftSuppression",
       "lineHash",
       "liveCheckedAt",
+      "lvOfficersChecksSinceOn",
       "lvShortFormsOff",
       "maintenanceDue",
       "markMaintenance",

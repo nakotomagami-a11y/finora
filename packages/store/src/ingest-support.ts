@@ -299,14 +299,38 @@ export function entityByEid(db: DatabaseSync, eid: string): { code: string | nul
 
 /**
  * Whether the LV short-form company rule is switched off (S05, legal 7096149394). A boolean in
- * `main.store_meta` and nothing else: a tripped re-count check sets it, and only the manual re-count
- * clears it. The parent reads it before each sync job and passes it in the loader config.
+ * `user.settings`, which backups keep: a tripped re-count check sets it, and only the manual
+ * re-count clears it. It reads as off unless the value is "0", so a lost or garbled row fails closed
+ * (U3). The parent reads it before each sync job and passes it in the loader config.
  */
 export function lvShortFormsOff(db: DatabaseSync): boolean {
-  const row = db.prepare("SELECT value FROM main.store_meta WHERE key = 'lv_short_forms_off'").get() as { value: string } | undefined;
-  return row?.value === "1";
+  // A store that tripped before U3 kept the flag in main.store_meta: honoured, the safe side.
+  if ((db.prepare("SELECT value FROM main.store_meta WHERE key = 'lv_short_forms_off'").get() as { value: string } | undefined)?.value === "1") return true;
+  const row = db.prepare("SELECT value FROM user.settings WHERE key = 'lv_short_forms_off'").get() as { value: string } | undefined;
+  return row?.value !== "0";
 }
 
+/**
+ * Switches the rule off, or on. Switching it on records the newest sync id, so a tripping report
+ * from before the manual re-count is never read as a new trip (U1).
+ */
 export function setLvShortFormsOff(db: DatabaseSync, off: boolean): void {
-  db.prepare("INSERT INTO main.store_meta (key, value) VALUES ('lv_short_forms_off', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(off ? "1" : "0");
+  const set = db.prepare("INSERT INTO user.settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
+  set.run("lv_short_forms_off", off ? "1" : "0");
+  if (!off) db.prepare("DELETE FROM main.store_meta WHERE key = 'lv_short_forms_off'").run();
+  if (!off) {
+    const newest = (db.prepare("SELECT COALESCE(MAX(id), 0) AS n FROM main.syncs").get() as { n: number }).n;
+    set.run("lv_short_forms_on_after", String(newest));
+  }
+}
+
+/** The latest content sync of the LV officers whose report counted checks, newer than the last switch-on (U1). */
+export function lvOfficersChecksSinceOn(db: DatabaseSync): Record<string, number> | null {
+  const after = Number((db.prepare("SELECT value FROM user.settings WHERE key = 'lv_short_forms_on_after'").get() as { value: string } | undefined)?.value ?? 0);
+  const row = db
+    .prepare("SELECT report_json FROM main.syncs WHERE source_id = 'lv-ur-officers' AND kind = 'content' AND report_json IS NOT NULL AND id > ? ORDER BY id DESC LIMIT 1")
+    .get(Number.isFinite(after) ? after : 0) as { report_json: string } | undefined;
+  if (!row) return null;
+  const checks = (JSON.parse(row.report_json) as { checks?: Record<string, number> }).checks;
+  return checks && Object.keys(checks).length > 0 ? checks : null;
 }
