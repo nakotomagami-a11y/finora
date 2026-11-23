@@ -241,3 +241,7 @@ f9c92b12f7ffe5b103ce2a9678f96f04e4642d81dcebbf1d66ab9292d46e40e5  apps/web/e2e/_
 a9498e6f42591d441e42a85f99f59eba4acc3b084afd7066eb23a55f9aa19294  apps/web/e2e/__screenshots__/crash.visual.spec.ts/crash-not-configured-1920-dark.png
 b783db2e829673976b4fd1641e2d2dd9602ba5b29b925f8c8563cbf18064ac13  apps/web/e2e/__screenshots__/crash.visual.spec.ts/crash-not-configured-390-dark.png
 ca9d57ac45ed2fdc020a245dfd6ad52609cd1e75e6c83a2bf1f83fe872f8ceb7  apps/web/e2e/__screenshots__/crash.visual.spec.ts/crash-not-configured-768-dark.png
+ffda93a8d8f74c1de3c2be1b627a31cb679d8d7dd1adefe79e92512e2e1c4872  apps/web/e2e/__screenshots__/crash.visual.spec.ts/crash-error-1280-dark.png
+7382f7e7ad14225390b5da58ad324393f2d44c620241c4b4bd4b29d5c61a5904  apps/web/e2e/__screenshots__/crash.visual.spec.ts/crash-error-1920-dark.png
+c930d5dee67c8b460eff4a90017370653ba8bb7813328a128dea5f917ba49ec1  apps/web/e2e/__screenshots__/crash.visual.spec.ts/crash-error-390-dark.png
+c629a369e03233a24884b7a4327829bf01cf561bb53eaea2eea2dee07de39f74  apps/web/e2e/__screenshots__/crash.visual.spec.ts/crash-error-768-dark.png
