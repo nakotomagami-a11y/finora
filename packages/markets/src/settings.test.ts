@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { btcSupply } from "./btc-supply.ts";
-import { debtTicker, tickerValue } from "./debt.ts";
+import { debtChange, debtTicker, tickerValue } from "./debt.ts";
 import { PEAK_SINCE_DEFAULT, readMarketSettings, settingKey, windowStart } from "./settings.ts";
 
 describe("market settings", () => {
@@ -25,6 +25,14 @@ describe("the debt ticker (M08, 'Ticker is an estimate')", () => {
     expect(t).toMatchObject({ total: 30e12 + 365 * 86_400 * 100, anchor: "2026-11-17T21:00:00Z", yearAgoDate: "2025-11-17" });
     expect(t?.perSecond).toBeCloseTo(100, 6);
     expect(tickerValue(t!, "2026-11-17T21:00:10Z") - (t?.total ?? 0)).toBeCloseTo(1000, 3);
+  });
+  it("gives the 30-day change from two official figures, the earlier one on or before 30 days back", () => {
+    expect(debtChange([
+      { date: "2026-10-16", value: 100 },
+      { date: "2026-10-19", value: 110 },
+      { date: "2026-11-17", value: 150 },
+    ])).toEqual({ valueUsd: 50, from: "2026-10-16", to: "2026-11-17" });
+    expect(debtChange([{ date: "2026-11-17", value: 1 }])).toBeNull();
   });
   it("needs a year of history", () => {
     expect(debtTicker([{ date: "2026-11-17", value: 1 }])).toBeNull();

@@ -196,6 +196,9 @@ describe("the Crash monitor view (architecture §8)", () => {
     expect(by("M06.X.02:total_crypto")).toMatchObject({ state: "ok", peak: { basis: "all_time" }, valueLostUsd: 1e12 });
     expect(by("M06.X.01b:bitcoin")?.valueLostUsd).toBeGreaterThan(0);
     expect(by("M08.X.01:us_debt")?.ticker?.perSecond).toBeGreaterThan(0);
+    expect(by("M08.X.01:us_debt")?.change30d?.to).toBe(FIXTURE_TODAY);
+    expect(all.filter((r) => r.change30d !== undefined).map((r) => r.itemId)).toEqual(["M08.X.01"]);
+    expect(v.peakSince).toBe("2025-01-01");
     expect(v.totalWiped).toMatchObject({ rowItemIds: ["M01.X.01", "M06.X.02"], excludedItemIds: [] });
     for (const r of all.filter((x) => x.value !== undefined)) {
       expect(r.sources.length, r.rowKey).toBeGreaterThan(0);

@@ -20,6 +20,19 @@ export function debtTicker(observations: readonly StoredObs[]): DebtTicker | nul
   return { total: latest.value, anchor, perSecond: (latest.value - yearAgo.value) / seconds, yearAgoDate: yearAgo.date };
 }
 
+/**
+ * The debt card's "Change in 30 days" (DESIGN.md §12): the latest official figure minus the last one on or
+ * before 30 days earlier. Both are published figures, so this is a fact, not the ticker's estimate.
+ */
+export function debtChange(observations: readonly StoredObs[], days = 30): { valueUsd: number; from: string; to: string } | null {
+  const obs = [...observations].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const latest = obs.at(-1);
+  if (!latest) return null;
+  const cutoff = addDays(latest.date, -days);
+  const before = [...obs].reverse().find((o) => o.date <= cutoff);
+  return before ? { valueUsd: latest.value - before.value, from: before.date, to: latest.date } : null;
+}
+
 /** What the client shows at `now`: the official total plus the estimated change since its anchor. */
 export function tickerValue(ticker: DebtTicker, now: string): number {
   return ticker.total + ticker.perSecond * Math.max(0, (Date.parse(now) - Date.parse(ticker.anchor)) / 1000);

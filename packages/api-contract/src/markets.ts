@@ -27,6 +27,8 @@ export const MarketRow = z
     cadence: z.enum(["quarterly", "monthly", "daily_exchange", "daily_7d", "live"]),
     delayed: z.boolean(),
     ticker: z.object({ total: z.number(), anchor: z.string(), perSecond: z.number() }).optional(),
+    /** The debt row only: the change between two official figures 30 days apart (DESIGN.md §12). */
+    change30d: z.object({ valueUsd: z.number(), from: z.string(), to: z.string() }).strict().optional(),
     /** The source's attribution line; for a coded provider it comes from the user's local provider file (H4). */
     attribution: z.string().min(1).max(200).optional(),
     sources: z.array(SourceRef),
@@ -38,11 +40,14 @@ export const MarketRow = z
   // A row whose provider is not configured (H4) shows no number, never 0% (qa 7066883380, condition 4).
   .refine((r) => r.state !== "not_configured" || (r.value === undefined && r.drawdownPct === undefined), { message: "no number for a provider that is not configured" })
   .refine((r) => r.ticker === undefined || r.itemId === "M08.X.01", { message: "only the debt row carries a ticker" })
+  .refine((r) => r.change30d === undefined || r.itemId === "M08.X.01", { message: "only the debt row carries a 30-day change" })
   // The daily US rows are lit for personal use only: a value is shown only with legal's approved line, exactly (legal 7070739448).
   .refine((r) => r.itemId !== "M01.X.03" || r.value === undefined || isPersonalUseLine(r.attribution ?? ""), { message: "a daily US row needs its personal-use attribution" });
 
 export const CrashResponse = z
   .object({
+    /** The start of every "since" peak window: the user's peak date setting (a basis of all_time or seeded says otherwise). The server always sends it. */
+    peakSince: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     tiles: z.array(z.object({ tileId: TileId, rows: z.array(MarketRow) }).strict()),
     totalWiped: z.object({ valueUsd: z.number(), rowItemIds: z.array(z.string()), excludedItemIds: z.array(z.string()), oldestAsOf: z.string() }).strict().optional(),
   })

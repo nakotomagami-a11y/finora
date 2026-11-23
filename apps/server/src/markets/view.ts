@@ -2,11 +2,13 @@ import "server-only";
 // Builds the Crash monitor rows from the stored series (loaders/markets.md §1.4, architecture §8).
 // Every value carries the SourceRef of the sync that wrote it; computed values are flagged derived.
 import type { SourceRef } from "@finora/domain";
-import { computeRow, connector, debtTicker, marketConnectors, PROVIDER_SOURCE, SEEDS, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, totalWiped, type MarketSettings, type Providers, type RowView, type SeriesData, type TileId, type TileRow } from "@finora/markets";
+import { computeRow, connector, debtChange, debtTicker, marketConnectors, PROVIDER_SOURCE, SEEDS, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, totalWiped, type MarketSettings, type Providers, type RowView, type SeriesData, type TileId, type TileRow } from "@finora/markets";
 import { lastMarketSync, marketCheckedAt, marketSyncInfo, readMarketSeries, type Store } from "@finora/store";
 
 export type MarketRowOut = Omit<RowView, "inputs" | "tileId" | "labelKey"> & { label: string; attribution?: string; sources: SourceRef[] };
 export type CrashView = {
+  /** Every "since" peak is the highest close from this date on: the user's setting (DESIGN.md §12). */
+  peakSince: string;
   tiles: { tileId: TileId; rows: MarketRowOut[] }[];
   totalWiped?: { valueUsd: number; rowItemIds: string[]; excludedItemIds: string[]; oldestAsOf: string };
 };
@@ -64,6 +66,8 @@ export function buildCrashView(store: Store, opts: { settings: MarketSettings; p
     if (row.itemId === "M08.X.01") {
       const ticker = debtTicker(own?.observations ?? []);
       if (ticker) view.ticker = { total: ticker.total, anchor: ticker.anchor, perSecond: ticker.perSecond };
+      const change = debtChange(own?.observations ?? []);
+      if (change) view.change30d = change;
     }
     views.push({ ...view, countInTotal: row.countInTotal });
     // Bitcoin supply is computed by Finora from block height, so its reference is derived (architecture §8).
@@ -73,5 +77,5 @@ export function buildCrashView(store: Store, opts: { settings: MarketSettings; p
     out.get(row.tileId)?.push({ ...rest, label: labelKey, ...(attribution ? { attribution } : {}), sources });
   }
   const total = totalWiped(views);
-  return { tiles: TILE_ORDER.map((tileId) => ({ tileId, rows: out.get(tileId) ?? [] })), ...(total ? { totalWiped: total } : {}) };
+  return { peakSince: opts.settings.peakSince, tiles: TILE_ORDER.map((tileId) => ({ tileId, rows: out.get(tileId) ?? [] })), ...(total ? { totalWiped: total } : {}) };
 }

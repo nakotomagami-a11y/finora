@@ -34,6 +34,8 @@ export type RowView = {
   inputs: { seriesKey: string; syncIds: number[] }[];
   /** M08 only: the estimate the client ticks forward from. */
   ticker?: { total: number; anchor: string; perSecond: number };
+  /** M08 only: the change between two official figures 30 days apart. */
+  change30d?: { valueUsd: number; from: string; to: string };
 };
 
 export type RowContext = {
