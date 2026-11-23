@@ -116,10 +116,13 @@
     "strip": {
       "title": "Kaugus tipust",
       "basis": "Iga rea tipp on kõrgeim päevane sulgemine selle perioodis; kogu krüptoturul kõigi aegade tipp · järjestatud languse järgi",
+      "basisSince": "Iga rea tipp on kõrgeim päevane sulgemine alates {since}; kogu krüptoturul kõigi aegade tipp · järjestatud languse järgi",
       "note": "Iga riba on langus selle turu enda tipust; tipud on eri kuupäevadel. Suunda näitavad nooled ja märgid, mitte ainult värv.",
       "alt": "{name}: {pct} tipust, mis oli {date}",
       "altUnknown": "{name}: tipp pole veel teada",
       "older": "tavapärasest vanem",
+      "allTime": "kõigi aegade tipp",
+      "seeded": "algselt sisestatud tipp",
       "notChecked": "pole kontrollitud",
       "notConfigured": "seadistamata",
       "failedCheck": "Ei näidata: ei läbinud andmekontrolli",
@@ -138,7 +141,13 @@
       "ticking": "tiksub ametlike numbrite vahel",
       "official": "Ametlik, {date}",
       "caveat": "Tikkur on hinnang viimase 30 päeva keskmise muutuse põhjal.",
-      "spoken": "Hinnang {estimate}. Ametlik number {official}, seisuga {date}."
+      "spoken": "Hinnang {estimate}. Ametlik number {official}, seisuga {date}.",
+      "change": "Muutus, {from} kuni {to}",
+      "delta": {
+        "trillion": "{sign}${amount} triljonit",
+        "billion": "{sign}${amount} miljardit",
+        "million": "{sign}${amount} miljonit"
+      }
     },
     "banner": {
       "stale": "Mõned väärtused on tavapärasest vanemad. Teised plaadid on värsked.",
@@ -150,6 +159,7 @@
     "how": {
       "title": "Kuidas see arvutatakse",
       "body": "Langus = viimane sulgemine ÷ kõrgeim päevane sulgemine perioodis − 1. Iga rea laeb see arvuti alla ilma võtmeta.",
+      "bodySince": "Langus = viimane sulgemine ÷ kõrgeim päevane sulgemine alates {since} − 1. Iga rea laeb see arvuti alla ilma võtmeta.",
       "sources": "Allikad"
     },
     "fromPeakWord": "tipust",

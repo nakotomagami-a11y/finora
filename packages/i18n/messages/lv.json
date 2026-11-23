@@ -116,10 +116,13 @@
     "strip": {
       "title": "Attālums no virsotnes",
       "basis": "Katras rindas virsotne ir augstākais dienas slēgums tās periodā; kopējam kripto tirgum — visu laiku augstākais · sakārtots pēc krituma",
+      "basisSince": "Katras rindas virsotne ir augstākais dienas slēgums kopš {since}; kopējam kripto tirgum — visu laiku augstākais · sakārtots pēc krituma",
       "note": "Katra josla ir kritums no šī tirgus paša virsotnes; virsotnes ir dažādos datumos. Virzienu rāda bultiņas un zīmes, ne tikai krāsa.",
       "alt": "{name}: {pct} no virsotnes, kas bija {date}",
       "altUnknown": "{name}: virsotne vēl nav zināma",
       "older": "vecāks nekā parasti",
+      "allTime": "visu laiku augstākais",
+      "seeded": "sākotnēji ievadīta virsotne",
       "notChecked": "nav pārbaudīts",
       "notConfigured": "nav iestatīts",
       "failedCheck": "Nav rādīts: neizturēja datu pārbaudi",
@@ -138,7 +141,13 @@
       "ticking": "skaita starp oficiālajiem skaitļiem",
       "official": "Oficiāli, {date}",
       "caveat": "Skaitītājs ir aplēse pēc pēdējo 30 dienu vidējām izmaiņām.",
-      "spoken": "Aplēse {estimate}. Oficiālais skaitlis {official}, uz {date}."
+      "spoken": "Aplēse {estimate}. Oficiālais skaitlis {official}, uz {date}.",
+      "change": "Izmaiņas, {from} līdz {to}",
+      "delta": {
+        "trillion": "{sign}${amount} triljoni",
+        "billion": "{sign}${amount} miljardi",
+        "million": "{sign}${amount} miljoni"
+      }
     },
     "banner": {
       "stale": "Dažas vērtības ir vecākas nekā parasti. Pārējās flīzes ir aktuālas.",
@@ -150,6 +159,7 @@
     "how": {
       "title": "Kā tas tiek aprēķināts",
       "body": "Kritums = pēdējais slēgums ÷ augstākais dienas slēgums periodā − 1. Katru rindu šis dators ielādē bez atslēgas.",
+      "bodySince": "Kritums = pēdējais slēgums ÷ augstākais dienas slēgums kopš {since} − 1. Katru rindu šis dators ielādē bez atslēgas.",
       "sources": "Avoti"
     },
     "fromPeakWord": "no virsotnes",

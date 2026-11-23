@@ -116,10 +116,13 @@
     "strip": {
       "title": "Atstumas nuo viršūnės",
       "basis": "Kiekvienos eilutės viršūnė yra aukščiausias dienos uždarymas jos laikotarpyje; visai kriptovaliutų rinkai — visų laikų aukščiausias · surikiuota pagal kritimą",
+      "basisSince": "Kiekvienos eilutės viršūnė yra aukščiausias dienos uždarymas nuo {since}; visai kriptovaliutų rinkai — visų laikų aukščiausias · surikiuota pagal kritimą",
       "note": "Kiekviena juosta yra kritimas nuo tos rinkos paties viršūnės; viršūnės yra skirtingomis datomis. Kryptį rodo rodyklės ir ženklai, ne vien spalva.",
       "alt": "{name}: {pct} nuo viršūnės, buvusios {date}",
       "altUnknown": "{name}: viršūnė dar nežinoma",
       "older": "senesnis nei įprastai",
+      "allTime": "visų laikų aukščiausias",
+      "seeded": "pradinė viršūnė",
       "notChecked": "netikrinta",
       "notConfigured": "nenustatyta",
       "failedCheck": "Nerodoma: neatitiko duomenų patikros",
@@ -138,7 +141,13 @@
       "ticking": "skaičiuojama tarp oficialių skaičių",
       "official": "Oficialiai, {date}",
       "caveat": "Skaitiklis yra įvertis pagal paskutinių 30 dienų vidutinį pokytį.",
-      "spoken": "Įvertis {estimate}. Oficialus skaičius {official}, {date}."
+      "spoken": "Įvertis {estimate}. Oficialus skaičius {official}, {date}.",
+      "change": "Pokytis, {from}–{to}",
+      "delta": {
+        "trillion": "{sign}${amount} trln.",
+        "billion": "{sign}${amount} mlrd.",
+        "million": "{sign}${amount} mln."
+      }
     },
     "banner": {
       "stale": "Kai kurios vertės senesnės nei įprastai. Kitos plytelės yra naujausios.",
@@ -150,6 +159,7 @@
     "how": {
       "title": "Kaip skaičiuojama",
       "body": "Kritimas = paskutinis uždarymas ÷ aukščiausias dienos uždarymas laikotarpyje − 1. Kiekvieną eilutę šis kompiuteris atsisiunčia be rakto.",
+      "bodySince": "Kritimas = paskutinis uždarymas ÷ aukščiausias dienos uždarymas nuo {since} − 1. Kiekvieną eilutę šis kompiuteris atsisiunčia be rakto.",
       "sources": "Šaltiniai"
     },
     "fromPeakWord": "nuo viršūnės",

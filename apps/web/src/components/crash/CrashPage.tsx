@@ -1,7 +1,7 @@
 "use client";
 
 import { CrashResponse } from "@finora/api-contract";
-import { formatRelative } from "@finora/i18n";
+import { formatDate, formatRelative } from "@finora/i18n";
 import { Icon } from "@finora/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -148,7 +148,7 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
         <h2 id="how-h" className="text-small font-semibold text-ink-2">
           {t("how.title")}
         </h2>
-        <span>{t("how.body")}</span>
+        <span>{page?.peakSince ? t("how.bodySince", { since: formatDate(locale, page.peakSince) }) : t("how.body")}</span>
         {attributions.length > 0 ? (
           <>
             <span className="font-medium text-ink-2">{t("how.sources")}</span>

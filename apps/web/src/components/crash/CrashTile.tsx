@@ -15,7 +15,8 @@ function PeakLine({ row }: { row: RowView }) {
   if (!row.peak) return null;
   const date = formatDate(locale, row.peak.date);
   const text = row.peak.basis === "all_time" ? t("peak.allTime", { date }) : row.peak.basis === "seeded" ? t("peak.seeded", { date }) : t("peak.since", { date });
-  return <span>{text}</span>;
+  // The all-time high and a seeded peak say so on a line of their own; a peak since the peak date stays inline.
+  return <span className={row.peak.basis === "since" ? undefined : "basis-full"}>{text}</span>;
 }
 
 /** The lag chip's words: a live figure that is a quarter of an hour late, or a series published after the date it shows. */

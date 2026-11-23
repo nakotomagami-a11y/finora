@@ -226,3 +226,19 @@ describe("the strip, at its edges", () => {
     expect(buildPageView(fine).wiped?.valueUsd).toBe(500_000);
   });
 });
+
+describe("the peak window and the debt change", () => {
+  it("carries the peak date and the basis of each strip row", () => {
+    const page = fixture("live");
+    expect(page.peakSince).toBe("2025-01-01");
+    const basis = Object.fromEntries(page.strip.flatMap((r) => (r.kind === "drop" ? [[r.labelId, r.basis]] : [])));
+    expect(basis.total_crypto).toBe("all_time");
+    expect(basis.wti).toBe("since");
+  });
+
+  it("keeps the debt row's change between two official figures, with its two dates", () => {
+    const debt = fixture("live").debt;
+    expect(debt?.change30d).toEqual({ valueUsd: 214_000_000_000, from: "2026-10-18", to: "2026-11-18" });
+    for (const row of fixture("live").tiles.flatMap((t) => t.all)) if (row.itemId !== "M08.X.01") expect(row.change30d).toBeUndefined();
+  });
+});

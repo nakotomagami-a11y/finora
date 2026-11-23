@@ -305,6 +305,8 @@ const CRASH = {
     delayed: true,
     drawdownPct: -0.01,
     ticker: { total: 38_610_227_451_903, anchor: "2026-11-18T21:00:00Z", perSecond: 76_000 },
+    // Two official figures a month apart, never the ticker.
+    change30d: { valueUsd: 214_000_000_000, from: "2026-10-18", to: "2026-11-18" },
     attribution: "U.S. Treasury, Fiscal Data (Debt to the Penny)",
   }),
 };
@@ -315,6 +317,7 @@ type CrashRows = Record<keyof typeof CRASH, Record<string, unknown>>;
 function crashPage(rows: CrashRows, wiped: Record<string, unknown> | null): CrashResponse {
   const R = rows;
   return CrashResponse.parse({
+    peakSince: "2025-01-01",
     tiles: [
       { tileId: "M01", rows: [R.usEquities, R.usLarge, R.usBroad, R.usTech] },
       { tileId: "M03", rows: [R.japan, R.taiwan] },

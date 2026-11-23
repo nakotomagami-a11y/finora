@@ -135,6 +135,31 @@ describe("the distance strip, at its edges", () => {
   });
 });
 
+describe("the peak window and the debt change", () => {
+  it("says since the peak date in the strip header and in how it is calculated", () => {
+    mount({ fixture: fixture("live") });
+    expect(screen.getByText(/highest daily close since 1 Jan 2025; the total crypto market uses its all-time high/u)).toBeInTheDocument();
+    expect(screen.getByText(/the highest daily close since 1 Jan 2025 − 1\./u)).toBeInTheDocument();
+  });
+
+  it("puts the all-time high of the crypto total on a line of its own", () => {
+    mount({ fixture: fixture("live") });
+    const tile = screen.getByRole("region", { name: "Crypto" });
+    const line = within(tile).getByText("All-time high, 6 Oct 2025");
+    expect(line.className).toContain("basis-full");
+    // The strip's bars say it under the figure of the crypto total, as well.
+    expect(screen.getAllByText("all-time high").length).toBeGreaterThan(0);
+  });
+
+  it("shows the change between two official figures with both dates, signed, and never as an estimate", () => {
+    mount({ fixture: fixture("live") });
+    const card = screen.getByRole("region", { name: "US national debt" });
+    expect(within(card).getByText("Change, 18 Oct 2026 to 18 Nov 2026")).toBeInTheDocument();
+    expect(within(card).getByText("+$214 billion")).toBeInTheDocument();
+    expect(within(card).getAllByText("estimate")).toHaveLength(1); // the ticker's own badge only
+  });
+});
+
 describe("source chips", () => {
   it("puts a chip in a tile footer and opens its popover with the licence and the times", async () => {
     const user = userEvent.setup();

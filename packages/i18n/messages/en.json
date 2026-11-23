@@ -116,10 +116,13 @@
     "strip": {
       "title": "Distance from peak",
       "basis": "Each row's peak is the highest daily close in its window; the total crypto market uses its all-time high · sorted by drop",
+      "basisSince": "Each row's peak is the highest daily close since {since}; the total crypto market uses its all-time high · sorted by drop",
       "note": "Each bar is a drop from that market's own peak; peaks fall on different dates. Arrows and signs carry the direction, not colour alone.",
       "alt": "{name}: {pct} from its peak on {date}",
       "altUnknown": "{name}: peak not known yet",
       "older": "older than usual",
+      "allTime": "all-time high",
+      "seeded": "peak seeded",
       "notChecked": "not checked",
       "notConfigured": "not configured",
       "failedCheck": "Not shown: failed a data check",
@@ -138,7 +141,13 @@
       "ticking": "ticking between official figures",
       "official": "Official, {date}",
       "caveat": "The ticker is an estimate from the last 30 days' average change.",
-      "spoken": "Estimate {estimate}. Official figure {official}, as of {date}."
+      "spoken": "Estimate {estimate}. Official figure {official}, as of {date}.",
+      "change": "Change, {from} to {to}",
+      "delta": {
+        "trillion": "{sign}${amount} trillion",
+        "billion": "{sign}${amount} billion",
+        "million": "{sign}${amount} million"
+      }
     },
     "banner": {
       "stale": "Some values are older than their usual refresh. The other tiles are current.",
@@ -150,6 +159,7 @@
     "how": {
       "title": "How it's calculated",
       "body": "Drawdown = the latest close ÷ the highest daily close in the window − 1. Every series is fetched by this machine without a key.",
+      "bodySince": "Drawdown = the latest close ÷ the highest daily close since {since} − 1. Every series is fetched by this machine without a key.",
       "sources": "Sources"
     },
     "fromPeakWord": "from peak",

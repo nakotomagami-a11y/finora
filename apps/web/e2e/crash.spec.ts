@@ -96,6 +96,14 @@ test.describe("crash monitor, every state (FINORA_DEMO=1)", () => {
     await expect(card.locator(".sr-only")).toContainText("Official figure $38,610,227,451,903, as of 18 Nov 2026");
   });
 
+  test("the peak window and the debt change: the date the peaks start from, and two official figures with their dates", async ({ page }) => {
+    await page.goto("/en/crash?state=live");
+    await expect(page.getByText(/highest daily close since 1 Jan 2025/u).first()).toBeVisible();
+    const card = page.getByRole("region", { name: "US national debt" });
+    await expect(card.getByText("Change, 18 Oct 2026 to 18 Nov 2026")).toBeVisible();
+    await expect(card.getByText("+$214 billion")).toBeVisible();
+  });
+
   test("the demo parameter reaches no fixture outside a known name", async ({ page }) => {
     const response = await page.goto("/en/crash?state=../../package");
     expect(response?.status()).toBe(200);

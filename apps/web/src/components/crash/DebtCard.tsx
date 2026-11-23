@@ -1,9 +1,9 @@
 "use client";
 
-import { Badge } from "@finora/ui";
+import { Badge, Icon } from "@finora/ui";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { formatAsOfDate, formatDollars, tickerValue, type RowView } from "./model.ts";
+import { formatAsOfDate, formatDollars, formatMoneyAmount, MIN_MONEY_USD, tickerValue, type RowView } from "./model.ts";
 import { Caveat, RowSkeleton, SourceChips, useLocaleId } from "./parts.tsx";
 
 /**
@@ -24,6 +24,16 @@ export function DebtCard({ row, now }: { row: RowView | undefined; now: Date }) 
   const estimate = ticking ? formatDollars(locale, tickerValue(ticking, tick)) : undefined;
   const official = row?.value !== undefined ? formatDollars(locale, row.value) : undefined;
   const date = row?.asOf ? formatAsOfDate(locale, row.asOf) : undefined;
+  // The change between two published figures, with both dates: "+$214 billion". Never the ticker's estimate.
+  const delta = row?.change30d;
+  const change =
+    delta && Math.abs(delta.valueUsd) >= MIN_MONEY_USD
+      ? (() => {
+          const { scale, amount } = formatMoneyAmount(locale, Math.abs(delta.valueUsd));
+          const up = delta.valueUsd >= 0;
+          return { from: formatAsOfDate(locale, delta.from), to: formatAsOfDate(locale, delta.to), up, text: t(`debt.delta.${scale}`, { sign: up ? "+" : "−", amount }) };
+        })()
+      : undefined;
   return (
     <section aria-labelledby="debt-h" className="flex min-w-0 flex-col gap-2 rounded-card border border-line bg-surface p-5">
       <div className="flex items-baseline gap-2">
@@ -58,6 +68,15 @@ export function DebtCard({ row, now }: { row: RowView | undefined; now: Date }) 
               <div className="flex items-baseline justify-between gap-3 border-t border-line py-1.5 text-small first:border-t-0">
                 <span className="text-muted">{t("debt.official", { date })}</span>
                 <span className="tabular-nums">{official}</span>
+              </div>
+            ) : null}
+            {change ? (
+              <div className="flex items-baseline justify-between gap-3 border-t border-line py-1.5 text-small">
+                <span className="text-muted">{t("debt.change", { from: change.from, to: change.to })}</span>
+                <span className="inline-flex items-baseline gap-1 whitespace-nowrap tabular-nums">
+                  <Icon name={change.up ? "up" : "down"} className="size-3.5 self-center" />
+                  {change.text}
+                </span>
               </div>
             ) : null}
           </div>

@@ -48,11 +48,13 @@ function Bars({ strip }: { strip: StripRow[] }) {
             {row.kind === "drop" ? (
               <span className="inline-flex flex-col items-end">
                 <Drawdown pct={row.drawdownPct} />
+                {row.basis !== "since" ? <span className="text-muted">{t(row.basis === "all_time" ? "strip.allTime" : "strip.seeded")}</span> : null}
                 {row.stale ? <span className="text-warn">{t("strip.older")}</span> : null}
               </span>
             ) : row.kind === "at_peak" ? (
               <span className="inline-flex flex-col items-end">
                 <span className="text-ink-2">{t("atPeak")}</span>
+                {row.basis !== "since" ? <span className="text-muted">{t(row.basis === "all_time" ? "strip.allTime" : "strip.seeded")}</span> : null}
                 {row.stale ? <span className="text-warn">{t("strip.older")}</span> : null}
               </span>
             ) : row.kind === "error" ? (
@@ -112,6 +114,7 @@ function StripTable({ rows, strip }: { rows: RowView[]; strip: StripRow[] }) {
 
 export function DrawdownStrip({ page, rows }: { page: PageView; rows: RowView[] }) {
   const t = useTranslations("crash");
+  const locale = useLocaleId();
   return (
     <section aria-labelledby="strip-h" className="flex min-w-0 flex-col gap-3.5 rounded-card border border-line bg-surface p-5">
       {page.wiped ? <WipedSummary wiped={page.wiped} rows={rows} /> : null}
@@ -119,7 +122,7 @@ export function DrawdownStrip({ page, rows }: { page: PageView; rows: RowView[] 
         <h2 id="strip-h" className="font-serif text-h2 text-ink">
           {t("strip.title")}
         </h2>
-        <span className="text-small text-muted">{t("strip.basis")}</span>
+        <span className="text-small text-muted">{page.peakSince ? t("strip.basisSince", { since: formatDate(locale, page.peakSince) }) : t("strip.basis")}</span>
       </div>
       <Bars strip={page.strip} />
       <StripTable rows={rows} strip={page.strip} />

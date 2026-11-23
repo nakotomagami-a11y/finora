@@ -62,6 +62,8 @@ export type RowView = {
   sources: SourceView[];
   /** The row came with a drawdown above zero, which cannot be true: it is shown as failed, never as a number. */
   invalid: boolean;
+  /** The debt row only: the change between two official figures about 30 days apart (never the ticker). */
+  change30d: { valueUsd: number; from: string; to: string } | undefined;
 };
 
 export type SourceView = { sourceId: string; licenceId: string; asOf: string | undefined; retrievedAt: string; checkedAt: string | undefined; accessTier: "open" | "purpose"; derived: boolean };
@@ -95,6 +97,7 @@ export function toRowView(source: MarketRow): RowView {
     checkedAt: times.sort().at(-1),
     sources: row.sources.map((src) => ({ sourceId: src.sourceId, licenceId: src.licenceId, asOf: src.asOf ?? undefined, retrievedAt: src.retrievedAt, checkedAt: src.checkedAt ?? undefined, accessTier: src.accessTier, derived: src.derived })),
     invalid,
+    change30d: row.change30d,
   };
 }
 
@@ -115,9 +118,12 @@ export type TileView = {
 };
 
 /** A row of the distance strip: a drop, a market at its peak, a peak not known yet, a provider not configured, or a row that failed. */
+/** How a peak was found: the highest close since the peak date, the all-time high, or a figure seeded once from a cited record. */
+export type PeakBasis = "since" | "all_time" | "seeded";
+
 export type StripRow =
-  | { rowKey: string; labelId: string; kind: "drop"; drawdownPct: number; stale: boolean }
-  | { rowKey: string; labelId: string; kind: "at_peak"; stale: boolean }
+  | { rowKey: string; labelId: string; kind: "drop"; drawdownPct: number; stale: boolean; basis: PeakBasis }
+  | { rowKey: string; labelId: string; kind: "at_peak"; stale: boolean; basis: PeakBasis }
   | { rowKey: string; labelId: string; kind: "peak_unknown" }
   | { rowKey: string; labelId: string; kind: "not_configured" }
   | { rowKey: string; labelId: string; kind: "error"; invalid: boolean };
@@ -143,6 +149,8 @@ export type PageView = {
   failed: boolean;
   /** The latest time any row was refreshed, for "Updated N min ago". */
   updatedAt: string | undefined;
+  /** The start of every "since" peak window: the user's peak date setting. Absent from an older answer. */
+  peakSince: string | undefined;
   /** No row has a value yet: first load or an empty install. */
   empty: boolean;
 };
@@ -177,7 +185,7 @@ export function buildPageView(response: CrashResponse): PageView {
     .flatMap<StripRow>((r) => {
       if ((r.state === "ok" || r.state === "stale") && r.drawdownPct !== undefined) {
         const stale = r.state === "stale";
-        return [r.drawdownPct < 0 ? { rowKey: r.rowKey, labelId: r.labelId, kind: "drop", drawdownPct: r.drawdownPct, stale } : { rowKey: r.rowKey, labelId: r.labelId, kind: "at_peak", stale }];
+        return [r.drawdownPct < 0 ? { rowKey: r.rowKey, labelId: r.labelId, kind: "drop", drawdownPct: r.drawdownPct, stale, basis: r.peak?.basis ?? "since" } : { rowKey: r.rowKey, labelId: r.labelId, kind: "at_peak", stale, basis: r.peak?.basis ?? "since" }];
       }
       if (r.state === "peak_unknown") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "peak_unknown" }];
       if (r.state === "not_configured") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "not_configured" }];
@@ -220,6 +228,7 @@ export function buildPageView(response: CrashResponse): PageView {
     stale: all.some((r) => r.state === "stale"),
     failed: all.some((r) => r.state === "error"),
     updatedAt: latest(all.map((r) => r.checkedAt)),
+    peakSince: response.peakSince,
     empty: all.length > 0 && all.every((r) => r.state === "loading"),
   };
 }
