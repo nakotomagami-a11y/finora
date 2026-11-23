@@ -3,7 +3,7 @@
 import { Icon } from "@finora/ui";
 import { useTranslations } from "next-intl";
 import { formatDate } from "@finora/i18n";
-import { formatMarketValue, type RowView, type TileView } from "./model.ts";
+import { hasLastGood, type RowView, type TileView } from "./model.ts";
 import { AsOf, Caveat, Drawdown, LastGood, RetryButton, RowSkeleton, SetupHelp, SourceChips, useLocaleId, useMoney } from "./parts.tsx";
 
 type TileProps = { tile: TileView; now: Date; onRetry: () => void };
@@ -65,12 +65,12 @@ function LeadBlock({ tile, now, onRetry }: TileProps) {
           <Icon name="warn" className="mt-0.5 size-3.5 text-warn" />
           <span>{t("error")}</span>
         </span>
-        {lead.lastGood && formatMarketValue(locale, lead.unit, lead.lastGood.value) !== undefined ? (
+        {hasLastGood(lead) ? (
           <span className="text-small">
             <LastGood row={lead} now={now} />
           </span>
         ) : (
-          <span className="text-small text-muted">{t("errorHidden")}</span>
+          <span className="text-small text-muted">{tile.hasLastGood ? t("errorHiddenLastGood") : t("errorHidden")}</span>
         )}
         <RetryButton onRetry={onRetry} />
       </div>

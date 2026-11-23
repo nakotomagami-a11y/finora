@@ -62,6 +62,9 @@ export type SourceView = { sourceId: string; licenceId: string; asOf: string | u
 /** A market size under this reads "0 million" when rounded, so the page leaves it out. */
 export const MIN_MONEY_USD = 500_000;
 
+/** The row has a last good value that may be shown: it has one, and its unit may be written (an index level never is). */
+export const hasLastGood = (row: Pick<RowView, "lastGood" | "unit">): boolean => row.lastGood !== undefined && formatMarketValue("en", row.unit, row.lastGood.value) !== undefined;
+
 export function toRowView(source: MarketRow): RowView {
   // A drawdown above zero cannot happen (the peak is the highest close): it is bad data, shown as a row that was not checked.
   const invalid = (source.state === "ok" || source.state === "stale") && source.drawdownPct !== undefined && source.drawdownPct > 0;
@@ -105,6 +108,8 @@ export type TileView = {
   missingProviders: string[];
   /** Any row is stale. */
   stale: boolean;
+  /** A failed row of the tile shows a last good value, so the tile may not say that no number is shown. */
+  hasLastGood: boolean;
   /** The attribution lines of the tile's rows, each once. */
   attributions: string[];
 };
@@ -140,6 +145,8 @@ export type PageView = {
   stale: boolean;
   /** Some row's source failed. */
   failed: boolean;
+  /** A failed row shows a last good value, so the banner may not say that no number is shown at all. */
+  failedWithLastGood: boolean;
   /** The latest time any row was refreshed, for "Updated N min ago". */
   updatedAt: string | undefined;
   /** The start of every "since" peak window: the user's peak date setting. Absent from an older answer. */
@@ -166,6 +173,7 @@ export function buildPageView(response: CrashResponse): PageView {
       allNotConfigured: rows.length > 0 && rows.every((r) => r.state === "not_configured"),
       missingProviders: missing,
       stale: rows.some((r) => r.state === "stale"),
+      hasLastGood: rows.some((r) => r.state === "error" && hasLastGood(r)),
       attributions: [...new Set(rows.flatMap((r) => (r.attribution ? [r.attribution] : [])))],
     };
   });
@@ -221,6 +229,7 @@ export function buildPageView(response: CrashResponse): PageView {
     wiped,
     stale: all.some((r) => r.state === "stale"),
     failed: all.some((r) => r.state === "error"),
+    failedWithLastGood: all.some((r) => r.state === "error" && hasLastGood(r)),
     updatedAt: latest(all.map((r) => r.checkedAt)),
     peakSince: response.peakSince,
     empty: all.length > 0 && all.every((r) => r.state === "loading"),

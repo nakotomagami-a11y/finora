@@ -252,6 +252,14 @@ describe("the peak window and the debt change", () => {
 });
 
 describe("an error row's last good value, and the provider of a row that is not configured", () => {
+  it("knows when a page and a tile show a last good value", () => {
+    const error = fixture("error");
+    expect(error.failedWithLastGood).toBe(true);
+    expect(error.tiles.find((t) => t.id === "M06")?.hasLastGood).toBe(true);
+    expect(error.tiles.find((t) => t.id === "M01")?.hasLastGood).toBe(false);
+    expect(fixture("live").failedWithLastGood).toBe(false);
+  });
+
   it("keeps lastGood only on an error row, and reads the provider from the row, not from its key", () => {
     const rows = fixture("error").tiles.flatMap((t) => t.all);
     expect(rows.find((r) => r.labelId === "bitcoin")?.lastGood).toEqual({ value: 70_500, asOf: "2026-11-22T05:10:00Z" });

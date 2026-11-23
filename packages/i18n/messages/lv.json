@@ -84,6 +84,7 @@
     "stale": "uz {value}, vecāks nekā parasti",
     "error": "Nav pārbaudīts: avots neatbildēja.",
     "errorHidden": "Skaitlis netiek rādīts, nevis iespējami novecojis.",
+    "errorHiddenLastGood": "Pašreizējais skaitlis netiek rādīts; pēdējā derīgā vērtība ir atzīmēta ar laiku.",
     "lastGood": "Pēdējā derīgā vērtība {value}, uz {when}, vecāka nekā parasti",
     "retry": "Mēģināt vēlreiz",
     "notConfiguredOne": "Nav iestatīts: pievienojiet pakalpojumu sniedzēju {codes} savā sniedzēju failā.",
@@ -154,6 +155,7 @@
     "banner": {
       "stale": "Dažas vērtības ir vecākas nekā parasti. Pārējās flīzes ir aktuālas.",
       "failed": "Viens avots neizdevās. Tā rindas nerāda skaitli, nevis iespējami novecojušu. Pārējās flīzes ir aktuālas.",
+      "failedLastGood": "Viens avots neizdevās. Tā rindas nerāda pašreizējo skaitli; pēdējā derīgā vērtība ir atzīmēta ar laiku. Pārējās flīzes ir aktuālas.",
       "retry": "Mēģināt tūlīt"
     },
     "notCovered": "Nav aptverts 1. versijā: Eiropa, Amerikas ārpus ASV un Dienvidkoreja (nav bezmaksas avota).",
