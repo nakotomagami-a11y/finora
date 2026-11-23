@@ -314,7 +314,7 @@ export function lvUrOfficersLoader(config: LvPeopleConfig): SourceLoader {
   if (!LV_PERSON_ROWS_MODES.includes(mode)) throw new Error("LV_PERSON_ROWS must be names_no_id or role_counts");
   return {
     meta: m,
-    parserVersion: `${parserVersion(m.id, 6, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
+    parserVersion: `${parserVersion(m.id, 7, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
     fieldMap: LV_UR_OFFICERS_FIELD_MAP,
     fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "officers", OFFICERS_FILE) }),
     asOf: (raw) => lvAsOf(raw, OFFICERS_FILE, datesOf, today(raw)),
@@ -484,7 +484,7 @@ const MEMBERS_META = meta("lv-ur-members", "Members", [S04, S17]);
 
 export const lvUrMembers: SourceLoader = {
   meta: MEMBERS_META,
-  parserVersion: `${parserVersion(MEMBERS_META.id, 6, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
+  parserVersion: `${parserVersion(MEMBERS_META.id, 7, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
   fieldMap: LV_UR_MEMBERS_FIELD_MAP,
   fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "members", MEMBERS_FILE) }),
   asOf: (raw) => lvAsOf(raw, MEMBERS_FILE, datesOf, today(raw)),

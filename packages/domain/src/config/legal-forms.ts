@@ -130,7 +130,11 @@ export const SHORT_COMPANY_FORMS: ReadonlySet<string> = new Set(["OÜ", "OU", "A
  * S05 T2): "Example AS" does, "Test Person As" and a bare "AS" do not.
  */
 export function endsWithShortCompanyForm(name: string): boolean {
-  const words = name.trim().split(/\s+/);
-  return words.length >= 2 && SHORT_COMPANY_FORMS.has(words.at(-1)!.replace(/[,;]$/, ""));
+  // NFC first, so a decomposed "OÜ" is the listed form; trailing punctuation and quotes are not part
+  // of the form, and a final period is dropped only when the dotted form itself is not listed (qa).
+  const words = name.normalize("NFC").trim().split(/\s+/);
+  if (words.length < 2) return false;
+  const last = words.at(-1)!.replace(/[,;:"'“”»)]+$/, "");
+  return SHORT_COMPANY_FORMS.has(last) || (last.endsWith(".") && SHORT_COMPANY_FORMS.has(last.slice(0, -1)));
 }
 
