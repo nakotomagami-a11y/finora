@@ -14,13 +14,20 @@ import { lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHist
 import type { SourceLoader, SourceMeta } from "./types.ts";
 
 /** Settings a loader is built with: the lawyer switches that change what a loader keeps (§10.2). */
-export type LoaderConfig = { lvPersonRows: LvPersonRows };
-export const DEFAULT_LOADER_CONFIG: LoaderConfig = { lvPersonRows: "names_no_id" };
+export type LoaderConfig = {
+  lvPersonRows: LvPersonRows;
+  /**
+   * Whether a foreign LV holder may be proven a company by a short form as its name's last word. The
+   * parent reads it from the store before each job; a tripped re-count check turns it off (S05, legal).
+   */
+  lvShortCompanyForms: boolean;
+};
+export const DEFAULT_LOADER_CONFIG: LoaderConfig = { lvPersonRows: "names_no_id", lvShortCompanyForms: true };
 
 /** The LV register loads before every other LV source (lv-register.md § Identity and joins). */
 const lvLoaders = (config: LoaderConfig): SourceLoader[] => [
   lvUrRegister, lvUrNameHistory, lvUrLiquidations, lvUrReorganizations, lvUrEquityCapitals, lvUrMemorandumDates,
-  ...lvPeopleLoaders({ personRows: config.lvPersonRows }), ...LV_RISK_LOADERS, ...LV_FINANCIALS_LOADERS, ...LV_TAX_LOADERS,
+  ...lvPeopleLoaders({ personRows: config.lvPersonRows, shortForms: config.lvShortCompanyForms }), ...LV_RISK_LOADERS, ...LV_FINANCIALS_LOADERS, ...LV_TAX_LOADERS,
 ];
 
 /** Every shipped loader, built for one config: a sync job passes its own, never a default (SEC-1 on S05; qa, legal). */

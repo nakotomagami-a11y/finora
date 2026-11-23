@@ -6,7 +6,7 @@
 import { createHash } from "node:crypto";
 import { endsWithShortCompanyForm, LEGAL_FORMS, namesCompany, type DropReason } from "@finora/domain";
 import { parserVersion } from "../../parser-version.ts";
-import type { FetchContext, FieldMap, ParseContext, ParsedEntity, ParsedRecord, PartyRef, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
+import type { FetchContext, FieldMap, ParseCheck, ParseContext, ParsedEntity, ParsedRecord, PartyRef, RawArtifact, SourceLoader, SourceMeta } from "../../types.ts";
 import { artifact, cleanCode, closedValue, CURRENCIES, fetchCkanFile, isoDate, lvAsOf, lvCodeProblem, LV_DEEP_LINK, LV_REGISTER_HOSTS, readCsv, type CsvRecord } from "../shared.ts";
 
 const S03 = "S03.LV.01";
@@ -16,7 +16,8 @@ const S17 = "S17.LV.01";
 /** `LV_PERSON_ROWS` (§3.3, PS7): officer names behind the purpose gate, or role counts and dates only. */
 export const LV_PERSON_ROWS_MODES = ["names_no_id", "role_counts"] as const;
 export type LvPersonRows = (typeof LV_PERSON_ROWS_MODES)[number];
-export type LvPeopleConfig = { personRows: LvPersonRows };
+/** `shortForms`: whether a foreign holder's short company form as its last word proves a company (legal 7093040951). */
+export type LvPeopleConfig = { personRows: LvPersonRows; shortForms: boolean };
 
 /** Datasets and files that hold beneficial owners, shareholders or joint owners: never requested. */
 export const LV_NEVER_FETCHED = {
@@ -90,10 +91,24 @@ const orgEid = (sourceId: string, code: string, recordKey: string, lineId: strin
 type Dropped = { reason: DropReason; prop?: string };
 
 /**
- * A foreign holder's name proves a company: a company-form word of three letters or more, or a
- * short form spelt as companies write it as the last of two words or more (legal 7093040951).
+ * A foreign holder's name proves a company: a company-form word of three letters or more, or, while
+ * the short-form rule is on, a short form spelt as companies write it as the last of two words or
+ * more (legal 7093040951).
  */
-const foreignCompanyName = (name: string) => namesCompany(name) || endsWithShortCompanyForm(name);
+const foreignCompanyName = (name: string, shortForms: boolean) => namesCompany(name) || (shortForms && endsWithShortCompanyForm(name));
+
+/** A name written all in capitals (at least one letter). */
+const inCapitals = (name: string) => /\p{L}/u.test(name) && name === name.toUpperCase() && name !== name.toLowerCase();
+
+/**
+ * The re-count trigger (legal 7096149394): the short-form rule rests on the measurement that no
+ * natural-person name passes it. It is switched off when, in one officers parse, any natural-person
+ * name would pass it, or more than 1% of them are written in capitals (2026-11 baseline: 0.02%).
+ */
+export function shortFormRuleTrips(checks: Partial<Record<ParseCheck, number>>): boolean {
+  const names = checks.lv_person_names ?? 0;
+  return (checks.lv_person_names_short_form ?? 0) > 0 || (names > 0 && (checks.lv_person_names_capitals ?? 0) / names > 0.01);
+}
 
 /**
  * A line's own row id, kept for role-end detection (§3.3). Only the register's id shape is kept: at
@@ -192,7 +207,7 @@ type OfficerLine = {
   personalFields: number;
 };
 
-function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mode: LvPersonRows): ParsedRecord {
+function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mode: LvPersonRows, shortForms: boolean): ParsedRecord {
   const recordKey = `lv-${code}|officers`;
   const n = setNumber(1, code);
   const company = `lv-${code}`;
@@ -237,7 +252,7 @@ function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mod
       // by its register type; unproven, it is dropped in every mode (legal on SEC-9). The type alone
       // is not proof enough: the name must carry a company-form word, as the FID gate requires (T2).
       // Without one the role line stays, with no holder, as a natural person's line does in role_counts.
-      if (l.name && !foreignCompanyName(l.name)) dropped.push({ reason: "unproven_party", prop: "name" });
+      if (l.name && !foreignCompanyName(l.name, shortForms)) dropped.push({ reason: "unproven_party", prop: "name" });
       else if (l.name) {
         const org = orgEid(sourceId, code, recordKey, id ?? `#${pos}`);
         parties.push({
@@ -273,7 +288,7 @@ function officerRecord(sourceId: string, code: string, lines: OfficerLine[], mod
   };
 }
 
-function* officers(raw: RawArtifact[], sourceId: string, mode: LvPersonRows, ctx: ParseContext): Generator<ParsedRecord> {
+function* officers(raw: RawArtifact[], sourceId: string, mode: LvPersonRows, shortForms: boolean, ctx: ParseContext): Generator<ParsedRecord> {
   function* lines(): Generator<{ code: string; line: OfficerLine }> {
     for (const row of readCsv(artifact(raw, OFFICERS_FILE), ";", OFFICER_COLUMNS)) {
       const code = companyOf(row, ctx);
@@ -284,6 +299,14 @@ function* officers(raw: RawArtifact[], sourceId: string, mode: LvPersonRows, ctx
         continue;
       }
       const readName = type === "FOREIGN_ENTITY" || (type === "NATURAL_PERSON" && mode === "names_no_id");
+      const name = readName ? personName(row.get("name")) : "";
+      // The re-count check (legal 7096149394): numbers only, over a person name this mode reads anyway.
+      // In role_counts the name is never read, so no check runs.
+      if (type === "NATURAL_PERSON" && name) {
+        ctx.onCheck?.("lv_person_names");
+        if (endsWithShortCompanyForm(name)) ctx.onCheck?.("lv_person_names_short_form");
+        if (inCapitals(name)) ctx.onCheck?.("lv_person_names_capitals");
+      }
       yield {
         code,
         line: {
@@ -292,7 +315,7 @@ function* officers(raw: RawArtifact[], sourceId: string, mode: LvPersonRows, ctx
           type,
           position: row.get("position"),
           body: row.get("governing_body"),
-          name: readName ? personName(row.get("name")) : "",
+          name,
           holder: type === "LEGAL_ENTITY" ? cleanCode(row.get("legal_entity_registration_number")) : "",
           rights: row.get("rights_of_representation_type"),
           atLeast: row.get("representation_with_at_least"),
@@ -303,7 +326,7 @@ function* officers(raw: RawArtifact[], sourceId: string, mode: LvPersonRows, ctx
       };
     }
   }
-  for (const [code, set] of groupByCompany(lines())) yield officerRecord(sourceId, code, set, mode);
+  for (const [code, set] of groupByCompany(lines())) yield officerRecord(sourceId, code, set, mode, shortForms);
 }
 
 /** The officers loader for one `LV_PERSON_ROWS` mode; the mode is part of its parserVersion. */
@@ -314,11 +337,11 @@ export function lvUrOfficersLoader(config: LvPeopleConfig): SourceLoader {
   if (!LV_PERSON_ROWS_MODES.includes(mode)) throw new Error("LV_PERSON_ROWS must be names_no_id or role_counts");
   return {
     meta: m,
-    parserVersion: `${parserVersion(m.id, 7, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}`,
+    parserVersion: `${parserVersion(m.id, 8, LV_UR_OFFICERS_FIELD_MAP, m.items)}-${LV_FORMS}-${mode}-sf${config.shortForms ? 1 : 0}`,
     fieldMap: LV_UR_OFFICERS_FIELD_MAP,
     fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "officers", OFFICERS_FILE) }),
     asOf: (raw) => lvAsOf(raw, OFFICERS_FILE, datesOf, today(raw)),
-    parse: (raw, ctx) => officers(raw, m.id, mode, ctx),
+    parse: (raw, ctx) => officers(raw, m.id, mode, config.shortForms, ctx),
   };
 }
 
@@ -426,7 +449,7 @@ function memberRecord(sourceId: string, code: string, lines: MemberLine[], seen:
   };
 }
 
-function* members(raw: RawArtifact[], sourceId: string, ctx: ParseContext): Generator<ParsedRecord> {
+function* members(raw: RawArtifact[], sourceId: string, shortForms: boolean, ctx: ParseContext): Generator<ParsedRecord> {
   function* lines(): Generator<{ code: string; line: MemberLine }> {
     for (const row of readCsv(artifact(raw, MEMBERS_FILE), ";", MEMBER_COLUMNS)) {
       // The party gate reads the type first: a person's line is dropped before any other field is read.
@@ -455,7 +478,7 @@ function* members(raw: RawArtifact[], sourceId: string, ctx: ParseContext): Gene
       }
       // A foreign holder known only by name must carry a company-form word (T2, as the FID gate):
       // the register's type alone does not prove a company, so the line is dropped whole.
-      if (type === "FOREIGN_ENTITY" && !foreignCompanyName(name)) {
+      if (type === "FOREIGN_ENTITY" && !foreignCompanyName(name, shortForms)) {
         ctx.onDrop?.("unproven_party");
         continue;
       }
@@ -482,14 +505,17 @@ function* members(raw: RawArtifact[], sourceId: string, ctx: ParseContext): Gene
 
 const MEMBERS_META = meta("lv-ur-members", "Members", [S04, S17]);
 
-export const lvUrMembers: SourceLoader = {
-  meta: MEMBERS_META,
-  parserVersion: `${parserVersion(MEMBERS_META.id, 7, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}`,
-  fieldMap: LV_UR_MEMBERS_FIELD_MAP,
-  fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "members", MEMBERS_FILE) }),
-  asOf: (raw) => lvAsOf(raw, MEMBERS_FILE, datesOf, today(raw)),
-  parse: (raw, ctx) => members(raw, MEMBERS_META.id, ctx),
-};
+/** The members loader for one short-form setting; the setting is part of its parserVersion. No default (J1). */
+export function lvUrMembersLoader(config: Pick<LvPeopleConfig, "shortForms">): SourceLoader {
+  return {
+    meta: MEMBERS_META,
+    parserVersion: `${parserVersion(MEMBERS_META.id, 8, LV_UR_MEMBERS_FIELD_MAP, MEMBERS_META.items)}-${LV_FORMS}-sf${config.shortForms ? 1 : 0}`,
+    fieldMap: LV_UR_MEMBERS_FIELD_MAP,
+    fetch: async (ctx) => ({ artifacts: await fetchLvPeopleFile(ctx, "members", MEMBERS_FILE) }),
+    asOf: (raw) => lvAsOf(raw, MEMBERS_FILE, datesOf, today(raw)),
+    parse: (raw, ctx) => members(raw, MEMBERS_META.id, config.shortForms, ctx),
+  };
+}
 
-/** The module's loaders in load order, for one `LV_PERSON_ROWS` mode. */
-export const lvPeopleLoaders = (config: LvPeopleConfig): SourceLoader[] => [lvUrOfficersLoader(config), lvUrMembers];
+/** The module's loaders in load order, for one config. */
+export const lvPeopleLoaders = (config: LvPeopleConfig): SourceLoader[] => [lvUrOfficersLoader(config), lvUrMembersLoader(config)];

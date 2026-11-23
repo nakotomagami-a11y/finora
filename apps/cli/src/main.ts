@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // finora-cli: `data sync`, `data status`, `search`, `show`, `resolve --sanctions` (S06), `doctor`, `backup` (S04f).
-import { backup, dataStatus, dataSync, doctor, resolveSanctions, search, show, type Io } from "./commands.ts";
+import { backup, dataStatus, dataSync, doctor, resolveSanctions, search, shortFormsOn, show, type Io } from "./commands.ts";
 import { loadCliEnv } from "./env.ts";
 
 const USAGE = `usage: finora-cli <command>   (finora-cli --help shows this)
   data sync [source] [--profile fixtures|core] [--country lv|ee|lt|us] [--allow-mass-purge]
   data status
+  data short-forms on        (after a counts-only re-count on fresh LV files; see lv-people.md)
   search <query> [--country lv|ee|lt|us]
   show <eid>
   resolve --sanctions <name|eid>
@@ -31,6 +32,7 @@ async function main(argv: string[]): Promise<number> {
     return dataSync(io, { profile: flag(rest, "--profile") ?? "core", ...(source ? { source } : {}), ...(country ? { country } : {}), allowMassPurge: rest.includes("--allow-mass-purge") });
   }
   if (command === "data" && sub === "status") return dataStatus(io);
+  if (command === "data" && sub === "short-forms" && rest[0] === "on") return shortFormsOn(io);
   if (command === "search" && sub) {
     const words = [sub, ...rest.filter((a, i) => a !== "--country" && rest[i - 1] !== "--country")];
     return search(io, words.join(" "), flag(rest, "--country"));

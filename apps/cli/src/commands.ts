@@ -7,8 +7,8 @@ import { eidKind, isInternalEid, naturalPersonCaption } from "@finora/domain";
 import { fixtureProfileFor } from "@finora/fixtures";
 import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, sweepWorkDirs, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
-import { loadersFor, type LoaderConfig } from "@finora/sources";
-import { companyValues, openStore, rebuildSearch, runMaintenance, searchCompanies, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
+import { loadersFor, shortFormRuleTrips, type LoaderConfig } from "@finora/sources";
+import { companyValues, lvShortFormsOff, openStore, rebuildSearch, runMaintenance, searchCompanies, setLvShortFormsOff, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
 
 export type Io = { env: CliEnv; out: (line: string) => void; now?: () => Date };
@@ -43,9 +43,10 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     io.out(`unknown profile "${args.profile}" (fixtures or core)`);
     return 2;
   }
-  // Built for this run's config, as the worker builds its own: never a default-config list (qa NIT on 2cba19a).
-  const config: LoaderConfig = { lvPersonRows: io.env.lvPersonRows };
-  const pool = args.profile === "core" ? loadersFor(config).map((loader) => ({ loader })) : fixtureProfileFor(config);
+  // Choosing sources needs metas only; the job's config is built below, once the store has been read.
+  // The short-form rule is off here, the safe side, so no list built for choosing could admit more.
+  const choosing: LoaderConfig = { lvPersonRows: io.env.lvPersonRows, lvShortCompanyForms: false };
+  const pool = args.profile === "core" ? loadersFor(choosing).map((loader) => ({ loader })) : fixtureProfileFor(choosing);
   const chosen = pool.filter((p) => (!args.source || p.loader.meta.id === args.source) && (!args.country || p.loader.meta.country === args.country));
   if (chosen.length === 0) {
     io.out(`no ${args.profile} source${args.source ? ` "${args.source}"` : ""}${args.country ? ` for ${args.country}` : ""}`);
@@ -61,13 +62,18 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
   }
   // Boot for the CLI: work dirs left by a sync that never reached its cleanup go first (legal condition 1).
   // and search rows a killed sync still owed are written (qa condition 1 on the write path).
+  let shortFormsOff = false;
   withStore(io, (store) => {
+    shortFormsOff = lvShortFormsOff(store.db);
     sweepWorkDirs(store.db, join(io.env.dataDir, "work"));
     rebuildSearch(store.db);
     // A merge or a TRUNCATE a killed sync still owed (legal on fix 7).
     runMaintenance(store.db);
   });
   if (held === null) writeFileSync(marker, `${args.profile}\n`);
+  // Built for this run, as the worker builds its own: never a default-config list (qa NIT on 2cba19a).
+  // The short-form switch travels like LV_PERSON_ROWS: read once here, fixed for every job of the run.
+  const config: LoaderConfig = { lvPersonRows: io.env.lvPersonRows, lvShortCompanyForms: !shortFormsOff };
   let failed = 0;
   // One long-lived worker per lane (a country, the sanctions lists, GLEIF), the lanes in parallel,
   // each lane's sources in `meta.order`, the register first (architecture §4.5, cto on S04i). A few
@@ -107,6 +113,9 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     if (t && t.checkpointsOverLimit > 0) io.out(`  over_limit: ${t.checkpointsOverLimit} checkpoint(s) took 5 s or more`);
     for (const m of r?.maintenance ?? []) io.out(`  maintenance ${m.kind}: ${m.steps} step(s), max ${m.maxStepMs} ms, total ${m.ms} ms${m.busy ? ", busy (retried on the next run)" : ""}`);
   }
+  // The short-form re-count check (legal 7096149394): a tripped officers check switches the rule off
+  // for every later sync, until the manual re-count switches it back on.
+  tripShortForms(io, config, byId.get("lv-ur-officers")?.report);
   // A TRUNCATE a reader blocked during a sync, retried once every lane is done.
   withStore(io, (store) => {
     for (const m of runMaintenance(store.db)) io.out(`maintenance ${m.kind}: ${m.steps} step(s), max ${round(m.maxStepMs)} ms${m.busy ? ", busy (retried on the next run)" : ""}`);
@@ -114,6 +123,44 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
   // P10 memory budget: the peak of this process, which ran every sync worker above (cto on S04i).
   io.out(`peak RSS: ${(process.resourceUsage().maxRSS / 1024).toFixed(0)} MB`);
   return failed === 0 ? 0 : 1;
+}
+
+/** Why the short-form re-count check tripped, in numbers only. */
+function shortFormCause(checks: Record<string, number>): string {
+  const names = checks.lv_person_names ?? 0;
+  const passing = checks.lv_person_names_short_form ?? 0;
+  const capitals = checks.lv_person_names_capitals ?? 0;
+  const share = names > 0 ? `${((100 * capitals) / names).toFixed(2)}%` : "0%";
+  return `${passing} of ${names} person names would pass it; ${share} are in capitals`;
+}
+
+/**
+ * Applies the re-count check after a run's syncs (legal 7096149394). The run's jobs were built
+ * before it, so a trip changes only the next run's config. Returns whether it tripped.
+ */
+export function tripShortForms(io: Io, config: LoaderConfig, officers: SyncReport | null | undefined): boolean {
+  if (!config.lvShortCompanyForms || !officers || !shortFormRuleTrips(officers.checks ?? {})) return false;
+  withStore(io, (store) => setLvShortFormsOff(store.db, true));
+  io.out(`short-form rule: switched off from the next sync (${shortFormCause(officers.checks ?? {})}); re-run the count on fresh files, then \`finora-cli data short-forms on\``);
+  return true;
+}
+
+/** `data short-forms on`: the manual step after a re-count on fresh files (legal 7096149394). */
+export function shortFormsOn(io: Io): number {
+  return withStore(io, (store) => {
+    setLvShortFormsOff(store.db, false);
+    io.out("short-form rule: on");
+    return 0;
+  });
+}
+
+/** The short-form rule's state for `data status`; in role_counts no person name is read, so no check runs. */
+function shortFormStatus(db: Store["db"], mode: string): string {
+  if (mode === "role_counts") return "short-form rule: not checked in role_counts";
+  if (!lvShortFormsOff(db)) return "short-form rule: on";
+  const row = db.prepare("SELECT report_json FROM main.syncs WHERE source_id = 'lv-ur-officers' AND report_json IS NOT NULL ORDER BY id DESC LIMIT 1").get() as { report_json: string } | undefined;
+  const checks = row ? ((JSON.parse(row.report_json) as Partial<SyncReport>).checks ?? {}) : {};
+  return `short-form rule: off (${shortFormCause(checks)}); re-run the count on fresh files, then \`finora-cli data short-forms on\``;
 }
 
 /** `data status`: each source's latest sync and its report, drops by reason. */
@@ -142,6 +189,7 @@ export function dataStatus(io: Io): number {
       const skipped = report.skipped ?? {};
       if (Object.keys(skipped).length > 0) io.out(`  skipped: ${dropsLine(skipped)}`);
     }
+    if (sources.some((s) => s.id === "lv-ur-officers")) io.out(shortFormStatus(db, io.env.lvPersonRows));
     return 0;
   });
 }

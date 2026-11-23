@@ -29,7 +29,7 @@ type WorkerMessage =
 const failed = (reason: string): SyncOutcome => ({
   kind: "failed",
   syncId: null,
-  report: { read: 0, written: 0, unchanged: 0, deleted: 0, tombstoned: 0, skipped: {}, dropped: {}, droppedRows: [], events: 0, durationMs: 0, storage: "store", reason },
+  report: { read: 0, written: 0, unchanged: 0, deleted: 0, tombstoned: 0, skipped: {}, dropped: {}, checks: {}, droppedRows: [], events: 0, durationMs: 0, storage: "store", reason },
 });
 
 /**

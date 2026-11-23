@@ -296,3 +296,17 @@ export function entityByEid(db: DatabaseSync, eid: string): { code: string | nul
     .get(eid) as { code: string | null; natural_person: number; status: string | null; schema: string } | undefined;
   return row ? { code: row.code, naturalPerson: row.natural_person === 1, status: row.status, person: row.schema === "Person" } : null;
 }
+
+/**
+ * Whether the LV short-form company rule is switched off (S05, legal 7096149394). A boolean in
+ * `main.store_meta` and nothing else: a tripped re-count check sets it, and only the manual re-count
+ * clears it. The parent reads it before each sync job and passes it in the loader config.
+ */
+export function lvShortFormsOff(db: DatabaseSync): boolean {
+  const row = db.prepare("SELECT value FROM main.store_meta WHERE key = 'lv_short_forms_off'").get() as { value: string } | undefined;
+  return row?.value === "1";
+}
+
+export function setLvShortFormsOff(db: DatabaseSync, off: boolean): void {
+  db.prepare("INSERT INTO main.store_meta (key, value) VALUES ('lv_short_forms_off', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(off ? "1" : "0");
+}

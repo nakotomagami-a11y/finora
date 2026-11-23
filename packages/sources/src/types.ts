@@ -157,7 +157,16 @@ export type ParseContext = {
   onPerson?: (entry: PersonEntry) => void;
   /** Counts a whole entry dropped at parse that yields no record (an individual, a vessel). */
   onDrop?: (reason: DropReason) => void;
+  /** Counts a data check the parse runs over values it already holds; numbers only, never a value. */
+  onCheck?: (check: ParseCheck) => void;
 };
+
+/**
+ * Counts-only checks a parse reports (S05, legal 7096149394): the LV officers' natural-person names when
+ * LV_PERSON_ROWS keeps names, the ones the short-form company rule would admit, and the ones written in capitals.
+ */
+export const PARSE_CHECKS = ["lv_person_names", "lv_person_names_short_form", "lv_person_names_capitals"] as const;
+export type ParseCheck = (typeof PARSE_CHECKS)[number];
 
 /**
  * GET, or POST when `body` is given (a JSON-RPC read such as a block header); never a write to the source.

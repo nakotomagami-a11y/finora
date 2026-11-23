@@ -2,7 +2,7 @@
 // seeded world. Each is a named export, so a sync worker can import it by module URL; each
 // regenerates the same world from the seed, so no file is ever needed.
 import { readFileSync } from "node:fs";
-import { lvUrOfficersLoader, type LoaderConfig, esmaNcasp, euFsf, lvFidFrozen, lvUrAnnualReports, lvUrInsolvency, lvUrMembers, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions, lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type FieldMap, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
+import { lvUrOfficersLoader, type LoaderConfig, esmaNcasp, euFsf, lvFidFrozen, lvUrAnnualReports, lvUrInsolvency, lvUrMembersLoader, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions, lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type FieldMap, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
 import { lvBalanceSheetsCsv, lvIncomeStatementsCsv, lvInsolvencyCsv, lvMembersCsv, lvOfficersCsv, lvSanctionsLinksCsv, lvSecuringMeasuresCsv, lvStatementsCsv, lvSuspensionsCsv, lvVidQuarterlyCsv, lvVidRatingCsv, lvVidSuspensionsCsv, lvVidVatCsv, lvVidYearlyCsv, lvEquityCapitalsCsv, lvFidXlsx, lvLiquidationsCsv, lvMemorandumCsv, lvNameHistoryCsv, lvRegisterCsv, lvReorganizationsCsv } from "@finora/sources/testing";
 import { DEFAULT_SEED, generateWorld, type FixtureCompany, type World } from "./world.ts";
 
@@ -233,8 +233,9 @@ export const fxLvUrReorganizations = fromFiles(lvUrReorganizations, lvFile("reor
 export const fxLvUrEquityCapitals = fromFiles(lvUrEquityCapitals, lvFile("equity_capitals.csv", lvEquityCapitalsCsv));
 export const fxLvUrMemorandumDates = fromFiles(lvUrMemorandumDates, lvFile("memorandum_date.csv", lvMemorandumCsv));
 /** The officers fixture built with the real parser for one `LV_PERSON_ROWS` mode (SEC-1 on S05). */
-const fxLvUrOfficersFor = (config: LoaderConfig) => fromFiles(lvUrOfficersLoader({ personRows: config.lvPersonRows }), lvFile("officers.csv", () => lvOfficersCsv()));
-export const fxLvUrMembers = fromFiles(lvUrMembers, lvFile("members.csv", lvMembersCsv));
+const fxLvUrOfficersFor = (config: LoaderConfig) => fromFiles(lvUrOfficersLoader({ personRows: config.lvPersonRows, shortForms: config.lvShortCompanyForms }), lvFile("officers.csv", () => lvOfficersCsv()));
+/** The members fixture built with the real parser for one short-form setting (S05, legal 7096149394). */
+const fxLvUrMembersFor = (config: LoaderConfig) => fromFiles(lvUrMembersLoader({ shortForms: config.lvShortCompanyForms }), lvFile("members.csv", lvMembersCsv));
 export const fxLvUrInsolvency = fromFiles(lvUrInsolvency, lvFile("insolvency_legal_person_proceeding.csv", lvInsolvencyCsv));
 export const fxLvUrSecuringMeasures = fromFiles(lvUrSecuringMeasures, lvFile("securing_measures.csv", lvSecuringMeasuresCsv));
 export const fxLvUrSuspensions = fromFiles(lvUrSuspensions, lvFile("suspensions_prohibitions.csv", lvSuspensionsCsv));
@@ -263,7 +264,7 @@ const fixtureProfile = (config: LoaderConfig): readonly { exportName: string; lo
   { exportName: "fxLvUrEquityCapitals", loader: fxLvUrEquityCapitals },
   { exportName: "fxLvUrMemorandumDates", loader: fxLvUrMemorandumDates },
   { exportName: "fxLvUrOfficers", loader: fxLvUrOfficersFor(config) },
-  { exportName: "fxLvUrMembers", loader: fxLvUrMembers },
+  { exportName: "fxLvUrMembers", loader: fxLvUrMembersFor(config) },
   { exportName: "fxLvUrInsolvency", loader: fxLvUrInsolvency },
   { exportName: "fxLvUrSecuringMeasures", loader: fxLvUrSecuringMeasures },
   { exportName: "fxLvUrSuspensions", loader: fxLvUrSuspensions },

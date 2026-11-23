@@ -1,4 +1,5 @@
 export { checkFieldMap } from "./field-maps.ts";
+export { PARSE_CHECKS } from "./types.ts";
 export { artifactHead, artifactSize, artifactStream, artifactText, streamedArtifact } from "./artifacts.ts";
 export { FetchError, isPrivateAddress, nodeTransport, politeFetch, retryAfterMs, type PoliteFetchOptions, type Resolver, type Transport } from "./fetcher.ts";
 export { checkSource, LICENCES, SOURCE_ID, type Licence } from "./licences.ts";
@@ -16,6 +17,7 @@ export type {
   ParsedEntity,
   ParsedRecord,
   ParsedStatement,
+  ParseCheck,
   PartyRef,
   PersonEntry,
   PoliteFetch,
@@ -28,7 +30,7 @@ export type {
 } from "./types.ts";
 export { personFieldProblems } from "./person-fields.ts";
 export { DEFAULT_LOADER_CONFIG, loadersFor, SOURCE_METAS, type LoaderConfig } from "./registry.ts";
-export { lvUrOfficersLoader, lvUrMembers, LV_PERSON_ROWS_MODES, type LvPersonRows } from "./lv/lv-people/lv-people.ts";
+export { lvUrOfficersLoader, lvUrMembersLoader, LV_PERSON_ROWS_MODES, shortFormRuleTrips, type LvPersonRows } from "./lv/lv-people/lv-people.ts";
 export { lvUrInsolvency, lvUrSecuringMeasures, lvUrSuspensions, lvUrSanctionsLinks, LV_RISK_LOADERS } from "./lv/lv-risk/lv-risk.ts";
 export { lvUrAnnualReports, LV_FINANCIALS_LOADERS } from "./lv/lv-financials/lv-financials.ts";
 export { lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, LV_TAX_LOADERS } from "./lv/lv-tax/lv-tax.ts";

@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { personListHeld, setPersonList, type PersonList } from "@finora/resolve";
-import type { ParsedRecord, PersonEntry, PoliteFetch, RawArtifact, SourceLoader, StorageClass } from "@finora/sources";
+import type { ParsedRecord, PersonEntry, PoliteFetch, RawArtifact, SourceLoader, StorageClass, ParseCheck } from "@finora/sources";
 import {
   acquireLease,
   beginStaging,
@@ -66,6 +66,8 @@ export type SyncReport = {
   tombstoned: number;
   skipped: Record<string, number>;
   dropped: Record<string, number>;
+  /** Counts-only data checks the parse ran (`ParseCheck`): numbers, never a value (legal 7096149394). */
+  checks: Record<string, number>;
   /** Refused values by prop and row-local reference: never the value (legal 7058881476). */
   droppedRows: Drop[];
   events: number;
@@ -478,6 +480,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       now: startedAt,
       ...(meta.personIndex === true ? { onPerson: (entry: PersonEntry) => void persons.push(entry) } : {}),
       onDrop: (reason: Drop["reason"]) => countDrops(report, [{ reason }]),
+      onCheck: (check: ParseCheck) => bump(report.checks, check),
     };
     try {
       for await (const raw of loader.parse(artifacts, parseContext)) {
@@ -673,7 +676,7 @@ export function writeParsed(
 }
 
 export function emptyReport(storage: StorageClass): SyncReport {
-  return { read: 0, written: 0, unchanged: 0, deleted: 0, tombstoned: 0, skipped: {}, dropped: {}, droppedRows: [], events: 0, durationMs: 0, storage };
+  return { read: 0, written: 0, unchanged: 0, deleted: 0, tombstoned: 0, skipped: {}, dropped: {}, checks: {}, droppedRows: [], events: 0, durationMs: 0, storage };
 }
 
 export function countDrops(report: SyncReport, drops: readonly Drop[]): void {

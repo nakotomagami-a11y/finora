@@ -8,12 +8,13 @@ import type { RawArtifact } from "../types.ts";
 import { lvCsv } from "./fixture-csv.ts";
 import { lvFx } from "./fixture-world.ts";
 import { lvMembersCsv, lvOfficersCsv } from "./lv-people/fixture.ts";
-import { lvUrMembers, lvUrOfficersLoader } from "./lv-people/lv-people.ts";
+import { lvUrMembersLoader, lvUrOfficersLoader } from "./lv-people/lv-people.ts";
 import { LV_INSOLVENCY_HEADER, LV_SANCTIONS_HEADER, LV_SECURING_HEADER, LV_SUSPENSIONS_HEADER } from "./lv-risk/fixture.ts";
 import { lvUrInsolvency, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions } from "./lv-risk/lv-risk.ts";
 import { lvUrLiquidations, lvUrReorganizations } from "./lv-ur-register/lv-ur-register.ts";
 
-const lvUrOfficers = lvUrOfficersLoader({ personRows: "names_no_id" });
+const lvUrOfficers = lvUrOfficersLoader({ personRows: "names_no_id", shortForms: true });
+const lvUrMembers = lvUrMembersLoader({ shortForms: true });
 
 /** A fictional name placed in every enum column: it must never survive a parse. */
 const NAME = "Test Person Canary";
@@ -34,7 +35,7 @@ describe("lv-ur-officers and members store closed sets only", () => {
   ];
 
   it("turns an unknown position into unspecified and drops an unknown body or signing right, counted", async () => {
-    for (const loader of [lvUrOfficers, lvUrOfficersLoader({ personRows: "role_counts" })]) {
+    for (const loader of [lvUrOfficers, lvUrOfficersLoader({ personRows: "role_counts", shortForms: true })]) {
       const { records } = await parseAll(loader, [art("officers.csv", lvOfficersCsv(rows))]);
       const record = records[0]!;
       expect(JSON.stringify(record)).not.toContain("Canary");
@@ -119,7 +120,7 @@ describe("names in id, case-number, court, programme and country columns are nev
   const row = (header: readonly string[], values: Record<string, string>) => header.map((h) => values[h] ?? "");
 
   it("keeps only digit ids of up to 12 digits (N1), in both modes and in members", async () => {
-    for (const loader of [lvUrOfficers, lvUrOfficersLoader({ personRows: "role_counts" })]) {
+    for (const loader of [lvUrOfficers, lvUrOfficersLoader({ personRows: "role_counts", shortForms: true })]) {
       const { records } = await parseAll(loader, [art("officers.csv", lvOfficersCsv([{ id: "Test Person Canary" as never, n: 1, position: "BOARD_MEMBER", name: "Test Person Q1", rights: "INDIVIDUALLY", registered: "2020-01-01" }, { id: 5003, n: 1, position: "BOARD_MEMBER", name: "Test Person Q2", rights: "INDIVIDUALLY", registered: "2020-01-01" }]))]);
       expect(JSON.stringify(records)).not.toContain("Canary");
       expect(records[0]!.lineIds).toEqual([null, "5003"]);

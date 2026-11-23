@@ -260,7 +260,7 @@ describe("the statement cache keeps nothing past the sync (legal, qa, cto)", () 
       // The register loads first and is not scanned: a sole trader's register name holds a person's name.
       await runSync(store.db, register(), { fetcher: noNetwork });
       bound.length = 0;
-      await runSync(store.db, fromFile(lvUrOfficersLoader({ personRows: "role_counts" }), "officers.csv", lvOfficersCsv), { fetcher: noNetwork });
+      await runSync(store.db, fromFile(lvUrOfficersLoader({ personRows: "role_counts", shortForms: true }), "officers.csv", lvOfficersCsv), { fetcher: noNetwork });
       // A foreign holder with a quoted name, unproven (no company types): never bound, in any form (G4).
       const quoted = ['SIA "Quoted', 'Sentinel', 'Holding"'].join(" ");
       const holder = { type: "FOREIGN_ENTITY", entities: [{ eid: "org-00000000000000000099", schema: "Organization" as const, country: "intl", statements: [{ prop: "name", value: quoted, itemId: "S04.LV.01" }] }] };
@@ -272,7 +272,7 @@ describe("the statement cache keeps nothing past the sync (legal, qa, cto)", () 
       const named = openStore({ dataDir: null });
       await runSync(named.db, register(), { fetcher: noNetwork });
       bound.length = 0;
-      await runSync(named.db, fromFile(lvUrOfficersLoader({ personRows: "names_no_id" }), "officers.csv", lvOfficersCsv), { fetcher: noNetwork });
+      await runSync(named.db, fromFile(lvUrOfficersLoader({ personRows: "names_no_id", shortForms: true }), "officers.csv", lvOfficersCsv), { fetcher: noNetwork });
       const namedBinds = bound.splice(0);
       const names = (named.db.prepare("SELECT DISTINCT st.value FROM main.statements st JOIN main.entities e ON e.id = st.entity_id JOIN main.schemas s ON s.id = e.schema_id WHERE s.name = 'Person'").all() as { value: string }[]).map((r) => r.value);
       named.close();

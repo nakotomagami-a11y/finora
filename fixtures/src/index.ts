@@ -20,7 +20,6 @@ export {
   fxLvOfficers,
   fxLvRegister,
   fxLvUrEquityCapitals,
-  fxLvUrMembers,
   fxLvUrInsolvency,
   fxLvUrSecuringMeasures,
   fxLvUrSuspensions,
