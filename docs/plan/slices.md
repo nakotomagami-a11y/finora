@@ -187,7 +187,7 @@ The U-numbers are frontend's names in `ui-build-plan.md` §14; this table is the
 - **Tests:** `fixtures/ui.test.ts`, `web/src/lib/sse.test.ts`, `web/src/lib/investigation-reducer.test.ts`.
 - **Demo:** open `/en/design?state=report`.
 
-**M1 demo (council session 3a, run by qa from a fresh clone):** clone → `pnpm install` → `pnpm test` green → `pnpm dev` shows the localised shell and `/design` → `finora-cli data sync --profile fixtures` loads the fixture world → `finora-cli search` finds a company in each country.
+**M1 demo (council session 3a, run by qa from a fresh clone):** clone, `pnpm install`, `pnpm test` green. Then `pnpm dev` shows the localised shell, and `FINORA_DEMO=1 pnpm dev` shows `/design` (404 without it since S04u). `pnpm finora-cli data sync --profile fixtures` loads the fixture world, and `pnpm finora-cli search` finds a company in each country. The bin is not linked at the root, so commands go through `pnpm finora-cli`.
 
 ---
 

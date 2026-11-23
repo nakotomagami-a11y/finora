@@ -34,6 +34,8 @@ node scripts/check-outside-names.mjs tree                   # a full audit
 
 It prints `file:line  class` (host, org, ticker, id, brand, binary) and a counts-only summary line, never the matched text. Resolve each hit by giving it a coded alias, removing it, or, for a public body, official registry, open standard, tool, licence, official field name or a plainly fictional test name, listing it in the private allowlist `.local/outside-names-allow.txt` as `<category> <host or phrase>`. It exits 1 while any hit is unresolved.
 
+**In a fresh clone the allowlist is absent, because it is private**: it would itself name what it allows. There, the sweep reports every kept name as unresolved (about 900 in a full `tree` run), so a contributor cannot tell a real hit from a kept one. Run `range` over your own commits, and read each hit's class and line. The coordinator runs the sweep with the allowlist before every slice is accepted, and that run is the authority (qa's check, H4).
+
 ## 4. No personal or machine data
 
 - [ ] No emails, phone numbers, personal codes or ID numbers, home addresses, or birth dates.

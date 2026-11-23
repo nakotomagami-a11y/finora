@@ -4,11 +4,24 @@ Free, open-source company intelligence, done by agents. Describe a company you'r
 
 Checking a company by hand means hours across a dozen registries and websites. Agents can do it in minutes, and the result should be free.
 
-**Status: planning done, build next.** No app code yet. The data research (`docs/research/`), the council's data decisions and the build plan (`docs/plan/`) are written and reviewed; the build starts slice by slice once the plan is approved. The register of the work is `docs/plan/README.md`.
+**Status: building, slice by slice.** Milestone 1 (the foundation) is built: the workspace, the store, the loaders, the fixture world and the UI plumbing. Real data comes in milestone 2, starting with Latvia. The register of the work is `docs/plan/README.md`.
 
 ## Running Finora
 
-v1 runs locally only, on your own machine: one command starts the app on `127.0.0.1` with the public registers loaded (see `docs/plan/slices.md` S12 once it lands). There is no hosted build until the publication-related lawyer questions in `docs/plan/lawyer-register.md` are cleared.
+v1 runs locally only, on your own machine. It needs Node 24.20 or later and pnpm. The one-command start with the public registers loaded lands with slice S12 (`docs/running.md`). There is no hosted build until the publication-related lawyer questions in `docs/plan/lawyer-register.md` are cleared.
+
+What runs today, on fictional fixture data:
+
+```sh
+node scripts/guard/install.mjs                      # the git hooks
+pnpm install
+pnpm test                                           # Vitest and the node tests
+pnpm dev                                            # the localised shell at http://127.0.0.1:3000/en
+FINORA_DEMO=1 pnpm dev                              # also the /en/design gallery and fixture views
+pnpm finora-cli data sync --profile fixtures        # load the fixture world
+pnpm finora-cli search example --country lv         # also ee, lt, us
+pnpm finora-cli show <entity id>
+```
 
 ## Planned tools
 
