@@ -47,7 +47,7 @@ export function DebtCard({ row, now }: { row: RowView | undefined; now: Date }) 
               {estimate}
             </span>
           ) : null}
-          {estimate && official && date ? <span className="sr-only">{t("debt.sr", { estimate, official, date })}</span> : null}
+          {estimate && official && date ? <span className="sr-only">{t("debt.spoken", { estimate, official, date })}</span> : null}
           {estimate ? (
             <span className="flex flex-wrap items-center gap-2 text-small text-ink-2">
               <Badge tone="neutral">{t("debt.estimate")}</Badge>

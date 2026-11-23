@@ -134,7 +134,7 @@
       "ticking": "tiksub ametlike numbrite vahel",
       "official": "Ametlik, {date}",
       "caveat": "Tikkur on hinnang viimase 30 päeva keskmise muutuse põhjal.",
-      "sr": "Hinnang {estimate}. Ametlik number {official}, seisuga {date}."
+      "spoken": "Hinnang {estimate}. Ametlik number {official}, seisuga {date}."
     },
     "banner": {
       "stale": "Mõned väärtused on tavapärasest vanemad. Teised plaadid on värsked.",

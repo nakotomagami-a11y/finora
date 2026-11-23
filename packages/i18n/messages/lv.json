@@ -134,7 +134,7 @@
       "ticking": "skaita starp oficiālajiem skaitļiem",
       "official": "Oficiāli, {date}",
       "caveat": "Skaitītājs ir aplēse pēc pēdējo 30 dienu vidējām izmaiņām.",
-      "sr": "Aplēse {estimate}. Oficiālais skaitlis {official}, uz {date}."
+      "spoken": "Aplēse {estimate}. Oficiālais skaitlis {official}, uz {date}."
     },
     "banner": {
       "stale": "Dažas vērtības ir vecākas nekā parasti. Pārējās flīzes ir aktuālas.",

@@ -134,7 +134,7 @@
       "ticking": "ticking between official figures",
       "official": "Official, {date}",
       "caveat": "The ticker is an estimate from the last 30 days' average change.",
-      "sr": "Estimate {estimate}. Official figure {official}, as of {date}."
+      "spoken": "Estimate {estimate}. Official figure {official}, as of {date}."
     },
     "banner": {
       "stale": "Some values are older than their usual refresh. The other tiles are current.",

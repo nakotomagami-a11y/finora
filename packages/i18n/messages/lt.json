@@ -134,7 +134,7 @@
       "ticking": "skaičiuojama tarp oficialių skaičių",
       "official": "Oficialiai, {date}",
       "caveat": "Skaitiklis yra įvertis pagal paskutinių 30 dienų vidutinį pokytį.",
-      "sr": "Įvertis {estimate}. Oficialus skaičius {official}, {date}."
+      "spoken": "Įvertis {estimate}. Oficialus skaičius {official}, {date}."
     },
     "banner": {
       "stale": "Kai kurios vertės senesnės nei įprastai. Kitos plytelės yra naujausios.",
