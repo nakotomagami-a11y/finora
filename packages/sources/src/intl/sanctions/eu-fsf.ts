@@ -71,6 +71,10 @@ export const EU_FSF_FIELD_MAP: FieldMap = [
   { field: "Identification_Number", target: { prop: "number" }, itemId: ITEM, personal: false },
   { field: "Identification_TypeCode", target: { prop: "type" }, itemId: ITEM, personal: false },
   { field: "Identification_CountryIso2Code", target: { resolutionKey: "identifier_country" }, personal: false },
+  { field: "derived:entity", target: { prop: "entity" }, itemId: ITEM, personal: false },
+  { field: "derived:holder", target: { prop: "holder" }, itemId: ITEM, personal: false },
+  { field: "derived:authority", target: { prop: "authority" }, itemId: ITEM, personal: false },
+  { field: "NameAlias_WholeName", target: { prop: "alias" }, itemId: ITEM, personal: false },
 ];
 
 /** Identifier types read for enterprises; persons' documents are never read (`person_document`). */

@@ -287,6 +287,7 @@ export const LV_UR_SANCTIONS_LINKS_FIELD_MAP: FieldMap = [
   { field: "nationality", target: { dropped: "natural_person_party" }, personal: true },
   { field: "birth_date", target: { dropped: "personal_code" }, personal: true },
   { field: "latvian_identity_number_masked", target: { dropped: "personal_code" }, personal: true },
+  { field: "legal_entity_name", target: { prop: "name" }, itemId: S11, personal: false },
 ];
 
 const SANCTIONS_COLUMNS = [

@@ -33,6 +33,16 @@ describe("load rule 2 at the field map", () => {
     expect(problems).toMatch(/field y is mapped twice/);
   });
 
+  it("lets one column feed a resolution key and a statement, or two props (M1-F2), but not one target twice", () => {
+    const ok: FieldMap = [
+      { field: "regcode", target: { resolutionKey: "registrationNumber" }, personal: false },
+      { field: "regcode", target: { prop: "registrationNumber" }, itemId: "S01.LV.01", personal: false },
+    ];
+    expect(checkFieldMap("lv-example", ok)).toEqual([]);
+    const twice: FieldMap = [...ok, { field: "regcode", target: { prop: "registrationNumber" }, itemId: "S01.LV.01", personal: false }];
+    expect(checkFieldMap("lv-example", twice).join(" ")).toMatch(/regcode is mapped twice to the same target/);
+  });
+
   it("maps nothing to public procurement, which is LATER in every country (LAW-LV-NP-PROCUREMENT)", () => {
     expect(ITEMS.filter((i) => i.section === "S12").every((i) => i.call === "later")).toBe(true);
     for (const loader of LOADERS) {

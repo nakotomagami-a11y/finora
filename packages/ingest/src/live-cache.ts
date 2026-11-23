@@ -29,7 +29,7 @@ import {
   upsertSource,
   writeFinoraEvent,
 } from "@finora/store";
-import { applyGates } from "./gates.ts";
+import { allowedPropsOf, applyGates } from "./gates.ts";
 import { countDrops, emptyReport, writeParsed } from "./pipeline.ts";
 import { validateRecord } from "./validate.ts";
 
@@ -84,6 +84,7 @@ export async function fetchOnView(
       lookup: (c: string, v: string) => entityByCode(db, c, v),
       knownCompany: (eid: string) => isCompanyEid(db, eid),
       byEid: (eid: string) => entityByEid(db, eid),
+      allowedProps: allowedPropsOf(loader.fieldMap),
     };
 
     // Parse everything first: no write transaction is ever held across an await (SEC-4).

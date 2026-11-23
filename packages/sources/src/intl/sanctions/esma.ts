@@ -58,6 +58,7 @@ export const ESMA_FIELD_MAP: FieldMap = [
   { field: "ae_decision_date", target: { prop: "listingDate" }, itemId: ITEM, personal: false },
   { field: "ae_lastupdate", target: { resolutionKey: "upstream_as_of" }, personal: false },
   { field: "ae_comments", target: { dropped: "free_text" }, personal: false },
+  { field: "derived:entity", target: { prop: "entity" }, itemId: ITEM, personal: false },
 ];
 
 class SchemaChanged extends Error {

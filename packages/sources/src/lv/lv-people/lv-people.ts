@@ -335,6 +335,7 @@ export const LV_UR_MEMBERS_FIELD_MAP: FieldMap = [
   { field: "birth_date", target: { dropped: "personal_code" }, personal: true },
   { field: "registered_on", target: { resolutionKey: "as_of" }, personal: false },
   { field: "last_modified_at", target: { resolutionKey: "as_of" }, personal: false },
+  { field: "name", target: { prop: "owner" }, itemId: S04, personal: false },
 ];
 
 /** Member types that never get past the first field read (rule 1): the line is dropped whole. */

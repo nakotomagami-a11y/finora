@@ -21,6 +21,8 @@ export const DROP_REASONS = [
   "ref_not_company",
   "ref_mismatch",
   "reference_unresolved",
+  // a statement whose prop its item does not allow: the loader's field map is the list (M1-F2)
+  "prop_not_in_item",
   // named by the loader specs so far
   "code_not_in_register",
   "invalid_code",

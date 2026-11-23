@@ -50,6 +50,13 @@ export const LV_FID_FIELD_MAP: FieldMap = [
   { field: "8", target: { event: "register.frozen_assets" }, itemId: ITEM, personal: false },
   { field: "9", target: { event: "register.frozen_assets" }, itemId: ITEM, personal: false },
   { field: "10", target: { event: "register.frozen_assets" }, itemId: ITEM, personal: false },
+  { field: "derived:entity", target: { prop: "entity" }, itemId: ITEM, personal: false },
+  { field: "derived:holder", target: { prop: "holder" }, itemId: ITEM, personal: false },
+  { field: "derived:authority", target: { prop: "authority" }, itemId: ITEM, personal: false },
+  { field: "derived:listingDate", target: { prop: "listingDate" }, itemId: ITEM, personal: false },
+  { field: "derived:sourceUrl", target: { prop: "sourceUrl" }, itemId: ITEM, personal: false },
+  { field: "derived:type", target: { prop: "type" }, itemId: ITEM, personal: false },
+  { field: "2", target: { prop: "number" }, itemId: ITEM, personal: false },
 ];
 
 /** The ground is stored as a fixed category, never its text, which names the listed person (legal on S06). */

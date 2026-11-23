@@ -49,7 +49,7 @@ import {
   type CheckpointResult,
   type MaintenanceStep,
 } from "@finora/store";
-import { applyGates, type Drop, type GateResult } from "./gates.ts";
+import { allowedPropsOf, applyGates, type Drop, type GateResult } from "./gates.ts";
 import { snapshot, writeHistory } from "./history.ts";
 import { clearLiveView, liveView, setLiveView, type LiveView } from "./live-views.ts";
 import { dropRaw, loadRaw, saveRaw } from "./raw-cache.ts";
@@ -443,6 +443,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
       lookup: (country: string, code: string) => entityByCode(db, country, code),
       knownCompany: (eid: string) => isCompanyEid(db, eid),
       byEid: (eid: string) => entityByEid(db, eid),
+      allowedProps: allowedPropsOf(loader.fieldMap),
     };
     const day = startedAt.slice(0, 10);
     const periods = new Set<string>();

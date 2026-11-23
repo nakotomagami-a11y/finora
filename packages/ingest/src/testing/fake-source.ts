@@ -1,7 +1,14 @@
 // A fake source for the pipeline tests and the fixture world (S04f): its artifact is the JSON of
 // its records, so parse is pure and a change to the records changes the content hash. Every name
 // and code it makes is fictional.
-import type { AsOfStrategy, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "@finora/sources";
+import { ITEMS, PROPS } from "@finora/domain";
+import type { AsOfStrategy, FieldMap, ParsedRecord, RawArtifact, SourceLoader, SourceMeta } from "@finora/sources";
+
+/**
+ * Every (item, prop) pair, spelled out: the fake source writes whatever a test hands it, so its field
+ * map allows it all. A test of the prop-to-item check (M1-F2) sets a narrow map of its own.
+ */
+export const ANY_ITEM_PROP: FieldMap = ITEMS.flatMap((item) => PROPS.map((prop) => ({ field: prop, target: { prop }, itemId: item.id, personal: item.personal })));
 
 export type FakeState = {
   records: ParsedRecord[];
@@ -44,7 +51,7 @@ export function fakeSource(meta: Partial<SourceMeta> & { parserVersion?: string 
   const loader: FakeLoader = {
     meta: full,
     parserVersion,
-    fieldMap: [{ field: "name", target: { prop: "name" }, itemId: "S01.LV.01", personal: false }],
+    fieldMap: ANY_ITEM_PROP,
     state: { records: [], asOf: { in_file_field: "2026-11-01" }, ...state },
     fetches: 0,
     async fetch() {

@@ -5,10 +5,16 @@ import type { FieldMap } from "./types.ts";
 
 export function checkFieldMap(sourceId: string, fieldMap: FieldMap): string[] {
   const problems: string[] = [];
-  const fields = new Set<string>();
+  // One column may feed a resolution key and a statement, or two props (M1-F2). A field is mapped
+  // twice when the same target repeats, or when it is dropped and also feeds something.
+  const uses = new Map<string, FieldMap[number][]>();
+  for (const entry of fieldMap) uses.set(entry.field, [...(uses.get(entry.field) ?? []), entry]);
+  for (const [field, entries] of uses) {
+    const targets = entries.map((e) => JSON.stringify(e.target));
+    if (new Set(targets).size < targets.length) problems.push(`${sourceId}: field ${field} is mapped twice to the same target`);
+    else if (entries.length > 1 && entries.some((e) => "dropped" in e.target)) problems.push(`${sourceId}: field ${field} is mapped twice: a dropped field feeds nothing else`);
+  }
   for (const entry of fieldMap) {
-    if (fields.has(entry.field)) problems.push(`${sourceId}: field ${entry.field} is mapped twice`);
-    fields.add(entry.field);
     const target = entry.target;
     if ("dropped" in target || "resolutionKey" in target) continue;
     if (!entry.itemId) {

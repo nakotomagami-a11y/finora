@@ -2,7 +2,7 @@
 // seeded world. Each is a named export, so a sync worker can import it by module URL; each
 // regenerates the same world from the seed, so no file is ever needed.
 import { readFileSync } from "node:fs";
-import { lvUrOfficersLoader, type LoaderConfig, esmaNcasp, euFsf, lvFidFrozen, lvUrAnnualReports, lvUrInsolvency, lvUrMembers, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions, lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
+import { lvUrOfficersLoader, type LoaderConfig, esmaNcasp, euFsf, lvFidFrozen, lvUrAnnualReports, lvUrInsolvency, lvUrMembers, lvUrSanctionsLinks, lvUrSecuringMeasures, lvUrSuspensions, lvVidRating, lvVidSuspensions, lvVidTaxesQuarterly, lvVidTaxesYearly, lvVidVatPayers, lvUrEquityCapitals, lvUrLiquidations, lvUrMemorandumDates, lvUrNameHistory, lvUrRegister, lvUrReorganizations, ukSanctionsList, usOfacCons, usOfacSdn, type AsOfStrategy, type FieldMap, type ParsedEntity, type ParsedRecord, type RawArtifact, type SourceLoader, type SourceMeta, type StorageClass } from "@finora/sources";
 import { lvBalanceSheetsCsv, lvIncomeStatementsCsv, lvInsolvencyCsv, lvMembersCsv, lvOfficersCsv, lvSanctionsLinksCsv, lvSecuringMeasuresCsv, lvStatementsCsv, lvSuspensionsCsv, lvVidQuarterlyCsv, lvVidRatingCsv, lvVidSuspensionsCsv, lvVidVatCsv, lvVidYearlyCsv, lvEquityCapitalsCsv, lvFidXlsx, lvLiquidationsCsv, lvMemorandumCsv, lvNameHistoryCsv, lvRegisterCsv, lvReorganizationsCsv } from "@finora/sources/testing";
 import { DEFAULT_SEED, generateWorld, type FixtureCompany, type World } from "./world.ts";
 
@@ -39,12 +39,25 @@ function meta(id: string, country: SourceMeta["country"], storage: StorageClass,
   };
 }
 
+/** The field map a fixture's records imply: one entry per (item, prop) pair they write. */
+function declaredPairs(records: readonly ParsedRecord[]): FieldMap {
+  const pairs = new Map<string, { itemId: string; prop: string }>();
+  for (const r of records) for (const e of [...r.entities, ...(r.parties ?? []).flatMap((p) => p.entities)]) for (const st of e.statements) pairs.set(`${st.itemId} ${st.prop}`, { itemId: st.itemId, prop: st.prop });
+  return [...pairs.values()].map(({ itemId, prop }) => ({ field: `${itemId}:${prop}`, target: { prop }, itemId, personal: itemId.startsWith("S03.") }));
+}
+
 /** A loader whose artifact is the JSON of its records: parse is pure, a change moves the hash. */
 function jsonLoader(m: SourceMeta, records: () => ParsedRecord[]): SourceLoader {
+  let fieldMap: FieldMap | undefined;
   return {
     meta: m,
     parserVersion: `fixtures-${DEFAULT_SEED}-1`,
-    fieldMap: m.items.map((itemId, i) => ({ field: `field${i}`, target: { prop: "name" }, itemId, personal: itemId.startsWith("S03.") })),
+    // A fixture stands in for a real loader: its map declares the (item, prop) pairs its records
+    // write, so the prop-to-item check (M1-F2) sees the fixture world as a loader would declare it.
+    get fieldMap(): FieldMap {
+      fieldMap ??= declaredPairs(records());
+      return fieldMap;
+    },
     async fetch() {
       const bytes = new TextEncoder().encode(JSON.stringify(records()));
       return { artifacts: [{ name: `${m.id}.json`, bytes, fetchedAt: new Date().toISOString() }] };

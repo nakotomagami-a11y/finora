@@ -1,4 +1,4 @@
-export { applyGates, partyProven, type Drop, type GateResult, type PartyLookup } from "./gates.ts";
+export { allowedPropsOf, applyGates, partyProven, type Drop, type GateResult, type PartyLookup } from "./gates.ts";
 export { endedLines, snapshot, TRACKED_ATTRIBUTES, writeHistory, type Snapshot } from "./history.ts";
 export { fetchOnView, isWithheld, type DatasetAnswer, type DatasetState, type LiveCachedLoader } from "./live-cache.ts";
 export { clearLiveView, liveRowsFor, liveView, type LiveView } from "./live-views.ts";

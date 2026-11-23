@@ -72,6 +72,8 @@ export const LV_UR_REGISTER_FIELD_MAP: FieldMap = [
   { field: "address", target: { prop: "address" }, itemId: S01, personal: false },
   { field: "index", target: { prop: "address" }, itemId: S01, personal: false },
   { field: "addressid", target: { prop: "finora:addressId" }, itemId: S17, personal: false },
+  { field: "regcode", target: { prop: "registrationNumber" }, itemId: S01, personal: false },
+  { field: "derived:country", target: { prop: "country" }, itemId: S01, personal: false },
 ];
 
 const SCHEMA_BY_REGTYPE: Record<string, SchemaName> = { K: "Company", B: "Organization", S: "Organization", R: "Organization", P: "Organization", O: "Organization", A: "Organization", T: "Organization", C: "LegalEntity", E: "LegalEntity", U: "LegalEntity" };

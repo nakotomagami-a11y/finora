@@ -71,6 +71,10 @@ export const UK_FIELD_MAP: FieldMap = [
   { field: "Business registration number (s)", target: { prop: "number" }, itemId: ITEM, personal: false },
   { field: "Address Country", target: { prop: "country" }, itemId: ITEM, personal: false },
   { field: "Website", target: { prop: "website" }, itemId: ITEM, personal: false },
+  { field: "derived:entity", target: { prop: "entity" }, itemId: ITEM, personal: false },
+  { field: "derived:holder", target: { prop: "holder" }, itemId: ITEM, personal: false },
+  { field: "derived:authority", target: { prop: "authority" }, itemId: ITEM, personal: false },
+  { field: "derived:type", target: { prop: "type" }, itemId: ITEM, personal: false },
 ];
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];

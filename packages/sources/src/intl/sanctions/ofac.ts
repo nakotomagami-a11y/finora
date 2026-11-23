@@ -47,6 +47,10 @@ export const OFAC_FIELD_MAP: FieldMap = [
   { field: "feature/Organization Established Date", target: { prop: "incorporationDate" }, itemId: ITEM, personal: false },
   { field: "feature/Website", target: { prop: "website" }, itemId: ITEM, personal: false },
   { field: "addresses/address/country", target: { prop: "country" }, itemId: ITEM, personal: false },
+  { field: "derived:entity", target: { prop: "entity" }, itemId: ITEM, personal: false },
+  { field: "derived:holder", target: { prop: "holder" }, itemId: ITEM, personal: false },
+  { field: "identityDocument/documentNumber", target: { prop: "leiCode" }, itemId: ITEM, personal: false },
+  { field: "names/name/formattedFullName", target: { prop: "alias" }, itemId: ITEM, personal: false },
 ];
 
 const ENTITY_OPEN = Buffer.from("<entity id=");

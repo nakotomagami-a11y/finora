@@ -16,7 +16,7 @@ import {
   type DropReason,
   eidKind,
 } from "@finora/domain";
-import type { ParsedEntity, ParsedRecord, PartyRef } from "@finora/sources";
+import type { FieldMap, ParsedEntity, ParsedRecord, PartyRef } from "@finora/sources";
 
 export type Drop = { reason: DropReason; prop?: string; rowRef?: string };
 export type GateResult = {
@@ -33,6 +33,13 @@ export type GateResult = {
   /** A reference waits for its target: the record's hash is salted, so the next sync writes it again. */
   retry: boolean;
 };
+
+const propKey = (itemId: string, prop: string) => `${itemId}\u0000${prop}`;
+
+/** The (item, prop) pairs a loader's field map declares: the only statements it may store (M1-F2). */
+export function allowedPropsOf(fieldMap: FieldMap): ReadonlySet<string> {
+  return new Set(fieldMap.flatMap((e) => ("prop" in e.target && e.itemId ? [propKey(e.itemId, e.target.prop)] : [])));
+}
 
 /** Properties that name another row of the store: a person's row id there is by design (§3.3). */
 const REFERENCE_PROPS = new Set(["organization", "director", "member", "owner", "asset", "holder", "parent", "subsidiary", "entity", "subject"]);
@@ -92,7 +99,14 @@ function companyEidShape(value: string): boolean {
 
 export function applyGates(
   record: ParsedRecord,
-  options: { companyPartyTypes: readonly string[]; lookup: PartyLookup; knownCompany?: (eid: string) => boolean; byEid?: EntityByEid },
+  options: {
+    companyPartyTypes: readonly string[];
+    lookup: PartyLookup;
+    knownCompany?: (eid: string) => boolean;
+    byEid?: EntityByEid;
+    /** The (item, prop) pairs the loader's field map allows; a statement outside them is refused (M1-F2). */
+    allowedProps?: ReadonlySet<string>;
+  },
 ): GateResult {
   const rowRef = safeRowRef(record.rowRef);
   const drops: Drop[] = [];
@@ -153,6 +167,9 @@ export function applyGates(
     const statements = entity.statements.filter((s) => {
       const byItem = itemDrop(s.itemId);
       if (byItem) return void drop(byItem, s.prop), false;
+      // Every value shown under an item is one its loader declared for it (M1-F2; session 0's rule that
+      // every rendered field maps to a decided item): a prop filed under another item is refused.
+      if (options.allowedProps && !options.allowedProps.has(propKey(s.itemId, s.prop))) return void drop("prop_not_in_item", s.prop), false;
       if (ended && DROPPED_WHEN_ENDED.has(s.itemId.slice(0, 3))) return void drop("struck_off_identity_only", s.prop), false;
       if (!naturalPerson) {
         // A company's free text is scanned too (legal on S04i, SEC-1 scope): a name, an address or
