@@ -223,11 +223,12 @@ export function scenarios(): Scenario[] {
   return [
     scenario("streaming", START),
     ...Object.entries(QUESTION_EVENTS).map(([name, extra]) => scenario(`question-${name}`, [...START, ...extra])),
+    // A source that could not be read is a failed task with its source id (architecture 7.6); the run still ends, and the
+    // verdict says which checks did not run. An error event is for request-level codes only.
     scenario("partial", [
       ...START,
-      { type: "run.status", data: { runId: "run-money", status: "failed", code: "agents_unavailable" } },
-      { type: "error", data: { code: "agents_unavailable", runId: "run-money" } },
-      ...FINISH.filter((e) => !(e.type === "run.status" && (e.data as { runId: string }).runId === "run-money")),
+      { type: "run.task", data: task("run-money", "t-money-1", "agents.tasks.read_tax_file", "failed", 0, { sourceId: "fx-lv-tax" }) },
+      ...FINISH,
     ]),
     scenario("error", [...START, { type: "run.status", data: { runId: "run-registry", status: "failed", code: "internal_error" } }, { type: "error", data: { code: "internal_error", runId: "run-registry" } }, { type: "investigation.status", data: { status: "failed", code: "internal_error" } }]),
     scenario("report", [...START, ...FINISH]),

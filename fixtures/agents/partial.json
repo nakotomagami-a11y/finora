@@ -274,21 +274,25 @@
       "id": 19,
       "at": "2026-11-22T08:00:00.000Z",
       "investigationId": "inv-fixture-1",
-      "type": "run.status",
+      "type": "run.task",
       "data": {
         "runId": "run-money",
+        "taskId": "t-money-1",
+        "labelKey": "agents.tasks.read_tax_file",
+        "params": {},
+        "sourceId": "fx-lv-tax",
         "status": "failed",
-        "code": "agents_unavailable"
+        "sourcesRead": 0
       }
     },
     {
       "id": 20,
       "at": "2026-11-22T08:00:00.000Z",
       "investigationId": "inv-fixture-1",
-      "type": "error",
+      "type": "run.status",
       "data": {
-        "code": "agents_unavailable",
-        "runId": "run-money"
+        "runId": "run-registry",
+        "status": "done"
       }
     },
     {
@@ -297,7 +301,7 @@
       "investigationId": "inv-fixture-1",
       "type": "run.status",
       "data": {
-        "runId": "run-registry",
+        "runId": "run-money",
         "status": "done"
       }
     },
@@ -492,8 +496,7 @@
       {
         "id": "run-money",
         "role": "money",
-        "status": "failed",
-        "code": "agents_unavailable",
+        "status": "done",
         "usage": {
           "unit": "st",
           "used": 0,
@@ -563,6 +566,15 @@
         "params": {},
         "status": "done",
         "sourcesRead": 1
+      },
+      {
+        "runId": "run-money",
+        "taskId": "t-money-1",
+        "labelKey": "agents.tasks.read_tax_file",
+        "params": {},
+        "sourceId": "fx-lv-tax",
+        "status": "failed",
+        "sourcesRead": 0
       }
     ],
     "findings": [

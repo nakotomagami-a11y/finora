@@ -70,8 +70,7 @@
     {
       "id": "run-money",
       "role": "money",
-      "status": "failed",
-      "code": "agents_unavailable",
+      "status": "done",
       "usage": {
         "unit": "st",
         "used": 0,
@@ -141,6 +140,15 @@
       "params": {},
       "status": "done",
       "sourcesRead": 1
+    },
+    {
+      "runId": "run-money",
+      "taskId": "t-money-1",
+      "labelKey": "agents.tasks.read_tax_file",
+      "params": {},
+      "sourceId": "fx-lv-tax",
+      "status": "failed",
+      "sourcesRead": 0
     }
   ],
   "findings": [
