@@ -833,6 +833,10 @@ type Envelope<T extends string, D> = { id: number; at: string; investigationId: 
 | `verdict` | the `Verdict` |
 | `error` | a machine code, `runId?` |
 
+Two rules the client's replay depends on (frontend on S04u):
+- **Source totals.** `run.source.sourcesRead` is the run's running total. A snapshot carries no per-run total, so at every point the sum of a run's `tasks[].sourcesRead` equals the `sourcesRead` of that run's last `run.source` (0 before the first). The server's event test asserts it (S10).
+- **A failed source is not an error event.** It is a `run.task` with `status: "failed"` and its `sourceId`, and the run ends `partial`. There is no `source_unavailable` code: `error` events carry request-level codes, and `agents_unavailable` means the agent backend cannot run at all.
+
 The `labelKey` and `stepKey` catalogues live in `packages/i18n/messages/<locale>.json` under `agents.*` and are listed in `agents.md` §11. Tests: `server/src/sse.resume.test.ts` (resume from any id with no gap or duplicate), `agents/src/events.test.ts` (per-run order holds under parallelism).
 
 ### 7.7 Usage caps (C16)
