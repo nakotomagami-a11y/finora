@@ -33,6 +33,9 @@ describe("the debt ticker (M08, 'Ticker is an estimate')", () => {
       { date: "2026-11-17", value: 150 },
     ])).toEqual({ valueUsd: 50, from: "2026-10-16", to: "2026-11-17" });
     expect(debtChange([{ date: "2026-11-17", value: 1 }])).toBeNull();
+    // Past the 45-day lookback there is no 30-day change, never a longer one passed off as it.
+    expect(debtChange([{ date: "2026-10-02", value: 100 }, { date: "2026-11-17", value: 150 }])).toBeNull();
+    expect(debtChange([{ date: "2026-10-03", value: 100 }, { date: "2026-11-17", value: 150 }])).toEqual({ valueUsd: 50, from: "2026-10-03", to: "2026-11-17" });
   });
   it("needs a year of history", () => {
     expect(debtTicker([{ date: "2026-11-17", value: 1 }])).toBeNull();

@@ -12,6 +12,20 @@ const ctx = (over: Partial<RowContext> = {}): RowContext => ({ peakSince: "2025-
 const data = (entries: [string, SeriesData][]) => new Map(entries);
 const daily = (peak: number, seed = 1) => plantedSeries({ seed, calendar: "weekdays", from: "2024-12-22", peak }).map((o) => ({ ...o, syncId: 7 }));
 
+describe("an error row's last good value (U9 7)", () => {
+  const old = { value: 70_500, observedAt: `${FIXTURE_TODAY}T05:10:00Z`, syncId: 9 };
+  it("carries a stored quote too old to count as current, with its time and source, when the source failed", () => {
+    const v = computeRow(row("M06.X.01b:bitcoin"), data([["x4:btcusd", { observations: [], latest: old }]]), ctx({ sourceFailed: true }));
+    expect(v).toMatchObject({ state: "error", lastGood: { value: 70_500, asOf: old.observedAt } });
+    expect(v.value).toBeUndefined();
+    expect(v.inputs).toEqual([{ seriesKey: "x4:btcusd", syncIds: [9] }]);
+  });
+  it("is absent while the source has not failed, and when nothing is stored", () => {
+    expect(computeRow(row("M06.X.01b:bitcoin"), data([["x4:btcusd", { observations: [], latest: old }]]), ctx()).lastGood).toBeUndefined();
+    expect(computeRow(row("M06.X.01b:bitcoin"), data([]), ctx({ sourceFailed: true })).lastGood).toBeUndefined();
+  });
+});
+
 describe("Crash monitor maths (loaders/markets.md §1.4)", () => {
   it("finds the planted peak and the exact drawdown", () => {
     const v = computeRow(row("M07.X.01:brent"), data([["fred:DCOILBRENTEU", { observations: daily(80), latest: null }]]), ctx());
@@ -100,6 +114,7 @@ describe("Crash monitor maths (loaders/markets.md §1.4)", () => {
   it("reports loading before the first sync, and error when the source failed with nothing stored", () => {
     expect(computeRow(row("M07.X.01:wti"), data([]), ctx()).state).toBe("loading");
     expect(computeRow(row("M07.X.01:wti"), data([]), ctx({ sourceFailed: true })).state).toBe("error");
+    expect(computeRow(row("M07.X.01:wti"), data([]), ctx({ sourceFailed: true })).lastGood).toBeUndefined();
   });
 
   it("marks a row stale at twice its cadence", () => {

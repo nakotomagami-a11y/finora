@@ -43,6 +43,7 @@
           "unit": "index_points",
           "cadence": "daily_exchange",
           "delayed": true,
+          "provider": "fred-cited",
           "sources": []
         },
         {
@@ -53,6 +54,7 @@
           "unit": "index_points",
           "cadence": "daily_exchange",
           "delayed": true,
+          "provider": "fred-cited",
           "sources": []
         },
         {
@@ -63,6 +65,7 @@
           "unit": "index_points",
           "cadence": "daily_exchange",
           "delayed": true,
+          "provider": "fred-cited",
           "sources": []
         }
       ]

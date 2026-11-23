@@ -1,10 +1,10 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CrashResponse } from "@finora/api-contract";
+import { CrashResponse, PROVIDER_CODES } from "@finora/api-contract";
 import { isPersonalUseLine } from "@finora/domain";
 import { describe, expect, it, vi } from "vitest";
-import { connector, marketConnectors, providerLicences, readMarketSettings, type MarketConnector, type Providers } from "@finora/markets";
+import { connector, marketConnectors, PROVIDER_URLS, providerLicences, readMarketSettings, type MarketConnector, type Providers } from "@finora/markets";
 import { fakeMarketFetch, fixtureHost, fixtureProviders, fixtureProvidersJson, FIXTURE_TODAY } from "@finora/markets/fixtures";
 import { FetchError, type Licence, type PoliteFetch } from "@finora/sources";
 import { beginSync, openStore, readMarketSeries, writeBackup, type Store } from "@finora/store";
@@ -188,6 +188,19 @@ describe("the Crash monitor view (architecture §8)", () => {
       expect(r.value).toBeUndefined();
       expect(r.drawdownPct).toBeUndefined();
     }
+    // Each not-configured row names the provider to add (work order 7098362070); official rows name none.
+    expect(all.filter((r) => r.state === "not_configured").map((r) => [r.rowKey, r.provider])).toEqual([
+      ["M01.X.03:us_large", "fred-cited"],
+      ["M01.X.03:us_broad", "fred-cited"],
+      ["M01.X.03:us_tech", "fred-cited"],
+      ["M03.X.01:japan", "fred-cited"],
+      ["M03.X.01:taiwan", "e1"],
+      ["M06.X.01b:bitcoin", "x4"],
+      ["M06.X.01b:ether", "x4"],
+      ["M06.X.02:total_crypto", "c1"],
+    ]);
+    expect(all.every((r) => r.state === "not_configured" || r.provider === undefined)).toBe(true);
+    expect(CrashResponse.safeParse(view(store, {})).success).toBe(true);
     expect(all.find((r) => r.rowKey === "M07.X.01:brent")?.state).toBe("ok");
     expect(view(store, {}).totalWiped).toMatchObject({ rowItemIds: ["M01.X.01"], excludedItemIds: ["M06.X.02"] });
     expect(readMarketSeries(store.db).some((s) => s.where === "cc")).toBe(false);
@@ -257,6 +270,22 @@ describe("the Crash monitor view (architecture §8)", () => {
       if (row) row.attribution = attribution;
       expect(CrashResponse.safeParse(v).success, attribution).toBe(false);
     }
+  });
+
+  it("keeps the contract's provider codes equal to the provider file's", () => {
+    expect([...PROVIDER_CODES].sort()).toEqual(Object.keys(PROVIDER_URLS).sort());
+  });
+
+  it("never gives an expired total-crypto snapshot as the last good value of a failed row (C1's 24 h rule)", async () => {
+    const store = openStore({ dataDir: null });
+    await run(store, get("crypto-c1"), { mode: "latest" });
+    await run(store, get("crypto-c3-global"));
+    const later = new Date(Date.parse(NOW) + 25 * 3_600_000).toISOString();
+    const offline = politeOf(fakeMarketFetch([{ match: /c1\.provider/, respond: () => Promise.reject(new FetchError("network", "offline")) }]));
+    await run(store, get("crypto-c1"), { mode: "latest", now: later, fetch: offline });
+    const r = rows(store, PROVIDERS, later).find((x) => x.rowKey === "M06.X.02:total_crypto");
+    expect(r?.state).toBe("error");
+    expect(r?.lastGood).toBeUndefined();
   });
 
   it("leaves out a total-crypto snapshot older than 24 h even before the expiry job runs (S22 review S1)", async () => {

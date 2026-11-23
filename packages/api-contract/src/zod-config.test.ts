@@ -9,6 +9,6 @@ describe("the contract in a browser", () => {
     await import("./zod-config.ts");
     expect(z.config().jitless).toBe(true);
     const { CrashResponse } = await import("./markets.ts");
-    expect(CrashResponse.safeParse({ tiles: [] }).success).toBe(true);
+    expect(CrashResponse.safeParse({ peakSince: "2025-01-01", tiles: [] }).success).toBe(true);
   });
 });

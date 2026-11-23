@@ -348,28 +348,29 @@ function crashPage(rows: CrashRows, wiped: Record<string, unknown> | null): Cras
 }
 
 const WIPED = { valueUsd: 5_880_000_000_000, rowItemIds: ["M01.X.01", "M06.X.02"], excludedItemIds: [], oldestAsOf: "2026-06-30" };
-const notConfigured = (r: Record<string, unknown>) => ({ ...r, state: "not_configured", sources: [], value: undefined, asOf: undefined, peak: undefined, drawdownPct: undefined, valueLostUsd: undefined, attribution: undefined });
+const notConfigured = (r: Record<string, unknown>, provider: string) => ({ ...r, state: "not_configured", provider, sources: [], value: undefined, asOf: undefined, peak: undefined, drawdownPct: undefined, valueLostUsd: undefined, attribution: undefined });
 const noNumber = (r: Record<string, unknown>) => ({ ...r, value: undefined, drawdownPct: undefined, valueLostUsd: undefined, peak: undefined });
 const stale = (r: Record<string, unknown>, asOf: string) => ({ ...r, state: "stale", asOf });
 const OLD_CRYPTO = "2026-11-22T06:40:00Z";
 
 export function crashFixtures(): Record<string, CrashResponse> {
   const full: CrashRows = { ...CRASH };
-  const noDaily = { usLarge: notConfigured(CRASH.usLarge), usBroad: notConfigured(CRASH.usBroad), usTech: notConfigured(CRASH.usTech) };
+  const noDaily = { usLarge: notConfigured(CRASH.usLarge, "fred-cited"), usBroad: notConfigured(CRASH.usBroad, "fred-cited"), usTech: notConfigured(CRASH.usTech, "fred-cited") };
   return {
     live: crashPage(full, WIPED),
     // Crypto is published a quarter of an hour late.
     delayed: crashPage({ ...full, crypto: { ...CRASH.crypto, delayed: true } }, WIPED),
     // The crypto sources have not answered since 07:40: their values stay, and their dates turn amber.
     stale: crashPage({ ...full, bitcoin: stale(CRASH.bitcoin, OLD_CRYPTO), ether: stale(CRASH.ether, OLD_CRYPTO), crypto: stale(CRASH.crypto, OLD_CRYPTO) }, WIPED),
-    // One source failed: the rows keep their shape with no number, and the sum names what it left out.
+    // One source failed: the rows keep their shape with no number, and the sum names what it left out. Bitcoin
+    // keeps a last good value with its time; the crypto total never does (C1's 24 h rule).
     error: crashPage(
-      { ...full, bitcoin: { ...noNumber(CRASH.bitcoin), state: "error" }, ether: { ...noNumber(CRASH.ether), state: "error" }, crypto: { ...noNumber(CRASH.crypto), state: "error", sources: [] } },
+      { ...full, bitcoin: { ...noNumber(CRASH.bitcoin), state: "error", lastGood: { value: 70_500, asOf: "2026-11-22T05:10:00Z" } }, ether: { ...noNumber(CRASH.ether), state: "error" }, crypto: { ...noNumber(CRASH.crypto), state: "error", sources: [] } },
       { valueUsd: 4_700_000_000_000, rowItemIds: ["M01.X.01", "M06.X.02"], excludedItemIds: ["M06.X.02"], oldestAsOf: "2026-06-30" },
     ),
     // No provider file: every coded source reads "not configured", and no number is shown for it.
     "not-configured": crashPage(
-      { ...full, ...noDaily, japan: notConfigured(CRASH.japan), taiwan: notConfigured(CRASH.taiwan), bitcoin: notConfigured(CRASH.bitcoin), ether: notConfigured(CRASH.ether), crypto: notConfigured(CRASH.crypto) },
+      { ...full, ...noDaily, japan: notConfigured(CRASH.japan, "fred-cited"), taiwan: notConfigured(CRASH.taiwan, "e1"), bitcoin: notConfigured(CRASH.bitcoin, "x4"), ether: notConfigured(CRASH.ether, "x4"), crypto: notConfigured(CRASH.crypto, "c1") },
       { valueUsd: 4_700_000_000_000, rowItemIds: ["M01.X.01"], excludedItemIds: ["M06.X.02"], oldestAsOf: "2026-06-30" },
     ),
     // Taiwan's peak is not known yet (tracking since 16 Nov), so the tile that leads with it shows no percentage.

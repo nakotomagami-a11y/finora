@@ -20,9 +20,13 @@ export function debtTicker(observations: readonly StoredObs[]): DebtTicker | nul
   return { total: latest.value, anchor, perSecond: (latest.value - yearAgo.value) / seconds, yearAgoDate: yearAgo.date };
 }
 
+/** The earlier figure may be at most this many days before the latest, or there is no 30-day change (qa NIT). */
+export const DEBT_CHANGE_MAX_LOOKBACK_DAYS = 45;
+
 /**
  * The debt card's "Change in 30 days" (DESIGN.md §12): the latest official figure minus the last one on or
- * before 30 days earlier. Both are published figures, so this is a fact, not the ticker's estimate.
+ * before 30 days earlier, if that one is within 45 days. Both are published figures, so this is a fact, not
+ * the ticker's estimate.
  */
 export function debtChange(observations: readonly StoredObs[], days = 30): { valueUsd: number; from: string; to: string } | null {
   const obs = [...observations].sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -30,6 +34,7 @@ export function debtChange(observations: readonly StoredObs[], days = 30): { val
   if (!latest) return null;
   const cutoff = addDays(latest.date, -days);
   const before = [...obs].reverse().find((o) => o.date <= cutoff);
+  if (before && before.date < addDays(latest.date, -DEBT_CHANGE_MAX_LOOKBACK_DAYS)) return null;
   return before ? { valueUsd: latest.value - before.value, from: before.date, to: latest.date } : null;
 }
 

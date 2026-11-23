@@ -43,6 +43,7 @@
           "unit": "index_points",
           "cadence": "daily_exchange",
           "delayed": true,
+          "provider": "fred-cited",
           "sources": []
         },
         {
@@ -53,6 +54,7 @@
           "unit": "index_points",
           "cadence": "daily_exchange",
           "delayed": true,
+          "provider": "fred-cited",
           "sources": []
         },
         {
@@ -63,6 +65,7 @@
           "unit": "index_points",
           "cadence": "daily_exchange",
           "delayed": true,
+          "provider": "fred-cited",
           "sources": []
         }
       ]
@@ -78,6 +81,7 @@
           "unit": "index_points",
           "cadence": "daily_exchange",
           "delayed": true,
+          "provider": "fred-cited",
           "sources": []
         },
         {
@@ -89,6 +93,7 @@
           "trackingSince": "2026-11-16",
           "cadence": "daily_exchange",
           "delayed": true,
+          "provider": "e1",
           "sources": []
         }
       ]
@@ -139,6 +144,7 @@
           "unit": "usd",
           "cadence": "live",
           "delayed": false,
+          "provider": "x4",
           "sources": []
         },
         {
@@ -149,6 +155,7 @@
           "unit": "usd",
           "cadence": "live",
           "delayed": false,
+          "provider": "x4",
           "sources": []
         },
         {
@@ -159,6 +166,7 @@
           "unit": "usd_cap",
           "cadence": "live",
           "delayed": false,
+          "provider": "c1",
           "sources": []
         }
       ]

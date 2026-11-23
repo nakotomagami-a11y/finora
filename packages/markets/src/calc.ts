@@ -34,6 +34,11 @@ export type RowView = {
   inputs: { seriesKey: string; syncIds: number[] }[];
   /** M08 only: the estimate the client ticks forward from. */
   ticker?: { total: number; anchor: string; perSecond: number };
+  /**
+   * State error only: the last stored value, too old to count as current, shown labelled with its date
+   * (U9 7). Never an expired snapshot: the view drops those first (C1's 24 h rule).
+   */
+  lastGood?: { value: number; asOf: string };
   /** M08 only: the change between two official figures 30 days apart. */
   change30d?: { valueUsd: number; from: string; to: string };
 };
@@ -103,7 +108,11 @@ export function computeRow(row: TileRow, data: ReadonlyMap<string, SeriesData>, 
   const live = row.latestOnly ? own.latest : freshLatest(own.latest, ctx.now);
   const useLive = live !== null && (!lastClose || day(live.observedAt) >= lastClose.date);
   const current = useLive ? { value: live.value, at: live.observedAt, ref: live } : lastClose ? { value: lastClose.value, at: lastClose.date, ref: lastClose } : null;
-  if (!current) return { ...view, state: ctx.sourceFailed ? "error" : "loading" };
+  if (!current) {
+    if (!ctx.sourceFailed) return view;
+    const old = row.latestOnly ? null : own.latest;
+    return old ? { ...view, state: "error", lastGood: { value: old.value, asOf: old.observedAt }, inputs: [{ seriesKey: row.seriesKey, syncIds: syncIds(old) }] } : { ...view, state: "error" };
+  }
 
   view.value = current.value;
   view.asOf = current.at;

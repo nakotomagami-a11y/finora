@@ -2,10 +2,13 @@ import "server-only";
 // Builds the Crash monitor rows from the stored series (loaders/markets.md §1.4, architecture §8).
 // Every value carries the SourceRef of the sync that wrote it; computed values are flagged derived.
 import type { SourceRef } from "@finora/domain";
-import { computeRow, connector, debtChange, debtTicker, marketConnectors, PROVIDER_SOURCE, SEEDS, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, totalWiped, type MarketSettings, type Providers, type RowView, type SeriesData, type TileId, type TileRow } from "@finora/markets";
+import { computeRow, connector, debtChange, debtTicker, marketConnectors, PROVIDER_SOURCE, SEEDS, SNAPSHOT_MAX_AGE_HOURS, TILE_ORDER, TILE_ROWS, totalWiped, type MarketSettings, type Providers, type RowView, type ProviderCode, type SeriesData, type TileId, type TileRow } from "@finora/markets";
 import { lastMarketSync, marketCheckedAt, marketSyncInfo, readMarketSeries, type Store } from "@finora/store";
 
-export type MarketRowOut = Omit<RowView, "inputs" | "tileId" | "labelKey"> & { label: string; attribution?: string; sources: SourceRef[] };
+export type MarketRowOut = Omit<RowView, "inputs" | "tileId" | "labelKey"> & { label: string; attribution?: string; provider?: ProviderCode; sources: SourceRef[] };
+
+/** The provider code that fills a row's own source, or none for an official source. */
+const providerOf = (sourceId: string): ProviderCode | undefined => (Object.keys(PROVIDER_SOURCE) as ProviderCode[]).find((code) => PROVIDER_SOURCE[code] === sourceId);
 export type CrashView = {
   /** Every "since" peak is the highest close from this date on: the user's setting (DESIGN.md §12). */
   peakSince: string;
@@ -74,7 +77,9 @@ export function buildCrashView(store: Store, opts: { settings: MarketSettings; p
     const sources = view.inputs.flatMap((input) => input.syncIds.map((id) => ref(sourceOf.get(input.seriesKey) ?? row.sourceId, id, DERIVED_SERIES.has(input.seriesKey))).filter((r): r is SourceRef => r !== null));
     const { inputs: _inputs, tileId: _tile, labelKey, ...rest } = view;
     const attribution = view.state === "not_configured" ? undefined : attributionOf(row, opts.providers);
-    out.get(row.tileId)?.push({ ...rest, label: labelKey, ...(attribution ? { attribution } : {}), sources });
+    // A row that is not configured names its provider, so the UI never maps row keys to codes.
+    const provider = view.state === "not_configured" ? providerOf(row.sourceId) : undefined;
+    out.get(row.tileId)?.push({ ...rest, label: labelKey, ...(attribution ? { attribution } : {}), ...(provider ? { provider } : {}), sources });
   }
   const total = totalWiped(views);
   return { peakSince: opts.settings.peakSince, tiles: TILE_ORDER.map((tileId) => ({ tileId, rows: out.get(tileId) ?? [] })), ...(total ? { totalWiped: total } : {}) };

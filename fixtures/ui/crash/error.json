@@ -233,6 +233,10 @@
           "asOf": "2026-11-22T08:20:00Z",
           "cadence": "live",
           "delayed": false,
+          "lastGood": {
+            "value": 70500,
+            "asOf": "2026-11-22T05:10:00Z"
+          },
           "sources": [
             {
               "sourceId": "crypto-x4-ohlc",

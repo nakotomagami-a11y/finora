@@ -59,7 +59,8 @@ export function connectorProblems(c: MarketConnector, licences: Readonly<Record<
  * workbook) must still re-parse when the user moves the peak date, or the earlier months never load.
  */
 function contentHash(raw: readonly RawArtifact[], parserVersion: string, windowStart: string): string {
-  const h = createHash("sha256").update(parserVersion).update(windowStart);
+  // NUL between the two, so no pair of values can run together into the same input (qa NIT).
+  const h = createHash("sha256").update(parserVersion).update("\0").update(windowStart);
   for (const a of [...raw].sort((x, y) => (x.name < y.name ? -1 : 1))) h.update(a.name).update(a.bytes);
   return h.digest("hex");
 }

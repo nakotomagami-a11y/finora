@@ -5991,6 +5991,34 @@
                                   ],
                                   "additionalProperties": false
                                 },
+                                "lastGood": {
+                                  "type": "object",
+                                  "properties": {
+                                    "value": {
+                                      "type": "number"
+                                    },
+                                    "asOf": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "value",
+                                    "asOf"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "provider": {
+                                  "type": "string",
+                                  "enum": [
+                                    "x4",
+                                    "c1",
+                                    "c3",
+                                    "o3",
+                                    "e1",
+                                    "fred-cited"
+                                  ]
+                                },
                                 "change30d": {
                                   "type": "object",
                                   "properties": {
@@ -6129,6 +6157,7 @@
                     }
                   },
                   "required": [
+                    "peakSince",
                     "tiles"
                   ],
                   "additionalProperties": false

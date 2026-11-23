@@ -27,7 +27,7 @@ export {
   Subject,
   Verdict,
 } from "./investigations.ts";
-export { CrashResponse, MarketRow, TileId } from "./markets.ts";
+export { CrashResponse, MarketRow, PROVIDER_CODES, TileId } from "./markets.ts";
 export { NetworkResponse } from "./network.ts";
 export { PurposeRequest, PurposeResponse } from "./purpose.ts";
 export { Check, CompanyHeader, CompanyReport, Coverage, FieldValue, Section, SectionQuery, SectionResponse } from "./report.ts";
