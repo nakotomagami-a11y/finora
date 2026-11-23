@@ -366,7 +366,7 @@ export const MIGRATIONS: readonly Migration[] = [
     // Legal's purge rule on S05 (qa 7087260108, legal 7087266344): FTS5 removes a deleted row's terms
     // from the index at once instead of keeping a tombstone until a merge (SQLite 3.42 or later; openStore
     // refuses older). One optimize clears what earlier deletes left in a store made before this.
-    // ('fts_merge' above is no longer written: this option replaced the merge it marked.)
+    // Superseded by the next migration, which turns the option off again.
     target: "main",
     name: "fts secure delete",
     sql: `
@@ -374,6 +374,16 @@ export const MIGRATIONS: readonly Migration[] = [
       INSERT INTO main.entities_trigram (entities_trigram, rank) VALUES ('secure-delete', 1);
       INSERT INTO main.entities_fts (entities_fts) VALUES ('optimize');
       INSERT INTO main.entities_trigram (entities_trigram) VALUES ('optimize');
+    `,
+  },
+  {
+    // The S05 record (pre-window state): the stepped merge ships, not FTS5's secure-delete option, which
+    // cost about 1 ms on every real delete (cto). The option goes off again; `fts_merge` is written.
+    target: "main",
+    name: "fts secure delete off",
+    sql: `
+      INSERT INTO main.entities_fts (entities_fts, rank) VALUES ('secure-delete', 0);
+      INSERT INTO main.entities_trigram (entities_trigram, rank) VALUES ('secure-delete', 0);
     `,
   },
 ];
@@ -418,8 +428,8 @@ export function largeTableRewrites(sql: string): string[] {
 }
 
 /** Runs the migrations a database file has not run yet. `upTo` limits each target, for tests. */
-export function migrate(db: DatabaseSync, upTo?: Partial<Record<Target, number>>): void {
-  for (const target of ["main", "user", "sa", "cc"] as const) {
+export function migrate(db: DatabaseSync, upTo?: Partial<Record<Target, number>>, targets: readonly Target[] = ["main", "user", "sa", "cc"]): void {
+  for (const target of targets) {
     const list = MIGRATIONS.filter((m) => m.target === target);
     const limit = Math.min(upTo?.[target] ?? list.length, list.length);
     const row = db.prepare(`PRAGMA ${target}.user_version`).get() as { user_version: number };

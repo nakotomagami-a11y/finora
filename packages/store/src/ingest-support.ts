@@ -1,3 +1,4 @@
+import { markMaintenance } from "./maintenance.ts";
 import { prepared } from "./statements.ts";
 import { isInternalEid } from "@finora/domain";
 // The store side of the ingest pipeline (architecture §4.4 steps 4-7): staging, purge, tombstones,
@@ -44,6 +45,9 @@ export function recordId(db: DatabaseSync, sourceId: string, recordKey: string):
 
 /** Deletes whole records (statements, facts, events, links and withheld rows cascade), then orphans. */
 export function deleteRecords(db: DatabaseSync, ids: readonly number[]): void {
+  if (ids.length === 0) return;
+  // The TRUNCATE is owed from the deleting transaction on (K1, legal).
+  markMaintenance(db, "wal_truncate");
   const touched = new Set<number>();
   for (const id of ids) {
     for (const table of ["statements", "fact_reports", "events"]) {
@@ -153,7 +157,8 @@ export function replaceShareAlike(
 }
 
 export function purgeShareAlike(db: DatabaseSync, sourceId: string): void {
-  prepared(db, "DELETE FROM sa.sa_statements WHERE sync_id IN (SELECT id FROM sa.sa_syncs WHERE source_id = ?)").run(sourceId);
+  const deleted = prepared(db, "DELETE FROM sa.sa_statements WHERE sync_id IN (SELECT id FROM sa.sa_syncs WHERE source_id = ?)").run(sourceId).changes;
+  if (Number(deleted) > 0) markMaintenance(db, "wal_truncate");
   prepared(db, "DELETE FROM sa.sa_syncs WHERE source_id = ?").run(sourceId);
 }
 

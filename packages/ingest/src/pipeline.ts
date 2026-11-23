@@ -46,6 +46,7 @@ import {
   upsertSource,
   writeFinoraEvent,
   writeRecord,
+  type CheckpointResult,
   type MaintenanceStep,
 } from "@finora/store";
 import { applyGates, type Drop, type GateResult } from "./gates.ts";
@@ -81,10 +82,33 @@ export type SyncReport = {
   maintenance?: MaintenanceStep[];
 };
 
-export type WriteTimings = { transactions: number; p95Ms: number; maxMs: number; totalMs: number; checkpoints: number; checkpointMaxMs: number; checkpointTotalMs: number };
+export type WriteTimings = {
+  transactions: number;
+  p95Ms: number;
+  maxMs: number;
+  totalMs: number;
+  checkpoints: number;
+  checkpointMaxMs: number;
+  checkpointTotalMs: number;
+  /** The checkpoint threshold in frames after each checkpoint (time-sized, cto and council). */
+  checkpointFrames: number[];
+  /** Checkpoints that took 5 s or more with the threshold already at its floor: over target 3. */
+  checkpointsOverLimit: number;
+};
+
+/**
+ * The next checkpoint threshold from the last checkpoint's time (cto; council): halve after one over
+ * 1 s, down to the floor; double after one under 250 ms, up to the start. A slow disk gets smaller,
+ * shorter checkpoints; a fast one keeps 64 MB.
+ */
+export function nextCheckpointFrames(frames: number, ms: number, floor: number, ceiling: number): number {
+  if (ms > 1000) return Math.max(floor, Math.floor(frames / 2));
+  if (ms < 250) return Math.min(ceiling, frames * 2);
+  return frames;
+}
 
 const round = (ms: number) => Math.round(ms * 10) / 10;
-function summarizeWrites(writes: { tx: number[]; checkpoints: number[] }): WriteTimings {
+function summarizeWrites(writes: { tx: number[]; checkpoints: number[]; frames: number[]; overLimit: number }): WriteTimings {
   const sorted = [...writes.tx].sort((a, b) => a - b);
   const p95 = sorted.length === 0 ? 0 : sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)]!;
   const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
@@ -96,6 +120,8 @@ function summarizeWrites(writes: { tx: number[]; checkpoints: number[] }): Write
     checkpoints: writes.checkpoints.length,
     checkpointMaxMs: round(Math.max(0, ...writes.checkpoints)),
     checkpointTotalMs: round(sum(writes.checkpoints)),
+    checkpointFrames: [...writes.frames],
+    checkpointsOverLimit: writes.overLimit,
   };
 }
 
@@ -125,8 +151,12 @@ export type SyncOptions = {
   heartbeatMs?: number;
   /** Records per transaction, and the time one transaction may hold the write lock. */
   batch?: { maxRecords?: number; maxMs?: number };
-  /** WAL frames between the sync's own PASSIVE checkpoints; default 16,384 (64 MB of 4 KB pages; cto's fix 7). Tests set it low. */
-  checkpointFrames?: number;
+  /**
+   * The sync's own PASSIVE checkpoints (cto's fix 7): `frames` is the starting threshold and the
+   * ceiling (16,384 frames, 64 MB of 4 KB pages), `floorFrames` the floor (2,048). Tests set them low,
+   * and `run` stands in for the checkpoint (a slow-disk shim).
+   */
+  checkpoint?: { frames?: number; floorFrames?: number; run?: (db: DatabaseSync, schema: "main" | "sa") => CheckpointResult };
   signal?: AbortSignal;
   logger?: Logger;
   /** Register type values that prove a party is a company (LV LEGAL_ENTITY, EE J). */
@@ -270,7 +300,7 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
   };
   /** Fencing (qa on S04i): the lease row is renewed inside the write transaction itself, so a
    *  takeover between two transactions rolls back whatever this one would have written. */
-  const writes = { tx: [] as number[], checkpoints: [] as number[] };
+  const writes = { tx: [] as number[], checkpoints: [] as number[], frames: [] as number[], overLimit: 0 };
   let txStart = 0;
   const begin = () => {
     txStart = performance.now();
@@ -282,21 +312,28 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     }
   };
   // Each write transaction is timed BEGIN to COMMIT. The sync checkpoints the WAL itself, between
-  // transactions, once about `checkpointFrames` frames have gathered (cto's fix 7): a checkpoint inside
-  // a COMMIT flushed the whole file and made the register's commits 209 s of its 286 s.
+  // transactions, once about `frames` frames have gathered (cto's fix 7): a checkpoint inside a COMMIT
+  // flushed the whole file and made the register's commits 209 s of its 286 s. The threshold is sized
+  // by each checkpoint's time, so no checkpoint grows toward 5 s on a slow disk (cto, council).
   const checkpointSchema = storage === "share-alike-store" ? "sa" : "main";
-  const checkpointFrames = finiteIn(options.checkpointFrames, 1, 10_000_000) ?? 16_384;
+  const ceilingFrames = finiteIn(options.checkpoint?.frames, 1, 10_000_000) ?? 16_384;
+  const floorFrames = Math.min(ceilingFrames, finiteIn(options.checkpoint?.floorFrames, 1, 10_000_000) ?? 2_048);
+  const runCheckpoint = options.checkpoint?.run ?? ((d: DatabaseSync, schema: "main" | "sa") => checkpoint(d, "PASSIVE", schema));
+  let frames = ceilingFrames;
   let commitsSinceCheckpoint = 0;
   let checkpointEvery = 8;
   const commitTx = () => {
     db.exec("COMMIT");
     writes.tx.push(performance.now() - txStart);
     if (++commitsSinceCheckpoint < checkpointEvery) return;
-    const passive = checkpoint(db, "PASSIVE", checkpointSchema);
+    const passive = runCheckpoint(db, checkpointSchema);
     writes.checkpoints.push(passive.ms);
+    if (frames === floorFrames && passive.ms >= 5000) writes.overLimit++;
+    frames = nextCheckpointFrames(frames, passive.ms, floorFrames, ceilingFrames);
+    writes.frames.push(frames);
     // The WAL held `log` frames after these commits, everyone's: the next checkpoint comes after about
-    // `checkpointFrames` more.
-    checkpointEvery = Math.max(1, Math.min(10_000, Math.round((commitsSinceCheckpoint * checkpointFrames) / Math.max(1, passive.log))));
+    // `frames` more.
+    checkpointEvery = Math.max(1, Math.min(10_000, Math.round((commitsSinceCheckpoint * frames) / Math.max(1, passive.log))));
     commitsSinceCheckpoint = 0;
   };
 

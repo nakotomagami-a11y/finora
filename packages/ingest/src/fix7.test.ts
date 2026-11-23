@@ -5,10 +5,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { ParsedRecord, RawArtifact } from "@finora/sources";
-import { checkpoint, maintenanceDue, openStore, runMaintenance, runRetention, sqliteSupported, startIdleMaintenance, type Store } from "@finora/store";
+import { acquireLease, beginSync, checkpoint, maintenanceDue, openStore, releaseLease, runMaintenance, runRetention, startIdleMaintenance, upsertSource, writeRecord, type CheckpointResult, type Store } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { fetchOnView, type DatasetAnswer, type LiveCachedLoader } from "./live-cache.ts";
-import { runSync } from "./pipeline.ts";
+import { nextCheckpointFrames, runSync } from "./pipeline.ts";
 import { companies, fakeSource, noNetwork, roleSetRecord } from "./testing/fake-source.ts";
 import { tempDir } from "./test-helpers.ts";
 
@@ -49,11 +49,13 @@ const register = (name: string, legalForm = "lv-sia"): ParsedRecord => ({
 const officers = (name: string) => roleSetRecord(1, [{ name, role: "board_member", rowId: "101" }]);
 
 describe("fix 7: the connections", () => {
-  it("every connection has secure_delete on in every schema and no automatic checkpoint", () => {
+  it("every connection has secure_delete on in every schema it attaches and no automatic checkpoint; the sync connection attaches main and sa only", () => {
     for (const sync of [false, true]) {
       const store = openStore({ dataDir: null, sync });
       stores.push(store);
-      for (const schema of ["main", "user", "sa", "cc"]) expect(store.db.prepare(`PRAGMA ${schema}.secure_delete`).get(), `${schema} sync=${sync}`).toEqual({ secure_delete: 1 });
+      const attached = (store.db.prepare("PRAGMA database_list").all() as { name: string }[]).map((r) => r.name).filter((n) => n !== "temp");
+      expect(attached, `sync=${sync}`).toEqual(sync ? ["main", "sa"] : ["main", "user", "sa", "cc"]);
+      for (const schema of attached) expect(store.db.prepare(`PRAGMA ${schema}.secure_delete`).get(), `${schema} sync=${sync}`).toEqual({ secure_delete: 1 });
       expect(store.db.prepare("PRAGMA wal_autocheckpoint").get()).toEqual({ wal_autocheckpoint: 0 });
     }
   });
@@ -62,7 +64,7 @@ describe("fix 7: the connections", () => {
 describe("fix 7: the sync checkpoints between its transactions and reports both", () => {
   it("times every write transaction and its own PASSIVE checkpoints, then truncates the WAL", async () => {
     const { store, dir } = onDisk();
-    const outcome = await run(store, fakeSource({}, { records: companies(1, 3000) }), { batch: { maxRecords: 100 }, checkpointFrames: 64 });
+    const outcome = await run(store, fakeSource({}, { records: companies(1, 3000) }), { batch: { maxRecords: 100 }, checkpoint: { frames: 64 } });
     const t = outcome.report?.timings;
     expect(t?.transactions).toBeGreaterThan(10);
     expect(t?.checkpoints).toBeGreaterThan(0);
@@ -88,23 +90,29 @@ describe("legal's purge rule: no deleted person value survives in the store file
     expect(scan(dir, "Quillmont Newname")).toContain("finora.db");
   });
 
-  it("a company reclassified as a sole trader leaves no former search term; with FTS5's secure-delete off one stays", async () => {
-    const reclassify = async (ftsSecureDelete: boolean) => {
-      const { store, dir } = onDisk();
-      if (!ftsSecureDelete) for (const t of ["entities_fts", "entities_trigram"]) store.db.exec(`INSERT INTO main.${t} (${t}, rank) VALUES ('secure-delete', 0)`);
-      // Enough other companies that the index has older segments the term could stay in.
-      await run(store, fakeSource({ id: "lv-others" }, { records: companies(2, 400) }));
-      const source = fakeSource({ id: "lv-register" }, { records: [register("Example Zorvexa SIA")] });
-      await run(store, source);
-      source.state.records = [register("IK Quillmont", "lv-ik")];
-      source.state.asOf = { in_file_field: "2026-11-02" };
-      const outcome = await run(store, source);
-      expect(outcome.report?.maintenance?.map((m) => m.kind)).toEqual(["wal_truncate"]);
-      return scan(dir, "Zorvexa");
-    };
-    expect(await reclassify(true)).toEqual([]);
-    // cto's finding, the control: a plain FTS5 delete keeps the term in an older segment.
-    expect(await reclassify(false)).toContain("finora.db");
+  it("a company reclassified as a sole trader leaves no former search term once merged; without the merge one stays", async () => {
+    const { store, dir } = onDisk();
+    const source = fakeSource({ id: "lv-register" }, { records: [register("Example Zorvexa SIA")] });
+    await run(store, source);
+    source.state.records = [register("IK Quillmont", "lv-ik")];
+    source.state.asOf = { in_file_field: "2026-11-02" };
+    const outcome = await run(store, source);
+    expect(outcome.report?.maintenance?.map((m) => m.kind)).toEqual(["fts_merge", "wal_truncate"]);
+    expect(maintenanceDue(store.db)).toEqual([]);
+    expect(scan(dir, "Zorvexa")).toEqual([]);
+
+    // cto's finding, the control: the same delete with its merge skipped leaves the term in the index.
+    const other = onDisk();
+    upsertSource(other.store.db, { id: "lv-register", storage: "store" }, "2026-11-23T08:00:00.000Z");
+    const syncId = beginSync(other.store.db, { sourceId: "lv-register", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-23T08:00:00.000Z" });
+    for (let i = 2; i < 400; i++) writeRecord(other.store.db, { syncId, sourceId: "lv-register", recordKey: `k${i}`, hashInput: [`${i}`], entities: companies(i, i)[0]!.entities });
+    writeRecord(other.store.db, { syncId, sourceId: "lv-register", recordKey: "lv-00000000001", hashInput: ["a"], entities: register("Example Zorvexa SIA").entities });
+    writeRecord(other.store.db, { syncId, sourceId: "lv-register", recordKey: "lv-00000000001", hashInput: ["b"], deferSearch: true, entities: register("IK Quillmont", "lv-ik").entities });
+    // The rewrite owes the TRUNCATE too (K1).
+    expect(maintenanceDue(other.store.db)).toEqual(["fts_merge", "wal_truncate"]);
+    other.store.db.exec("DELETE FROM main.maintenance_due");
+    checkpoint(other.store.db, "TRUNCATE");
+    expect(scan(other.dir, "Zorvexa")).toContain("finora.db");
   });
 
   it("a TTL purge of person rows, then the maintenance owed, leaves no trace", async () => {
@@ -164,23 +172,52 @@ describe("legal's purge rule: no deleted person value survives in the store file
   });
 });
 
-describe("the search indexes and the SQLite they need (qa, legal)", () => {
-  it("both search tables carry FTS5's secure-delete option", () => {
-    const store = openStore({ dataDir: null });
-    stores.push(store);
-    for (const t of ["entities_fts", "entities_trigram"]) expect(store.db.prepare(`SELECT v FROM main.${t}_config WHERE k = 'secure-delete'`).get(), t).toEqual({ v: 1 });
+describe("the maintenance owed (qa's checks; K1, K3 and the idle tick)", () => {
+  it("K1: a rewrite owes the TRUNCATE from its own transaction, so a sync killed after it leaves it owed", async () => {
+    const { store } = onDisk();
+    await run(store, fakeSource({ id: "lv-register" }, { records: [register("Example Company SIA")] }));
+    expect(maintenanceDue(store.db)).toEqual([]);
+    const syncId = beginSync(store.db, { sourceId: "lv-register", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-23T09:00:00.000Z" });
+    store.db.exec("BEGIN IMMEDIATE");
+    writeRecord(store.db, { syncId, sourceId: "lv-register", recordKey: "lv-00000000001", hashInput: ["changed"], entities: register("Example Company Renamed SIA").entities });
+    store.db.exec("COMMIT");
+    // No sync end ran: the mark is already a row.
+    expect(maintenanceDue(store.db)).toEqual(["wal_truncate"]);
   });
 
-  it("the store refuses an SQLite older than 3.42; the bundled one passes", () => {
-    expect(["3.41.2", "3.9.0", "2.99.99"].map(sqliteSupported)).toEqual([false, false, false]);
-    expect(["3.42.0", "3.53.4", "4.0.0"].map(sqliteSupported)).toEqual([true, true, true]);
-    const store = openStore({ dataDir: null });
-    stores.push(store);
-    expect(sqliteSupported((store.db.prepare("SELECT sqlite_version() AS v").get() as { v: string }).v)).toBe(true);
+  it("the idle tick never runs beside a live sync; once the lease is gone it does", () => {
+    const { store } = onDisk();
+    const ticks: number[] = [];
+    acquireLease(store.db, "sync:lv-register", "someone", 60_000);
+    let stop = startIdleMaintenance(store.db, { intervalMs: 3_600_000, onStep: (_s, passive) => ticks.push(passive.log) });
+    stop();
+    expect(ticks).toEqual([]);
+    releaseLease(store.db, { resource: "sync:lv-register", holder: "someone", expiresAt: 0 });
+    stop = startIdleMaintenance(store.db, { intervalMs: 3_600_000, onStep: (_s, passive) => ticks.push(passive.log) });
+    stop();
+    expect(ticks).toHaveLength(1);
   });
-});
 
-describe("the TRUNCATE owed", () => {
+
+  it("a sync with no such delete runs no merge", async () => {
+    const { store } = onDisk();
+    const outcome = await run(store, fakeSource({}, { records: companies(1, 20) }));
+    expect(outcome.report?.maintenance?.map((m) => m.kind)).toEqual(["wal_truncate"]);
+  });
+
+  it("a merge a killed sync owed is run by the next sync of any source", async () => {
+    const { store } = onDisk();
+    await run(store, fakeSource({ id: "lv-register" }, { records: [register("Example Zorvexa SIA")] }));
+    // Cut off after the delete, before the sync's end: the mark is a row, so it survives.
+    const syncId = beginSync(store.db, { sourceId: "lv-register", licenceId: "cc0-1.0", storage: "store", parserVersion: "x", startedAt: "2026-11-23T09:00:00.000Z" });
+    writeRecord(store.db, { syncId, sourceId: "lv-register", recordKey: "lv-00000000001", hashInput: ["b"], deferSearch: true, entities: register("IK Quillmont", "lv-ik").entities });
+    // The rewrite owes the TRUNCATE too (K1).
+    expect(maintenanceDue(store.db)).toEqual(["fts_merge", "wal_truncate"]);
+    const next = await run(store, fakeSource({ id: "another-source" }, { records: companies(5, 6) }));
+    expect(next.report?.maintenance?.map((m) => m.kind)).toEqual(["fts_merge", "wal_truncate"]);
+    expect(maintenanceDue(store.db)).toEqual([]);
+  });
+
   it("a TRUNCATE a reader blocks is reported busy, stays owed, and completes once the reader ends", async () => {
     const { store, dir } = onDisk();
     await run(store, fakeSource({ id: "lv-register" }, { records: [register("Example Company SIA")] }));
@@ -200,8 +237,30 @@ describe("the TRUNCATE owed", () => {
     expect(retried).toEqual([expect.objectContaining({ kind: "wal_truncate" })]);
     expect(retried[0]?.busy).toBeUndefined();
     expect(maintenanceDue(store.db)).toEqual([]);
-    expect(walBytes(dir)).toBe(0);
+    // Truncated, then the owed mark's delete wrote its table's page (K3): a few KB, no record data.
+    expect(walBytes(dir)).toBeLessThan(64 * 1024);
     expect(scan(dir, "Zorvexa Heldname")).toEqual([]);
+  });
+});
+
+describe("time-sized checkpoints (cto, council)", () => {
+  it("halve after a checkpoint over 1 s down to the floor, double after one under 250 ms up to the start", () => {
+    const seq: number[] = [];
+    let frames = 16_384;
+    for (const ms of [1200, 1200, 1200, 1200, 1200, 1200, 500, 100, 100, 100, 100]) seq.push((frames = nextCheckpointFrames(frames, ms, 2048, 16_384)));
+    expect(seq).toEqual([8192, 4096, 2048, 2048, 2048, 2048, 2048, 4096, 8192, 16_384, 16_384]);
+  });
+
+  it("a slow-disk shim: the sync follows the threshold sequence, and a checkpoint at the floor of 5 s or more is over_limit", async () => {
+    const { store } = onDisk();
+    const times = [1200, 1200, 6000, 6000, 100, 100, 100];
+    let i = 0;
+    const slow = (): CheckpointResult => ({ ms: times[Math.min(i++, times.length - 1)]!, busy: false, log: 100_000, checkpointed: 100_000 });
+    const outcome = await run(store, fakeSource({}, { records: companies(1, 2000) }), { batch: { maxRecords: 50 }, checkpoint: { frames: 64, floorFrames: 16, run: slow } });
+    const t = outcome.report!.timings!;
+    expect(t.checkpointFrames.slice(0, 7)).toEqual([32, 16, 16, 16, 32, 64, 64]);
+    expect(t.checkpointsOverLimit).toBe(2);
+    expect(t.checkpointMaxMs).toBe(6000);
   });
 });
 
@@ -243,6 +302,61 @@ describe("cto's and qa's WAL tests", () => {
     expect(steps.length).toBe(1);
     expect(Math.max(...sizes)).toBeLessThan(6 * 1024 * 1024);
   });
+});
+
+// The council's S12 gate, met by cto's layout rule (7087614308) and landing with S05: during back-to-back
+// sync batches and the sync's checkpoints, a user's write is never "database is locked".
+describe("a user's write during a sync (two connections)", () => {
+  const userWrites = async (syncStore: Store, user: Store) => {
+    user.db.exec("PRAGMA busy_timeout = 1500");
+    const write = user.db.prepare("INSERT INTO user.settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
+    const times: number[] = [];
+    let locked = 0;
+    let n = 0;
+    const timer = setInterval(() => {
+      const start = performance.now();
+      try {
+        write.run("watchlist", String(n++));
+        times.push(performance.now() - start);
+      } catch (error) {
+        if (String(error).includes("locked")) locked++;
+        else throw error;
+      }
+    }, 5);
+    // A loader whose parse yields to the timers between records, inside the open batch transactions.
+    const loader = fakeSource({}, { records: companies(1, 1500) });
+    const parse = loader.parse.bind(loader);
+    loader.parse = async function* (raw, ctx) {
+      let k = 0;
+      for await (const r of parse(raw, ctx)) {
+        if (++k % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 1));
+        yield r;
+      }
+    };
+    await runSync(syncStore.db, loader, { fetcher: noNetwork, batch: { maxRecords: 200, maxMs: 2000 }, checkpoint: { frames: 256 } });
+    clearInterval(timer);
+    times.sort((a, b) => a - b);
+    return { writes: times.length, p95: times[Math.ceil(times.length * 0.95) - 1] ?? 0, max: times.at(-1) ?? 0, locked };
+  };
+
+  it("with the sync connection attaching main and sa only, user writes stay fast and never fail locked", async () => {
+    const { store: user, dir } = onDisk();
+    const sync = openStore({ dataDir: dir, sync: true });
+    stores.push(sync);
+    const r = await userWrites(sync, user);
+    expect(r.writes).toBeGreaterThan(20);
+    expect(r.locked).toBe(0);
+    expect(r.p95).toBeLessThan(250);
+    expect(r.max).toBeLessThan(1500);
+  }, 120_000);
+
+  it("the control: a sync on a connection that attaches user makes the user's writes fail locked", async () => {
+    const { store: user, dir } = onDisk();
+    const allAttached = openStore({ dataDir: dir });
+    stores.push(allAttached);
+    const r = await userWrites(allAttached, user);
+    expect(r.locked).toBeGreaterThan(0);
+  }, 120_000);
 });
 
 describe("no write path hashes the loader's raw input (qa on live-cache.ts, J2)", () => {

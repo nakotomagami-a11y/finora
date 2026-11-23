@@ -1,6 +1,6 @@
-export { MIN_SQLITE, openStore, sqliteSupported, STORE_SCHEMAS, transaction, type Store, type StoreSchema } from "./open.ts";
+export { openStore, STORE_SCHEMAS, transaction, type Store, type StoreSchema } from "./open.ts";
 export { clearStatementCache } from "./statements.ts";
-export { checkpoint, maintenanceDue, markMaintenance, runMaintenance, startIdleMaintenance, type CheckpointMode, type CheckpointResult, type MaintenanceKind, type MaintenanceStep } from "./maintenance.ts";
+export { checkpoint, FTS_MERGE_PAGES, maintenanceDue, markMaintenance, runMaintenance, startIdleMaintenance, type CheckpointMode, type CheckpointResult, type MaintenanceKind, type MaintenanceStep } from "./maintenance.ts";
 export { IDENTIFIER_INDEX_WHERE, IDENTIFIER_PROPS, LARGE_TABLES, largeTableRewrites, migrate, MIGRATIONS, type Migration, type Target } from "./migrations.ts";
 export {
   beginSync,

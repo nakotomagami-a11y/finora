@@ -28,14 +28,6 @@ function createLog(path: string): void {
   }
 }
 
-/** The oldest SQLite the store runs on: FTS5's `secure-delete` option came in 3.42. Node 24.20 bundles 3.53.4. */
-export const MIN_SQLITE = "3.42.0";
-export function sqliteSupported(version: string): boolean {
-  const [a, b, c] = version.split(".").map(Number);
-  const [x, y, z] = MIN_SQLITE.split(".").map(Number);
-  return a! > x! || (a === x && (b! > y! || (b === y && (c ?? 0) >= z!)));
-}
-
 /**
  * Opens the four store files and attaches them as `main`, `user`, `sa` and `cc` (architecture §3.5,
  * §8, §16). `cc` is connector-cache.db: licensed market series, never exported or backed up (R17).
@@ -59,21 +51,20 @@ export function openStore(options: { dataDir: string | null; sync?: boolean }): 
   // even a first read meets another connection's lock (a migration, a TRUNCATE checkpoint). Opening
   // waits long: the other may be migrating a fresh store on a busy machine (qa NIT on S05).
   db.exec("PRAGMA busy_timeout = 60000");
-  const version = (db.prepare("SELECT sqlite_version() AS v").get() as { v: string }).v;
-  if (!sqliteSupported(version)) {
-    db.close();
-    throw new Error(`SQLite ${version} is older than ${MIN_SQLITE}: FTS5's secure-delete needs it (legal on fix 7)`);
-  }
   // Before the attaches, which take it over: a deleted row's bytes are overwritten, on every
   // connection, the sync's included, since a rewrite deletes the value it replaces (legal on fix 7).
   db.exec("PRAGMA secure_delete = ON");
   // No connection checkpoints inside its own COMMIT: the sync checkpoints outside its transactions,
   // and a long-lived process runs idle maintenance (cto's fix 7; see maintenance.ts).
   db.exec("PRAGMA wal_autocheckpoint = 0");
-  db.prepare("ATTACH DATABASE ? AS user").run(paths.user);
+  // The sync connection attaches only the files a sync writes (cto 7087614308, council): a BEGIN
+  // IMMEDIATE takes the write lock of every attached file, so with `user` attached a long sync batch
+  // made a user's save wait and fail "database is locked". User state lives in `user`, markets in `cc`.
+  const schemas: readonly StoreSchema[] = options.sync === true ? ["main", "sa"] : STORE_SCHEMAS;
+  if (schemas.includes("user")) db.prepare("ATTACH DATABASE ? AS user").run(paths.user);
   db.prepare("ATTACH DATABASE ? AS sa").run(paths.sa);
-  db.prepare("ATTACH DATABASE ? AS cc").run(paths.cc);
-  for (const schema of STORE_SCHEMAS) {
+  if (schemas.includes("cc")) db.prepare("ATTACH DATABASE ? AS cc").run(paths.cc);
+  for (const schema of schemas) {
     if (options.dataDir) db.exec(`PRAGMA ${schema}.journal_mode = WAL`);
     db.exec(`PRAGMA ${schema}.synchronous = NORMAL`);
   }
@@ -84,11 +75,12 @@ export function openStore(options: { dataDir: string | null; sync?: boolean }): 
     db.exec("PRAGMA main.cache_size = -65536");
     enableStatementCache(db);
   }
-  const fresh = (db.prepare("PRAGMA user.user_version").get() as { user_version: number }).user_version === 0;
-  migrate(db);
+  const fresh = schemas.includes("user") && (db.prepare("PRAGMA user.user_version").get() as { user_version: number }).user_version === 0;
+  migrate(db, undefined, schemas);
   db.exec("PRAGMA busy_timeout = 5000");
   let logs: Store["logs"] = null;
-  if (options.dataDir) {
+  // The logs belong to the connections that serve users; the sync connection has none.
+  if (options.dataDir && schemas.includes("user")) {
     const deletions = join(options.dataDir, "deletions.log");
     const restrictions = join(options.dataDir, "restrictions.log");
     if (fresh) for (const path of [deletions, restrictions]) createLog(path);
