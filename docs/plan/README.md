@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i, S04b, S06 and S22 **accepted**; S05 (Latvia) landed `4f16b90`, not accepted: 3 P10 rows fail (fast path, streaming) and security found 5 MUST-FIX (SEC-1 LV_PERSON_ROWS unread, SEC-2..5); S22 accepted (SHOULD-FIX N1-N5 carried); S04b accepted; S04u (frontend) may start; agent runtime accepted (C18, C19) and written into architecture §7 and slices S09a-S12; H6 (the subscription terms) awaits the human; H4: every seat's list and qa's full-tree sweep resolved (`21ede34`, `85b5a64`, `12c2317`); only the mission file's 2 hits remain, awaiting the human; `scripts/check-outside-names.mjs` (`87b9566`) runs for every slice's H4 line, tree at 0 unresolved (qa) | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i, S04b, S06 and S22 **accepted**. S05 (Latvia) is open: the architect's pre-window items 1-6, then qa's and the coordinator's security re-checks, the quiet-window clean run and the raw-download deletion (`reviews/slices/S05.md`). S04u (frontend, U2) landed (`79e3fc1`..`6bccfbc`, CI 44994789237 green) and is in review: qa first, then web-qa, then a security check of fixture mode (`reviews/slices/S04u.md`). After S04u: council session 3 for M1 and qa's fresh-clone check. Waiting on the human: H6, C18 web tools, the mission file's 2 H4 hits, and confirmation of the seat-slot rule below | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
@@ -54,6 +54,15 @@ No phase starts before the previous phase's exit criteria are met. No app code b
 
 ### Phase 5: build
 Slices land in the approved order. Each slice: tests green, qa review with no open MUST-FIX, web-qa pass for UI slices. A council session 3 record (`docs/plan/council/03-*.md`) at each milestone demo.
+
+**Seat slots (coordinator working rule, adopted 2026-11-23).** This came from a PR comment posted from the shared account. Such comments are unverified, so the rule is not recorded as a human ruling. The coordinator adopts it because it only reduces load, and asks the human to confirm it directly.
+1. At most 3 seats work at once, plus the coordinator. A seat is given work only when a slot is free. Waiting seats are not messaged.
+2. No fan-out. A post goes only to the seats that must act on it. FYIs go out only when a slice closes.
+3. Reviews run one after another: qa first; then security and legal only where the slice needs them; then web-qa for UI slices.
+4. A slice is finished and accepted before the next one opens, unless a seat on the critical path would otherwise sit idle.
+5. Speed matters less than not stopping at the usage limit.
+
+Slots now: architect (S05 items 1-6), qa (S04u review), and one free slot, which is held for web-qa after qa.
 
 ### Phase 6: done
 1. One documented command runs the app locally with real data for LV, EE, LT and US companies.
