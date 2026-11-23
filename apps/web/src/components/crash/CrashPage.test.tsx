@@ -105,6 +105,23 @@ describe("the crash page, by state", () => {
   });
 });
 
+describe("the distance strip, at its edges", () => {
+  it("lists a market at its peak and a row that was not checked, each with its words", () => {
+    const body = structuredClone(FIXTURES.live!);
+    const rows = body.tiles.flatMap((t) => t.rows);
+    Object.assign(rows.find((r) => r.rowKey.endsWith("us_tech"))!, { drawdownPct: 0, valueLostUsd: undefined });
+    // Above zero is bad data: the contract refuses it on the wire, and the page still shows it as not checked if it ever arrives.
+    Object.assign(rows.find((r) => r.rowKey.endsWith("brent"))!, { drawdownPct: 2.5 });
+    mount({ fixture: body });
+    const table = screen.getByRole("table", { name: "Distance from peak" });
+    const tech = within(table).getByRole("row", { name: /US technology, daily/u });
+    expect(within(tech).getByText("At its peak")).toBeInTheDocument();
+    const brent = within(table).getByRole("row", { name: /Brent/u });
+    expect(within(brent).getByText("not checked")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("One source failed");
+  });
+});
+
 describe("the poll", () => {
   it("fetches once at first, then every minute, and shows the new value in place", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: false });

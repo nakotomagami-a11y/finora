@@ -3,7 +3,7 @@
 import { Badge, Table, Td, Th } from "@finora/ui";
 import { formatDate } from "@finora/i18n";
 import { useTranslations } from "next-intl";
-import { formatDrawdown, formatMarketValue, type PageView, type RowView, type StripRow } from "./model.ts";
+import { formatAsOfDate, formatDrawdown, formatMarketValue, type PageView, type RowView, type StripRow } from "./model.ts";
 import { Drawdown, RowSkeleton, useLocaleId, useMoney } from "./parts.tsx";
 
 /** The summary at the top of the drawdown card: the market value below the peaks of the rows that may be summed. */
@@ -15,14 +15,14 @@ function WipedSummary({ wiped, rows }: { wiped: NonNullable<PageView["wiped"]>; 
   const name = (labelId: string, asOf: string | undefined) => {
     const row = rows.find((r) => r.labelId === labelId);
     const when = asOf ?? row?.asOf;
-    return when ? `${t(`rows.${labelId}`)} (${formatDate(locale, when)})` : t(`rows.${labelId}`);
+    return when ? `${t(`rows.${labelId}`)} (${formatAsOfDate(locale, when)})` : t(`rows.${labelId}`);
   };
   return (
     <div className="flex flex-col gap-1 border-b border-line pb-3">
       <span className="text-label font-medium tracking-[0.08em] text-muted uppercase">{t("wiped.title")}</span>
       <span className="text-[34px] leading-10 font-semibold tracking-[-0.01em] text-ink tabular-nums">{money(wiped.valueUsd)}</span>
       <span className="text-small text-ink-2">
-        {t("wiped.sum", { rows: list.format(wiped.counted.map((c) => name(c.labelId, c.asOf))), oldest: formatDate(locale, wiped.oldestAsOf) })}
+        {t("wiped.sum", { rows: list.format(wiped.counted.map((c) => name(c.labelId, c.asOf))), oldest: formatAsOfDate(locale, wiped.oldestAsOf) })}
       </span>
       {wiped.excluded.length > 0 ? <span className="text-small text-warn">{t("wiped.left", { rows: list.format(wiped.excluded.map((id) => t(`rows.${id}`))) })}</span> : null}
       <span>
@@ -49,6 +49,13 @@ function Bars({ strip }: { strip: StripRow[] }) {
                 <Drawdown pct={row.drawdownPct} />
                 {row.stale ? <span className="text-warn">{t("strip.older")}</span> : null}
               </span>
+            ) : row.kind === "at_peak" ? (
+              <span className="inline-flex flex-col items-end">
+                <span className="text-ink-2">{t("atPeak")}</span>
+                {row.stale ? <span className="text-warn">{t("strip.older")}</span> : null}
+              </span>
+            ) : row.kind === "error" ? (
+              <span className="text-muted">{t("strip.notChecked")}</span>
             ) : (
               <span className="text-muted">{t("peakUnknownShort")}</span>
             )}
@@ -83,11 +90,11 @@ function StripTable({ rows, strip }: { rows: RowView[]; strip: StripRow[] }) {
             return (
               <tr key={s.rowKey}>
                 <Td>{t(`rows.${s.labelId}`)}</Td>
-                <Td>{s.kind === "drop" ? t("fromPeak", { pct: formatDrawdown(locale, s.drawdownPct).text || t("underTenth") }) : t("peakUnknownShort")}</Td>
+                <Td>{s.kind === "drop" ? t("fromPeak", { pct: formatDrawdown(locale, s.drawdownPct).text || t("underTenth") }) : s.kind === "at_peak" ? t("atPeak") : s.kind === "error" ? t("strip.notChecked") : t("peakUnknownShort")}</Td>
                 <Td>{row.peak ? formatDate(locale, row.peak.date) : "–"}</Td>
                 <Td>{formatMarketValue(locale, row.unit, row.peak?.value) ?? "–"}</Td>
                 <Td>{formatMarketValue(locale, row.unit, row.value) ?? "–"}</Td>
-                <Td>{row.asOf ? formatDate(locale, row.asOf) : "–"}</Td>
+                <Td>{row.asOf ? formatAsOfDate(locale, row.asOf) : "–"}</Td>
               </tr>
             );
           })}

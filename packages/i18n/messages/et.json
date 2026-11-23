@@ -119,6 +119,7 @@
       "alt": "{name}: {pct} tipust, mis oli {date}",
       "altUnknown": "{name}: tipp pole veel teada",
       "older": "tavapärasest vanem",
+      "notChecked": "pole kontrollitud",
       "table": "Kaugus tipust tabelina",
       "col": {
         "market": "Turg",

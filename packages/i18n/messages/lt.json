@@ -119,6 +119,7 @@
       "alt": "{name}: {pct} nuo viršūnės, buvusios {date}",
       "altUnknown": "{name}: viršūnė dar nežinoma",
       "older": "senesnis nei įprastai",
+      "notChecked": "netikrinta",
       "table": "Atstumas nuo viršūnės lentele",
       "col": {
         "market": "Rinka",

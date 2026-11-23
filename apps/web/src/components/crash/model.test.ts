@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CrashResponse } from "@finora/api-contract";
 import { describe, expect, it } from "vitest";
-import { asOfText, buildPageView, formatDollars, formatDrawdown, formatMarketValue, formatMoneyAmount, rowLabelId, tickerValue } from "./model.ts";
+import { asOfText, buildPageView, formatAsOfDate, formatDollars, formatDrawdown, formatMarketValue, formatMoneyAmount, rowLabelId, tickerValue } from "./model.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..");
 const fixture = (name: string) => buildPageView(CrashResponse.parse(JSON.parse(readFileSync(join(ROOT, "fixtures", "ui", "crash", `${name}.json`), "utf8"))));
@@ -130,11 +130,26 @@ describe("asOfText", () => {
     expect(asOfText("en", "quarterly", "2026-06-30", now)).toEqual({ kind: "quarter", text: "Q2 2026" });
     expect(asOfText("en", "monthly", "2026-10-31", now)).toEqual({ kind: "month", text: "Oct 2026" });
     expect(asOfText("en", "daily_exchange", "2026-11-18", now)).toEqual({ kind: "day", text: "18 Nov 2026" });
-    expect(asOfText("en", "live", "2026-11-19T09:55:00Z", now).kind).toBe("day");
+    expect(asOfText("en", "live", "2026-11-19T09:55:00Z", now, "UTC").kind).toBe("day");
   });
 
   it("shows only the time for a live figure from today", () => {
-    expect(asOfText("en", "live", "2026-11-20T09:55:00Z", now).kind).toBe("time");
+    expect(asOfText("en", "live", "2026-11-20T09:55:00Z", now, "UTC").kind).toBe("time");
+  });
+
+  it("uses the user's local time for a live figure, in the same zone for the day test, the time and the date", () => {
+    // 23:30 UTC on the 19th is 01:30 on the 20th in Riga (UTC+2): the same local day as now (14:00 on the 20th there).
+    expect(asOfText("en", "live", "2026-11-19T23:30:00Z", now, "Europe/Riga")).toEqual({ kind: "time", text: "01:30" });
+    // In UTC the same figure is from the day before, and its date is the 19th.
+    expect(asOfText("en", "live", "2026-11-19T23:30:00Z", now, "UTC")).toEqual({ kind: "day", text: "19 Nov 2026" });
+    // The date of a figure from the previous local day is that local day, not the UTC date: 23:30 on the 19th in New York is the 20th in UTC.
+    expect(asOfText("en", "live", "2026-11-20T04:30:00Z", new Date("2026-11-21T20:00:00Z"), "America/New_York")).toEqual({ kind: "day", text: "19 Nov 2026" });
+  });
+
+  it("writes a date on its own as that calendar day, in any zone, and a moment in the given zone", () => {
+    expect(formatAsOfDate("en", "2026-11-18", "America/New_York")).toBe("18 Nov 2026");
+    expect(formatAsOfDate("en", "2026-11-20T04:30:00Z", "America/New_York")).toBe("19 Nov 2026");
+    expect(formatAsOfDate("en", "nonsense")).toBe("—");
   });
 
   it("is empty for a missing or unreadable date, never a thrown error", () => {
@@ -152,5 +167,48 @@ describe("tickerValue", () => {
 
   it("never runs backwards before its anchor", () => {
     expect(tickerValue({ total: 5, anchor: "2026-11-18T21:00:00Z", perSecond: 100 }, new Date("2026-11-17T00:00:00Z"))).toBe(5);
+  });
+});
+
+describe("the strip, at its edges", () => {
+  const live = CrashResponse.parse(JSON.parse(readFileSync(join(ROOT, "fixtures", "ui", "crash", "live.json"), "utf8")));
+  const withRow = (rowKey: string, change: Record<string, unknown>) => {
+    const copy = structuredClone(live);
+    for (const tile of copy.tiles) for (const row of tile.rows) if (row.rowKey.endsWith(rowKey)) Object.assign(row, change);
+    return buildPageView(copy);
+  };
+
+  it("lists a market exactly at its peak as 'at peak', after the drops", () => {
+    const page = withRow("us_tech", { drawdownPct: 0, valueLostUsd: undefined });
+    const row = page.strip.find((r) => r.labelId === "us_tech");
+    expect(row?.kind).toBe("at_peak");
+    const kinds = page.strip.map((r) => r.kind);
+    expect(kinds.lastIndexOf("drop")).toBeLessThan(kinds.indexOf("at_peak"));
+    expect(page.strip).toHaveLength(live.tiles.flatMap((t) => t.rows).length - 1); // every row but the debt is listed
+  });
+
+  it("shows a drawdown above zero as a row that was not checked, never as a drop and never gone", () => {
+    const page = withRow("brent", { drawdownPct: 3.2 });
+    expect(page.strip.find((r) => r.labelId === "brent")?.kind).toBe("error");
+    expect(page.tiles.flatMap((t) => t.all).find((r) => r.labelId === "brent")).toMatchObject({ state: "error", drawdownPct: undefined, valueLostUsd: undefined });
+    expect(page.failed).toBe(true);
+  });
+
+  it("lists a row that failed to load as not checked, after the peaks not known yet", () => {
+    const page = fixture("error");
+    const kinds = page.strip.map((r) => r.kind);
+    expect(kinds).toContain("error");
+    expect(kinds.indexOf("error")).toBeGreaterThan(kinds.lastIndexOf("drop"));
+  });
+
+  it("leaves out a market size that would read '0 million'", () => {
+    const small = withRow("brent", { valueLostUsd: 400_000 });
+    expect(small.tiles.flatMap((t) => t.all).find((r) => r.labelId === "brent")?.valueLostUsd).toBeUndefined();
+    const copy = structuredClone(live);
+    copy.totalWiped = { ...copy.totalWiped!, valueUsd: 300_000 };
+    expect(buildPageView(copy).wiped).toBeUndefined();
+    const fine = structuredClone(live);
+    fine.totalWiped = { ...fine.totalWiped!, valueUsd: 500_000 };
+    expect(buildPageView(fine).wiped?.valueUsd).toBe(500_000);
   });
 });

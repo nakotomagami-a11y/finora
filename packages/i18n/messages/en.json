@@ -119,6 +119,7 @@
       "alt": "{name}: {pct} from its peak on {date}",
       "altUnknown": "{name}: peak not known yet",
       "older": "older than usual",
+      "notChecked": "not checked",
       "table": "Distance from peak, as a table",
       "col": {
         "market": "Market",

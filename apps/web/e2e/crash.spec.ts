@@ -61,6 +61,8 @@ test.describe("crash monitor, every state (FINORA_DEMO=1)", () => {
     await expect(page.getByRole("alert").filter({ hasText: "One source failed" })).toBeVisible();
     await expect(page.getByText("Not checked: the source did not answer.").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Retry" }).first()).toBeVisible();
+    // The strip does not drop a market that failed: it is listed, as not checked, after the drops.
+    await expect(page.getByRole("table", { name: "Distance from peak" }).getByRole("cell", { name: "not checked" })).toHaveCount(3);
   });
 
   test("mixed: a row of each state in one grid", async ({ page }) => {

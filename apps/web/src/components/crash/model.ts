@@ -60,7 +60,12 @@ export type RowView = {
   checkedAt: string | undefined;
 };
 
-export function toRowView(row: MarketRow): RowView {
+/** A market size under this reads "0 million" when rounded, so the page leaves it out. */
+export const MIN_MONEY_USD = 500_000;
+
+export function toRowView(source: MarketRow): RowView {
+  // A drawdown above zero cannot happen (the peak is the highest close): it is bad data, shown as a row that was not checked.
+  const row: MarketRow = (source.state === "ok" || source.state === "stale") && source.drawdownPct !== undefined && source.drawdownPct > 0 ? { ...source, state: "error", drawdownPct: undefined, valueLostUsd: undefined } : source;
   const hidden = row.unit === "index_points"; // a cited index series: drawdown only, never the raw series
   const times = row.sources.flatMap((s) => [s.checkedAt, s.retrievedAt]).filter((t): t is string => typeof t === "string");
   return {
@@ -72,7 +77,7 @@ export function toRowView(row: MarketRow): RowView {
     delayed: row.delayed,
     asOf: row.asOf,
     drawdownPct: row.state === "ok" || row.state === "stale" ? row.drawdownPct : undefined,
-    valueLostUsd: row.state === "ok" || row.state === "stale" ? row.valueLostUsd : undefined,
+    valueLostUsd: (row.state === "ok" || row.state === "stale") && row.valueLostUsd !== undefined && row.valueLostUsd >= MIN_MONEY_USD ? row.valueLostUsd : undefined,
     peak: row.peak ? { date: row.peak.date, basis: row.peak.basis, value: hidden ? undefined : row.peak.value } : undefined,
     trackingSince: row.trackingSince,
     value: hidden || row.state === "not_configured" || row.state === "error" ? undefined : row.value,
@@ -100,7 +105,12 @@ export type TileView = {
   attributions: string[];
 };
 
-export type StripRow = { rowKey: string; labelId: string; kind: "drop"; drawdownPct: number; stale: boolean } | { rowKey: string; labelId: string; kind: "peak_unknown" };
+/** A row of the distance strip: a drop, a market at its peak, a peak not known yet, or a row that was not checked. */
+export type StripRow =
+  | { rowKey: string; labelId: string; kind: "drop"; drawdownPct: number; stale: boolean }
+  | { rowKey: string; labelId: string; kind: "at_peak"; stale: boolean }
+  | { rowKey: string; labelId: string; kind: "peak_unknown" }
+  | { rowKey: string; labelId: string; kind: "error" };
 
 export type WipedView = {
   valueUsd: number;
@@ -147,22 +157,26 @@ export function buildPageView(response: CrashResponse): PageView {
     };
   });
 
+  // Drops first, the biggest on top; then markets at their peak, peaks not known yet, and rows not checked.
+  const rank = (row: StripRow): number => (row.kind === "drop" ? 0 : row.kind === "at_peak" ? 1 : row.kind === "peak_unknown" ? 2 : 3);
   const strip: StripRow[] = all
     .filter((r) => r.itemId !== "M08.X.01")
     .flatMap<StripRow>((r) => {
-      if ((r.state === "ok" || r.state === "stale") && r.drawdownPct !== undefined && r.drawdownPct < 0) {
-        return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "drop", drawdownPct: r.drawdownPct, stale: r.state === "stale" }];
+      if ((r.state === "ok" || r.state === "stale") && r.drawdownPct !== undefined) {
+        const stale = r.state === "stale";
+        return [r.drawdownPct < 0 ? { rowKey: r.rowKey, labelId: r.labelId, kind: "drop", drawdownPct: r.drawdownPct, stale } : { rowKey: r.rowKey, labelId: r.labelId, kind: "at_peak", stale }];
       }
       if (r.state === "peak_unknown") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "peak_unknown" }];
+      if (r.state === "error") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "error" }];
       return [];
     })
-    .sort((a, b) => (a.kind === "drop" ? a.drawdownPct : 1) - (b.kind === "drop" ? b.drawdownPct : 1));
+    .sort((a, b) => rank(a) - rank(b) || (a.kind === "drop" && b.kind === "drop" ? a.drawdownPct - b.drawdownPct : 0));
 
   const labelOf = (itemId: string) => all.find((r) => r.itemId === itemId);
   const w = response.totalWiped;
   // The summary needs at least two counted rows to be a sum of anything (docs/plan/ui-build-plan.md §5.9).
   const wiped: WipedView | undefined =
-    w && w.rowItemIds.length >= 2
+    w && w.rowItemIds.length >= 2 && w.valueUsd >= MIN_MONEY_USD
       ? {
           valueUsd: w.valueUsd,
           counted: w.rowItemIds.flatMap((itemId) => {
@@ -221,7 +235,22 @@ export function formatMoneyAmount(locale: Locale, valueUsd: number): { scale: "t
 /** The date or time a row's figure is as of, written for its cadence (quarterly `Q2 2026`, monthly `Oct 2026`, daily the date, live the time). */
 export type AsOfText = { kind: "quarter"; text: string } | { kind: "month"; text: string } | { kind: "day"; text: string } | { kind: "time"; text: string } | { kind: "none" };
 
-export function asOfText(locale: Locale, cadence: MarketRow["cadence"], asOf: string | undefined, now: Date): AsOfText {
+/** The calendar day of a moment in `timeZone` (the machine's when omitted), as a sortable key. */
+const dayKey = (date: Date, timeZone?: string): string => new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", ...(timeZone ? { timeZone } : {}) }).format(date);
+
+/**
+ * The date of a figure's `asOf`. A date on its own (`2026-11-18`) is a calendar day and is written as it is; a moment
+ * (`2026-11-22T08:20:00Z`) is written in the user's local time, like the times beside it (DESIGN.md), so it never shows
+ * a day that differs from the one the reader is in.
+ */
+export function formatAsOfDate(locale: Locale, asOf: string, timeZone?: string): string {
+  if (!asOf.includes("T")) return formatDate(locale, asOf);
+  const date = new Date(asOf);
+  if (Number.isNaN(date.getTime())) return formatDate(locale, asOf);
+  return new Intl.DateTimeFormat(intl(locale), { day: "numeric", month: "short", year: "numeric", ...(timeZone ? { timeZone } : {}) }).format(date);
+}
+
+export function asOfText(locale: Locale, cadence: MarketRow["cadence"], asOf: string | undefined, now: Date, timeZone?: string): AsOfText {
   if (!asOf) return { kind: "none" };
   const date = new Date(asOf);
   if (Number.isNaN(date.getTime())) return { kind: "none" };
@@ -231,10 +260,11 @@ export function asOfText(locale: Locale, cadence: MarketRow["cadence"], asOf: st
     return { kind: "month", text: month };
   }
   if (cadence === "live") {
-    const sameDay = now.toDateString() === date.toDateString();
-    return { kind: sameDay ? "time" : "day", text: sameDay ? formatTime(locale, asOf) : formatDate(locale, asOf) };
+    // One zone throughout: the same-day test, the time and the date are all the user's local time.
+    const sameDay = dayKey(now, timeZone) === dayKey(date, timeZone);
+    return { kind: sameDay ? "time" : "day", text: sameDay ? formatTime(locale, asOf, timeZone) : formatAsOfDate(locale, asOf, timeZone) };
   }
-  return { kind: "day", text: formatDate(locale, asOf) };
+  return { kind: "day", text: formatAsOfDate(locale, asOf, timeZone) };
 }
 
 const intl = (locale: Locale): string => (locale === "en" ? "en-GB" : locale);

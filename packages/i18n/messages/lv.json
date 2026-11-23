@@ -119,6 +119,7 @@
       "alt": "{name}: {pct} no virsotnes, kas bija {date}",
       "altUnknown": "{name}: virsotne vēl nav zināma",
       "older": "vecāks nekā parasti",
+      "notChecked": "nav pārbaudīts",
       "table": "Attālums no virsotnes tabulā",
       "col": {
         "market": "Tirgus",

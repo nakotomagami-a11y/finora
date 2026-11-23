@@ -1,10 +1,9 @@
 "use client";
 
 import { Badge } from "@finora/ui";
-import { formatDate } from "@finora/i18n";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { formatDollars, tickerValue, type RowView } from "./model.ts";
+import { formatAsOfDate, formatDollars, tickerValue, type RowView } from "./model.ts";
 import { Caveat, RowSkeleton, useLocaleId } from "./parts.tsx";
 
 /**
@@ -24,7 +23,7 @@ export function DebtCard({ row, now }: { row: RowView | undefined; now: Date }) 
   const ticking = row?.ticker && row.state !== "loading" && row.state !== "error" ? row.ticker : undefined;
   const estimate = ticking ? formatDollars(locale, tickerValue(ticking, tick)) : undefined;
   const official = row?.value !== undefined ? formatDollars(locale, row.value) : undefined;
-  const date = row?.asOf ? formatDate(locale, row.asOf) : undefined;
+  const date = row?.asOf ? formatAsOfDate(locale, row.asOf) : undefined;
   return (
     <section aria-labelledby="debt-h" className="flex min-w-0 flex-col gap-2 rounded-card border border-line bg-surface p-5">
       <div className="flex items-baseline gap-2">
