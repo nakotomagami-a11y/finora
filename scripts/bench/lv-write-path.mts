@@ -8,6 +8,8 @@
 // Get the files once (open data, CC0): `python -I research/probes/baltics/lv/01_ckan_download.py <cache>`
 // writes `<cache>/raw/<dataset>/<file>.csv`. Then, from the repo root, on a fresh run:
 //   node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw [--work <dir>] [--person-rows <mode>] [source ids...]
+// `--work` puts the temp store on a given drive: use the drive that holds the data dirs, since
+// checkpoint flushes depend on the disk (the OS temp dir may be on another drive).
 // `--person-rows` sets LV_PERSON_ROWS for the officers: `role_counts` by default for casual runs; an
 // acceptance run passes `names_no_id`, the mode that ships by default, which writes more (qa). The store goes to a
 // fresh temp dir and is removed on every exit, Ctrl-C included. Record the printed commit, the
