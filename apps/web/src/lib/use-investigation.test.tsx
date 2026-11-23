@@ -83,6 +83,116 @@ describe("useInvestigation", () => {
     expect(stream.opened.at(-1)?.lastEventId()).toBe(9);
   });
 
+  it("loses no event that arrives while the snapshot is loading: the stream is opened again from the snapshot's id", async () => {
+    const stream = fakeStream();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    const fetchFn = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) return new Response(JSON.stringify(snapshot()), { status: 200 });
+      await gate; // the gap snapshot is slow
+      return new Response(JSON.stringify(snapshot({ lastEventId: 5 })), { status: 200 });
+    }) as unknown as typeof fetch;
+    const { result } = renderHook(() => useInvestigation(ID, { fetchFn, openStream: stream.open }));
+    await waitFor(() => expect(stream.opened).toHaveLength(1));
+    act(() => stream.opened[0]?.onEvent(event(5, "investigation.status", { status: "running" }))); // a gap: 4 is missing
+    await waitFor(() => expect(result.current.state.gap).toBe(true));
+    // Event 6 arrives while the snapshot is still loading. It cannot be applied yet, and it must not be forgotten.
+    act(() => stream.opened[0]?.onEvent(event(6, "investigation.status", { status: "waiting" })));
+    expect(result.current.state.status).toBe("running");
+    await act(async () => release());
+    await waitFor(() => expect(result.current.state.lastEventId).toBe(5));
+    // The stream was closed and opened again, and it asks for what comes after the snapshot.
+    await waitFor(() => expect(stream.opened).toHaveLength(2));
+    expect(stream.closed).toContain(0);
+    expect(stream.opened[1]?.lastEventId()).toBe(5);
+    // The server replays event 6 on the new stream, and now it applies.
+    act(() => stream.opened[1]?.onEvent(event(6, "investigation.status", { status: "waiting" })));
+    expect(result.current.state.lastEventId).toBe(6);
+    expect(result.current.state.status).toBe("waiting");
+    expect(result.current.state.gap).toBe(false);
+  });
+
+  it("applies nothing past a gap, so no event shows before its predecessors", async () => {
+    const stream = fakeStream();
+    let calls = 0;
+    const fetchFn = vi.fn(async () => {
+      calls += 1;
+      return calls === 1 ? new Response(JSON.stringify(snapshot()), { status: 200 }) : new Promise<Response>(() => undefined);
+    }) as unknown as typeof fetch;
+    const { result } = renderHook(() => useInvestigation(ID, { fetchFn, openStream: stream.open }));
+    await waitFor(() => expect(stream.opened).toHaveLength(1));
+    act(() => {
+      stream.opened[0]?.onEvent(event(6, "question", { id: "q1", runId: null, kind: "scope", text: "Which site?", options: [{ id: "a", label: "A" }], defaultOptionId: null, timeoutAt: null, blocks: "run" }));
+    });
+    expect(result.current.state.gap).toBe(true);
+    expect(Object.keys(result.current.state.questions)).toEqual([]);
+  });
+
+  describe("a snapshot that fails after a gap", () => {
+    const setup = (failures: number) => {
+      const stream = fakeStream();
+      let calls = 0;
+      const fetchFn = vi.fn(async () => {
+        calls += 1;
+        if (calls === 1) return new Response(JSON.stringify(snapshot()), { status: 200 });
+        if (calls <= 1 + failures) return new Response(JSON.stringify({ error: { code: "internal_error" } }), { status: 500 });
+        return new Response(JSON.stringify(snapshot({ lastEventId: 5 })), { status: 200 });
+      }) as unknown as typeof fetch;
+      const hook = renderHook(() => useInvestigation(ID, { fetchFn, openStream: stream.open, random: () => 0.5 }));
+      return { stream, hook, calls: () => calls };
+    };
+
+    it("is asked for again on the stream's backoff, counts its attempts, says reconnecting after 3 s, and then resumes the stream", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const { stream, hook, calls } = setup(3);
+        await waitFor(() => expect(stream.opened).toHaveLength(1));
+        act(() => stream.opened[0]?.onEvent(event(5, "investigation.status", { status: "running" })));
+        await waitFor(() => expect(calls()).toBe(2)); // the first gap fetch fails
+        await waitFor(() => expect(hook.result.current.attempt).toBe(1));
+        expect(hook.result.current.state.connection).not.toBe("reconnecting"); // under 3 s
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000); // the first retry, after 1 s: fails
+        });
+        await waitFor(() => expect(hook.result.current.attempt).toBe(2));
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(2000); // the second retry, after 2 s more: fails
+        });
+        await waitFor(() => expect(hook.result.current.attempt).toBe(3));
+        expect(hook.result.current.state.connection).toBe("reconnecting"); // 3 s without a snapshot
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(4000); // the third retry, after 4 s more: it lands
+        });
+        await waitFor(() => expect(hook.result.current.state.lastEventId).toBe(5));
+        expect(hook.result.current.attempt).toBe(0);
+        expect(hook.result.current.state.gap).toBe(false);
+        await waitFor(() => expect(stream.opened).toHaveLength(2));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("gives up after five minutes and says the connection is lost", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const { stream, hook } = setup(1000);
+        await waitFor(() => expect(stream.opened).toHaveLength(1));
+        act(() => stream.opened[0]?.onEvent(event(5, "investigation.status", { status: "running" })));
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 20_000);
+        });
+        expect(hook.result.current.state.connection).toBe("failed");
+        expect(hook.result.current.attempt).toBeGreaterThan(10);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   it("reports the connection state, and closes the stream when the investigation is over", async () => {
     const stream = fakeStream();
     const { result } = renderHook(() => useInvestigation(ID, { fetchFn: asFetch(() => json(snapshot())), openStream: stream.open }));

@@ -88,7 +88,6 @@ export function openEventStream(options: EventStreamOptions): EventStream {
   const live = () => {
     clear(reconnectingTimer);
     reconnectingTimer = undefined;
-    attempt = 0;
     options.onStatus("live");
   };
 
@@ -123,6 +122,9 @@ export function openEventStream(options: EventStreamOptions): EventStream {
         options.onInvalid?.("not_an_event");
         return;
       }
+      // The backoff starts over only once the server has really sent something. A server that accepts a connection and
+      // closes it at once must not be asked again every second for ever.
+      attempt = 0;
       options.onEvent(parsed.data);
     }, armSilence);
 
@@ -138,10 +140,14 @@ export function openEventStream(options: EventStreamOptions): EventStream {
     }
     // A refusal that retrying cannot fix (not found, forbidden, bad request) ends the stream.
     if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
+      controller.abort(); // free the connection: nobody will read this body
       options.onStatus("failed");
       return false;
     }
-    if (!response.ok || !response.body) return !closed;
+    if (!response.ok || !response.body) {
+      controller.abort();
+      return !closed;
+    }
 
     live();
     armSilence();

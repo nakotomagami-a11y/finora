@@ -274,6 +274,55 @@ describe("openEventStream", () => {
     expect(server.calls).toHaveLength(1);
   });
 
+  it("does not start the backoff over for a server that accepts a connection and closes it at once", async () => {
+    const server = fakeServer();
+    open(server);
+    await tick(0);
+    const waits: number[] = [];
+    let index = 0;
+    for (const expected of [1000, 2000, 4000, 8000]) {
+      server.end(index); // accepted, nothing sent, closed
+      const before = server.calls.length;
+      await tick(expected - 1);
+      expect(server.calls.length, `before ${expected}`).toBe(before);
+      await tick(1);
+      expect(server.calls.length, `at ${expected}`).toBe(before + 1);
+      waits.push(expected);
+      index += 1;
+    }
+    expect(waits).toEqual([1000, 2000, 4000, 8000]);
+  });
+
+  it("starts the backoff over once the server has sent an event", async () => {
+    const server = fakeServer();
+    open(server);
+    await tick(0);
+    server.end(0);
+    await tick(1000); // second connection after 1 s
+    server.end(1);
+    await tick(2000); // third after 2 s
+    server.send(2, frame(1)); // a real event
+    await tick(0);
+    server.end(2);
+    const before = server.calls.length;
+    await tick(1000); // back to 1 s
+    expect(server.calls.length).toBe(before + 1);
+  });
+
+  it("frees the connection when the answer is a refusal", async () => {
+    const aborted: boolean[] = [];
+    const inner = fakeServer();
+    inner.statuses.push(404);
+    const fetchFn = ((input: RequestInfo | URL, init?: RequestInit) => {
+      init?.signal?.addEventListener("abort", () => aborted.push(true));
+      return inner.fetch(input, init);
+    }) as typeof fetch;
+    open({ ...inner, fetch: fetchFn });
+    await tick(0);
+    expect(statuses.at(-1)).toBe("failed");
+    expect(aborted).toEqual([true]);
+  });
+
   it("close() stops the reads, the timers and any later reconnect", async () => {
     const server = fakeServer();
     const stream = open(server);
