@@ -262,10 +262,10 @@ describe("useInvestigation", () => {
 
   describe("through the real stream client, against a server that keeps misbehaving", () => {
     const frame = (e: InvestigationEvent) => `id: ${e.id}\nevent: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`;
-    const advance = async (ms: number) => {
-      for (let spent = 0; spent < ms; spent += 1000) {
+    const advance = async (ms: number, stepMs = 1000) => {
+      for (let spent = 0; spent < ms; spent += stepMs) {
         await act(async () => {
-          await vi.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(stepMs);
         });
       }
     };
@@ -317,6 +317,48 @@ describe("useInvestigation", () => {
       }
     });
 
+    it("a server that sends one new event and then a gap on every connection is asked at most about once a second", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        // Each connection sends the next event (it applies) in one chunk and an event two ids further on (a gap) in another.
+        // Every snapshot cures the gap, so the uncured-gap backoff never starts: only the time floor stands in the way.
+        const requests = { snapshot: 0, events: 0 };
+        let head = 3;
+        const encoder = new TextEncoder();
+        const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+          const url = String(input);
+          if (url.includes("/events")) {
+            requests.events += 1;
+            const from = Number(new URL(url, "http://x.invalid").searchParams.get("lastEventId") ?? head);
+            const body = new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(encoder.encode(frame(event(from + 1, "investigation.status", { status: "running" }))));
+                setTimeout(() => {
+                  try {
+                    controller.enqueue(encoder.encode(frame(event(from + 3, "investigation.status", { status: "waiting" }))));
+                  } catch {
+                    // the stream was closed by then
+                  }
+                }, 0);
+              },
+            });
+            return new Response(body, { status: 200 });
+          }
+          requests.snapshot += 1;
+          head += 3;
+          return new Response(JSON.stringify(snapshot({ lastEventId: head })), { status: 200 });
+        }) as unknown as typeof fetch;
+        const { result } = renderHook(() => useInvestigation(ID, { fetchFn, random: () => 0.5 }));
+        await advance(60_000, 25); // fine steps, so a page that cycles faster than once a second shows it
+        expect(requests.snapshot).toBeLessThanOrEqual(62); // a hammering page would make hundreds
+        expect(requests.events).toBeLessThanOrEqual(62);
+        expect(requests.snapshot).toBeGreaterThan(10); // and it does keep working: the floor is one second, not a stall
+        expect(result.current.state.connection).not.toBe("failed");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("duplicates and gap events do not restart the stream's own backoff, and a manual refetch is the only way back", async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       try {
@@ -362,6 +404,53 @@ describe("useInvestigation", () => {
     expect(result.current.state.id).toBe("inv-2");
     expect(result.current.state.lastEventId).toBe(7);
     expect(result.current.state.status).toBe("running");
+  });
+
+  it("treats an answer that is for another investigation as a failed fetch, so the backoff and the give-up apply", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let calls = 0;
+      const fetchFn = vi.fn(async () => {
+        calls += 1;
+        return new Response(JSON.stringify(snapshot({ id: "inv-other" })), { status: 200 });
+      }) as unknown as typeof fetch;
+      const stream = fakeStream();
+      const { result } = renderHook(() => useInvestigation(ID, { fetchFn, openStream: stream.open }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(result.current.error).toBe("bad_response");
+      expect(result.current.state.connection).toBe("failed");
+      expect(result.current.loading).toBe(false);
+      expect(calls).toBe(1);
+      expect(stream.opened).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores a manual refetch while a fetch is running", async () => {
+    const stream = fakeStream();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    const fetchFn = vi.fn(async () => {
+      calls += 1;
+      if (calls > 1) await gate;
+      return new Response(JSON.stringify(snapshot()), { status: 200 });
+    }) as unknown as typeof fetch;
+    const { result } = renderHook(() => useInvestigation(ID, { fetchFn, openStream: stream.open }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => {
+      result.current.refetch();
+      result.current.refetch();
+      result.current.refetch();
+    });
+    expect(calls).toBe(2); // one extra fetch for three clicks
+    await act(async () => release());
+    await waitFor(() => expect(result.current.loading).toBe(false));
   });
 
   it("ignores an event of another investigation", async () => {

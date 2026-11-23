@@ -116,6 +116,9 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
   const currentId = useRef(id);
   currentId.current = id;
   const cure = useRef<Cure>(freshCure());
+  /** When the last snapshot was asked for because of a gap: a cure cannot make the next one come sooner than the first backoff step. */
+  const lastGapFetch = useRef(0);
+  const inflight = useRef(0);
 
   // A different investigation: start from nothing, so nothing of the old one can show on the new.
   useEffect(() => {
@@ -131,13 +134,24 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
   /** Reads the snapshot once. Returns the applied-event count at landing when it landed, null when it did not (or is for an old id). */
   const load = useCallback(async (): Promise<number | null> => {
     const asked = id;
-    const result = await callApi("investigation", { params: { id: asked } }, injected.current.fetchFn);
+    inflight.current += 1;
+    let result: Awaited<ReturnType<typeof callApi>>;
+    try {
+      result = await callApi("investigation", { params: { id: asked } }, injected.current.fetchFn);
+    } finally {
+      inflight.current -= 1;
+    }
     if (currentId.current !== asked) return null; // the page has moved to another investigation: drop this answer
     if (!result.ok) {
       setError(result.code);
       return null;
     }
     const snapshot = InvestigationSnapshot.parse(result.data);
+    // The server answered with another investigation's snapshot: it can never cure this page, so it counts as a failed fetch.
+    if (snapshot.id !== asked) {
+      setError("bad_response");
+      return null;
+    }
     setError(null);
     apply({ kind: "snapshot", snapshot });
     setLoaded(true);
@@ -195,6 +209,7 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
 
     const attemptLoad = async () => {
       if (overdue()) return giveUp();
+      lastGapFetch.current = Date.now();
       const landedAt = await load();
       if (cancelled) return;
       if (landedAt !== null) {
@@ -209,8 +224,11 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
       timer = setTimeout(() => void attemptLoad(), backoff(c.uncured + tries, random));
     };
 
-    // The first try for an uncured gap waits its turn on the backoff, so the page never hammers the server.
-    if (c.uncured > 0) timer = setTimeout(() => void attemptLoad(), backoff(c.uncured, random));
+    // The first try waits its turn: on the backoff for an uncured gap, and in any case at least the first backoff step
+    // after the last gap-triggered fetch, so a server that cures every gap and raises the next at once cannot be hammered.
+    const floor = Math.max(0, lastGapFetch.current + (BACKOFF_MS[0] as number) - Date.now());
+    const wait = Math.max(c.uncured > 0 ? backoff(c.uncured, random) : 0, floor);
+    if (wait > 0) timer = setTimeout(() => void attemptLoad(), wait);
     else void attemptLoad();
 
     return () => {
@@ -251,6 +269,7 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
   }, [streaming, id, generation, apply]);
 
   const refetch = useCallback(() => {
+    if (inflight.current > 0) return; // a fetch is already running: a second click changes nothing
     // By hand: forget the failure, and start the whole path again from a clean count.
     cure.current = freshCure();
     setGaveUp(false);
