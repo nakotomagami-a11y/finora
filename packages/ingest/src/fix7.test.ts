@@ -6,7 +6,8 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ParsedRecord, RawArtifact } from "@finora/sources";
-import { acquireLease, beginSync, checkpoint, maintenanceDue, openStore, releaseLease, runMaintenance, runRetention, startIdleMaintenance, upsertSource, writeRecord, type CheckpointResult, type Store } from "@finora/store";
+import { DatabaseSync } from "node:sqlite";
+import { acquireLease, beginSync, checkpoint, deleteRecords, maintenanceDue, markMaintenance, migrate, MIGRATIONS, openStore, recordId, releaseLease, replaceShareAlike, runMaintenance, runRetention, startIdleMaintenance, upsertSource, writeRecord, type CheckpointResult, type Store } from "@finora/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { fetchOnView, type DatasetAnswer, type LiveCachedLoader } from "./live-cache.ts";
 import { nextCheckpointFrames, runSync } from "./pipeline.ts";
@@ -308,7 +309,7 @@ describe("cto's and qa's WAL tests", () => {
 // The council's S12 gate, met by cto's layout rule (7087614308) and landing with S05: during back-to-back
 // sync batches and the sync's checkpoints, a user's write is never "database is locked".
 describe("a user's write during a sync (two connections)", () => {
-  const userWrites = async (syncStore: Store, user: Store) => {
+  const userWrites = async (syncStore: Store, user: Store, stopOnLocked = false) => {
     user.db.exec("PRAGMA busy_timeout = 1500");
     const write = user.db.prepare("INSERT INTO user.settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
     const times: number[] = [];
@@ -320,8 +321,10 @@ describe("a user's write during a sync (two connections)", () => {
         write.run("watchlist", String(n++));
         times.push(performance.now() - start);
       } catch (error) {
-        if (String(error).includes("locked")) locked++;
-        else throw error;
+        if (!String(error).includes("locked")) throw error;
+        locked++;
+        // The control needs one: each locked write blocks this thread for the whole busy timeout.
+        if (stopOnLocked) clearInterval(timer);
       }
     }, 5);
     // A loader whose parse yields to the timers between records, inside the open batch transactions.
@@ -355,7 +358,7 @@ describe("a user's write during a sync (two connections)", () => {
     const { store: user, dir } = onDisk();
     const allAttached = openStore({ dataDir: dir });
     stores.push(allAttached);
-    const r = await userWrites(allAttached, user);
+    const r = await userWrites(allAttached, user, true);
     expect(r.locked).toBeGreaterThan(0);
   }, 120_000);
 });
@@ -430,5 +433,96 @@ describe("K5, option (a): a company rename owes no FTS merge (qa's check)", () =
     const outcome = await run(store, source);
     expect(outcome.kind).toBe("content");
     expect(outcome.report?.maintenance?.map((m) => m.kind)).toEqual(["wal_truncate"]);
+  });
+});
+
+describe("the S05 security round (coordinator R1-R5)", () => {
+  it("R1: a merge or TRUNCATE marked again while maintenance runs is kept, not deleted unrun", () => {
+    const { store } = onDisk();
+    for (const kind of ["fts_merge", "wal_truncate"] as const) {
+      store.db.exec("DELETE FROM main.maintenance_due");
+      markMaintenance(store.db, kind);
+      // Another lane marks the same kind between the work and the unmark.
+      runMaintenance(store.db, { beforeUnmark: (k) => k === kind && markMaintenance(store.db, kind) });
+      expect(maintenanceDue(store.db), kind).toContain(kind);
+      // The next run finds it and completes it.
+      runMaintenance(store.db);
+      expect(maintenanceDue(store.db), kind).toEqual([]);
+    }
+  });
+
+  it("killed-sync cases: a record delete and a share-alike purge owe the TRUNCATE from their own transaction", async () => {
+    const { store } = onDisk();
+    await run(store, fakeSource({}, { records: companies(1, 3) }));
+    expect(maintenanceDue(store.db)).toEqual([]);
+    store.db.exec("BEGIN IMMEDIATE");
+    deleteRecords(store.db, [recordId(store.db, "fake-register", companies(1, 1)[0]!.recordKey)!]);
+    store.db.exec("COMMIT");
+    // The orphaned searchable company owes a merge as well.
+    expect(maintenanceDue(store.db)).toEqual(["fts_merge", "wal_truncate"]);
+    runMaintenance(store.db);
+    const sa = { sourceId: "fake-sa", licenceId: "cc-by-sa-4.0", startedAt: "2026-11-23T08:00:00.000Z", upstreamAsOf: null, records: 1 };
+    store.db.exec("BEGIN IMMEDIATE");
+    replaceShareAlike(store.db, sa, [{ eid: "lv-00000000001", prop: "name", value: "Example Share Alike", itemId: "S01.LV.01" }]);
+    store.db.exec("COMMIT");
+    runMaintenance(store.db);
+    expect(maintenanceDue(store.db)).toEqual([]);
+    // The second replace purges the first one's rows.
+    store.db.exec("BEGIN IMMEDIATE");
+    replaceShareAlike(store.db, sa, []);
+    store.db.exec("COMMIT");
+    expect(maintenanceDue(store.db)).toEqual(["wal_truncate"]);
+  });
+
+  it("R3: the sync-only open refuses when finora-sa.db is missing, or a file's own version is behind", () => {
+    const { store, dir } = onDisk();
+    store.close();
+    stores.splice(stores.indexOf(store), 1);
+    rmSync(join(dir, "finora-sa.db"));
+    expect(() => openStore({ dataDir: dir, sync: true })).toThrow(expect.objectContaining({ code: "store_not_migrated" }));
+    expect(readdirSync(dir).includes("finora-sa.db")).toBe(false);
+    const full = openStore({ dataDir: dir });
+    full.db.exec("PRAGMA sa.user_version = 1");
+    full.close();
+    expect(() => openStore({ dataDir: dir, sync: true })).toThrow(expect.objectContaining({ code: "store_not_migrated" }));
+  });
+
+  it("R4: no open accepts a file migrated by a newer build", () => {
+    const { store, dir } = onDisk();
+    const ahead = MIGRATIONS.filter((m) => m.target === "user").length + 1;
+    store.db.exec(`PRAGMA user.user_version = ${ahead}`);
+    store.close();
+    stores.splice(stores.indexOf(store), 1);
+    expect(() => openStore({ dataDir: dir })).toThrow(expect.objectContaining({ code: "store_too_new" }));
+  });
+
+  it("R5: any checkpoint of 5 s or more is over_limit, not only at the floor", async () => {
+    const { store } = onDisk();
+    const times = [6000, 1200, 6000, 100, 100];
+    let i = 0;
+    const slow = (): CheckpointResult => ({ ms: times[Math.min(i++, times.length - 1)]!, busy: false, log: 100_000, checkpointed: 100_000 });
+    const outcome = await run(store, fakeSource({}, { records: companies(1, 2000) }), { batch: { maxRecords: 50 }, checkpoint: { frames: 64, floorFrames: 16, run: slow } });
+    const t = outcome.report!.timings!;
+    expect(t.checkpointFrames.slice(0, 5)).toEqual([32, 16, 16, 32, 64]);
+    expect(t.checkpointsOverLimit).toBe(2);
+  });
+
+  it("R2: a store that ran FTS5's secure-delete option is rebuilt, and a TRUNCATE is owed", () => {
+    const db = new DatabaseSync(":memory:");
+    const main = MIGRATIONS.filter((m) => m.target === "main");
+    const through = (name: string) => main.findIndex((m) => m.name === name) + 1;
+    // A store at 4d39ac8: the option on, rows written, one deleted.
+    migrate(db, { main: through("fts secure delete") }, ["main"]);
+    const insert = db.prepare("INSERT INTO main.entities_fts (rowid, search_text) VALUES (?, ?)");
+    for (let i = 1; i <= 300; i++) insert.run(i, i === 150 ? "zqxrebuildsentinel holding" : `example company ${i}`);
+    db.prepare("DELETE FROM main.entities_fts WHERE rowid = 150").run();
+    migrate(db, undefined, ["main"]);
+    expect(db.prepare("SELECT v FROM main.entities_fts_config WHERE k = 'secure-delete'").get()).toEqual({ v: 0 });
+    // The rebuilt index holds no term of the deleted row anywhere, its idx table included.
+    const terms = db.prepare("SELECT term FROM main.entities_fts_idx").all() as { term: Uint8Array }[];
+    expect(terms.some((r) => Buffer.from(r.term).toString("latin1").includes("zqx"))).toBe(false);
+    const blocks = db.prepare("SELECT block FROM main.entities_fts_data").all() as { block: Uint8Array }[];
+    expect(blocks.some((r) => Buffer.from(r.block).includes(Buffer.from("zqxrebuild")))).toBe(false);
+    expect((db.prepare("SELECT kind FROM main.maintenance_due").all() as { kind: string }[]).map((r) => r.kind)).toEqual(["wal_truncate"]);
   });
 });

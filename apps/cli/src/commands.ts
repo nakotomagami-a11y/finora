@@ -104,7 +104,7 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
     // and each maintenance write on its own line.
     const t = r?.timings;
     if (t && t.transactions > 0) io.out(`  writes: ${t.transactions} transactions, p95 ${t.p95Ms} ms, max ${t.maxMs} ms, total ${t.totalMs} ms; checkpoints: ${t.checkpoints}, max ${t.checkpointMaxMs} ms, total ${t.checkpointTotalMs} ms`);
-    if (t && t.checkpointsOverLimit > 0) io.out(`  over_limit: ${t.checkpointsOverLimit} checkpoint(s) at the floor took 5 s or more`);
+    if (t && t.checkpointsOverLimit > 0) io.out(`  over_limit: ${t.checkpointsOverLimit} checkpoint(s) took 5 s or more`);
     for (const m of r?.maintenance ?? []) io.out(`  maintenance ${m.kind}: ${m.steps} step(s), max ${m.maxStepMs} ms, total ${m.ms} ms${m.busy ? ", busy (retried on the next run)" : ""}`);
   }
   // A TRUNCATE a reader blocked during a sync, retried once every lane is done.

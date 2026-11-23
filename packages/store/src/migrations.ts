@@ -395,6 +395,27 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE TABLE main.store_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
     `,
   },
+  {
+    // R1 on S05 (coordinator): each mark carries a generation, moved by every mark, so maintenance
+    // deletes only the mark it read before its work, never one set while it ran.
+    target: "main",
+    name: "maintenance generation",
+    sql: `
+      ALTER TABLE main.maintenance_due ADD COLUMN gen INTEGER NOT NULL DEFAULT 1;
+    `,
+  },
+  {
+    // R2 on S05 (coordinator): a store that ran the FTS5 secure-delete option (4d39ac8) keeps
+    // deleted-term prefixes in the index's idx table, which only a rebuild clears; the TRUNCATE owed
+    // after it empties the WAL of the old pages. A store that never ran it rebuilds once too.
+    target: "main",
+    name: "fts rebuild",
+    sql: `
+      INSERT INTO main.entities_fts (entities_fts) VALUES ('rebuild');
+      INSERT INTO main.entities_trigram (entities_trigram) VALUES ('rebuild');
+      INSERT INTO main.maintenance_due (kind, gen) VALUES ('wal_truncate', 1) ON CONFLICT (kind) DO UPDATE SET gen = gen + 1;
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */

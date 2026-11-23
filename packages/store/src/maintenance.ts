@@ -19,7 +19,19 @@ const SEARCH_TABLES = ["entities_fts", "entities_trigram"] as const;
 
 /** Records that a write left this maintenance owed; done in the writer's own transaction. */
 export function markMaintenance(db: DatabaseSync, kind: MaintenanceKind): void {
-  prepared(db, "INSERT OR IGNORE INTO main.maintenance_due (kind) VALUES (?)").run(kind);
+  // Every mark moves the kind's generation, so a mark set while maintenance runs survives it (R1).
+  prepared(db, "INSERT INTO main.maintenance_due (kind, gen) VALUES (?, 1) ON CONFLICT (kind) DO UPDATE SET gen = gen + 1").run(kind);
+}
+
+/** The kind's generation now, or null when it is not owed. */
+function generation(db: DatabaseSync, kind: MaintenanceKind): number | null {
+  const row = prepared(db, "SELECT gen FROM main.maintenance_due WHERE kind = ?").get(kind) as { gen: number } | undefined;
+  return row?.gen ?? null;
+}
+
+/** Deletes the mark only if no one marked it again since `gen` was read (R1). */
+function unmark(db: DatabaseSync, kind: MaintenanceKind, gen: number): void {
+  prepared(db, "DELETE FROM main.maintenance_due WHERE kind = ? AND gen = ?").run(kind, gen);
 }
 
 export function maintenanceDue(db: DatabaseSync): MaintenanceKind[] {
@@ -74,18 +86,22 @@ function mergeSearchTable(db: DatabaseSync, table: (typeof SEARCH_TABLES)[number
  * leaves a TRUNCATE owed. A TRUNCATE that a reader blocks stays owed, is reported busy, and runs on
  * the next call (the next sync's end, the idle timer, the boot), never silently dropped.
  */
-export function runMaintenance(db: DatabaseSync): MaintenanceStep[] {
+export function runMaintenance(db: DatabaseSync, hooks: { beforeUnmark?: (kind: MaintenanceKind) => void } = {}): MaintenanceStep[] {
   if (db.isTransaction) throw new Error("maintenance runs outside a transaction");
   const due = new Set(maintenanceDue(db));
   const steps: MaintenanceStep[] = [];
   if (due.has("fts_merge")) {
+    // Read before the work: a lane that marks a merge during the steps moves the generation, and its
+    // mark is then kept for the next run instead of being deleted unmerged (R1, coordinator).
+    const gen = generation(db, "fts_merge") as number;
     let total = { steps: 0, ms: 0, maxStepMs: 0 };
     for (const table of SEARCH_TABLES) {
       const one = mergeSearchTable(db, table);
       total = { steps: total.steps + one.steps, ms: total.ms + one.ms, maxStepMs: Math.max(total.maxStepMs, one.maxStepMs) };
     }
+    hooks.beforeUnmark?.("fts_merge");
     db.exec("BEGIN IMMEDIATE");
-    prepared(db, "DELETE FROM main.maintenance_due WHERE kind = 'fts_merge'").run();
+    unmark(db, "fts_merge", gen);
     markMaintenance(db, "wal_truncate");
     db.exec("COMMIT");
     steps.push({ kind: "fts_merge", ...total });
@@ -95,8 +111,10 @@ export function runMaintenance(db: DatabaseSync): MaintenanceStep[] {
     // The TRUNCATE first, its mark deleted only once it succeeded: neither a crash between the two nor
     // a busy reader loses it (K3, legal). The mark's own delete leaves one page in the WAL, which
     // holds that table only.
+    const gen = generation(db, "wal_truncate") as number;
     const result = checkpoint(db, "TRUNCATE");
-    if (!result.busy) prepared(db, "DELETE FROM main.maintenance_due WHERE kind = 'wal_truncate'").run();
+    hooks.beforeUnmark?.("wal_truncate");
+    if (!result.busy) unmark(db, "wal_truncate", gen);
     steps.push({ kind: "wal_truncate", ms: result.ms, steps: 1, maxStepMs: result.ms, ...(result.busy ? { busy: true } : {}) });
   }
   return steps;

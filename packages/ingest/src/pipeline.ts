@@ -92,7 +92,7 @@ export type WriteTimings = {
   checkpointTotalMs: number;
   /** The checkpoint threshold in frames after each checkpoint (time-sized, cto and council). */
   checkpointFrames: number[];
-  /** Checkpoints that took 5 s or more with the threshold already at its floor: over target 3. */
+  /** Checkpoints that took 5 s or more: over target 3. */
   checkpointsOverLimit: number;
 };
 
@@ -328,7 +328,8 @@ export async function runSync(db: DatabaseSync, loader: SourceLoader, options: S
     if (++commitsSinceCheckpoint < checkpointEvery) return;
     const passive = runCheckpoint(db, checkpointSchema);
     writes.checkpoints.push(passive.ms);
-    if (frames === floorFrames && passive.ms >= 5000) writes.overLimit++;
+    // Any checkpoint of 5 s or more is over target 3, wherever the threshold stood (R5).
+    if (passive.ms >= 5000) writes.overLimit++;
     frames = nextCheckpointFrames(frames, passive.ms, floorFrames, ceilingFrames);
     writes.frames.push(frames);
     // The WAL held `log` frames after these commits, everyone's: the next checkpoint comes after about

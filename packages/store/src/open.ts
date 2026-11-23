@@ -39,7 +39,8 @@ function fullyMigrated(db: DatabaseSync): boolean {
     const row = db.prepare("SELECT value FROM main.store_meta WHERE key = 'migrated'").get() as { value: string } | undefined;
     if (!row) return false;
     const recorded = JSON.parse(row.value) as Partial<Record<Target, number>>;
-    return Object.entries(migratedVersions()).every(([t, n]) => (recorded[t as Target] ?? 0) >= n);
+    // Equal, not at least: a record from a newer build is no proof for this one (R4).
+    return Object.entries(migratedVersions()).every(([t, n]) => recorded[t as Target] === n);
   } catch {
     return false;
   }
@@ -88,8 +89,8 @@ export function openStore(options: { dataDir: string | null; sync?: boolean }): 
   // IMMEDIATE takes the write lock of every attached file, so with `user` attached a long sync batch
   // made a user's save wait and fail "database is locked". User state lives in `user`, markets in `cc`.
   const schemas: readonly StoreSchema[] = sync ? ["main", "sa"] : STORE_SCHEMAS;
-  // Checked before `sa` is attached, which would create its file.
-  if (sync && options.dataDir && !fullyMigrated(db)) {
+  // Checked before `sa` is attached, which would create its file (R3).
+  if (sync && options.dataDir && (!fullyMigrated(db) || !existsSync(paths.sa))) {
     db.close();
     throw notMigrated();
   }
@@ -108,8 +109,21 @@ export function openStore(options: { dataDir: string | null; sync?: boolean }): 
     enableStatementCache(db);
   }
   const fresh = schemas.includes("user") && (db.prepare("PRAGMA user.user_version").get() as { user_version: number }).user_version === 0;
+  // No file may be newer than this build: an older build would write a schema it does not know (R4).
+  const expected = migratedVersions();
+  const versionOf = (schema: StoreSchema) => (db.prepare(`PRAGMA ${schema}.user_version`).get() as { user_version: number }).user_version;
+  const tooNew = schemas.find((schema) => versionOf(schema) > expected[schema]);
+  if (tooNew) {
+    db.close();
+    throw Object.assign(new Error(`store_too_new: ${tooNew} was migrated by a newer build`), { code: "store_too_new" });
+  }
   // An in-memory sync store has no full open before it, so it migrates its own two files (tests).
   if (!(sync && options.dataDir)) migrate(db, undefined, schemas);
+  // The sync-only open reads the files' own versions too, not only the record (R3).
+  if (sync && options.dataDir && schemas.some((schema) => versionOf(schema) !== expected[schema])) {
+    db.close();
+    throw notMigrated();
+  }
   if (!sync) recordMigrated(db);
   db.exec("PRAGMA busy_timeout = 5000");
   let logs: Store["logs"] = null;
