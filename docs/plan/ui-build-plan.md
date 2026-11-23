@@ -502,7 +502,7 @@ type InvestigationState = {
 
 ### 6.5 Announcements (live region)
 
-One polite `LiveRegion` per page. Throttle rule: at most **one announcement per lane status change**, and none for steps, sources or costs. Messages:
+One polite `LiveRegion` per page. Throttle rule: at most **one announcement per lane status change**, and none for steps, sources or usage. Messages:
 - a run changes status: "Registry: done" or "Legal: waiting for your answer";
 - a question arrives: "Question: which company? Choose one in the agents panel";
 - the verdict arrives: "Report ready: {level label}, {ran} of 11 checks ran";
