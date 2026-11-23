@@ -8,7 +8,7 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 
 | Profile | Hardware | OS | Node / SQLite |
 |---|---|---|---|
-| `dev-desktop-1` | 8 cores / 16 threads, 32 GB RAM, disks: the data dirs are on a SATA SSD, and the OS temp folder is on an NVMe SSD (cto 7092144101). Every cto figure so far was measured with the store on the SATA SSD, while data-baltics' bench temp store sat on the NVMe drive | Windows 11 | Node 24.20, SQLite 3.53.4 (`node:sqlite`) |
+| `dev-desktop-1` | 8 cores / 16 threads, 32 GB RAM, disks: the data dirs are on a SATA SSD, and the OS temp folder is on an NVMe SSD (cto 7092144101). Every cto figure so far was measured with the store on the SATA SSD. data-baltics' recorded part B figures were also on the SATA SSD, from a scratch harness inside the checkout (`9f9bab0`). Only the committed bench script defaults to OS temp, so pass it `--work` on the data drive | Windows 11 | Node 24.20, SQLite 3.53.4 (`node:sqlite`) |
 
 ## Budgets (P10)
 
