@@ -16,11 +16,21 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; 
 
 const ROUTES = new Map<string, ApiRoute>(API_ROUTES.map((route) => [route.operationId, route]));
 
+/** A path parameter that would leave its route: `.`, `..`, or anything with a slash or a backslash in it. */
+export class UnsafePathParameter extends Error {
+  constructor(name: string) {
+    super(`unsafe path parameter: ${name}`);
+    this.name = "UnsafePathParameter";
+  }
+}
+
 /** The URL of an operation: `{name}` filled from `params` (each value encoded), then the query string. */
 export function buildUrl(route: Pick<ApiRoute, "path">, input: ApiInput = {}): string {
   const path = route.path.replace(/\{([A-Za-z]+)\}/gu, (_, name: string) => {
     const value = input.params?.[name];
     if (value === undefined) throw new Error(`missing path parameter: ${name}`);
+    // `encodeURIComponent("..")` is `..`, and a browser or proxy would resolve it: refuse what could leave the route.
+    if (value === "" || value === "." || value === ".." || /[/\\]/u.test(value)) throw new UnsafePathParameter(name);
     return encodeURIComponent(value);
   });
   const query = Object.entries(input.query ?? {})
@@ -33,9 +43,17 @@ export function buildUrl(route: Pick<ApiRoute, "path">, input: ApiInput = {}): s
 export async function callApi(operationId: string, input: ApiInput = {}, doFetch: typeof fetch = (url, init) => fetch(url, init)): Promise<ApiResult<unknown>> {
   const route = ROUTES.get(operationId);
   if (!route) throw new Error(`no such operation: ${operationId}`);
+  let url: string;
+  try {
+    url = buildUrl(route, input);
+  } catch (error) {
+    // An id from the page's own address that cannot be a path segment is a bad request, not a crash.
+    if (error instanceof UnsafePathParameter) return { ok: false, status: 0, code: "bad_request" };
+    throw error;
+  }
   let response: Response;
   try {
-    response = await doFetch(buildUrl(route, input), {
+    response = await doFetch(url, {
       method: route.method,
       headers: { Accept: "application/json", ...(input.body === undefined ? {} : { "Content-Type": "application/json" }) },
       ...(input.body === undefined ? {} : { body: JSON.stringify(input.body) }),

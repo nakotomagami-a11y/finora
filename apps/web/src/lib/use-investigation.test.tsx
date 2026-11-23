@@ -193,6 +193,116 @@ describe("useInvestigation", () => {
     });
   });
 
+  describe("an event the snapshot cannot cure", () => {
+    /** Time passes in one-second steps, each flushed, so the hook's effects run between timers as they do in a page. */
+    const advance = async (ms: number) => {
+      for (let spent = 0; spent < ms; spent += 1000) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      }
+    };
+
+    /** The server's snapshot lags its log: it never lists run-x, yet the stream replays an event for it, every time. */
+    const setup = (curedAfter: number | null) => {
+      let fetches = 0;
+      let opens = 0;
+      const stream: { opened: EventStreamOptions[] } = { opened: [] };
+      const fetchFn = vi.fn(async () => {
+        fetches += 1;
+        const cured = curedAfter !== null && fetches > curedAfter;
+        const runs = cured
+          ? [...base.runs, { id: "run-x", role: "money", status: "running", usage: { unit: "st", used: 0, held: 0, cap: 0, extensionGranted: false }, startedAt: null, endedAt: null }]
+          : base.runs;
+        const plan = cured ? [...base.plan, { runId: "run-x", role: "money", dependsOn: [] }] : base.plan;
+        return new Response(JSON.stringify(snapshot({ runs, plan })), { status: 200 });
+      }) as unknown as typeof fetch;
+      const openStream = (options: EventStreamOptions) => {
+        opens += 1;
+        stream.opened.push(options);
+        const timer = setTimeout(() => options.onEvent(event(4, "run.status", { runId: "run-x", status: "done" })), 0);
+        return { close: () => clearTimeout(timer) };
+      };
+      const hook = renderHook(() => useInvestigation(ID, { fetchFn, openStream, random: () => 0.5 }));
+      return { hook, fetches: () => fetches, opens: () => opens };
+    };
+
+    it("is asked for on the backoff and not in a loop, and the page gives up after five minutes", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const { hook, fetches } = setup(null);
+        await advance(60_000);
+        // 1, 2, 4, 8 and 15 s apart: under ten snapshots in the first minute, not hundreds.
+        expect(fetches()).toBeLessThan(10);
+        expect(hook.result.current.attempt).toBeGreaterThanOrEqual(3);
+        expect(hook.result.current.state.connection).not.toBe("failed");
+        await advance(5 * 60 * 1000);
+        expect(hook.result.current.state.connection).toBe("failed");
+        const settled = fetches();
+        await advance(120_000);
+        expect(fetches()).toBe(settled); // it stopped asking
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("starts the count over once a snapshot cures the gap and an event applies after the reopen", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const { hook } = setup(3); // the fourth snapshot finally lists run-x
+        await advance(30_000);
+        await waitFor(() => expect(hook.result.current.state.runs["run-x"]?.status).toBe("done"));
+        expect(hook.result.current.state.gap).toBe(false);
+        expect(hook.result.current.attempt).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  it("starts from nothing when the investigation id changes, and drops the old one's late answer", async () => {
+    const stream = fakeStream();
+    let releaseOld!: () => void;
+    const oldGate = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/inv-1")) {
+        await oldGate; // the old investigation's snapshot is slow
+        return new Response(JSON.stringify(snapshot({ id: "inv-1", status: "done", lastEventId: 50 })), { status: 200 });
+      }
+      return new Response(JSON.stringify(snapshot({ id: "inv-2", status: "running", lastEventId: 7 })), { status: 200 });
+    }) as unknown as typeof fetch;
+    const { result, rerender } = renderHook(({ id }) => useInvestigation(id, { fetchFn, openStream: stream.open }), { initialProps: { id: "inv-1" } });
+    rerender({ id: "inv-2" });
+    await waitFor(() => expect(result.current.state.id).toBe("inv-2"));
+    await waitFor(() => expect(result.current.state.lastEventId).toBe(7));
+    await act(async () => releaseOld());
+    // The old answer arrives late and must change nothing.
+    expect(result.current.state.id).toBe("inv-2");
+    expect(result.current.state.lastEventId).toBe(7);
+    expect(result.current.state.status).toBe("running");
+  });
+
+  it("ignores an event of another investigation", async () => {
+    const stream = fakeStream();
+    const { result } = renderHook(() => useInvestigation(ID, { fetchFn: asFetch(() => json(snapshot())), openStream: stream.open }));
+    await waitFor(() => expect(stream.opened).toHaveLength(1));
+    const other = InvestigationEvent.parse({ id: 4, at: AT, investigationId: "inv-other", type: "investigation.status", data: { status: "failed" } });
+    act(() => stream.opened[0]?.onEvent(other));
+    expect(result.current.state.status).toBe("running");
+    expect(result.current.state.lastEventId).toBe(3);
+  });
+
+  it("reports a bad id as a failed load without a request", async () => {
+    const fetchFn = vi.fn();
+    const stream = fakeStream();
+    const { result } = renderHook(() => useInvestigation("..", { fetchFn: fetchFn as unknown as typeof fetch, openStream: stream.open }));
+    await waitFor(() => expect(result.current.error).toBe("bad_request"));
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(stream.opened).toHaveLength(0);
+  });
+
   it("reports the connection state, and closes the stream when the investigation is over", async () => {
     const stream = fakeStream();
     const { result } = renderHook(() => useInvestigation(ID, { fetchFn: asFetch(() => json(snapshot())), openStream: stream.open }));

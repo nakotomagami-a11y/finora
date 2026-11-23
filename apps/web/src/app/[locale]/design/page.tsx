@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { isLocale } from "@finora/i18n";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "../../../i18n/navigation.ts";
 import { isDemoMode } from "../../../lib/server-data.ts";
@@ -13,7 +14,7 @@ export default async function DesignIndex({ params, searchParams }: { params: Pr
   setRequestLocale(locale);
   // `/design?state=report` opens that investigation fixture (the plan's demo address).
   const { state } = await searchParams;
-  if (state !== undefined && /^[a-z0-9-]{1,40}$/u.test(state)) redirect(`/${locale}/design/fixtures?screen=investigation&state=${state}`);
+  if (state !== undefined && isLocale(locale) && /^[a-z0-9-]{1,40}$/u.test(state)) redirect(`/${locale}/design/fixtures?screen=investigation&state=${state}`);
 
   return (
     <>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDateTime, formatNumber, formatRelative, formatTime } from "./format.ts";
+import { formatDate, formatDateTime, formatNumber, formatRelative, formatTime, NO_DATE } from "./format.ts";
 
 describe("formatDate", () => {
   it("formats a UTC date in the locale", () => {
@@ -27,5 +27,24 @@ describe("formatDateTime, formatTime and formatRelative", () => {
     expect(formatRelative("en", "2026-11-22T11:58:00Z", now)).toBe("2 minutes ago");
     expect(formatRelative("en", "2026-11-22T12:00:20Z", now)).toBe("in 20 seconds");
     expect(formatRelative("en", "2026-11-20T12:00:00Z", now)).toBe("2 days ago");
+  });
+});
+
+describe("a date that cannot be read", () => {
+  const bad = ["not a date", "", "2026-13-45", "NaN", "2026-11-22T25:99:00Z"];
+
+  it("shows a dash and never throws, in every formatter and locale", () => {
+    for (const locale of ["en", "lt", "lv", "et"] as const) {
+      for (const text of bad) {
+        expect(formatDate(locale, text), `${locale} date ${text}`).toBe(NO_DATE);
+        expect(formatDateTime(locale, text), `${locale} datetime ${text}`).toBe(NO_DATE);
+        expect(formatTime(locale, text), `${locale} time ${text}`).toBe(NO_DATE);
+        expect(formatRelative(locale, text, new Date("2026-11-22T12:00:00Z")), `${locale} relative ${text}`).toBe(NO_DATE);
+      }
+    }
+  });
+
+  it("shows a dash when the clock itself is invalid", () => {
+    expect(formatRelative("en", "2026-11-22T12:00:00Z", new Date("nope"))).toBe(NO_DATE);
   });
 });

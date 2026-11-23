@@ -38,12 +38,51 @@ describe("createSseParser", () => {
     expect(parse("data: half\n")).toEqual([]);
   });
 
-  it("reports activity for every chunk, comments included", () => {
+  it("reports activity for each complete line, comments included, and not for a chunk with no line break", () => {
     let activity = 0;
     const parser = createSseParser(() => undefined, () => (activity += 1));
     parser.push(": heartbeat\n\n");
-    parser.push("");
     expect(activity).toBe(2);
+    parser.push("data: trickle");
+    parser.push(" of bytes");
+    expect(activity).toBe(2);
+    parser.push("\n");
+    expect(activity).toBe(3);
+  });
+
+  it("cuts off a line that never ends, once it is larger than the limit", () => {
+    const overflow: string[] = [];
+    const parser = createSseParser(() => undefined, () => undefined, () => overflow.push("x"), 1000);
+    for (let i = 0; i < 20; i += 1) parser.push("a".repeat(100));
+    expect(overflow).toEqual(["x"]);
+    parser.push("data: more\n\n"); // ignored after the cut
+    expect(overflow).toEqual(["x"]);
+  });
+
+  it("cuts off a complete line larger than the limit, and a message whose data adds up to more", () => {
+    const first: string[] = [];
+    createSseParser(() => undefined, () => undefined, () => first.push("x"), 1000).push(`data: ${"a".repeat(2000)}\n\n`);
+    expect(first).toEqual(["x"]);
+    const second: string[] = [];
+    const parser = createSseParser(() => undefined, () => undefined, () => second.push("x"), 1000);
+    for (let i = 0; i < 20; i += 1) parser.push(`data: ${"b".repeat(100)}\n`);
+    expect(second).toEqual(["x"]);
+  });
+
+  it("holds the heap steady for a huge stream with no line break: it is cut off at the limit, not buffered", () => {
+    let cut = 0;
+    const parser = createSseParser(() => undefined, () => undefined, () => (cut += 1));
+    const chunk = "z".repeat(64 * 1024);
+    for (let i = 0; i < 1024; i += 1) parser.push(chunk); // 64 MiB offered
+    expect(cut).toBe(1);
+  });
+
+  it("does not search the whole buffer again for every chunk", () => {
+    const parser = createSseParser(() => undefined);
+    const started = performance.now();
+    for (let i = 0; i < 200_000; i += 1) parser.push("a"); // a very long line, one byte at a time
+    parser.push("\n\n");
+    expect(performance.now() - started).toBeLessThan(2000);
   });
 });
 
@@ -321,6 +360,32 @@ describe("openEventStream", () => {
     await tick(0);
     expect(statuses.at(-1)).toBe("failed");
     expect(aborted).toEqual([true]);
+  });
+
+  it("cuts off a server that sends an oversized line, says so, and tries again on the backoff", async () => {
+    const server = fakeServer();
+    open(server);
+    await tick(0);
+    server.send(0, "data: " + "x".repeat(1024 * 1024 + 10) + "\n\n");
+    await tick(0);
+    expect(invalid).toContain("too_large");
+    expect(events).toEqual([]);
+    await tick(BACKOFF_MS[0]);
+    expect(server.calls).toHaveLength(2);
+  });
+
+  it("never says reconnecting after it has said failed", async () => {
+    const server = fakeServer();
+    open(server);
+    await tick(0);
+    server.statuses.push(404); // the next connect is refused for good
+    server.end(0);
+    await tick(BACKOFF_MS[0] + 10);
+    expect(statuses.at(-1)).toBe("failed");
+    await tick(RECONNECTING_AFTER_MS * 3);
+    expect(statuses.at(-1)).toBe("failed");
+    expect(statuses.filter((s) => s === "failed")).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("close() stops the reads, the timers and any later reconnect", async () => {

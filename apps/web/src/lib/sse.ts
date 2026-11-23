@@ -15,17 +15,38 @@ export const RECONNECTING_AFTER_MS = 3000;
 
 export type SseMessage = { event: string; data: string };
 
-/** A parser for the event-stream text format: feed it chunks, and it calls back for each complete message. */
-export function createSseParser(onMessage: (message: SseMessage) => void, onActivity: () => void = () => undefined) {
-  let buffer = "";
+/** The most the parser holds for one line or one message: a server that sends more is misbehaving, and is cut off. */
+export const MAX_SSE_BYTES = 1024 * 1024;
+
+/**
+ * A parser for the event-stream text format: feed it chunks, and it calls back for each complete message. It looks for
+ * a line break only in what is new (never in what it already holds), holds at most `MAX_SSE_BYTES` for a line or a message (then calls `onOverflow` and
+ * ignores everything after), and reports activity only for a complete line, so a trickle of bytes with no line break
+ * cannot keep a connection alive.
+ */
+export function createSseParser(onMessage: (message: SseMessage) => void, onActivity: () => void = () => undefined, onOverflow: () => void = () => undefined, maxBytes: number = MAX_SSE_BYTES) {
+  let parts: string[] = []; // the unfinished line, kept in pieces so nothing is joined or searched twice
+  let partsLength = 0;
+  let skipLineFeed = false; // the last chunk ended with a carriage return: a line feed first in the next one is its pair
   let event = "";
   let data: string[] = [];
+  let dataSize = 0;
+  let stopped = false;
+
+  const overflow = () => {
+    stopped = true;
+    parts = [];
+    data = [];
+    onOverflow();
+  };
 
   const line = (text: string) => {
+    onActivity();
     if (text === "") {
       if (data.length > 0) onMessage({ event: event || "message", data: data.join("\n") });
       event = "";
       data = [];
+      dataSize = 0;
       return;
     }
     if (text.startsWith(":")) return; // a comment: the server's heartbeat
@@ -34,21 +55,51 @@ export function createSseParser(onMessage: (message: SseMessage) => void, onActi
     let value = colon === -1 ? "" : text.slice(colon + 1);
     if (value.startsWith(" ")) value = value.slice(1);
     if (field === "event") event = value;
-    else if (field === "data") data.push(value);
+    else if (field === "data") {
+      dataSize += value.length + 1;
+      if (dataSize > maxBytes) {
+        overflow();
+        return;
+      }
+      data.push(value);
+    }
     // `id` and `retry` are not used: the event carries its own id, and the backoff is fixed here.
   };
 
   return {
     push(chunk: string) {
-      onActivity();
-      buffer += chunk;
-      let match = /\r\n|\n|\r/u.exec(buffer);
-      while (match) {
-        // A lone "\r" at the very end may be half of "\r\n": wait for the next chunk.
-        if (match[0] === "\r" && match.index === buffer.length - 1) break;
-        line(buffer.slice(0, match.index));
-        buffer = buffer.slice(match.index + match[0].length);
-        match = /\r\n|\n|\r/u.exec(buffer);
+      if (stopped) return;
+      let i = 0;
+      if (skipLineFeed) {
+        skipLineFeed = false;
+        if (chunk.charCodeAt(0) === 10) i = 1;
+      }
+      let start = i;
+      for (; i < chunk.length; i += 1) {
+        const c = chunk.charCodeAt(i);
+        if (c !== 10 && c !== 13) continue;
+        const text = parts.length === 0 ? chunk.slice(start, i) : parts.join("") + chunk.slice(start, i);
+        parts = [];
+        partsLength = 0;
+        if (text.length > maxBytes) {
+          overflow();
+          return;
+        }
+        line(text);
+        if (stopped) return;
+        if (c === 13) {
+          if (i + 1 < chunk.length) {
+            if (chunk.charCodeAt(i + 1) === 10) i += 1;
+          } else skipLineFeed = true;
+        }
+        start = i + 1;
+      }
+      // What is left has no line break yet: keep it, unless it is already too large to be a line.
+      if (start < chunk.length) {
+        const rest = chunk.slice(start);
+        parts.push(rest);
+        partsLength += rest.length;
+        if (partsLength > maxBytes) overflow();
       }
     },
   };
@@ -126,7 +177,11 @@ export function openEventStream(options: EventStreamOptions): EventStream {
       // closes it at once must not be asked again every second for ever.
       attempt = 0;
       options.onEvent(parsed.data);
-    }, armSilence);
+    }, armSilence, () => {
+      // The server sent a line or a message that is far too large: cut the connection and try again, on the backoff.
+      options.onInvalid?.("too_large");
+      controller?.abort();
+    });
 
     let response: Response;
     try {
@@ -141,6 +196,8 @@ export function openEventStream(options: EventStreamOptions): EventStream {
     // A refusal that retrying cannot fix (not found, forbidden, bad request) ends the stream.
     if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
       controller.abort(); // free the connection: nobody will read this body
+      clear(reconnectingTimer);
+      reconnectingTimer = undefined;
       options.onStatus("failed");
       return false;
     }
@@ -169,18 +226,24 @@ export function openEventStream(options: EventStreamOptions): EventStream {
 
   async function run() {
     options.onStatus("connecting");
-    while (!closed) {
-      const again = await connect();
-      if (closed || !again) return;
-      // The connection is gone. The page hears about it only if it stays gone for 3 s.
-      reconnectingTimer ??= setTimeout(() => options.onStatus("reconnecting"), RECONNECTING_AFTER_MS);
-      const base = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)] as number;
-      attempt += 1;
-      const delay = Math.round(base * (0.8 + 0.4 * random()));
-      await new Promise<void>((resolve) => {
-        wake = resolve;
-        backoffTimer = setTimeout(resolve, delay);
-      });
+    try {
+      while (!closed) {
+        const again = await connect();
+        if (closed || !again) return;
+        // The connection is gone. The page hears about it only if it stays gone for 3 s.
+        reconnectingTimer ??= setTimeout(() => options.onStatus("reconnecting"), RECONNECTING_AFTER_MS);
+        const base = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)] as number;
+        attempt += 1;
+        const delay = Math.round(base * (0.8 + 0.4 * random()));
+        await new Promise<void>((resolve) => {
+          wake = resolve;
+          backoffTimer = setTimeout(resolve, delay);
+        });
+      }
+    } finally {
+      // However the loop ends, no timer is left to say "reconnecting" after it.
+      clear(reconnectingTimer);
+      reconnectingTimer = undefined;
     }
   }
 

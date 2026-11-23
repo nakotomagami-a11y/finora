@@ -119,6 +119,8 @@ function withRun(state: InvestigationState, runId: string, change: (run: RunStat
  * `gap` and applies nothing, so no finding can be lost or doubled. Otherwise the event moves `lastEventId` to its id.
  */
 export function reduce(state: InvestigationState, event: InvestigationEvent): InvestigationState {
+  // An event of another investigation (a stale stream after the page moved on) is not this page's.
+  if (event.investigationId !== state.id) return state;
   if (event.id <= state.lastEventId) return state;
   if (event.id !== state.lastEventId + 1) return state.gap ? state : { ...state, gap: true };
   const next = apply(state, event);

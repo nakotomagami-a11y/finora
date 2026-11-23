@@ -8,9 +8,23 @@ const route = (id: string) => API_ROUTES.find((r) => r.operationId === id) as (t
 
 describe("buildUrl", () => {
   it("fills each path parameter, encoded, and adds only the query values that are set", () => {
-    expect(buildUrl(route("investigation"), { params: { id: "inv 1/x" } })).toBe("/api/v1/investigations/inv%201%2Fx");
+    expect(buildUrl(route("investigation"), { params: { id: "inv 1&x" } })).toBe("/api/v1/investigations/inv%201%26x");
     expect(buildUrl(route("search"), { query: { q: "Example & Sons", country: undefined } })).toBe("/api/v1/search?q=Example%20%26%20Sons");
     expect(buildUrl(route("health"))).toBe("/api/v1/health");
+  });
+
+  it("refuses a path parameter that would leave its route: dot, dot-dot, empty, a slash or a backslash", () => {
+    for (const value of [".", "..", "", "a/b", "../x", "a\\b", "/", "%2e%2e/x"]) {
+      expect(() => buildUrl(route("investigation"), { params: { id: value } }), JSON.stringify(value)).toThrowError("unsafe path parameter: id");
+    }
+    // Ordinary ids, including ones with a dot inside, still work.
+    expect(buildUrl(route("investigation"), { params: { id: "inv.1-a_b" } })).toBe("/api/v1/investigations/inv.1-a_b");
+  });
+
+  it("answers bad_request for such an id and sends nothing", async () => {
+    const fetchFn = vi.fn();
+    expect(await callApi("investigation", { params: { id: ".." } }, fetchFn as unknown as typeof fetch)).toEqual({ ok: false, status: 0, code: "bad_request" });
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 
   it("refuses a missing path parameter", () => {
