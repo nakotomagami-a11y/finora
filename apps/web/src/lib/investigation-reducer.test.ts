@@ -74,7 +74,7 @@ const replay = (events: InvestigationEvent[], from: InvestigationState = emptySt
 
 /** What two states must share to show the same page; the step line is live only. */
 function shown(state: InvestigationState) {
-  const { connection: _c, gap: _g, lastError: _e, ...rest } = state;
+  const { connection: _c, gap: _g, lastError: _e, applied: _a, ...rest } = state;
   const runs = Object.fromEntries(Object.entries(rest.runs).map(([id, run]) => {
     const { stepKey: _s, stepParams: _p, ...kept } = run;
     return [id, kept];
@@ -136,6 +136,23 @@ describe("the reducer", () => {
     expect(Object.keys(resumed.findings)).toEqual(["f1"]);
     expect(resumed.lastEventId).toBe(STREAM.length);
     expect(resumed.status).toBe("done");
+  });
+
+  it("counts the events it really applied, and a snapshot keeps the count", () => {
+    const state = replay(STREAM.slice(0, 5));
+    expect(state.applied).toBe(5);
+    expect(reduce(state, STREAM[2] as InvestigationEvent).applied).toBe(5); // a duplicate is not counted
+    expect(reduce(state, STREAM[8] as InvestigationEvent).applied).toBe(5); // an event that skips ids is not counted
+    const unplaceable = reduce(emptyState(ID), ev(1, "run.status", { runId: "run-x", status: "running" }));
+    expect(unplaceable.applied).toBe(0);
+  });
+
+  it("applies nothing while a gap is open, not even the next id in order", () => {
+    const gapped = reduce(replay(STREAM.slice(0, 5)), STREAM[8] as InvestigationEvent);
+    expect(gapped.gap).toBe(true);
+    const after = reduce(gapped, STREAM[5] as InvestigationEvent); // event 6 is the next in order, but the gap is open
+    expect(after).toBe(gapped);
+    expect(after.lastEventId).toBe(5);
   });
 
   it("keeps a source count from going down", () => {

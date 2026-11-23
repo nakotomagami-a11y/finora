@@ -87,7 +87,7 @@ describe("the committed fixture files", () => {
 describe("the event scripts", () => {
   /** The page-visible state; the live step line is not part of a snapshot. */
   const shown = (state: InvestigationState) => {
-    const { connection: _c, gap: _g, lastError: _e, ...rest } = state;
+    const { connection: _c, gap: _g, lastError: _e, applied: _a, ...rest } = state;
     const runs = Object.fromEntries(Object.entries(rest.runs).map(([id, run]) => [id, { ...run, stepKey: undefined, stepParams: undefined }]));
     return JSON.parse(JSON.stringify({ ...rest, runs })) as unknown;
   };

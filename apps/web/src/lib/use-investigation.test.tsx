@@ -260,6 +260,86 @@ describe("useInvestigation", () => {
     });
   });
 
+  describe("through the real stream client, against a server that keeps misbehaving", () => {
+    const frame = (e: InvestigationEvent) => `id: ${e.id}\nevent: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`;
+    const advance = async (ms: number) => {
+      for (let spent = 0; spent < ms; spent += 1000) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      }
+    };
+
+    /** A fake server: the snapshot URL answers `snapshotAt`, the event URL sends `frames` and then ends the stream. */
+    function server(snapshotAt: number, frames: string) {
+      const requests = { snapshot: 0, events: 0 };
+      const encoder = new TextEncoder();
+      const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/events")) {
+          requests.events += 1;
+          const body = new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode(frames));
+              controller.close();
+            },
+          });
+          return new Response(body, { status: 200 });
+        }
+        requests.snapshot += 1;
+        return new Response(JSON.stringify(snapshot({ lastEventId: snapshotAt })), { status: 200 });
+      }) as unknown as typeof fetch;
+      return { fetchFn, requests };
+    }
+
+    it("a snapshot older than the page does not cure a gap: events 4 and 6 against a snapshot at 3 back off and give up", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        // Event 4 applies; event 6 skips 5 and raises a gap; the snapshot the server gives is at 3, behind the page.
+        const frames = frame(event(4, "investigation.status", { status: "running" })) + frame(event(6, "investigation.status", { status: "waiting" }));
+        const { fetchFn, requests } = server(3, frames);
+        const { result } = renderHook(() => useInvestigation(ID, { fetchFn, random: () => 0.5 }));
+        await advance(60_000);
+        // On the backoff: a handful of requests in the first minute, not forty.
+        expect(requests.snapshot).toBeLessThan(10);
+        expect(requests.events).toBeLessThan(10);
+        expect(result.current.attempt).toBeGreaterThanOrEqual(3);
+        await advance(5 * 60 * 1000);
+        expect(result.current.state.connection).toBe("failed");
+        expect(result.current.gaveUp).toBe(true);
+        // After the give-up nothing more is asked, of the snapshot route or the stream, and the status stays failed.
+        const settled = { ...requests };
+        await advance(120_000);
+        expect(requests).toEqual(settled);
+        expect(result.current.state.connection).toBe("failed");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("duplicates and gap events do not restart the stream's own backoff, and a manual refetch is the only way back", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        // Every connection replays a duplicate (id 3, already applied) and then an event that raises a gap.
+        const frames = frame(event(3, "investigation.status", { status: "running" })) + frame(event(9, "investigation.status", { status: "waiting" }));
+        const { fetchFn, requests } = server(3, frames);
+        const { result } = renderHook(() => useInvestigation(ID, { fetchFn, random: () => 0.5 }));
+        await advance(6 * 60 * 1000);
+        expect(result.current.gaveUp).toBe(true);
+        const settled = { ...requests };
+        await advance(120_000);
+        expect(requests).toEqual(settled);
+        // By hand: the count starts again, and the page asks once more.
+        await act(async () => result.current.refetch());
+        await advance(2000);
+        expect(requests.snapshot).toBeGreaterThan(settled.snapshot);
+        expect(result.current.gaveUp).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   it("starts from nothing when the investigation id changes, and drops the old one's late answer", async () => {
     const stream = fakeStream();
     let releaseOld!: () => void;

@@ -27,6 +27,8 @@ export type InvestigationState = {
   id: string;
   /** The id of the last event applied; the stream resumes after it. */
   lastEventId: number;
+  /** How many events have actually been applied since this state was created from nothing; a snapshot keeps it. */
+  applied: number;
   status: Snapshot["status"];
   code?: string;
   resetsAt?: string;
@@ -68,6 +70,7 @@ export function fromSnapshot(snapshot: Snapshot, connection: Connection = "conne
   return {
     id: snapshot.id,
     lastEventId: snapshot.lastEventId,
+    applied: 0,
     status: snapshot.status,
     ...(snapshot.code ? { code: snapshot.code } : {}),
     ...(snapshot.resetsAt ? { resetsAt: snapshot.resetsAt } : {}),
@@ -93,6 +96,7 @@ export function emptyState(id: string): InvestigationState {
   return {
     id,
     lastEventId: 0,
+    applied: 0,
     status: "planning",
     order: [],
     runs: {},
@@ -122,11 +126,13 @@ export function reduce(state: InvestigationState, event: InvestigationEvent): In
   // An event of another investigation (a stale stream after the page moved on) is not this page's.
   if (event.investigationId !== state.id) return state;
   if (event.id <= state.lastEventId) return state;
+  // While a gap is open nothing applies, so no event can show before its predecessors; the snapshot clears the gap.
+  if (state.gap) return state;
   if (event.id !== state.lastEventId + 1) return state.gap ? state : { ...state, gap: true };
   const next = apply(state, event);
-  // An event that could not be placed (an unknown run) is not counted as applied.
-  if (next.gap && !state.gap) return next;
-  return { ...next, lastEventId: event.id };
+  // An event that could not be placed (an unknown run) is not counted as applied: the gap it raised stays open.
+  if (next.gap) return next;
+  return { ...next, lastEventId: event.id, applied: state.applied + 1 };
 }
 
 function apply(state: InvestigationState, event: InvestigationEvent): InvestigationState {

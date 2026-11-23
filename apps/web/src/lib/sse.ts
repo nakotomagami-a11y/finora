@@ -109,7 +109,11 @@ export type EventStreamOptions = {
   url: string;
   /** The id of the last event the page applied; asked again on every (re)connect. */
   lastEventId: () => number;
-  onEvent: (event: InvestigationEvent) => void;
+  /**
+   * Returns whether the event moved the page forward. The backoff starts over only for an event that did: a duplicate, or
+   * an event that raised a gap, proves nothing. Returning nothing counts as moved.
+   */
+  onEvent: (event: InvestigationEvent) => boolean | void;
   onStatus: (status: StreamStatus) => void;
   /** A message that is not a valid event is dropped, and this says why (never the content). */
   onInvalid?: (reason: string) => void;
@@ -173,10 +177,10 @@ export function openEventStream(options: EventStreamOptions): EventStream {
         options.onInvalid?.("not_an_event");
         return;
       }
-      // The backoff starts over only once the server has really sent something. A server that accepts a connection and
-      // closes it at once must not be asked again every second for ever.
-      attempt = 0;
-      options.onEvent(parsed.data);
+      // The backoff starts over only when the server has sent something that moved the page forward. A server that
+      // accepts a connection and closes it at once, or keeps replaying an event that changes nothing, must not be
+      // asked again every second for ever.
+      if (options.onEvent(parsed.data) !== false) attempt = 0;
     }, armSilence, () => {
       // The server sent a line or a message that is far too large: cut the connection and try again, on the backoff.
       options.onInvalid?.("too_large");

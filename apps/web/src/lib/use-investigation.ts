@@ -1,7 +1,7 @@
 "use client";
 
 import { API_ROUTES, InvestigationSnapshot } from "@finora/api-contract";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buildUrl, callApi, UnsafePathParameter } from "./api.ts";
 import { emptyState, fromSnapshot, isActive, reduce, setConnection, type InvestigationState } from "./investigation-reducer.ts";
 import { BACKOFF_MS, openEventStream, RECONNECTING_AFTER_MS, type EventStreamOptions, type StreamStatus } from "./sse.ts";
@@ -22,10 +22,13 @@ function step(state: InvestigationState, action: Action): InvestigationState {
   switch (action.kind) {
     case "reset":
       return state.id === action.id ? state : emptyState(action.id);
-    case "snapshot":
-      // A snapshot of another investigation, or older than what is already applied, must not move the page.
+    case "snapshot": {
+      // A snapshot of another investigation must not move the page.
       if (action.snapshot.id !== state.id) return state;
-      return action.snapshot.lastEventId < state.lastEventId ? { ...state, gap: false } : fromSnapshot(action.snapshot, state.connection);
+      // One older than what is already applied changes nothing but the gap flag: the page is already further on.
+      if (action.snapshot.lastEventId < state.lastEventId) return { ...state, gap: false };
+      return { ...fromSnapshot(action.snapshot, state.connection), applied: state.applied };
+    }
     case "event":
       return reduce(state, action.event);
     case "connection":
@@ -52,6 +55,9 @@ export type UseInvestigation = {
   error: string | null;
   /** How many times in a row the page has had to ask for the snapshot again without a cure: the banner's "attempt N". */
   attempt: number;
+  /** The page gave up after 5 minutes. Nothing more is asked until `refetch` is called. */
+  gaveUp: boolean;
+  /** Ask for the snapshot now, by hand: the only thing that replaces a failed connection. */
   refetch(): void;
 };
 
@@ -59,15 +65,15 @@ export type UseInvestigation = {
 type Cure = {
   /** A snapshot was applied for a gap, and no event has applied since. */
   awaiting: boolean;
-  /** The event id that snapshot was at. */
-  snapshotId: number;
+  /** The reducer's applied-event counter when that snapshot landed: it must go up for the gap to count as cured. */
+  appliedAtLanding: number;
   /** Gaps in a row that a snapshot did not cure. */
   uncured: number;
   /** When the first of them happened. */
   since: number | null;
 };
 
-const freshCure = (): Cure => ({ awaiting: false, snapshotId: 0, uncured: 0, since: null });
+const freshCure = (): Cure => ({ awaiting: false, appliedAtLanding: 0, uncured: 0, since: null });
 
 const backoff = (count: number, random: () => number): number => {
   const base = BACKOFF_MS[Math.min(Math.max(count, 1) - 1, BACKOFF_MS.length - 1)] as number;
@@ -82,37 +88,47 @@ const backoff = (count: number, random: () => number): number => {
  * Once a snapshot lands the stream is closed and opened again, so the server replays every event after the snapshot's
  * id: an event that arrived while the snapshot was loading is not lost.
  *
- * A snapshot can fail to cure a gap (the server's snapshot lags its event log, so the replayed event names a run the
- * snapshot does not have). The page counts those gaps in a row, backs off on the same schedule, and gives up after 5
- * minutes; the count starts over only when an event applies after a reopen.
+ * A snapshot can fail to cure a gap (the server's snapshot lags its event log, or is older than the page). The cure is
+ * judged by the reducer's own count of events applied: after a reopen the count must go up, or the gap was not cured.
+ * Gaps in a row that were not cured are counted and backed off on the stream's schedule. After 5 minutes the page
+ * gives up: the stream is closed, nothing more is requested, and only a manual `refetch` starts again.
  */
 export function useInvestigation(id: string, options: UseInvestigationOptions = {}): UseInvestigation {
   const { live } = options;
   // Injected functions are read through a ref, so a new function on every render does not restart the stream.
   const injected = useRef(options);
   injected.current = options;
-  const [state, dispatch] = useReducer(step, id, emptyState);
+  // The state lives in a ref as well as in React state, so the stream can learn synchronously whether an event moved it.
+  const [state, setState] = useState<InvestigationState>(() => emptyState(id));
+  const ref = useRef(state);
+  const apply = useCallback((action: Action) => {
+    const next = step(ref.current, action);
+    if (next !== ref.current) {
+      ref.current = next;
+      setState(next);
+    }
+  }, []);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [generation, setGeneration] = useState(0);
-  const latest = useRef(state);
-  latest.current = state;
+  const [gaveUp, setGaveUp] = useState(false);
   const currentId = useRef(id);
   currentId.current = id;
   const cure = useRef<Cure>(freshCure());
 
   // A different investigation: start from nothing, so nothing of the old one can show on the new.
   useEffect(() => {
-    dispatch({ kind: "reset", id });
+    apply({ kind: "reset", id });
     cure.current = freshCure();
     setLoaded(false);
     setError(null);
     setAttempt(0);
     setGeneration(0);
-  }, [id]);
+    setGaveUp(false);
+  }, [id, apply]);
 
-  /** Reads the snapshot once. Returns its last event id when it landed, null when it did not (or is for an old id). */
+  /** Reads the snapshot once. Returns the applied-event count at landing when it landed, null when it did not (or is for an old id). */
   const load = useCallback(async (): Promise<number | null> => {
     const asked = id;
     const result = await callApi("investigation", { params: { id: asked } }, injected.current.fetchFn);
@@ -123,40 +139,40 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
     }
     const snapshot = InvestigationSnapshot.parse(result.data);
     setError(null);
-    dispatch({ kind: "snapshot", snapshot });
+    apply({ kind: "snapshot", snapshot });
     setLoaded(true);
-    return snapshot.lastEventId;
-  }, [id]);
+    return ref.current.applied;
+  }, [id, apply]);
 
   useEffect(() => {
     let cancelled = false;
     void load().then((landed) => {
-      if (landed === null && !cancelled && currentId.current === id) dispatch({ kind: "failed" });
+      if (landed === null && !cancelled && currentId.current === id) apply({ kind: "failed" });
     });
     return () => {
       cancelled = true;
     };
-  }, [load, id]);
+  }, [load, id, apply]);
 
   // An event applied after a snapshot that was fetched for a gap: that snapshot cured it.
   useEffect(() => {
     const c = cure.current;
-    if (c.awaiting && !state.gap && state.lastEventId > c.snapshotId) {
+    if (c.awaiting && !state.gap && state.applied > c.appliedAtLanding) {
       cure.current = freshCure();
       setAttempt(0);
     }
-  }, [state.lastEventId, state.gap]);
+  }, [state.applied, state.gap]);
 
   // A gap in the ids: ask for the snapshot again, with backoff, and say "reconnecting" if it takes over 3 s.
   const gap = state.gap;
   useEffect(() => {
-    if (!gap) return;
+    if (!gap || gaveUp) return;
     const random = injected.current.random ?? Math.random;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let tries = 0;
     const startedAt = Date.now();
-    const reconnecting = setTimeout(() => dispatch({ kind: "connection", status: "reconnecting" }), RECONNECTING_AFTER_MS);
+    let reconnecting: ReturnType<typeof setTimeout> | undefined = setTimeout(() => apply({ kind: "connection", status: "reconnecting" }), RECONNECTING_AFTER_MS);
 
     // A gap that returns right after a snapshot was applied for the last one: the snapshot did not cure it.
     const c = cure.current;
@@ -166,27 +182,30 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
       c.awaiting = false;
       setAttempt(c.uncured);
     }
-    const giveUp = () => c.since !== null && Date.now() - c.since >= GIVE_UP_AFTER_MS;
+
+    /** Stop for good: no timer left, the stream closed (streaming goes false), and the page says the connection is lost. */
+    const giveUp = () => {
+      clearTimeout(reconnecting);
+      reconnecting = undefined;
+      clearTimeout(timer);
+      setGaveUp(true);
+      apply({ kind: "failed" });
+    };
+    const overdue = () => c.since !== null && Date.now() - c.since >= GIVE_UP_AFTER_MS;
 
     const attemptLoad = async () => {
-      if (giveUp()) {
-        dispatch({ kind: "failed" });
-        return;
-      }
-      const landed = await load();
+      if (overdue()) return giveUp();
+      const landedAt = await load();
       if (cancelled) return;
-      if (landed !== null) {
-        cure.current = { awaiting: true, snapshotId: landed, uncured: c.uncured, since: c.since };
+      if (landedAt !== null) {
+        cure.current = { awaiting: true, appliedAtLanding: landedAt, uncured: c.uncured, since: c.since };
         setAttempt(c.uncured); // the failed fetches are over; only gaps a snapshot did not cure still count
         setGeneration((n) => n + 1); // reopen the stream: the server replays from the new snapshot's id
         return;
       }
       tries += 1;
       setAttempt(c.uncured + tries);
-      if (Date.now() - startedAt >= GIVE_UP_AFTER_MS || giveUp()) {
-        dispatch({ kind: "failed" });
-        return;
-      }
+      if (Date.now() - startedAt >= GIVE_UP_AFTER_MS || overdue()) return giveUp();
       timer = setTimeout(() => void attemptLoad(), backoff(c.uncured + tries, random));
     };
 
@@ -199,9 +218,11 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
       clearTimeout(timer);
       clearTimeout(reconnecting);
     };
-  }, [gap, load]);
+  }, [gap, gaveUp, load, apply]);
 
-  const streaming = live !== false && loaded && state.id === id && isActive(state.status);
+  // The stream is closed while a gap is open (nothing could apply, and it would only be asked for the same events
+  // again and again) and opened again, from the snapshot's id, when the snapshot has landed.
+  const streaming = live !== false && loaded && !gaveUp && !state.gap && state.id === id && isActive(state.status);
   useEffect(() => {
     if (!streaming || !EVENTS_ROUTE) return;
     let url: string;
@@ -215,14 +236,28 @@ export function useInvestigation(id: string, options: UseInvestigationOptions = 
     const fetchFn = injected.current.fetchFn;
     const stream = open({
       url,
-      lastEventId: () => latest.current.lastEventId,
-      onEvent: (event) => dispatch({ kind: "event", event }),
-      onStatus: (status) => dispatch({ kind: "connection", status }),
-      shouldReconnect: () => isActive(latest.current.status),
+      lastEventId: () => ref.current.lastEventId,
+      onEvent: (event) => {
+        const before = ref.current.applied;
+        apply({ kind: "event", event });
+        // Only an event that moved the page forward proves the connection works.
+        return ref.current.applied > before;
+      },
+      onStatus: (status) => apply({ kind: "connection", status }),
+      shouldReconnect: () => isActive(ref.current.status),
       ...(fetchFn ? { fetch: fetchFn } : {}),
     });
     return () => stream.close();
-  }, [streaming, id, generation]);
+  }, [streaming, id, generation, apply]);
 
-  return { state, loading: !loaded && error === null, error, attempt, refetch: () => void load() };
+  const refetch = useCallback(() => {
+    // By hand: forget the failure, and start the whole path again from a clean count.
+    cure.current = freshCure();
+    setGaveUp(false);
+    setAttempt(0);
+    apply({ kind: "connection", status: "connecting" });
+    void load();
+  }, [apply, load]);
+
+  return { state, loading: !loaded && error === null, error, attempt, gaveUp, refetch };
 }
