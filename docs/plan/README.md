@@ -171,6 +171,10 @@ Slots now: architect (S05 items 1-6), qa (S04u review), and one free slot, which
   - The architect ran 6 full runs at the tip with logs kept: 6 of 6 passed, 1264 of 1264, with no fatal. qa's 3 of 3 at `62b9bb2` agree, and the 15-failure run has not repeated.
   - `82d370a`: `pnpm test` runs through `scripts/vitest-run.mjs`. It reruns a file once only when the known V8 teardown fatal killed its fork and no test failed. Any failed test, or any other fork death, still fails the run, which four tests in `scripts/vitest-run.test.mjs` cover. The rerun is noted in `docs/running.md`.
   - If the 15-failure case recurs with output, the architect takes it.
+  - **The retry is not yet proven (qa 7092043480):**
+    - `retryable()` refuses when a `Test Files N failed` line matches, and vitest may print that line for a crashed file even when no test failed. The tests use synthetic output. **Owed (architect):** add a real crashed run's output as a test fixture, and show that `retryable()` returns the file. Until then, the green runs show only that the crash did not happen.
+    - **NIT:** a V8 fatal plus an unrelated fork death reruns both, which masks the second. Retry only when every crash line comes with the fatal.
+    - **NIT:** `spawnSync` buffers about 2 minutes of output. Stream it live and keep a copy for the check.
 
 - **Native review of the `lt`, `lv` and `et` texts** (legal, S02): the Baltic UI and terms texts are drafted by the frontend seat and listed in `packages/i18n/REVIEW.md`; no seat is a native speaker. They ship marked as drafts, and native review goes to the session 3 agenda (the human may know a reviewer, or accept drafts for v1). Legal reviews the terms texts as a second pass after native review.
 
