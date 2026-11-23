@@ -14,6 +14,7 @@ This page grows with S12 (`pnpm finora` for Latvia) and is final in S25. Until t
 - **Trigger:** many short-lived worker isolates started and stopped in one process. It was seen on Windows with Node 24.20 when an early version of the CLI started one worker per source (about 20 per run).
 - **What Finora does:** one long-lived worker per lane, so a run starts at most five workers. Do not reintroduce a worker per source or per record.
 - **If you see it anyway:** note the Node version and the command, and rerun: a second run is incremental, so sources that already finished and have not changed write nothing.
+- **In the test suite:** the worker tests (`ingest/src/concurrency.test.ts`) start and stop workers on purpose, and about one full run in five or ten ends on this fatal with no test failed. `pnpm test` runs Vitest through `scripts/vitest-run.mjs`: when that fatal is the run's only problem, it reruns the crashed file once and says so; any failed test fails the run as before.
 
 ## Agents and your Claude plan
 

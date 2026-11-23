@@ -13,7 +13,7 @@
     "start": "pnpm --filter @finora/web start",
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "node --test \"scripts/*.test.mjs\" \"scripts/guard/*.test.mjs\" && vitest run",
+    "test": "node --test \"scripts/*.test.mjs\" \"scripts/guard/*.test.mjs\" && node scripts/vitest-run.mjs",
     "build": "pnpm -r --if-present build",
     "e2e": "pnpm -r --if-present e2e",
     "gen:items": "node scripts/gen-items.mjs",
