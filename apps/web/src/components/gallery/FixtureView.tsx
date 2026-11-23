@@ -40,6 +40,9 @@ function Investigation({ snapshot }: { snapshot: InvestigationSnapshot }) {
   const settled = !isActive(state.status);
   const parts = meterParts(state.usage, settled);
   const share = usageShare(state.usage, settled);
+  // DESIGN.md §9.4: running reads "held for running work"; settled leaves the held part out; under 1% says so.
+  const shareText = share.underOne ? "Under 1%" : describeShare("en", share, "under 1%");
+  const meterText = `${shareText} of the cap: ${formatTokens("en", state.usage.used)} used, ${settled ? "" : `${formatTokens("en", state.usage.held)} held for running work, `}cap ${formatTokens("en", state.usage.cap)} standard tokens`;
   const pending = Object.values(state.questions).filter((question) => question.answer === undefined);
   return (
     <>
@@ -53,7 +56,7 @@ function Investigation({ snapshot }: { snapshot: InvestigationSnapshot }) {
           <p className="text-small text-ink-2">
             {describeShare("en", share, "under 1%")} of the cap · {formatTokens("en", state.usage.used)} used, {formatTokens("en", state.usage.held)} held, cap {formatTokens("en", state.usage.cap)} standard tokens
           </p>
-          <UsageMeter label="Usage of this investigation's cap" solid={parts.solid} band={parts.band} valueText={`${describeShare("en", share, "under 1%")} of the cap: ${formatTokens("en", state.usage.used)} used, ${formatTokens("en", state.usage.held)} held, cap ${formatTokens("en", state.usage.cap)} standard tokens`} />
+          <UsageMeter label="Usage of this investigation's cap" solid={parts.solid} band={parts.band} valueText={meterText} />
         </div>
       </Card>
       <Card title="Lanes">
