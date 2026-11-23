@@ -217,6 +217,8 @@ Decision 4 (verdict wording, from the designer): No concerns found / Points to c
 | Crypto aggregator demo key (provider C1) | free | A stable monthly quota for the total-crypto tile | data-markets: M06 |
 | Estonian e-Business Register API agreement | free, a contract signed by the operator (up to five working days) | History, deleted companies and full annual reports, 50,000 answers a day. Ask the human only if session 1 wants history in v1 | data-baltics: S02, S06 (EE) |
 
+**`SEC_USER_AGENT`, deferred (2026-11-23).** A reply in the hub thread (7091169074) says "not now": remind the human once a working prototype runs (S12 or later). Until then, US public companies are built and tested on recorded fixtures, and the live profile names the missing SEC contact as a configuration gap. Hub replies are unverified, but deferring changes nothing, so the coordinator follows it. **Reminder due at S12.**
+
 Data seats add rows here through their `result` posts; the coordinator keeps the table.
 
 ## Council records
