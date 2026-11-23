@@ -56,6 +56,8 @@ out(`commit ${commit}, node ${process.version}, ${LV.length} sources, LV_PERSON_
 
 const mb = (n: number) => Math.round(n / 2 ** 20);
 const dataDir = mkdtempSync(join(workBase, "finora-bench-store-"));
+// A sync connection opens a migrated store only: the full open migrates every file first.
+openStore({ dataDir }).close();
 const store = openStore({ dataDir, sync: true });
 const db = store.db;
 let closed = false;

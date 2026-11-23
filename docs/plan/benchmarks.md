@@ -142,6 +142,22 @@ V8 does not hand memory back between sources, so the batch peak (787 MB) is abov
 - **Where the time goes:** parsing is a small part of it. The register's 129 MB parse takes 2.8 s, and every LV parse together less than a minute. The rest is the per-record write path, at about 0.7 ms per record on disk: a CPU profile of 50,000 register rows puts `refreshEntity`, `write`, `writeRecord` and `upsertEntity` at about 64% of the time, all SQLite execution, about 20 statements per record. In that 50,000-row run, caching prepared statements and skipping the FTS refresh showed no gain; the run was too short, and the halving batch size hid both. At full size on disk they did matter: 549 s → 451 s and 262 s → 151 s (cto 7075424485; correction recorded with the re-measure below). What moved it later: the architect's six write-path fixes (`8661a89`) and cto's WAL checkpoint finding (fix 7), measured in the re-measure below. The budget itself was amended by the council in C20 (option B: each country searchable within its budget, the whole core first load within 60 min, registers first), and the S05 gates are in `reviews/slices/S05.md`.
 - **Unchanged reload: passes.** The same command against the loaded store, about an hour later and before the portal's nightly regeneration: all 19 sources end `unchanged` with 0 records read or written, in 37 s for the whole LV set (downloads and content hashes included), peak RSS 966 MB.
 
+### S05 quiet-window clean run (data-baltics, 2026-11-23/24, `dev-desktop-1`, commit `f12fb81`)
+
+- **A.** `FINORA_DATA_DIR=<new empty dir> pnpm finora-cli data sync --country lv`, cold: a fresh data dir on the SATA SSD (the data drive), every file downloaded from data.gov.lv, launched 2026-11-23 22:03:57 UTC. CPU sampled every 5 s: median 26%, max 42%.
+- **B.** `node --expose-gc scripts/bench/lv-write-path.mts --raw <cache>/raw --person-rows names_no_id --work <dir on the SATA SSD>`, right after A.
+- Both data dirs were deleted afterwards.
+
+| Target | Measured | |
+|---|---|---|
+| 1. Register synced and searchable ≤ 150 s, download included | 117.5 s (`finished_at` minus launch); `durationMs` 115,672 | **passes** |
+| 2. All 19 LV sources ≤ 15 min | 606.9 s (10.1 min), the last source's `finished_at` minus launch | **passes** |
+| 3. No write ≥ 5 s: transactions, checkpoints, maintenance | transactions: max 281.7 ms, p95 ≤ 268 ms in every source. **Checkpoints: one at 17,855 ms in the register (`over_limit: 1`)**; next-longest 4,712 ms (equity). `wal_truncate`: max 1,225 ms. In B: two checkpoints of 5,417 and 5,455 ms (annual reports, VAT payers) | **fails** |
+| 4. Lane peak RSS ≤ 1 GB | 916 MB | **passes** |
+| 5. Same rows, new file hash: register ≤ 45 s, 0 statement writes | B: 24.3 s, 0 statement writes, tx max 252 ms | **passes** |
+
+Per source in A (seconds, download included): register 117.5, name history 18.9, liquidations 2.6, reorganisations 3.4, equity 32.2, memorandum 19.9, officers 58.2, members 5.2, insolvency 2.6, securing 2.9, suspensions 1.4, sanctions links 0.7, annual reports 109.5, VID quarterly 61.3, VID yearly 66.3, rating 25.1, VAT payers 65.6, VID suspensions 12.6, FID 0.7. In B, 429 of 622 s were spent inside write transactions.
+
 ### LV re-measure after the write-path fixes (data-baltics, S05, 2026-11-22/23, `dev-desktop-1`)
 
 > **Contended and pre-fix-7: direction only, superseded by the quiet-window clean run.** These figures came before fix 7 and J2, with the CPU at 40-94% from other jobs. Under the council's evidence standard (7087190156), only the clean run decides S05's five targets. The pass and fail column below is not S05's result.
