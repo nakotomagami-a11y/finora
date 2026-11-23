@@ -84,7 +84,7 @@ export function DebtCard({ row, now }: { row: RowView | undefined; now: Date }) 
         </>
       )}
       <div className="mt-auto flex flex-col gap-1.5">
-        {row ? <SourceChips rows={[row]} /> : null}
+        {row ? <SourceChips rows={[row]} now={now} /> : null}
         {row?.attribution ? <Caveat>{row.attribution}</Caveat> : null}
       </div>
     </section>

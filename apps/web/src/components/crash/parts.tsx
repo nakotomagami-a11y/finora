@@ -27,8 +27,9 @@ export function Drawdown({ pct, word = "hidden", big = false }: { pct: number; w
   if (atPeak) return <span className="text-ink-2">{t("atPeak")}</span>;
   const shown = tiny ? t("underTenth") : text;
   return (
-    <span className={big ? "inline-flex items-center gap-2 text-bad" : "inline-flex items-center gap-1 text-bad"}>
-      <Icon name="down" className={big ? "size-6" : "size-3.5"} />
+    // The icon is centred on its own, so the figure alone gives the baseline: a date beside it sits on the same text baseline.
+    <span className={big ? "inline-flex items-baseline gap-2 text-bad" : "inline-flex items-baseline gap-1 text-bad"}>
+      <Icon name="down" className={big ? "size-6 self-center" : "size-3.5 self-center"} />
       <span className={big ? "text-[34px] leading-10 font-semibold tracking-[-0.01em] tabular-nums" : "tabular-nums"}>{shown}</span>
       <span className={word === "visible" ? "text-small font-normal text-ink-2" : "sr-only"}>{tiny ? "" : t("fromPeakWord")}</span>
     </span>
@@ -131,53 +132,65 @@ export function Caveat({ children }: { children: ReactNode }) {
   );
 }
 
-/** The sources behind a set of rows, once each (the latest figure of each), for the chips in a tile footer. */
-function distinctSources(rows: RowView[]): SourceView[] {
-  const byId = new Map<string, SourceView>();
-  for (const source of rows.flatMap((row) => row.sources)) {
-    const known = byId.get(source.sourceId);
-    if (!known || (source.asOf ?? "") > (known.asOf ?? "")) byId.set(source.sourceId, source);
+/** One source behind a set of rows, with the row whose figure it is: the chip shows that row's as-of, not the retrieval date. */
+type ChipSource = { source: SourceView; row: RowView };
+
+/** The sources behind a set of rows, once each, for the chips in a tile footer: each with the row that has the latest as-of. */
+function distinctSources(rows: RowView[]): ChipSource[] {
+  const byId = new Map<string, ChipSource>();
+  for (const row of rows) {
+    for (const source of row.sources) {
+      const known = byId.get(source.sourceId);
+      if (!known || (row.asOf ?? "") > (known.row.asOf ?? "")) byId.set(source.sourceId, { source, row });
+    }
   }
   return [...byId.values()];
 }
 
 /**
- * Source chips (DESIGN.md section 6.1): mono, "source, as-of date", each opening a popover with the licence, the access
- * tier and the times. They sit above the attribution lines, which stay exactly as the provider file words them.
+ * Source chips (DESIGN.md section 6.1): mono, "short name, as-of date", each opening a popover with the licence, the
+ * access tier and the times. The short name comes from the catalogue (`crash.sources.<id>`); a source it does not know
+ * shows its id. They sit above the attribution lines, which stay exactly as the provider file words them.
  */
-export function SourceChips({ rows }: { rows: RowView[] }) {
+export function SourceChips({ rows, now }: { rows: RowView[]; now: Date }) {
   const t = useTranslations("crash");
   const locale = useLocaleId();
   const sources = distinctSources(rows);
   if (sources.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
-      {sources.map((source) => (
-        <Popover
-          key={source.sourceId}
-          label={t("chip.label")}
-          trigger={
-            <Chip aria-haspopup="dialog">
-              {source.sourceId}
-              {source.asOf ? ` · ${formatAsOfDate(locale, source.asOf)}` : ""}
-            </Chip>
-          }
-        >
-          <div className="flex flex-col gap-2">
-            <p className="m-0 font-mono text-mono font-medium text-ink">{source.sourceId}</p>
-            <p className="m-0 text-small text-ink-2">{t("chip.licence", { id: source.licenceId })}</p>
-            <p className="m-0 text-small text-ink-2">{t(source.accessTier === "open" ? "chip.open" : "chip.purpose")}</p>
-            {source.asOf ? <p className="m-0 text-small text-ink-2">{t("chip.asOf", { date: formatAsOfDate(locale, source.asOf) })}</p> : null}
-            <p className="m-0 text-small text-ink-2">{t("chip.retrieved", { when: formatDateTime(locale, source.retrievedAt) })}</p>
-            {source.checkedAt ? <p className="m-0 text-small text-ink-2">{t("chip.checked", { when: formatDateTime(locale, source.checkedAt) })}</p> : null}
-            {source.derived ? (
-              <span>
-                <Badge tone="info">{t("wiped.derived")}</Badge>
-              </span>
-            ) : null}
-          </div>
-        </Popover>
-      ))}
+      {sources.map(({ source, row }) => {
+        const name = t.has(`sources.${source.sourceId}`) ? t(`sources.${source.sourceId}`) : source.sourceId;
+        const as = asOfText(locale, row.cadence, row.asOf, now);
+        const when = as.kind === "none" ? undefined : as.text;
+        return (
+          <Popover
+            key={source.sourceId}
+            label={t("chip.label")}
+            trigger={
+              <Chip aria-haspopup="dialog">
+                {name}
+                {when ? ` · ${when}` : ""}
+              </Chip>
+            }
+          >
+            <div className="flex flex-col gap-2">
+              <p className="m-0 text-body font-medium text-ink">{name}</p>
+              <p className="m-0 font-mono text-mono text-muted">{source.sourceId}</p>
+              <p className="m-0 text-small text-ink-2">{t("chip.licence", { id: source.licenceId })}</p>
+              <p className="m-0 text-small text-ink-2">{t(source.accessTier === "open" ? "chip.open" : "chip.purpose")}</p>
+              {row.asOf ? <p className="m-0 text-small text-ink-2">{t("chip.asOf", { date: formatAsOfDate(locale, row.asOf) })}</p> : null}
+              <p className="m-0 text-small text-ink-2">{t("chip.retrieved", { when: formatDateTime(locale, source.retrievedAt) })}</p>
+              {source.checkedAt ? <p className="m-0 text-small text-ink-2">{t("chip.checked", { when: formatDateTime(locale, source.checkedAt) })}</p> : null}
+              {source.derived ? (
+                <span>
+                  <Badge tone="info">{t("wiped.derived")}</Badge>
+                </span>
+              ) : null}
+            </div>
+          </Popover>
+        );
+      })}
     </div>
   );
 }

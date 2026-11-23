@@ -39,7 +39,7 @@ function Bars({ strip }: { strip: StripRow[] }) {
   return (
     <ul aria-hidden className="m-0 flex list-none flex-col gap-2.5 p-0">
       {strip.map((row) => (
-        <li key={row.rowKey} className="flex items-center gap-3 text-small">
+        <li key={row.rowKey} aria-busy={row.kind === "loading" ? true : undefined} className="flex items-center gap-3 text-small">
           <span className="w-[92px] flex-none text-ink-2 md:w-[150px]">{t(`rows.${row.labelId}`)}</span>
           <span className="flex h-2.5 flex-1 overflow-hidden rounded-full bg-surface-2">
             {row.kind === "drop" ? <i className="block h-full rounded-full bg-bad" style={{ width: `${Math.min(100, Math.abs(row.drawdownPct) * 2.5)}%` }} /> : null}
@@ -64,6 +64,8 @@ function Bars({ strip }: { strip: StripRow[] }) {
               </span>
             ) : row.kind === "not_configured" ? (
               <span className="text-ink-2">{t("strip.notConfigured")}</span>
+            ) : row.kind === "loading" ? (
+              <span className="text-ink-2">{t("strip.loading")}</span>
             ) : (
               <span className="text-muted">{t("peakUnknownShort")}</span>
             )}
@@ -96,9 +98,9 @@ function StripTable({ rows, strip }: { rows: RowView[]; strip: StripRow[] }) {
             const row = rows.find((r) => r.rowKey === s.rowKey);
             if (!row) return null;
             return (
-              <tr key={s.rowKey}>
+              <tr key={s.rowKey} aria-busy={s.kind === "loading" ? true : undefined}>
                 <Td>{t(`rows.${s.labelId}`)}</Td>
-                <Td>{s.kind === "drop" ? t("fromPeak", { pct: formatDrawdown(locale, s.drawdownPct).text || t("underTenth") }) : s.kind === "at_peak" ? t("atPeak") : s.kind === "error" ? (s.invalid ? t("strip.failedCheck") : t("strip.notChecked")) : s.kind === "not_configured" ? t("strip.notConfigured") : t("peakUnknownShort")}</Td>
+                <Td>{s.kind === "drop" ? t("fromPeak", { pct: formatDrawdown(locale, s.drawdownPct).text || t("underTenth") }) : s.kind === "at_peak" ? t("atPeak") : s.kind === "error" ? (s.invalid ? t("strip.failedCheck") : t("strip.notChecked")) : s.kind === "not_configured" ? t("strip.notConfigured") : s.kind === "loading" ? t("strip.loading") : t("peakUnknownShort")}</Td>
                 <Td>{row.peak ? formatDate(locale, row.peak.date) : "–"}</Td>
                 <Td>{formatMarketValue(locale, row.unit, row.peak?.value) ?? "–"}</Td>
                 <Td>{formatMarketValue(locale, row.unit, row.value) ?? "–"}</Td>

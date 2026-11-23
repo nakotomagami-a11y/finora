@@ -209,6 +209,12 @@ describe("the strip, at its edges", () => {
     expect(mixed.indexOf("not_configured")).toBeGreaterThan(mixed.lastIndexOf("drop"));
   });
 
+  it("lists a row that is still loading last, after the failed rows", () => {
+    const kinds = fixture("mixed").strip.map((r) => r.kind);
+    expect(kinds.at(-1)).toBe("loading");
+    expect(kinds.indexOf("loading")).toBeGreaterThan(kinds.lastIndexOf("not_configured"));
+  });
+
   it("marks a drawdown above zero as failed because of a data check, not because the source did not answer", () => {
     const page = withRow("brent", { drawdownPct: 3.2 });
     expect(page.strip.find((r) => r.labelId === "brent")).toMatchObject({ kind: "error", invalid: true });

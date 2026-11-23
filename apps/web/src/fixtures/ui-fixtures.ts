@@ -253,6 +253,22 @@ const hit = (code: string, caption: string, country: "lv" | "lt" | "ee" | "us", 
   ...over,
 });
 
+const CRASH_SOURCE: Record<string, string> = {
+  "M01.X.01:us_equities": "us-fred-open",
+  "M01.X.03:us_large": "us-fred-cited",
+  "M01.X.03:us_broad": "us-fred-cited",
+  "M01.X.03:us_tech": "us-fred-cited",
+  "M03.X.01:japan": "us-fred-cited",
+  "M03.X.01:taiwan": "e1-taiwan",
+  "M05.X.01:gold_monthly": "intl-worldbank-pinksheet",
+  "M06.X.01b:bitcoin": "crypto-x4-ohlc",
+  "M06.X.01b:ether": "crypto-x4-ohlc",
+  "M06.X.02:total_crypto": "crypto-c1",
+  "M07.X.01:brent": "us-fred-open",
+  "M07.X.01:wti": "us-fred-open",
+  "M08.X.01:us_debt": "us-treasury-debt",
+};
+
 const row = (rowKey: string, itemId: string, label: string, over: Record<string, unknown> = {}) => ({
   rowKey,
   itemId,
@@ -261,7 +277,8 @@ const row = (rowKey: string, itemId: string, label: string, over: Record<string,
   unit: "usd",
   cadence: "daily_exchange",
   delayed: false,
-  sources: [source({ sourceId: "fx-markets" })],
+  // The source each row comes from (its real id in the market loaders), dated with the row's own as-of.
+  sources: [source({ sourceId: CRASH_SOURCE[rowKey] ?? "fx-markets", asOf: String(over.asOf ?? "2026-11-21").slice(0, 10) })],
   ...over,
 });
 

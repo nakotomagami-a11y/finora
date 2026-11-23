@@ -5,16 +5,19 @@ import { formatDate, formatRelative } from "@finora/i18n";
 import { Icon } from "@finora/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { callApi } from "../../lib/api.ts";
 import { CrashTile, CrashTileSkeleton } from "./CrashTile.tsx";
 import { DebtCard } from "./DebtCard.tsx";
 import { DrawdownStrip, DrawdownStripSkeleton } from "./DrawdownStrip.tsx";
 import { buildPageView, TILES } from "./model.ts";
-import { useLocaleId, useNow } from "./parts.tsx";
+import { RowSkeleton, useLocaleId, useNow } from "./parts.tsx";
 
 /** The page polls this often while it is visible (a cache read on the server) and stops while the tab is hidden. */
 export const POLL_MS = 60_000;
+
+/** A private-use character that stands in for the date while the sentence is split around its skeleton. */
+const DATE_MARK = "\uE000";
 
 async function fetchCrash(): Promise<CrashResponse> {
   const result = await callApi("marketsCrash");
@@ -72,6 +75,21 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
   };
   const clock = now ?? new Date(0);
   const ready = page !== undefined && !loading && !page.empty;
+
+  // "since [date]" needs the answer's peak date. Until the answer arrives the date is a short skeleton, not the older wording.
+  const awaiting = loading || (data === undefined && !query.isError);
+  let howBody: ReactNode;
+  if (page?.peakSince) howBody = t("how.bodySince", { since: formatDate(locale, page.peakSince) });
+  else if (awaiting) {
+    const [before = "", after = ""] = t("how.bodySince", { since: DATE_MARK }).split(DATE_MARK);
+    howBody = (
+      <>
+        {before}
+        <RowSkeleton className="mx-0.5 inline-block h-3.5 w-20 align-middle" />
+        {after}
+      </>
+    );
+  } else howBody = t("how.body");
 
   const attributions = useMemo(() => [...new Set([...rows.flatMap((r) => (r.attribution ? [r.attribution] : [])), ...(page?.debt?.attribution ? [page.debt.attribution] : [])])], [rows, page]);
 
@@ -148,7 +166,7 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
         <h2 id="how-h" className="text-small font-semibold text-ink-2">
           {t("how.title")}
         </h2>
-        <span>{page?.peakSince ? t("how.bodySince", { since: formatDate(locale, page.peakSince) }) : t("how.body")}</span>
+        <span>{howBody}</span>
         {attributions.length > 0 ? (
           <>
             <span className="font-medium text-ink-2">{t("how.sources")}</span>

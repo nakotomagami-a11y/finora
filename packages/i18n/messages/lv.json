@@ -116,7 +116,7 @@
     "strip": {
       "title": "Attālums no virsotnes",
       "basis": "Katras rindas virsotne ir augstākais dienas slēgums tās periodā; kopējam kripto tirgum — visu laiku augstākais · sakārtots pēc krituma",
-      "basisSince": "Katras rindas virsotne ir augstākais dienas slēgums kopš {since}; kopējam kripto tirgum — visu laiku augstākais · sakārtots pēc krituma",
+      "basisSince": "Katras rindas virsotne ir augstākais dienas slēgums kopš {since}, ja rinda nenorāda citādi · sakārtots pēc krituma",
       "note": "Katra josla ir kritums no šī tirgus paša virsotnes; virsotnes ir dažādos datumos. Virzienu rāda bultiņas un zīmes, ne tikai krāsa.",
       "alt": "{name}: {pct} no virsotnes, kas bija {date}",
       "altUnknown": "{name}: virsotne vēl nav zināma",
@@ -125,6 +125,7 @@
       "seeded": "sākotnēji ievadīta virsotne",
       "notChecked": "nav pārbaudīts",
       "notConfigured": "nav iestatīts",
+      "loading": "ielādē",
       "failedCheck": "Nav rādīts: neizturēja datu pārbaudi",
       "table": "Attālums no virsotnes tabulā",
       "col": {
@@ -172,6 +173,17 @@
       "asOf": "Uz {date}",
       "retrieved": "Iegūts {when}",
       "checked": "Pārbaudīts {when}"
+    },
+    "sources": {
+      "us-fred-open": "FRED",
+      "us-fred-cited": "FRED, ar atsauci",
+      "e1-taiwan": "Birža E1",
+      "intl-worldbank-pinksheet": "Pasaules Banka",
+      "us-treasury-debt": "Fiscal Data",
+      "crypto-x4-ohlc": "Sniedzējs X4",
+      "crypto-c1": "Sniedzējs C1",
+      "crypto-o3-btc-height": "Sniedzējs O3",
+      "crypto-c3-global": "Sniedzējs C3"
     }
   },
   "terms": {

@@ -116,7 +116,7 @@
     "strip": {
       "title": "Distance from peak",
       "basis": "Each row's peak is the highest daily close in its window; the total crypto market uses its all-time high · sorted by drop",
-      "basisSince": "Each row's peak is the highest daily close since {since}; the total crypto market uses its all-time high · sorted by drop",
+      "basisSince": "Each row's peak is the highest daily close since {since}, unless the row says otherwise · sorted by drop",
       "note": "Each bar is a drop from that market's own peak; peaks fall on different dates. Arrows and signs carry the direction, not colour alone.",
       "alt": "{name}: {pct} from its peak on {date}",
       "altUnknown": "{name}: peak not known yet",
@@ -125,6 +125,7 @@
       "seeded": "peak seeded",
       "notChecked": "not checked",
       "notConfigured": "not configured",
+      "loading": "loading",
       "failedCheck": "Not shown: failed a data check",
       "table": "Distance from peak, as a table",
       "col": {
@@ -172,6 +173,17 @@
       "asOf": "As of {date}",
       "retrieved": "Retrieved {when}",
       "checked": "Checked {when}"
+    },
+    "sources": {
+      "us-fred-open": "FRED",
+      "us-fred-cited": "FRED, cited",
+      "e1-taiwan": "Exchange E1",
+      "intl-worldbank-pinksheet": "World Bank",
+      "us-treasury-debt": "Fiscal Data",
+      "crypto-x4-ohlc": "Provider X4",
+      "crypto-c1": "Provider C1",
+      "crypto-o3-btc-height": "Provider O3",
+      "crypto-c3-global": "Provider C3"
     }
   },
   "terms": {

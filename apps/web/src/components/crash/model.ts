@@ -126,7 +126,8 @@ export type StripRow =
   | { rowKey: string; labelId: string; kind: "at_peak"; stale: boolean; basis: PeakBasis }
   | { rowKey: string; labelId: string; kind: "peak_unknown" }
   | { rowKey: string; labelId: string; kind: "not_configured" }
-  | { rowKey: string; labelId: string; kind: "error"; invalid: boolean };
+  | { rowKey: string; labelId: string; kind: "error"; invalid: boolean }
+  | { rowKey: string; labelId: string; kind: "loading" };
 
 export type WipedView = {
   valueUsd: number;
@@ -177,8 +178,8 @@ export function buildPageView(response: CrashResponse): PageView {
     };
   });
 
-  // Drops first, the biggest on top; then markets at their peak, peaks not known yet, providers not configured, and rows that failed. The strip never shrinks silently.
-  const RANK = { drop: 0, at_peak: 1, peak_unknown: 2, not_configured: 3, error: 4 } as const;
+  // Drops first, the biggest on top; then markets at their peak, peaks not known yet, providers not configured, rows that failed, and rows still loading. The strip never hides a market, even briefly.
+  const RANK = { drop: 0, at_peak: 1, peak_unknown: 2, not_configured: 3, error: 4, loading: 5 } as const;
   const rank = (row: StripRow): number => RANK[row.kind];
   const strip: StripRow[] = all
     .filter((r) => r.itemId !== "M08.X.01")
@@ -188,6 +189,7 @@ export function buildPageView(response: CrashResponse): PageView {
         return [r.drawdownPct < 0 ? { rowKey: r.rowKey, labelId: r.labelId, kind: "drop", drawdownPct: r.drawdownPct, stale, basis: r.peak?.basis ?? "since" } : { rowKey: r.rowKey, labelId: r.labelId, kind: "at_peak", stale, basis: r.peak?.basis ?? "since" }];
       }
       if (r.state === "peak_unknown") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "peak_unknown" }];
+      if (r.state === "loading") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "loading" }];
       if (r.state === "not_configured") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "not_configured" }];
       if (r.state === "error") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "error", invalid: r.invalid }];
       return [];

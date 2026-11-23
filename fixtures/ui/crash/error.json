@@ -24,10 +24,10 @@
           "attribution": "Board of Governors of the Federal Reserve System, via FRED",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "us-fred-open",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-06-30",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -54,10 +54,10 @@
           "attribution": "For personal use only. Example Index Owner's copyright, via FRED; 1-day lag",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "us-fred-cited",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-18",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -84,10 +84,10 @@
           "attribution": "For personal use only. Example Index Owner's copyright, via FRED; 1-day lag",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "us-fred-cited",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-18",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -114,10 +114,10 @@
           "attribution": "For personal use only. Example Index Owner's copyright, via FRED; 1-day lag",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "us-fred-cited",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-18",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -149,10 +149,10 @@
           "attribution": "Citation required. Kept on this machine.",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "us-fred-cited",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-19",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -173,10 +173,10 @@
           "attribution": "Taiwan exchange, official open data",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "e1-taiwan",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-19",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -208,10 +208,10 @@
           "attribution": "World Bank Commodity Price Data, CC BY 4.0",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "intl-worldbank-pinksheet",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-10-31",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -235,10 +235,10 @@
           "delayed": false,
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "crypto-x4-ohlc",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-22",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -257,10 +257,10 @@
           "delayed": false,
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "crypto-x4-ohlc",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-22",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -304,10 +304,10 @@
           "attribution": "U.S. Energy Information Administration, via FRED",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "us-fred-open",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-17",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -334,10 +334,10 @@
           "attribution": "U.S. Energy Information Administration, via FRED",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "us-fred-open",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-17",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",
@@ -374,10 +374,10 @@
           "attribution": "U.S. Treasury, Fiscal Data (Debt to the Penny)",
           "sources": [
             {
-              "sourceId": "fx-markets",
+              "sourceId": "us-treasury-debt",
               "licenceId": "cc0-1.0",
               "retrievedAt": "2026-11-22T08:00:00.000Z",
-              "asOf": "2026-11-21",
+              "asOf": "2026-11-18",
               "asOfBasis": "in_file_field",
               "checkedAt": "2026-11-22T08:00:00.000Z",
               "accessTier": "open",

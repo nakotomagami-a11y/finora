@@ -168,7 +168,7 @@ export function CrashTile({ tile, now, onRetry }: TileProps) {
         </div>
       ) : null}
       <div className="mt-auto flex flex-col gap-1.5">
-        <SourceChips rows={tile.all} />
+        <SourceChips rows={tile.all} now={now} />
         {tile.attributions.map((line) => (
           <Caveat key={line}>{line}</Caveat>
         ))}

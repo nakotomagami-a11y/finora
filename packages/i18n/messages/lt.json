@@ -116,7 +116,7 @@
     "strip": {
       "title": "Atstumas nuo viršūnės",
       "basis": "Kiekvienos eilutės viršūnė yra aukščiausias dienos uždarymas jos laikotarpyje; visai kriptovaliutų rinkai — visų laikų aukščiausias · surikiuota pagal kritimą",
-      "basisSince": "Kiekvienos eilutės viršūnė yra aukščiausias dienos uždarymas nuo {since}; visai kriptovaliutų rinkai — visų laikų aukščiausias · surikiuota pagal kritimą",
+      "basisSince": "Kiekvienos eilutės viršūnė yra aukščiausias dienos uždarymas nuo {since}, nebent eilutė nurodo kitaip · surikiuota pagal kritimą",
       "note": "Kiekviena juosta yra kritimas nuo tos rinkos paties viršūnės; viršūnės yra skirtingomis datomis. Kryptį rodo rodyklės ir ženklai, ne vien spalva.",
       "alt": "{name}: {pct} nuo viršūnės, buvusios {date}",
       "altUnknown": "{name}: viršūnė dar nežinoma",
@@ -125,6 +125,7 @@
       "seeded": "pradinė viršūnė",
       "notChecked": "netikrinta",
       "notConfigured": "nenustatyta",
+      "loading": "kraunama",
       "failedCheck": "Nerodoma: neatitiko duomenų patikros",
       "table": "Atstumas nuo viršūnės lentele",
       "col": {
@@ -172,6 +173,17 @@
       "asOf": "Data: {date}",
       "retrieved": "Gauta {when}",
       "checked": "Patikrinta {when}"
+    },
+    "sources": {
+      "us-fred-open": "FRED",
+      "us-fred-cited": "FRED, su nuoroda",
+      "e1-taiwan": "Birža E1",
+      "intl-worldbank-pinksheet": "Pasaulio bankas",
+      "us-treasury-debt": "Fiscal Data",
+      "crypto-x4-ohlc": "Teikėjas X4",
+      "crypto-c1": "Teikėjas C1",
+      "crypto-o3-btc-height": "Teikėjas O3",
+      "crypto-c3-global": "Teikėjas C3"
     }
   },
   "terms": {

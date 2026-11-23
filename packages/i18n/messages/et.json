@@ -116,7 +116,7 @@
     "strip": {
       "title": "Kaugus tipust",
       "basis": "Iga rea tipp on kõrgeim päevane sulgemine selle perioodis; kogu krüptoturul kõigi aegade tipp · järjestatud languse järgi",
-      "basisSince": "Iga rea tipp on kõrgeim päevane sulgemine alates {since}; kogu krüptoturul kõigi aegade tipp · järjestatud languse järgi",
+      "basisSince": "Iga rea tipp on kõrgeim päevane sulgemine alates {since}, kui rida ei ütle teisiti · järjestatud languse järgi",
       "note": "Iga riba on langus selle turu enda tipust; tipud on eri kuupäevadel. Suunda näitavad nooled ja märgid, mitte ainult värv.",
       "alt": "{name}: {pct} tipust, mis oli {date}",
       "altUnknown": "{name}: tipp pole veel teada",
@@ -125,6 +125,7 @@
       "seeded": "algselt sisestatud tipp",
       "notChecked": "pole kontrollitud",
       "notConfigured": "seadistamata",
+      "loading": "laadib",
       "failedCheck": "Ei näidata: ei läbinud andmekontrolli",
       "table": "Kaugus tipust tabelina",
       "col": {
@@ -172,6 +173,17 @@
       "asOf": "Seisuga {date}",
       "retrieved": "Saadud {when}",
       "checked": "Kontrollitud {when}"
+    },
+    "sources": {
+      "us-fred-open": "FRED",
+      "us-fred-cited": "FRED, viitega",
+      "e1-taiwan": "Börs E1",
+      "intl-worldbank-pinksheet": "Maailmapank",
+      "us-treasury-debt": "Fiscal Data",
+      "crypto-x4-ohlc": "Pakkuja X4",
+      "crypto-c1": "Pakkuja C1",
+      "crypto-o3-btc-height": "Pakkuja O3",
+      "crypto-c3-global": "Pakkuja C3"
     }
   },
   "terms": {

@@ -104,6 +104,35 @@ test.describe("crash monitor, every state (FINORA_DEMO=1)", () => {
     await expect(card.getByText("+$214 billion")).toBeVisible();
   });
 
+  test("in a tile row the figure and its date sit on one text baseline", async ({ page }) => {
+    await page.goto("/en/crash?state=live");
+    const tile = page.getByRole("region", { name: "US stocks" });
+    // The baseline of an element's text: a zero-size inline probe at its end sits on that baseline.
+    const baseline = (locator: ReturnType<typeof tile.getByText>) =>
+      locator.evaluate((el) => {
+        const probe = document.createElement("span");
+        probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+        el.appendChild(probe);
+        const y = probe.getBoundingClientRect().bottom;
+        el.removeChild(probe);
+        return y;
+      });
+    for (const [figure, date] of [
+      ["−9.7%", "US large companies, daily"],
+      ["−13.1%", "US technology, daily"],
+    ] as const) {
+      const row = tile.locator("div.grid").filter({ hasText: date });
+      const figureY = await baseline(row.getByText(figure));
+      const dateY = await baseline(row.getByText("close 18 Nov 2026"));
+      expect(Math.abs(figureY - dateY), `${date}: figure at ${figureY}, date at ${dateY}`).toBeLessThan(0.75);
+    }
+  });
+
+  test("the strip header is generic: it does not single out one row for its all-time high", async ({ page }) => {
+    await page.goto("/en/crash?state=live");
+    await expect(page.getByText(/highest daily close since 1 Jan 2025, unless the row says otherwise/u).first()).toBeVisible();
+  });
+
   test("the demo parameter reaches no fixture outside a known name", async ({ page }) => {
     const response = await page.goto("/en/crash?state=../../package");
     expect(response?.status()).toBe(200);

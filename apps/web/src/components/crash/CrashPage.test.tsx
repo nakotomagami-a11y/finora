@@ -138,7 +138,7 @@ describe("the distance strip, at its edges", () => {
 describe("the peak window and the debt change", () => {
   it("says since the peak date in the strip header and in how it is calculated", () => {
     mount({ fixture: fixture("live") });
-    expect(screen.getByText(/highest daily close since 1 Jan 2025; the total crypto market uses its all-time high/u)).toBeInTheDocument();
+    expect(screen.getByText(/highest daily close since 1 Jan 2025, unless the row says otherwise/u)).toBeInTheDocument();
     expect(screen.getByText(/the highest daily close since 1 Jan 2025 − 1\./u)).toBeInTheDocument();
   });
 
@@ -160,13 +160,63 @@ describe("the peak window and the debt change", () => {
   });
 });
 
+describe("source chips, by their own names", () => {
+  const chips = (tileName: string) =>
+    within(screen.getByRole("region", { name: tileName }))
+      .getAllByRole("button")
+      .filter((b) => b.getAttribute("aria-haspopup") === "dialog")
+      .map((b) => b.textContent);
+
+  it("name each source and date it with the row's own as-of, not the retrieval date", () => {
+    mount({ fixture: fixture("live") });
+    expect(chips("US stocks")).toEqual(["FRED · Q2 2026", "FRED, cited · 18 Nov 2026"]);
+    expect(chips("Asia and Pacific")).toEqual(["FRED, cited · 19 Nov 2026", "Exchange E1 · 19 Nov 2026"]);
+    expect(chips("Gold")).toEqual(["World Bank · Oct 2026"]);
+    expect(chips("Oil")).toEqual(["FRED · 17 Nov 2026"]);
+    expect(chips("US national debt")).toEqual(["Fiscal Data · 18 Nov 2026"]);
+    // Two tiles no longer read alike, and no chip carries a raw source id or the 21 Nov retrieval date.
+    expect(chips("Crypto")).toEqual([expect.stringMatching(/^Provider (C1|X4) · /u), expect.stringMatching(/^Provider (C1|X4) · /u)]);
+    expect(document.body.textContent).not.toMatch(/fx-markets|us-fred-|crypto-x4/u);
+  });
+
+  it("show a source the catalogue does not know by its id", () => {
+    const body = structuredClone(FIXTURES.live!);
+    body.tiles.flatMap((t) => t.rows).find((r) => r.rowKey.endsWith("gold_monthly"))!.sources[0]!.sourceId = "some-new-source";
+    mount({ fixture: body });
+    expect(chips("Gold")).toEqual(["some-new-source · Oct 2026"]);
+  });
+});
+
+describe("the strip lists a row that is still loading", () => {
+  it("shows it last, as loading, with aria-busy", () => {
+    mount({ fixture: fixture("mixed") });
+    const table = screen.getByRole("table", { name: "Distance from peak" });
+    const rows = within(table).getAllByRole("row");
+    const last = rows.at(-1)!;
+    expect(last).toHaveAttribute("aria-busy", "true");
+    expect(within(last).getByText("Taiwan")).toBeInTheDocument();
+    expect(within(last).getByText("loading")).toBeInTheDocument();
+  });
+});
+
+describe("how it is calculated while the first answer is awaited", () => {
+  it("leaves the date as a skeleton rather than the older wording", () => {
+    const { container } = mount({ loading: true });
+    const how = screen.getByRole("heading", { name: "How it's calculated" }).parentElement!;
+    expect(how.textContent).toContain("the highest daily close since");
+    expect(how.textContent).not.toContain("in the window");
+    expect(how.querySelector('[class*="inline-block"]')).not.toBeNull();
+    expect(container).toBeTruthy();
+  });
+});
+
 describe("source chips", () => {
   it("puts a chip in a tile footer and opens its popover with the licence and the times", async () => {
     const user = userEvent.setup();
     mount({ fixture: fixture("live") });
     const tile = screen.getByRole("region", { name: "Oil" });
     const chip = within(tile).getAllByRole("button").find((b) => b.getAttribute("aria-haspopup") === "dialog")!;
-    expect(chip.textContent).toMatch(/^[a-z-]+ · \d{1,2} \w{3} 2026$/u);
+    expect(chip.textContent).toBe("FRED · 17 Nov 2026");
     await user.click(chip);
     const popover = screen.getByRole("dialog", { name: "Source details" });
     expect(within(popover).getByText(/^Licence: /u)).toBeInTheDocument();
