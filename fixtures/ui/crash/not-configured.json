@@ -1,4 +1,5 @@
 {
+  "peakSince": "2025-01-01",
   "tiles": [
     {
       "tileId": "M01",
@@ -245,6 +246,11 @@
             "total": 38610227451903,
             "anchor": "2026-11-18T21:00:00Z",
             "perSecond": 76000
+          },
+          "change30d": {
+            "valueUsd": 214000000000,
+            "from": "2026-10-18",
+            "to": "2026-11-18"
           },
           "attribution": "U.S. Treasury, Fiscal Data (Debt to the Penny)",
           "sources": [
