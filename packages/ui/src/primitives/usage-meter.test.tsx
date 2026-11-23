@@ -20,12 +20,17 @@ describe("UsageMeter", () => {
     expect((screen.getByRole("progressbar").children[1] as HTMLElement).style.width).toBe("0%");
   });
 
-  it("keeps the two parts inside 100 and never below 0, and drops fractions", () => {
+  it("keeps the two parts inside 100 and never below 0, and keeps the fraction of each", () => {
     render(<UsageMeter label="x" solid={90.9} band={40} valueText="100%" />);
     const bar = screen.getByRole("progressbar");
-    expect((bar.children[0] as HTMLElement).style.width).toBe("90%");
-    expect((bar.children[1] as HTMLElement).style.width).toBe("10%");
+    expect((bar.children[0] as HTMLElement).style.width).toBe("90.9%");
+    expect((bar.children[1] as HTMLElement).style.width).toBe("9.1%");
     expect(bar).toHaveAttribute("aria-valuenow", "100");
+  });
+
+  it("draws a small run as a sliver", () => {
+    render(<UsageMeter label="x" solid={0.2} valueText="under 1%" />);
+    expect((screen.getByRole("progressbar").children[0] as HTMLElement).style.width).toBe("0.2%");
   });
 
   it("clamps negative input", () => {

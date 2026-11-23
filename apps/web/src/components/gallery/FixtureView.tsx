@@ -3,7 +3,7 @@
 import type { CrashResponse, InvestigationSnapshot } from "@finora/api-contract";
 import { Badge, StatusPill, Table, Td, Th, UsageMeter, type IconName, type Tone } from "@finora/ui";
 import type { ReactNode } from "react";
-import { formatShare, formatTime, formatTokens, meterParts, usageShare } from "../../lib/format.ts";
+import { describeShare, formatTime, formatTokens, meterParts, usageShare } from "../../lib/format.ts";
 import { fromSnapshot, isActive, type InvestigationState } from "../../lib/investigation-reducer.ts";
 
 /** Status is an icon and a word, never colour alone. */
@@ -46,9 +46,9 @@ function Investigation({ snapshot }: { snapshot: InvestigationSnapshot }) {
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-small text-ink-2">
-            {formatShare("en", share)} of the cap · {formatTokens("en", state.usage.used)} used, {formatTokens("en", state.usage.held)} held, cap {formatTokens("en", state.usage.cap)} standard tokens
+            {describeShare("en", share, "under 1%")} of the cap · {formatTokens("en", state.usage.used)} used, {formatTokens("en", state.usage.held)} held, cap {formatTokens("en", state.usage.cap)} standard tokens
           </p>
-          <UsageMeter label="Usage of this investigation's cap" solid={parts.solid} band={parts.band} valueText={`${formatShare("en", share)} of the cap`} />
+          <UsageMeter label="Usage of this investigation's cap" solid={parts.solid} band={parts.band} valueText={`${describeShare("en", share, "under 1%")} of the cap`} />
         </div>
       </Card>
       <Card title="Lanes">
@@ -75,7 +75,7 @@ function Investigation({ snapshot }: { snapshot: InvestigationSnapshot }) {
                   </Td>
                   <Td className="font-mono text-mono text-muted">{run.stepKey ?? "-"}</Td>
                   <Td numeric>{run.sourcesRead}</Td>
-                  <Td numeric>{formatShare("en", runShare)}</Td>
+                  <Td numeric>{describeShare("en", runShare, "under 1%")}</Td>
                 </tr>
               );
             })}
