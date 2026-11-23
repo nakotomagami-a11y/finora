@@ -84,6 +84,17 @@ describe("the market runner (loaders/markets.md §1.7)", () => {
     expect((await run(store, get("us-treasury-debt"), { fetch: older })).kind).toBe("stale_skipped");
   });
 
+  it("re-parses an unchanged file when the peak date moves earlier, so the earlier months load", async () => {
+    const store = openStore({ dataDir: null });
+    const gold = get("intl-worldbank-pinksheet");
+    const months = () => readMarketSeries(store.db).find((s) => s.seriesKey === "worldbank:gold")?.observations.length ?? 0;
+    expect((await run(store, gold, { windowStart: "2025-06-01" })).kind).toBe("content");
+    const before = months();
+    expect((await run(store, gold, { windowStart: "2025-06-01" })).kind).toBe("unchanged");
+    expect((await run(store, gold, { windowStart: "2024-12-22" })).kind).toBe("content");
+    expect(months()).toBeGreaterThan(before);
+  });
+
   it("refuses a window purge above the guard: a half-empty refetch deletes nothing and ends partial", async () => {
     const store = openStore({ dataDir: null });
     await run(store, get("us-fred-open"));

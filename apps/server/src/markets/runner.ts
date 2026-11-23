@@ -54,8 +54,12 @@ export function connectorProblems(c: MarketConnector, licences: Readonly<Record<
   return checkSource(c.meta as SourceMeta, c.fieldMap as FieldMap, c.fetchHosts, licences);
 }
 
-function contentHash(raw: readonly RawArtifact[], parserVersion: string): string {
-  const h = createHash("sha256").update(parserVersion);
+/**
+ * The window start is part of the hash: a source whose file doesn't change with the window (the World Bank
+ * workbook) must still re-parse when the user moves the peak date, or the earlier months never load.
+ */
+function contentHash(raw: readonly RawArtifact[], parserVersion: string, windowStart: string): string {
+  const h = createHash("sha256").update(parserVersion).update(windowStart);
   for (const a of [...raw].sort((x, y) => (x.name < y.name ? -1 : 1))) h.update(a.name).update(a.bytes);
   return h.digest("hex");
 }
@@ -125,7 +129,7 @@ async function runSync(store: Store, c: MarketConnector, opts: RunOptions, syncI
   if (ahead(asOf, opts.now)) return fail("future_date");
 
   // Latest-only runs (quotes, snapshots) always write: their artifact changes every few minutes.
-  const hash = contentHash(raw, c.parserVersion);
+  const hash = contentHash(raw, c.parserVersion, opts.windowStart);
   const last = lastContentSync(db, c.meta.id);
   if (opts.mode === "daily" && last && last.contentHash === hash && last.parserVersion === c.parserVersion) {
     finishSync(db, syncId, { kind: "unchanged", finishedAt: opts.now, upstreamAsOf: asOf, asOfBasis: basis });
