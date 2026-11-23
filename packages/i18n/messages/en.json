@@ -34,7 +34,122 @@
   },
   "crash": {
     "title": "Crash monitor",
-    "placeholder": "Market tiles open here in a later build step."
+    "overline": "Crash monitor",
+    "heading": "How far markets are from their peaks",
+    "updated": "Updated {when}",
+    "waiting": "Waiting for the first figures",
+    "cadenceNote": "crypto about every 15 minutes, daily series once a day, quarterly series when published",
+    "loading": "Loading the markets",
+    "tiles": {
+      "M01": "US stocks",
+      "M03": "Asia and Pacific",
+      "M05": "Gold",
+      "M06": "Crypto",
+      "M07": "Oil",
+      "M08": "US national debt"
+    },
+    "rows": {
+      "us_equities": "US stocks, quarterly",
+      "us_large": "US large companies, daily",
+      "us_broad": "US broad market, daily",
+      "us_tech": "US technology, daily",
+      "japan_index": "Japan, broad index",
+      "taiwan_index": "Taiwan",
+      "gold_monthly": "Gold, monthly average",
+      "bitcoin": "Bitcoin",
+      "ether": "Ether",
+      "total_crypto": "Total crypto market",
+      "brent": "Brent",
+      "wti": "WTI",
+      "us_debt": "US national debt"
+    },
+    "fromPeak": "{pct} from peak",
+    "underTenth": "Under 0.1% from peak",
+    "atPeak": "At its peak",
+    "asOf": {
+      "quarter": "Quarterly · as of {value}",
+      "month": "Monthly · as of {value}",
+      "day": "close {value}",
+      "time": "as of {value}"
+    },
+    "peak": {
+      "since": "Peak {date}",
+      "allTime": "All-time high, {date}",
+      "seeded": "Peak seeded from a cited official figure, {date}"
+    },
+    "peakUnknown": "Peak not known yet: tracking since {date}",
+    "peakUnknownShort": "peak not known yet",
+    "lag": "Published with a lag",
+    "lagLive": "15 min delayed",
+    "stale": "as of {value}, older than its usual refresh",
+    "error": "Not checked: the source did not answer.",
+    "errorHidden": "No number is shown rather than one that may be out of date.",
+    "retry": "Retry",
+    "notConfiguredOne": "Not configured: add provider {codes} to your local provider file.",
+    "notConfiguredMany": "Not configured: add providers {codes} to your local provider file.",
+    "notConfiguredRow": "Not configured: add {codes} to your local provider file",
+    "noNumber": "No number is shown until then, never 0%.",
+    "howToSetUp": "How to set it up",
+    "setup": {
+      "title": "Set up a provider",
+      "intro": "Some markets come from providers that Finora does not name in its code. Each one is described in a provider file in your data folder.",
+      "step1": "Open the provider file in your data folder (providers.json). Create it if it does not exist.",
+      "step2": "Add an entry for each provider code shown on the tile: {codes}.",
+      "step3": "Restart Finora, then choose Check again.",
+      "private": "The file stays on this machine. It is never committed or shared.",
+      "check": "Check again",
+      "close": "Close"
+    },
+    "money": {
+      "trillion": "≈ ${amount} trillion",
+      "billion": "≈ ${amount} billion",
+      "million": "≈ ${amount} million"
+    },
+    "valueBelowPeak": "Value below peak",
+    "wiped": {
+      "title": "Value below peaks",
+      "sum": "Sums the rows whose sources allow a value: {rows}. Bitcoin and ether are part of the crypto total, not added again. Peaks fall on different dates; the oldest figure is from {oldest}.",
+      "left": "Left out for lack of a value: {rows}.",
+      "derived": "Derived by Finora"
+    },
+    "strip": {
+      "title": "Distance from peak",
+      "basis": "Each row's peak is the highest daily close in its window; the total crypto market uses its all-time high · sorted by drop",
+      "note": "Each bar is a drop from that market's own peak; peaks fall on different dates. Arrows and signs carry the direction, not colour alone.",
+      "alt": "{name}: {pct} from its peak on {date}",
+      "altUnknown": "{name}: peak not known yet",
+      "older": "older than usual",
+      "table": "Distance from peak, as a table",
+      "col": {
+        "market": "Market",
+        "drawdown": "From peak",
+        "peakDate": "Peak date",
+        "peakValue": "Peak value",
+        "latest": "Latest value",
+        "asOf": "As of"
+      }
+    },
+    "debt": {
+      "estimate": "estimate",
+      "ticking": "ticking between official figures",
+      "official": "Official, {date}",
+      "caveat": "The ticker is an estimate from the last 30 days' average change.",
+      "sr": "Estimate {estimate}. Official figure {official}, as of {date}."
+    },
+    "banner": {
+      "stale": "Some values are older than their usual refresh. The other tiles are current.",
+      "failed": "One source failed. Its rows show no number rather than one that may be out of date. The other tiles are current.",
+      "retry": "Retry now"
+    },
+    "notCovered": "Not covered in v1: Europe, the Americas outside the US and South Korea (no free source).",
+    "personalUse": "Personal-use market series stay on this machine and are never exported or shared.",
+    "how": {
+      "title": "How it's calculated",
+      "body": "Drawdown = the latest close ÷ the highest daily close in the window − 1. Every series is fetched by this machine without a key.",
+      "sources": "Sources"
+    },
+    "fromPeakWord": "from peak",
+    "belowPeak": "{money} below peak"
   },
   "terms": {
     "title": "Terms of use",

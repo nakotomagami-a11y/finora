@@ -33,8 +33,123 @@
     "placeholder": "Įmonių paieška čia atsiras kitame kūrimo žingsnyje."
   },
   "crash": {
-    "title": "Rinkų kritimai",
-    "placeholder": "Rinkų plytelės čia atsiras vėlesniame kūrimo žingsnyje."
+    "title": "Rinkos kritimai",
+    "overline": "Rinkos kritimai",
+    "heading": "Kiek rinkos nutolusios nuo savo viršūnių",
+    "updated": "Atnaujinta {when}",
+    "waiting": "Laukiame pirmųjų skaičių",
+    "cadenceNote": "kriptovaliutos maždaug kas 15 minučių, dienos eilutės kartą per dieną, ketvirčio eilutės, kai jos paskelbiamos",
+    "loading": "Įkeliame rinkas",
+    "tiles": {
+      "M01": "JAV akcijos",
+      "M03": "Azija ir Ramiojo vandenyno regionas",
+      "M05": "Auksas",
+      "M06": "Kriptovaliutos",
+      "M07": "Nafta",
+      "M08": "JAV valstybės skola"
+    },
+    "rows": {
+      "us_equities": "JAV akcijos, ketvirtis",
+      "us_large": "JAV didelės įmonės, diena",
+      "us_broad": "JAV plačioji rinka, diena",
+      "us_tech": "JAV technologijos, diena",
+      "japan_index": "Japonija, platusis indeksas",
+      "taiwan_index": "Taivanas",
+      "gold_monthly": "Auksas, mėnesio vidurkis",
+      "bitcoin": "Bitkoinas",
+      "ether": "Eteris",
+      "total_crypto": "Visa kriptovaliutų rinka",
+      "brent": "Brent",
+      "wti": "WTI",
+      "us_debt": "JAV valstybės skola"
+    },
+    "fromPeak": "{pct} nuo viršūnės",
+    "underTenth": "Mažiau nei 0,1% nuo viršūnės",
+    "atPeak": "Viršūnėje",
+    "asOf": {
+      "quarter": "Ketvirtis · {value}",
+      "month": "Mėnuo · {value}",
+      "day": "uždarymas {value}",
+      "time": "{value}"
+    },
+    "peak": {
+      "since": "Viršūnė {date}",
+      "allTime": "Visų laikų aukščiausia, {date}",
+      "seeded": "Viršūnė paimta iš nurodyto oficialaus skaičiaus, {date}"
+    },
+    "peakUnknown": "Viršūnė dar nežinoma: stebime nuo {date}",
+    "peakUnknownShort": "viršūnė dar nežinoma",
+    "lag": "Paskelbta su atsilikimu",
+    "lagLive": "Vėlavimas 15 min.",
+    "stale": "{value}, senesnis nei įprastai",
+    "error": "Nepatikrinta: šaltinis neatsakė.",
+    "errorHidden": "Skaičius nerodomas, kad nebūtų rodomas galbūt pasenęs.",
+    "retry": "Bandyti dar kartą",
+    "notConfiguredOne": "Nenustatyta: pridėkite teikėją {codes} savo teikėjų faile.",
+    "notConfiguredMany": "Nenustatyta: pridėkite teikėjus {codes} savo teikėjų faile.",
+    "notConfiguredRow": "Nenustatyta: pridėkite {codes} savo teikėjų faile",
+    "noNumber": "Iki tol skaičius nerodomas, niekada 0%.",
+    "howToSetUp": "Kaip tai nustatyti",
+    "setup": {
+      "title": "Teikėjo nustatymas",
+      "intro": "Kai kurios rinkos gaunamos iš teikėjų, kurių Finora savo kode nevadina. Kiekvienas aprašytas teikėjų faile jūsų duomenų aplanke.",
+      "step1": "Atidarykite teikėjų failą savo duomenų aplanke (providers.json). Jei jo nėra, sukurkite.",
+      "step2": "Pridėkite įrašą kiekvienam plytelėje rodomam teikėjo kodui: {codes}.",
+      "step3": "Paleiskite Finorą iš naujo ir pasirinkite Patikrinti dar kartą.",
+      "private": "Failas lieka šiame kompiuteryje. Jis niekada neskelbiamas ir nesidalijama juo.",
+      "check": "Patikrinti dar kartą",
+      "close": "Uždaryti"
+    },
+    "money": {
+      "trillion": "≈ ${amount} trln.",
+      "billion": "≈ ${amount} mlrd.",
+      "million": "≈ ${amount} mln."
+    },
+    "valueBelowPeak": "Vertė žemiau viršūnės",
+    "wiped": {
+      "title": "Vertė žemiau viršūnių",
+      "sum": "Sumuoja eilutes, kurių šaltiniai leidžia rodyti vertę: {rows}. Bitkoinas ir eteris yra kriptovaliutų sumos dalis ir nepridedami dar kartą. Viršūnės yra skirtingomis datomis; seniausias skaičius yra iš {oldest}.",
+      "left": "Praleista, nes nėra vertės: {rows}.",
+      "derived": "Finoros apskaičiuota"
+    },
+    "strip": {
+      "title": "Atstumas nuo viršūnės",
+      "basis": "Kiekvienos eilutės viršūnė yra aukščiausias dienos uždarymas jos laikotarpyje; visai kriptovaliutų rinkai — visų laikų aukščiausias · surikiuota pagal kritimą",
+      "note": "Kiekviena juosta yra kritimas nuo tos rinkos paties viršūnės; viršūnės yra skirtingomis datomis. Kryptį rodo rodyklės ir ženklai, ne vien spalva.",
+      "alt": "{name}: {pct} nuo viršūnės, buvusios {date}",
+      "altUnknown": "{name}: viršūnė dar nežinoma",
+      "older": "senesnis nei įprastai",
+      "table": "Atstumas nuo viršūnės lentele",
+      "col": {
+        "market": "Rinka",
+        "drawdown": "Nuo viršūnės",
+        "peakDate": "Viršūnės data",
+        "peakValue": "Viršūnės vertė",
+        "latest": "Paskutinė vertė",
+        "asOf": "Data"
+      }
+    },
+    "debt": {
+      "estimate": "įvertis",
+      "ticking": "skaičiuojama tarp oficialių skaičių",
+      "official": "Oficialiai, {date}",
+      "caveat": "Skaitiklis yra įvertis pagal paskutinių 30 dienų vidutinį pokytį.",
+      "sr": "Įvertis {estimate}. Oficialus skaičius {official}, {date}."
+    },
+    "banner": {
+      "stale": "Kai kurios vertės senesnės nei įprastai. Kitos plytelės yra naujausios.",
+      "failed": "Vienas šaltinis nepavyko. Jo eilutės nerodo skaičiaus, o ne galbūt pasenusio. Kitos plytelės yra naujausios.",
+      "retry": "Bandyti dabar"
+    },
+    "notCovered": "Neapima 1 versija: Europa, Amerika už JAV ribų ir Pietų Korėja (nėra nemokamo šaltinio).",
+    "personalUse": "Asmeniniam naudojimui skirtos rinkos eilutės lieka šiame kompiuteryje ir neeksportuojamos bei nesidalijama jomis.",
+    "how": {
+      "title": "Kaip skaičiuojama",
+      "body": "Kritimas = paskutinis uždarymas ÷ aukščiausias dienos uždarymas laikotarpyje − 1. Kiekvieną eilutę šis kompiuteris atsisiunčia be rakto.",
+      "sources": "Šaltiniai"
+    },
+    "fromPeakWord": "nuo viršūnės",
+    "belowPeak": "{money} žemiau viršūnės"
   },
   "terms": {
     "title": "Naudojimo sąlygos",

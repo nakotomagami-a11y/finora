@@ -258,34 +258,105 @@ const row = (rowKey: string, itemId: string, label: string, over: Record<string,
   itemId,
   label,
   state: "ok",
-  unit: "usd_cap",
+  unit: "usd",
   cadence: "daily_exchange",
   delayed: false,
   sources: [source({ sourceId: "fx-markets" })],
   ...over,
 });
 
-const CRASH_ROWS = {
-  live: row("m06-total", "M06.X.02", "Total crypto market", { value: 2_400_000_000_000, peak: { value: 3_000_000_000_000, date: "2026-03-01", basis: "since" }, drawdownPct: -20, valueLostUsd: 600_000_000_000, asOf: AT, cadence: "live", unit: "usd_cap" }),
-  delayed: row("m06-total", "M06.X.02", "Total crypto market", { value: 2_400_000_000_000, drawdownPct: -20, asOf: AT, cadence: "live", delayed: true }),
-  stale: row("m06-total", "M06.X.02", "Total crypto market", { state: "stale", value: 2_400_000_000_000, drawdownPct: -20, asOf: "2026-11-19T08:00:00.000Z", cadence: "live" }),
-  error: row("m06-total", "M06.X.02", "Total crypto market", { state: "error", sources: [] }),
-  "peak-unknown": row("m06-total", "M06.X.02", "Total crypto market", { state: "peak_unknown", value: 2_400_000_000_000, asOf: AT, cadence: "live", trackingSince: "2026-11-01" }),
-  "not-configured": row("m06-total", "M06.X.02", "Total crypto market", { state: "not_configured", sources: [] }),
+const PERSONAL_USE = "For personal use only. Example Index Owner's copyright, via FRED; 1-day lag";
+
+/** One row of the full page. Names and figures are invented. */
+const CRASH = {
+  usEquities: row("M01.X.01:us_equities", "M01.X.01", "crash.rows.us_equities", {
+    value: 51_000_000_000_000,
+    asOf: "2026-06-30",
+    cadence: "quarterly",
+    delayed: true,
+    peak: { value: 55_700_000_000_000, date: "2025-12-31", basis: "since" },
+    drawdownPct: -8.4,
+    valueLostUsd: 4_700_000_000_000,
+    attribution: "Board of Governors of the Federal Reserve System, via FRED",
+  }),
+  usLarge: row("M01.X.03:us_large", "M01.X.03", "crash.rows.us_large", { unit: "index_points", value: 5000, asOf: "2026-11-18", delayed: true, peak: { value: 5540, date: "2026-06-12", basis: "since" }, drawdownPct: -9.7, attribution: PERSONAL_USE }),
+  usBroad: row("M01.X.03:us_broad", "M01.X.03", "crash.rows.us_broad", { unit: "index_points", value: 2500, asOf: "2026-11-18", delayed: true, peak: { value: 2784, date: "2026-06-12", basis: "since" }, drawdownPct: -10.2, attribution: PERSONAL_USE }),
+  usTech: row("M01.X.03:us_tech", "M01.X.03", "crash.rows.us_tech", { unit: "index_points", value: 17_000, asOf: "2026-11-18", delayed: true, peak: { value: 19_560, date: "2026-06-12", basis: "since" }, drawdownPct: -13.1, attribution: PERSONAL_USE }),
+  japan: row("M03.X.01:japan", "M03.X.01", "crash.rows.japan_index", { unit: "index_points", value: 38_000, asOf: "2026-11-19", delayed: true, peak: { value: 40_470, date: "2026-07-09", basis: "since" }, drawdownPct: -6.1, attribution: "Citation required. Kept on this machine." }),
+  taiwan: row("M03.X.01:taiwan", "M03.X.01", "crash.rows.taiwan_index", { state: "peak_unknown", unit: "index_points", asOf: "2026-11-19", trackingSince: "2026-11-16", delayed: true, attribution: "Taiwan exchange, official open data" }),
+  gold: row("M05.X.01:gold_monthly", "M05.X.01", "crash.rows.gold_monthly", { unit: "usd_per_oz", value: 2910, asOf: "2026-10-31", cadence: "monthly", delayed: true, peak: { value: 3000, date: "2026-08-31", basis: "since" }, drawdownPct: -3, attribution: "World Bank Commodity Price Data, CC BY 4.0" }),
+  bitcoin: row("M06.X.01b:bitcoin", "M06.X.01b", "crash.rows.bitcoin", { value: 71_000, asOf: "2026-11-20T09:55:00Z", cadence: "live", peak: { value: 94_000, date: "2025-10-06", basis: "all_time" }, drawdownPct: -24.5, valueLostUsd: 660_000_000_000 }),
+  ether: row("M06.X.01b:ether", "M06.X.01b", "crash.rows.ether", { value: 3000, asOf: "2026-11-20T09:55:00Z", cadence: "live", peak: { value: 4850, date: "2025-10-06", basis: "all_time" }, drawdownPct: -38.2, valueLostUsd: 210_000_000_000 }),
+  crypto: row("M06.X.02:total_crypto", "M06.X.02", "crash.rows.total_crypto", {
+    unit: "usd_cap",
+    value: 2_900_000_000_000,
+    asOf: "2026-11-20T09:55:00Z",
+    cadence: "live",
+    peak: { value: 4_080_000_000_000, date: "2025-10-06", basis: "all_time" },
+    drawdownPct: -29,
+    valueLostUsd: 1_180_000_000_000,
+    attribution: "Crypto market data, provider C1. Values older than 24 hours are dropped.",
+  }),
+  brent: row("M07.X.01:brent", "M07.X.01", "crash.rows.brent", { unit: "usd_per_bbl", value: 70, asOf: "2026-11-17", delayed: true, peak: { value: 79.5, date: "2025-04-14", basis: "since" }, drawdownPct: -12, attribution: "U.S. Energy Information Administration, via FRED" }),
+  wti: row("M07.X.01:wti", "M07.X.01", "crash.rows.wti", { unit: "usd_per_bbl", value: 66, asOf: "2026-11-17", delayed: true, peak: { value: 76.2, date: "2025-04-14", basis: "since" }, drawdownPct: -13.4, attribution: "U.S. Energy Information Administration, via FRED" }),
+  debt: row("M08.X.01:us_debt", "M08.X.01", "crash.rows.us_debt", {
+    value: 38_610_227_451_903,
+    asOf: "2026-11-18",
+    delayed: true,
+    drawdownPct: -0.01,
+    ticker: { total: 38_610_227_451_903, anchor: "2026-11-18T21:00:00Z", perSecond: 76_000 },
+    attribution: "U.S. Treasury, Fiscal Data (Debt to the Penny)",
+  }),
 };
 
-export function crashFixtures(): Record<string, CrashResponse> {
-  const withRow = (r: unknown) => CrashResponse.parse({ tiles: [{ tileId: "M06", rows: [r] }] });
-  const out: Record<string, CrashResponse> = {};
-  for (const [name, r] of Object.entries(CRASH_ROWS)) out[name] = withRow(r);
-  out.mixed = CrashResponse.parse({
+type CrashRows = Record<keyof typeof CRASH, Record<string, unknown>>;
+
+/** The whole page from its rows: tiles in order, each with its rows, and the value-below-peaks summary. */
+function crashPage(rows: CrashRows, wiped: Record<string, unknown> | null): CrashResponse {
+  const R = rows;
+  return CrashResponse.parse({
     tiles: [
-      { tileId: "M06", rows: [CRASH_ROWS.live, row("m06-eth", "M06.X.01b", "Largest coin", { state: "not_configured", sources: [] })] },
-      { tileId: "M08", rows: [row("m08-debt", "M08.X.01", "US national debt", { unit: "usd", value: 38_000_000_000_000, cadence: "daily_exchange", asOf: "2026-11-20", ticker: { total: 38_000_000_000_000, anchor: AT, perSecond: 50_000 } })] },
+      { tileId: "M01", rows: [R.usEquities, R.usLarge, R.usBroad, R.usTech] },
+      { tileId: "M03", rows: [R.japan, R.taiwan] },
+      { tileId: "M05", rows: [R.gold] },
+      { tileId: "M06", rows: [R.bitcoin, R.ether, R.crypto] },
+      { tileId: "M07", rows: [R.brent, R.wti] },
+      { tileId: "M08", rows: [R.debt] },
     ],
-    totalWiped: { valueUsd: 600_000_000_000, rowItemIds: ["M06.X.02"], excludedItemIds: [], oldestAsOf: AT },
+    ...(wiped ? { totalWiped: wiped } : {}),
   });
-  return out;
+}
+
+const WIPED = { valueUsd: 5_880_000_000_000, rowItemIds: ["M01.X.01", "M06.X.02"], excludedItemIds: [], oldestAsOf: "2026-06-30" };
+const notConfigured = (r: Record<string, unknown>) => ({ ...r, state: "not_configured", sources: [], value: undefined, asOf: undefined, peak: undefined, drawdownPct: undefined, valueLostUsd: undefined, attribution: undefined });
+const noNumber = (r: Record<string, unknown>) => ({ ...r, value: undefined, drawdownPct: undefined, valueLostUsd: undefined, peak: undefined });
+const stale = (r: Record<string, unknown>, asOf: string) => ({ ...r, state: "stale", asOf });
+const OLD_CRYPTO = "2026-11-20T07:40:00Z";
+
+export function crashFixtures(): Record<string, CrashResponse> {
+  const full: CrashRows = { ...CRASH };
+  const noDaily = { usLarge: notConfigured(CRASH.usLarge), usBroad: notConfigured(CRASH.usBroad), usTech: notConfigured(CRASH.usTech) };
+  return {
+    live: crashPage(full, WIPED),
+    // Crypto is published a quarter of an hour late.
+    delayed: crashPage({ ...full, crypto: { ...CRASH.crypto, delayed: true } }, WIPED),
+    // The crypto sources have not answered since 07:40: their values stay, and their dates turn amber.
+    stale: crashPage({ ...full, bitcoin: stale(CRASH.bitcoin, OLD_CRYPTO), ether: stale(CRASH.ether, OLD_CRYPTO), crypto: stale(CRASH.crypto, OLD_CRYPTO) }, WIPED),
+    // One source failed: the rows keep their shape with no number, and the sum names what it left out.
+    error: crashPage(
+      { ...full, bitcoin: { ...noNumber(CRASH.bitcoin), state: "error" }, ether: { ...noNumber(CRASH.ether), state: "error" }, crypto: { ...noNumber(CRASH.crypto), state: "error", sources: [] } },
+      { valueUsd: 4_700_000_000_000, rowItemIds: ["M01.X.01", "M06.X.02"], excludedItemIds: ["M06.X.02"], oldestAsOf: "2026-06-30" },
+    ),
+    // No provider file: every coded source reads "not configured", and no number is shown for it.
+    "not-configured": crashPage(
+      { ...full, ...noDaily, japan: notConfigured(CRASH.japan), taiwan: notConfigured(CRASH.taiwan), bitcoin: notConfigured(CRASH.bitcoin), ether: notConfigured(CRASH.ether), crypto: notConfigured(CRASH.crypto) },
+      { valueUsd: 4_700_000_000_000, rowItemIds: ["M01.X.01"], excludedItemIds: ["M06.X.02"], oldestAsOf: "2026-06-30" },
+    ),
+    // Taiwan's peak is not known yet (tracking since 16 Nov), so the tile that leads with it shows no percentage.
+    "peak-unknown": crashPage({ ...full, japan: { ...CRASH.taiwan, rowKey: CRASH.japan.rowKey, label: CRASH.japan.label } }, WIPED),
+    // A mix: some rows not configured, one still loading, one stale.
+    mixed: crashPage({ ...full, ...noDaily, taiwan: { ...noNumber(CRASH.taiwan), state: "loading", trackingSince: undefined, asOf: undefined, sources: [] }, bitcoin: stale(CRASH.bitcoin, OLD_CRYPTO) }, WIPED),
+  };
 }
 
 export function searchFixtures(): Record<string, SearchResponse> {

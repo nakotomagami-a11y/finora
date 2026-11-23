@@ -1,6 +1,9 @@
+import { CrashResponse } from "@finora/api-contract";
 import type { Metadata } from "next";
 import { DEFAULT_LOCALE, isLocale } from "@finora/i18n";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { CrashPage } from "../../../../components/crash/CrashPage.tsx";
+import { isFixtureName, readUiFixture } from "../../../../lib/fixture-mode.ts";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -8,17 +11,20 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return { title: t("title") };
 }
 
-export default async function CrashMonitor({ params }: { params: Promise<{ locale: string }> }) {
+type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ state?: string }> };
+
+/**
+ * The Crash monitor. In demo mode (`FINORA_DEMO=1`) `?state=` serves a fixture (`fixtures/ui/crash/<state>.json`), or the
+ * loading skeleton for `?state=loading`; in any other run the parameter is ignored and the page reads the live API.
+ */
+export default async function CrashMonitor({ params, searchParams }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations("crash");
+  const { state } = await searchParams;
 
-  return (
-    <>
-      <h1 tabIndex={-1} className="font-serif text-h1 text-ink outline-none">
-        {t("title")}
-      </h1>
-      <p className="mt-3 max-w-[60ch] text-ink-2">{t("placeholder")}</p>
-    </>
-  );
+  const demoLoading = state === "loading" && readUiFixture({ screen: "crash", state: "live" }) !== null;
+  const raw = state && isFixtureName(state) && !demoLoading ? readUiFixture({ screen: "crash", state }) : null;
+  const fixture = raw === null ? undefined : CrashResponse.parse(raw);
+
+  return <CrashPage fixture={fixture} loading={demoLoading} />;
 }

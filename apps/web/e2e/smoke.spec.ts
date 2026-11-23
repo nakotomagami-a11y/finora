@@ -57,7 +57,7 @@ test.describe("shell", () => {
     await rail.getByRole("link", { name: "Crash monitor" }).click();
     await expect(page).toHaveURL(/\/en\/crash$/u);
     await expect(rail.getByRole("link", { name: "Crash monitor" })).toHaveAttribute("aria-current", "page");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Crash monitor");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("How far markets are from their peaks");
   });
 
   test("below 768 px the bottom bar replaces the rail, with no horizontal scroll", async ({ page }) => {

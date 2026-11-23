@@ -46,8 +46,8 @@ test.describe("fixture states (FINORA_DEMO=1)", () => {
 
   test("a market whose provider is not configured shows no number and never 0%", async ({ page }) => {
     await page.goto(`${FIXTURES}?screen=crash&state=not-configured`);
-    await expect(page.getByText("Not configured: add this provider to your local provider file")).toBeVisible();
-    await expect(page.getByTestId("fixture").getByText("none", { exact: true })).toBeVisible();
+    await expect(page.getByText("Not configured: add this provider to your local provider file").first()).toBeVisible();
+    await expect(page.getByTestId("fixture").getByText("none", { exact: true }).first()).toBeVisible();
     await expect(page.getByTestId("fixture").getByText("0%")).toHaveCount(0);
   });
 
