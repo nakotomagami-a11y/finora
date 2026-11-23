@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { SECRET_NAMES, sentinelFor } from "../../scripts/check-bundle-secrets.mjs";
 
 const PORT = 3100;
-const ENGINE_SPECS = /(smoke|csp|titles|design\.keyboard|design\.overlays|design\.focus|theme|fonts)\.spec\.ts$/u;
+const ENGINE_SPECS = /(smoke|csp|titles|design\.keyboard|design\.overlays|design\.focus|theme|fonts|crash\.console)\.spec\.ts$/u;
 
 // The e2e run uses the production build (`pnpm build` first), the same server `pnpm finora` starts.
 /** @type {import("@playwright/test").PlaywrightTestConfig} */

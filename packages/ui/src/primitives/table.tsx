@@ -8,15 +8,20 @@ type TableProps = {
   caption: string;
   children: ReactNode;
   className?: string;
+  /**
+   * The region scrolls sideways and takes the keyboard (the default). A table that is shown to no one (`sr-only`) has
+   * nothing to scroll, so it passes `false`: otherwise it is one Tab stop with no visible focus.
+   */
+  scrollable?: boolean;
 };
 
 /**
  * A real table inside a focusable, labelled scroll region: below 768 px it scrolls sideways inside its own
  * box and the first column stays in view, so the page never scrolls sideways.
  */
-export function Table({ label, caption, children, className }: TableProps) {
+export function Table({ label, caption, children, className, scrollable = true }: TableProps) {
   return (
-    <div role="region" aria-label={label} tabIndex={0} className={cn("overflow-x-auto rounded-card", className)}>
+    <div role="region" aria-label={label} tabIndex={scrollable ? 0 : undefined} className={cn(scrollable && "overflow-x-auto", "rounded-card", className)}>
       <table className="w-full border-collapse text-body [&_td:first-child]:max-md:sticky [&_td:first-child]:max-md:left-0 [&_td:first-child]:max-md:bg-surface [&_th:first-child]:max-md:sticky [&_th:first-child]:max-md:left-0 [&_th:first-child]:max-md:bg-surface">
         <caption className="sr-only">{caption}</caption>
         {children}

@@ -1,3 +1,4 @@
+import "./zod-config.ts";
 export { AboutResponse } from "./about.ts";
 export { AgentsStatusResponse } from "./agents.ts";
 export { CheckId, Country, Eid, ErrorCode, IsoDate, IsoDateTime, ItemId, NotCheckedReason, Page, PurposeId, Role, SectionId, SectionResult, SkipReason, SourcedValue, SourceRef, Usage } from "./common.ts";

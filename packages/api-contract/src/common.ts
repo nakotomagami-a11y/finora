@@ -1,6 +1,7 @@
 // Shapes every area shares (architecture §5.1, §5.4, §7.2). Strict objects throughout: a field the
 // contract does not name is a contract error, so no DTO can grow an unreviewed field (a value, a
 // currency, a person's name) without a schema change.
+import "./zod-config.ts";
 import { COUNTRIES, eidKind, ERROR_CODES, isInternalEid, ITEMS, PURPOSES } from "@finora/domain";
 import { z } from "zod";
 

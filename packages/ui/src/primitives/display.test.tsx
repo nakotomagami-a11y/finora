@@ -87,6 +87,21 @@ describe("StatusLine", () => {
 });
 
 describe("Table", () => {
+  it("takes no Tab stop when it is not scrollable (a table shown to no one)", () => {
+    render(
+      <Table label="Hidden" caption="Shown to no one" scrollable={false}>
+        <tbody>
+          <tr>
+            <Td>Only for a screen reader</Td>
+          </tr>
+        </tbody>
+      </Table>,
+    );
+    const region = screen.getByRole("region", { name: "Hidden" });
+    expect(region).not.toHaveAttribute("tabindex");
+    expect(screen.getByRole("table", { name: "Shown to no one" })).toBeInTheDocument();
+  });
+
   it("is a real table in a labelled, focusable scroll region", () => {
     render(
       <Table label="Financials" caption="Key figures by year">

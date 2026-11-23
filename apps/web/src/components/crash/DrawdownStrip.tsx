@@ -82,7 +82,7 @@ function StripTable({ rows, strip }: { rows: RowView[]; strip: StripRow[] }) {
   const locale = useLocaleId();
   return (
     <div className="sr-only">
-      <Table label={t("strip.table")} caption={t("strip.title")}>
+      <Table label={t("strip.table")} caption={t("strip.title")} scrollable={false}>
         <thead>
           <tr>
             <Th>{t("strip.col.market")}</Th>
