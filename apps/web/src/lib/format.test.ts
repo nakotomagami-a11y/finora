@@ -127,3 +127,46 @@ describe("describeShare", () => {
     expect(describeShare("lv", { percent: 1, underOne: true }, "mazāk nekā 1%")).toBe("mazāk nekā 1%");
   });
 });
+
+describe("formatTokensEstimate, two significant digits rounded up", () => {
+  it("rounds an estimate up to two digits", async () => {
+    const { formatTokensEstimate } = await import("./format.ts");
+    expect(formatTokensEstimate("en", 153_000)).toBe("160k");
+    expect(formatTokensEstimate("en", 307_000)).toBe("310k");
+    expect(formatTokensEstimate("en", 1_210_000)).toBe("1.3M");
+    expect(formatTokensEstimate("en", 2_810_000)).toBe("2.9M");
+  });
+
+  it("holds the boundaries: a round number stays, one token more goes up, and a carry reaches the next unit", async () => {
+    const { formatTokensEstimate } = await import("./format.ts");
+    expect(formatTokensEstimate("en", 150_000)).toBe("150k");
+    expect(formatTokensEstimate("en", 150_001)).toBe("160k");
+    expect(formatTokensEstimate("en", 995_000)).toBe("1M");
+    expect(formatTokensEstimate("en", 994_999)).toBe("1M");
+    expect(formatTokensEstimate("en", 990_000)).toBe("990k");
+    expect(formatTokensEstimate("en", 990_001)).toBe("1M");
+  });
+
+  it("keeps small estimates exact to two digits and never goes below zero", async () => {
+    const { formatTokensEstimate } = await import("./format.ts");
+    expect(formatTokensEstimate("en", 0)).toBe("0");
+    expect(formatTokensEstimate("en", 7)).toBe("7");
+    expect(formatTokensEstimate("en", 99)).toBe("99");
+    expect(formatTokensEstimate("en", 153)).toBe("160");
+    expect(formatTokensEstimate("en", 1001)).toBe("1.1k");
+    expect(formatTokensEstimate("en", -4)).toBe("0");
+  });
+
+  it("uses the decimal mark of the locale", async () => {
+    const { formatTokensEstimate } = await import("./format.ts");
+    expect(formatTokensEstimate("lv", 1_210_000)).toBe("1,3M");
+  });
+
+  it("never reads smaller than the estimate", async () => {
+    const { formatTokensEstimate } = await import("./format.ts");
+    const value = (text: string) => Number(text.replace("k", "e3").replace("M", "e6").replace(",", "."));
+    for (const n of [1, 9, 99, 100, 101, 999, 1000, 1001, 15_001, 99_999, 100_001, 153_000, 999_999, 1_000_001, 3_299_999]) {
+      expect(value(formatTokensEstimate("en", n)), String(n)).toBeGreaterThanOrEqual(n);
+    }
+  });
+});

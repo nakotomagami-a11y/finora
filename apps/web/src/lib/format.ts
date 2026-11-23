@@ -38,6 +38,18 @@ export function formatTokensLeft(locale: Locale, tokens: number): string {
   return formatTokens(locale, tokens, "down");
 }
 
+/**
+ * An estimate, written as an "about" figure with two significant digits, rounded up: 153,000 reads `160k`, 307,000 reads
+ * `310k`, 1,210,000 reads `1.3M`, 150,000 stays `150k` and 995,000 becomes `1M` (DESIGN.md §9.4). For the estimate's typical
+ * and worst case and the Investigate button; the catalogue adds the word "about". Measured use keeps `formatTokens`.
+ */
+export function formatTokensEstimate(locale: Locale, tokens: number): string {
+  const whole = Math.max(0, Math.trunc(tokens));
+  let step = 1;
+  while (whole >= step * 100) step *= 10; // the place of the second significant digit
+  return formatTokens(locale, Math.ceil(whole / step) * step, "up");
+}
+
 export type Share = {
   /** Whole percent, rounded up; 100 only when the cap is reached. */
   percent: number;
