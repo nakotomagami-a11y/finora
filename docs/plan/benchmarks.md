@@ -207,3 +207,17 @@ At `9dd06f4`, which holds the architect's write path (`8661a89`: adaptive batch,
 | 4. Write tx p95 ≤ 400 ms, none ≥ 5 s | p95 769 ms; 5 transactions ≥ 5 s (max 10.3 s) | **fails** |
 | 5. Same rows, new hash: register ≤ 45 s, 0 statement writes | 23.5 s, 0 writes | **passes** |
 
+
+### Tracked SHOULD-FIX: `main` checkpoint duration (council 7115812064, 7116435768)
+
+After the layout rule, a checkpoint on `main` stalls no user write. cto measured 7,184 user-state writes during a full LV load: 0 failed, p95 0.3 ms, max 131 ms. So the checkpoint duration is tracked here, not gated, with 5 s as an engineering ceiling.
+
+| Run | Commit | Worst `main` checkpoint | `over_limit` (≥ 5 s) |
+|---|---|---|---|
+| S05 clean run (data-baltics) | `f12fb81` | 17.9 s (register) | 1 |
+| S05 clean run (cto) | `6310465` | 20.6 s (register, checkpoint #44 of 59; a sporadic stall, not size) | 5 |
+
+- **The hard bound is 30 s,** half the 60 s lease, checked at run time. A beat comes right before each checkpoint.
+- **Above 30 s on S12's four-country store:** moving checkpoints off the sync thread is a MUST before S12 is accepted.
+- **Ruled out:** `synchronous = OFF` (crash safety, P9).
+- **Re-measure** with `checkpointMs[]` in the sync report.
