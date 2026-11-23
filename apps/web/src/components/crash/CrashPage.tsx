@@ -82,7 +82,7 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
         <h1 tabIndex={-1} className="font-serif text-h1 text-ink outline-none">
           {t("heading")}
         </h1>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-small text-ink-2 max-md:flex-col">
+        <div className="flex flex-col gap-1 text-small text-ink-2">
           <span aria-live="off">{ready && page?.updatedAt && now ? t("updated", { when: formatRelative(locale, page.updatedAt, clock) }) : t("waiting")}</span>
           <span>{t("cadenceNote")}</span>
         </div>
@@ -107,10 +107,10 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
       {ready && page ? (
         <>
           <div className="flex flex-wrap items-start gap-4">
-            <div className="flex min-w-0 flex-[2_1_520px]">
+            <div className="flex min-w-0 flex-[2_1_520px] [&>section]:flex-1">
               <DrawdownStrip page={page} rows={rows} />
             </div>
-            <div className="flex min-w-0 flex-[1_1_320px]">
+            <div className="flex min-w-0 flex-[1_1_320px] [&>section]:flex-1">
               <DebtCard row={page.debt} now={clock} />
             </div>
           </div>
@@ -123,10 +123,10 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
       ) : (
         <div aria-busy="true" aria-label={t("loading")} className="flex flex-col gap-4">
           <div className="flex flex-wrap items-start gap-4">
-            <div className="flex min-w-0 flex-[2_1_520px]">
+            <div className="flex min-w-0 flex-[2_1_520px] [&>section]:flex-1">
               <DrawdownStripSkeleton />
             </div>
-            <div className="flex min-w-0 flex-[1_1_320px]">
+            <div className="flex min-w-0 flex-[1_1_320px] [&>section]:flex-1">
               <DebtCard row={undefined} now={clock} />
             </div>
           </div>

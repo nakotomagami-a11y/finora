@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
 
-/** The moment the crash fixtures are read at: the newest crypto figure is ten minutes old, the daily series a few days. */
-export const NOW = new Date("2026-11-20T10:05:00Z");
+/** The moment the crash fixtures are read at: the newest crypto figure is ten minutes old, the daily series a few days, and the sources were checked half an hour ago. */
+export const NOW = new Date("2026-11-22T08:30:00Z");
 
 export const STATES = ["live", "delayed", "stale", "error", "not-configured", "peak-unknown", "mixed"] as const;
 export type CrashState = (typeof STATES)[number];

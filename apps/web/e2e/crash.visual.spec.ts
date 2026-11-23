@@ -27,7 +27,8 @@ for (const viewport of VIEWPORTS) {
         const height = await page.evaluate(() => document.documentElement.scrollHeight);
         await page.setViewportSize({ width: viewport.width, height });
         await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        await expect(page).toHaveScreenshot(`crash-${state}-${viewport.name}-${theme}.png`, { animations: "disabled", maxDiffPixelRatio: 0.002 });
+        // The debt estimate ticks once a second from the real time: its digits are masked, its place and size are not.
+        await expect(page).toHaveScreenshot(`crash-${state}-${viewport.name}-${theme}.png`, { animations: "disabled", maxDiffPixelRatio: 0.002, mask: [page.locator("[data-ticker]")] });
       });
     }
   }

@@ -36,6 +36,7 @@ test.describe("crash monitor, the 60 second poll", () => {
     await page.goto("/en/crash");
     await expect(page.getByText("−24.5%").first()).toBeVisible();
     await expect.poll(api.calls).toBe(1);
+    await page.waitForTimeout(600); // the page-load shifts (web fonts, the shell) are reported by now
 
     const tile = page.getByRole("heading", { level: 2, name: "Crypto" });
     const before = await tile.boundingBox();

@@ -285,12 +285,12 @@ const CRASH = {
   japan: row("M03.X.01:japan", "M03.X.01", "crash.rows.japan_index", { unit: "index_points", value: 38_000, asOf: "2026-11-19", delayed: true, peak: { value: 40_470, date: "2026-07-09", basis: "since" }, drawdownPct: -6.1, attribution: "Citation required. Kept on this machine." }),
   taiwan: row("M03.X.01:taiwan", "M03.X.01", "crash.rows.taiwan_index", { state: "peak_unknown", unit: "index_points", asOf: "2026-11-19", trackingSince: "2026-11-16", delayed: true, attribution: "Taiwan exchange, official open data" }),
   gold: row("M05.X.01:gold_monthly", "M05.X.01", "crash.rows.gold_monthly", { unit: "usd_per_oz", value: 2910, asOf: "2026-10-31", cadence: "monthly", delayed: true, peak: { value: 3000, date: "2026-08-31", basis: "since" }, drawdownPct: -3, attribution: "World Bank Commodity Price Data, CC BY 4.0" }),
-  bitcoin: row("M06.X.01b:bitcoin", "M06.X.01b", "crash.rows.bitcoin", { value: 71_000, asOf: "2026-11-20T09:55:00Z", cadence: "live", peak: { value: 94_000, date: "2025-10-06", basis: "all_time" }, drawdownPct: -24.5, valueLostUsd: 660_000_000_000 }),
-  ether: row("M06.X.01b:ether", "M06.X.01b", "crash.rows.ether", { value: 3000, asOf: "2026-11-20T09:55:00Z", cadence: "live", peak: { value: 4850, date: "2025-10-06", basis: "all_time" }, drawdownPct: -38.2, valueLostUsd: 210_000_000_000 }),
+  bitcoin: row("M06.X.01b:bitcoin", "M06.X.01b", "crash.rows.bitcoin", { value: 71_000, asOf: "2026-11-22T08:20:00Z", cadence: "live", peak: { value: 94_000, date: "2025-10-06", basis: "all_time" }, drawdownPct: -24.5, valueLostUsd: 660_000_000_000 }),
+  ether: row("M06.X.01b:ether", "M06.X.01b", "crash.rows.ether", { value: 3000, asOf: "2026-11-22T08:20:00Z", cadence: "live", peak: { value: 4850, date: "2025-10-06", basis: "all_time" }, drawdownPct: -38.2, valueLostUsd: 210_000_000_000 }),
   crypto: row("M06.X.02:total_crypto", "M06.X.02", "crash.rows.total_crypto", {
     unit: "usd_cap",
     value: 2_900_000_000_000,
-    asOf: "2026-11-20T09:55:00Z",
+    asOf: "2026-11-22T08:20:00Z",
     cadence: "live",
     peak: { value: 4_080_000_000_000, date: "2025-10-06", basis: "all_time" },
     drawdownPct: -29,
@@ -331,7 +331,7 @@ const WIPED = { valueUsd: 5_880_000_000_000, rowItemIds: ["M01.X.01", "M06.X.02"
 const notConfigured = (r: Record<string, unknown>) => ({ ...r, state: "not_configured", sources: [], value: undefined, asOf: undefined, peak: undefined, drawdownPct: undefined, valueLostUsd: undefined, attribution: undefined });
 const noNumber = (r: Record<string, unknown>) => ({ ...r, value: undefined, drawdownPct: undefined, valueLostUsd: undefined, peak: undefined });
 const stale = (r: Record<string, unknown>, asOf: string) => ({ ...r, state: "stale", asOf });
-const OLD_CRYPTO = "2026-11-20T07:40:00Z";
+const OLD_CRYPTO = "2026-11-22T06:40:00Z";
 
 export function crashFixtures(): Record<string, CrashResponse> {
   const full: CrashRows = { ...CRASH };

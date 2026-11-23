@@ -43,7 +43,7 @@ export function DebtCard({ row, now }: { row: RowView | undefined; now: Date }) 
       ) : (
         <>
           {estimate ? (
-            <span aria-hidden className="block min-h-10 text-[clamp(22px,2.4vw,34px)] leading-[1.15] font-semibold tracking-[-0.01em] whitespace-nowrap text-ink tabular-nums">
+            <span aria-hidden data-ticker className="block min-h-10 text-[clamp(22px,2.4vw,34px)] leading-[1.15] font-semibold tracking-[-0.01em] whitespace-nowrap text-ink tabular-nums">
               {estimate}
             </span>
           ) : null}
