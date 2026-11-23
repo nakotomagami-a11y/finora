@@ -21,6 +21,11 @@ const STATUS: Record<string, { tone: Tone; icon: IconName }> = {
 };
 const statusOf = (status: string) => STATUS[status] ?? { tone: "neutral" as Tone, icon: "dot" as IconName };
 
+/** English count words for the gallery only; the real screens use the catalogue's ICU plurals. */
+function plural(count: number, one: string, other: string): string {
+  return `${count} ${count === 1 ? one : other}`;
+}
+
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section aria-label={title} className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5">
@@ -48,7 +53,7 @@ function Investigation({ snapshot }: { snapshot: InvestigationSnapshot }) {
           <p className="text-small text-ink-2">
             {describeShare("en", share, "under 1%")} of the cap · {formatTokens("en", state.usage.used)} used, {formatTokens("en", state.usage.held)} held, cap {formatTokens("en", state.usage.cap)} standard tokens
           </p>
-          <UsageMeter label="Usage of this investigation's cap" solid={parts.solid} band={parts.band} valueText={`${describeShare("en", share, "under 1%")} of the cap`} />
+          <UsageMeter label="Usage of this investigation's cap" solid={parts.solid} band={parts.band} valueText={`${describeShare("en", share, "under 1%")} of the cap: ${formatTokens("en", state.usage.used)} used, ${formatTokens("en", state.usage.held)} held, cap ${formatTokens("en", state.usage.cap)} standard tokens`} />
         </div>
       </Card>
       <Card title="Lanes">
@@ -84,7 +89,7 @@ function Investigation({ snapshot }: { snapshot: InvestigationSnapshot }) {
       </Card>
       <Card title="Findings, questions and verdict">
         <ul className="m-0 flex list-none flex-col gap-2 p-0 text-body text-ink-2">
-          <li>{Object.keys(state.findings).length} findings, each AI-written and cited</li>
+          <li>{plural(Object.keys(state.findings).length, "finding", "findings")}, each AI-written and cited</li>
           <li>{pending.length === 0 ? "No question is waiting" : `Waiting for you: ${pending.map((question) => question.kind).join(", ")}`}</li>
           <li>{state.verdict ? `Verdict: ${state.verdict.level.replaceAll("_", " ")}, ${state.verdict.coverage.ran} of ${state.verdict.coverage.total} checks ran` : "No verdict yet"}</li>
         </ul>

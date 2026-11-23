@@ -12,7 +12,7 @@ test.describe("fixture states (FINORA_DEMO=1)", () => {
     await expect(fixture.getByText("investigation / report")).toBeVisible();
     await expect(fixture.getByText("done", { exact: true }).first()).toBeVisible();
     await expect(fixture.getByText(/38% of the cap/u)).toBeVisible(); // 190k of 500k, settled
-    await expect(fixture.getByRole("progressbar", { name: "Usage of this investigation's cap" })).toHaveAttribute("aria-valuetext", "38% of the cap");
+    await expect(fixture.getByRole("progressbar", { name: "Usage of this investigation's cap" })).toHaveAttribute("aria-valuetext", "38% of the cap: 190k used, 0 held, cap 500k standard tokens");
     await expect(fixture.getByRole("row")).toHaveCount(7); // the header and six lanes
     await expect(fixture.getByText("Verdict: points to check, 9 of 11 checks ran")).toBeVisible();
   });
