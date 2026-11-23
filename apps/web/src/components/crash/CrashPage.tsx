@@ -113,7 +113,7 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
       ) : null}
       {ready && page?.failed ? (
         <Banner tone="bad" role="alert" action={{ label: t("banner.retry"), onClick: refetch }}>
-          {page.failedWithLastGood ? t("banner.failedLastGood") : t("banner.failed")}
+          {t(`banner.${page.manySourcesFailed ? "failedMany" : "failed"}${page.failedWithLastGood ? "LastGood" : ""}`)}
         </Banner>
       ) : null}
       {query.isError && !data ? (

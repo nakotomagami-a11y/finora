@@ -84,7 +84,7 @@
     "stale": "{value}, senesnis nei įprastai",
     "error": "Nepatikrinta: šaltinis neatsakė.",
     "errorHidden": "Skaičius nerodomas, kad nebūtų rodomas galbūt pasenęs.",
-    "errorHiddenLastGood": "Dabartinis skaičius nerodomas; paskutinė tinkama vertė pažymėta laiku.",
+    "errorHiddenLastGood": "Dabartinio skaičiaus nėra. Paskutinė tinkama vertė rodoma su laiku ir neįtraukiama į jokią sumą.",
     "lastGood": "Paskutinė tinkama vertė {value}, {when}, senesnė nei įprastai",
     "retry": "Bandyti dar kartą",
     "notConfiguredOne": "Nenustatyta: pridėkite teikėją {codes} savo teikėjų faile.",
@@ -155,8 +155,10 @@
     "banner": {
       "stale": "Kai kurios vertės senesnės nei įprastai. Kitos plytelės yra naujausios.",
       "failed": "Vienas šaltinis nepavyko. Jo eilutės nerodo skaičiaus, o ne galbūt pasenusio. Kitos plytelės yra naujausios.",
-      "failedLastGood": "Vienas šaltinis nepavyko. Jo eilutės nerodo dabartinio skaičiaus; paskutinė tinkama vertė pažymėta laiku. Kitos plytelės yra naujausios.",
-      "retry": "Bandyti dabar"
+      "failedLastGood": "Vienas šaltinis nepavyko. Jo eilutės nerodo dabartinio skaičiaus; paskutinė tinkama vertė rodoma tik su laiku.",
+      "retry": "Bandyti dabar",
+      "failedMany": "Keli šaltiniai nepavyko. Jų eilutės nerodo skaičiaus, o ne galbūt pasenusio. Kitos plytelės yra naujausios.",
+      "failedManyLastGood": "Keli šaltiniai nepavyko. Jų eilutės nerodo dabartinio skaičiaus; paskutinė tinkama vertė rodoma tik su laiku."
     },
     "notCovered": "Neapima 1 versija: Europa, Amerika už JAV ribų ir Pietų Korėja (nėra nemokamo šaltinio).",
     "personalUse": "Asmeniniam naudojimui skirtos rinkos eilutės lieka šiame kompiuteryje ir neeksportuojamos bei nesidalijama jomis.",

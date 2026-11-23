@@ -145,6 +145,8 @@ export type PageView = {
   stale: boolean;
   /** Some row's source failed. */
   failed: boolean;
+  /** More than one source failed (rows of different sources are in state error). */
+  manySourcesFailed: boolean;
   /** A failed row shows a last good value, so the banner may not say that no number is shown at all. */
   failedWithLastGood: boolean;
   /** The latest time any row was refreshed, for "Updated N min ago". */
@@ -229,6 +231,7 @@ export function buildPageView(response: CrashResponse): PageView {
     wiped,
     stale: all.some((r) => r.state === "stale"),
     failed: all.some((r) => r.state === "error"),
+    manySourcesFailed: new Set(all.filter((r) => r.state === "error").flatMap((r) => r.sources.map((src) => src.sourceId))).size > 1,
     failedWithLastGood: all.some((r) => r.state === "error" && hasLastGood(r)),
     updatedAt: latest(all.map((r) => r.checkedAt)),
     peakSince: response.peakSince,

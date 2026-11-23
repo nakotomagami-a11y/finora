@@ -186,14 +186,14 @@ describe("an error row's last good value", () => {
 
 describe("the words about a failed source say the same as the rows", () => {
   const OLD_BANNER = "One source failed. Its rows show no number rather than one that may be out of date.";
-  const NEW_BANNER = "One source failed. Its rows show no current number; a last good value is marked with its time.";
+  const NEW_BANNER = "One source failed. Its rows show no current number; a last good value is shown only with its time.";
 
   it("says a last good value is marked, in the banner and the tile, when one row shows it", () => {
     mount({ fixture: fixture("error") });
     expect(screen.getByRole("alert")).toHaveTextContent(NEW_BANNER);
     expect(screen.getByRole("alert")).not.toHaveTextContent("rather than one that may be out of date");
     const tile = screen.getByRole("region", { name: "Crypto" });
-    expect(within(tile).getByText("No current number is shown; a last good value is marked with its time.")).toBeInTheDocument();
+    expect(within(tile).getByText("No current number. A last good value is shown with its time and isn't counted in any total.")).toBeInTheDocument();
     expect(within(tile).queryByText("No number is shown rather than one that may be out of date.")).toBeNull();
     expect(within(tile).getAllByText(/^Last good value/u)).toHaveLength(1);
   });
@@ -206,6 +206,18 @@ describe("the words about a failed source say the same as the rows", () => {
     const tile = screen.getByRole("region", { name: "Crypto" });
     expect(within(tile).getByText("No number is shown rather than one that may be out of date.")).toBeInTheDocument();
     expect(within(tile).queryByText(/^Last good value/u)).toBeNull();
+  });
+
+  it("says several sources failed when rows of different sources are in error, in the same two variants", () => {
+    const body = structuredClone(FIXTURES.error!);
+    const brent = body.tiles.flatMap((t) => t.rows).find((r) => r.rowKey.endsWith("brent"))!;
+    Object.assign(brent, { state: "error", value: undefined, drawdownPct: undefined, valueLostUsd: undefined, peak: undefined });
+    mount({ fixture: body });
+    expect(screen.getByRole("alert")).toHaveTextContent("Several sources failed. Their rows show no current number; a last good value is shown only with its time.");
+    cleanup();
+    for (const row of body.tiles.flatMap((t) => t.rows)) delete row.lastGood;
+    mount({ fixture: body });
+    expect(screen.getByRole("alert")).toHaveTextContent("Several sources failed. Their rows show no number rather than one that may be out of date.");
   });
 
   it("does not count a last good value that may not be written (an index series)", () => {

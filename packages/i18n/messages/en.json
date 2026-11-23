@@ -84,7 +84,7 @@
     "stale": "as of {value}, older than its usual refresh",
     "error": "Not checked: the source did not answer.",
     "errorHidden": "No number is shown rather than one that may be out of date.",
-    "errorHiddenLastGood": "No current number is shown; a last good value is marked with its time.",
+    "errorHiddenLastGood": "No current number. A last good value is shown with its time and isn't counted in any total.",
     "lastGood": "Last good value {value}, as of {when}, older than its usual refresh",
     "retry": "Retry",
     "notConfiguredOne": "Not configured: add provider {codes} to your local provider file.",
@@ -155,8 +155,10 @@
     "banner": {
       "stale": "Some values are older than their usual refresh. The other tiles are current.",
       "failed": "One source failed. Its rows show no number rather than one that may be out of date. The other tiles are current.",
-      "failedLastGood": "One source failed. Its rows show no current number; a last good value is marked with its time. The other tiles are current.",
-      "retry": "Retry now"
+      "failedLastGood": "One source failed. Its rows show no current number; a last good value is shown only with its time.",
+      "retry": "Retry now",
+      "failedMany": "Several sources failed. Their rows show no number rather than one that may be out of date. The other tiles are current.",
+      "failedManyLastGood": "Several sources failed. Their rows show no current number; a last good value is shown only with its time."
     },
     "notCovered": "Not covered in v1: Europe, the Americas outside the US and South Korea (no free source).",
     "personalUse": "Personal-use market series stay on this machine and are never exported or shared.",

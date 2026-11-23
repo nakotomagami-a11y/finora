@@ -67,7 +67,7 @@ test.describe("crash monitor, every state (FINORA_DEMO=1)", () => {
   test("error: the failed row shows no number and a retry", async ({ page }) => {
     await page.goto("/en/crash?state=error");
     // A last good value is shown on the Bitcoin row, so the words say that, and not "no number".
-    await expect(page.getByRole("alert").filter({ hasText: "Its rows show no current number; a last good value is marked with its time" })).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "Its rows show no current number; a last good value is shown only with its time" })).toBeVisible();
     await expect(page.getByText("No number is shown rather than one that may be out of date.")).toHaveCount(0);
     await expect(page.getByText("Not checked: the source did not answer.").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Retry" }).first()).toBeVisible();

@@ -84,7 +84,7 @@
     "stale": "seisuga {value}, tavapärasest vanem",
     "error": "Kontrollimata: allikas ei vastanud.",
     "errorHidden": "Numbrit ei näidata, mitte võimalik aegunud numbrit.",
-    "errorHiddenLastGood": "Praegust numbrit ei näidata; viimane kehtiv väärtus on märgitud ajaga.",
+    "errorHiddenLastGood": "Praegust numbrit pole. Viimane kehtiv väärtus näidatakse ajaga ja seda ei arvata ühtegi kogusummasse.",
     "lastGood": "Viimane kehtiv väärtus {value}, seisuga {when}, tavapärasest vanem",
     "retry": "Proovi uuesti",
     "notConfiguredOne": "Seadistamata: lisage oma pakkujate faili pakkuja {codes}.",
@@ -155,8 +155,10 @@
     "banner": {
       "stale": "Mõned väärtused on tavapärasest vanemad. Teised plaadid on värsked.",
       "failed": "Üks allikas ebaõnnestus. Selle read ei näita numbrit, mitte võimalikult aegunud numbrit. Teised plaadid on värsked.",
-      "failedLastGood": "Üks allikas ebaõnnestus. Selle read ei näita praegust numbrit; viimane kehtiv väärtus on märgitud ajaga. Teised plaadid on värsked.",
-      "retry": "Proovi kohe"
+      "failedLastGood": "Üks allikas ebaõnnestus. Selle read ei näita praegust numbrit; viimane kehtiv väärtus näidatakse ainult ajaga.",
+      "retry": "Proovi kohe",
+      "failedMany": "Mitu allikat ebaõnnestus. Nende read ei näita numbrit, mitte võimalikult aegunud numbrit. Teised plaadid on värsked.",
+      "failedManyLastGood": "Mitu allikat ebaõnnestus. Nende read ei näita praegust numbrit; viimane kehtiv väärtus näidatakse ainult ajaga."
     },
     "notCovered": "Ei kata 1. versioonis: Euroopa, USA-väline Ameerika ja Lõuna-Korea (tasuta allikat pole).",
     "personalUse": "Isiklikuks kasutuseks mõeldud tururead jäävad sellesse arvutisse ning neid ei ekspordita ega jagata.",
