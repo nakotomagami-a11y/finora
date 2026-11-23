@@ -7,6 +7,9 @@
 research/.cache/
 research/local/
 
+# Finora data directory (databases, raw downloads, backups)
+.data/
+
 # Node
 node_modules/
 .next/

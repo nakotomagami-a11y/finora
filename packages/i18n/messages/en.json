@@ -1,0 +1,225 @@
+{
+  "common": {
+    "appName": "Finora",
+    "skipToContent": "Skip to content",
+    "loading": "Loading"
+  },
+  "shell": {
+    "railLabel": "Tools",
+    "bottomBarLabel": "Tools",
+    "tools": {
+      "explorer": "Explorer",
+      "library": "Library",
+      "crash": "Crash monitor",
+      "sources": "Sources",
+      "settings": "Settings"
+    },
+    "theme": {
+      "label": "Theme",
+      "system": "System",
+      "dark": "Dark",
+      "light": "Light"
+    }
+  },
+  "footer": {
+    "label": "Site information",
+    "sourceCode": "Source code",
+    "terms": "Terms",
+    "licence": "Licensed under AGPL-3.0-or-later",
+    "language": "Language"
+  },
+  "explorer": {
+    "title": "Who are we looking into?",
+    "placeholder": "Company search opens here in the next build step."
+  },
+  "crash": {
+    "title": "Crash monitor",
+    "overline": "Crash monitor",
+    "heading": "How far markets are from their peaks",
+    "updated": "Updated {when}",
+    "waiting": "Waiting for the first figures",
+    "cadenceNote": "crypto about every 15 minutes, daily series once a day, quarterly series when published",
+    "loading": "Loading the markets",
+    "tiles": {
+      "M01": "US stocks",
+      "M03": "Asia and Pacific",
+      "M05": "Gold",
+      "M06": "Crypto",
+      "M07": "Oil",
+      "M08": "US national debt"
+    },
+    "rows": {
+      "us_equities": "US stocks, quarterly",
+      "us_large": "US large companies, daily",
+      "us_broad": "US broad market, daily",
+      "us_tech": "US technology, daily",
+      "japan_index": "Japan, broad index",
+      "taiwan_index": "Taiwan",
+      "gold_monthly": "Gold, monthly average",
+      "bitcoin": "Bitcoin",
+      "ether": "Ether",
+      "total_crypto": "Total crypto market",
+      "brent": "Brent",
+      "wti": "WTI",
+      "us_debt": "US national debt"
+    },
+    "fromPeak": "{pct} from peak",
+    "underTenth": "Under 0.1% from peak",
+    "atPeak": "At its peak",
+    "asOf": {
+      "quarter": "Quarterly · as of {value}",
+      "month": "Monthly · as of {value}",
+      "day": "close {value}",
+      "time": "as of {value}"
+    },
+    "peak": {
+      "since": "Peak {date}",
+      "allTime": "All-time high, {date}",
+      "seeded": "Peak seeded from a cited official figure, {date}"
+    },
+    "peakUnknown": "Peak not known yet: tracking since {date}",
+    "peakUnknownShort": "peak not known yet",
+    "lag": "Published with a lag",
+    "lagLive": "15 min delayed",
+    "stale": "as of {value}, older than its usual refresh",
+    "error": "Not checked: the source did not answer.",
+    "errorHidden": "No number is shown rather than one that may be out of date.",
+    "errorHiddenLastGood": "No current number. A last good value is shown with its time and isn't counted in any total.",
+    "lastGood": "Last good value {value}, as of {when}, older than its usual refresh",
+    "retry": "Retry",
+    "notConfiguredOne": "Not configured: add provider {codes} to your local provider file.",
+    "notConfiguredMany": "Not configured: add providers {codes} to your local provider file.",
+    "notConfiguredRow": "Not configured: add {codes} to your local provider file",
+    "noNumber": "No number is shown until then, never 0%.",
+    "howToSetUp": "How to set it up",
+    "setup": {
+      "title": "Set up a provider",
+      "intro": "Some markets come from providers that Finora does not name in its code. Each one is described in a provider file in your data folder.",
+      "step1": "Open the provider file in your data folder (providers.json). Create it if it does not exist.",
+      "step2": "Add an entry for each provider code shown on the tile: {codes}.",
+      "step3": "Restart Finora, then choose Check again.",
+      "private": "The file stays on this machine. It is never committed or shared.",
+      "check": "Check again",
+      "close": "Close"
+    },
+    "money": {
+      "trillion": "≈ ${amount} trillion",
+      "billion": "≈ ${amount} billion",
+      "million": "≈ ${amount} million"
+    },
+    "valueBelowPeak": "Value below peak",
+    "wiped": {
+      "title": "Value below peaks",
+      "sum": "Sums the rows whose sources allow a value: {rows}. Peaks fall on different dates; the oldest figure is from {oldest}.",
+      "cryptoNote": "Bitcoin and ether are part of the crypto total, not added again.",
+      "left": "Left out for lack of a value: {rows}.",
+      "derived": "Derived by Finora"
+    },
+    "strip": {
+      "title": "Distance from peak",
+      "basis": "Each row's peak is the highest daily close in its window; the total crypto market uses its all-time high · sorted by drop",
+      "basisSince": "Each row's peak is the highest daily close since {since}, unless the row says otherwise · sorted by drop",
+      "note": "Each bar is a drop from that market's own peak; peaks fall on different dates. Arrows and signs carry the direction, not colour alone.",
+      "alt": "{name}: {pct} from its peak on {date}",
+      "altUnknown": "{name}: peak not known yet",
+      "older": "older than usual",
+      "allTime": "all-time high",
+      "seeded": "peak seeded",
+      "notChecked": "not checked",
+      "notConfigured": "not configured",
+      "loading": "loading",
+      "failedCheck": "Not shown: failed a data check",
+      "table": "Distance from peak, as a table",
+      "col": {
+        "market": "Market",
+        "drawdown": "From peak",
+        "peakDate": "Peak date",
+        "peakValue": "Peak value",
+        "latest": "Latest value",
+        "asOf": "As of"
+      }
+    },
+    "debt": {
+      "estimate": "estimate",
+      "ticking": "ticking between official figures",
+      "official": "Official, {date}",
+      "caveat": "The ticker is an estimate from the last 30 days' average change.",
+      "spoken": "Estimate {estimate}. Official figure {official}, as of {date}.",
+      "change": "Change, {from} to {to}",
+      "delta": {
+        "trillion": "{sign}${amount} trillion",
+        "billion": "{sign}${amount} billion",
+        "million": "{sign}${amount} million"
+      }
+    },
+    "banner": {
+      "stale": "Some values are older than their usual refresh. The other tiles are current.",
+      "failed": "One source failed. Its rows show no number rather than one that may be out of date. The other tiles are current.",
+      "failedLastGood": "One source failed. Its rows show no current number; a last good value is shown only with its time.",
+      "retry": "Retry now",
+      "failedMany": "Several sources failed. Their rows show no number rather than one that may be out of date. The other tiles are current.",
+      "failedManyLastGood": "Several sources failed. Their rows show no current number; a last good value is shown only with its time."
+    },
+    "notCovered": "Not covered in v1: Europe, the Americas outside the US and South Korea (no free source).",
+    "personalUse": "Personal-use market series stay on this machine and are never exported or shared.",
+    "how": {
+      "title": "How it's calculated",
+      "body": "Drawdown = the latest close ÷ the highest daily close in the window − 1. Every series is fetched by this machine without a key.",
+      "bodySince": "Drawdown = the latest close ÷ the highest daily close since {since} − 1. Every series is fetched by this machine without a key.",
+      "sources": "Sources"
+    },
+    "fromPeakWord": "from peak",
+    "belowPeak": "{money} below peak",
+    "chip": {
+      "label": "Source details",
+      "licence": "Licence: {id}",
+      "open": "Open data",
+      "purpose": "Shown after a stated purpose",
+      "asOf": "As of {date}",
+      "retrieved": "Retrieved {when}",
+      "checked": "Checked {when}"
+    },
+    "sources": {
+      "us-fred-open": "FRED",
+      "us-fred-cited": "FRED, cited",
+      "e1-taiwan": "Exchange E1",
+      "intl-worldbank-pinksheet": "World Bank",
+      "us-treasury-debt": "Fiscal Data",
+      "crypto-x4-ohlc": "Provider X4",
+      "crypto-c1": "Provider C1",
+      "crypto-o3-btc-height": "Provider O3",
+      "crypto-c3-global": "Provider C3"
+    }
+  },
+  "terms": {
+    "title": "Terms of use",
+    "intro": "Finora shows what public registers publish and what research agents find on the open web, with the source of every value. It is a research tool, not a credit report.",
+    "blockedHeading": "Not for these uses",
+    "blockedCredit": "Credit decisions about a private individual or sole trader",
+    "blockedEmployment": "Employment decisions about a private individual or sole trader",
+    "blockedInsurance": "Insurance decisions about a private individual or sole trader",
+    "blockedTenancy": "Tenancy decisions about a private individual or sole trader",
+    "blockedLicensing": "Licensing decisions about a private individual or sole trader",
+    "blockedServicing": "Servicing or collecting credit about a private individual or sole trader",
+    "purposeLine": "Before details about the people of a company are shown, a purpose is asked for. The purpose is logged for each company opened.",
+    "objectionLine": "To object to a record about you, or to ask for it to be corrected or removed, use the report-a-problem form on that page.",
+    "disclaimer": "Not a credit report. Not for credit, employment, tenancy or insurance decisions.",
+    "draft": "These terms are a draft until a lawyer has reviewed them."
+  },
+  "errors": {
+    "agents_unavailable": "Investigations are not available on this install right now.",
+    "bad_request": "The request was not valid.",
+    "entity_not_found": "No company with this registry code is in the loaded registers.",
+    "forbidden": "This request was refused.",
+    "host_not_allowed": "Finora only answers on the machine it runs on.",
+    "internal_error": "Something went wrong on our side.",
+    "investigation_running": "Another investigation is already running.",
+    "method_not_allowed": "This request type is not allowed here.",
+    "not_found": "Nothing was found at this address.",
+    "not_implemented": "This part of Finora is not built yet.",
+    "payload_too_large": "The request is too large.",
+    "purpose_blocked": "Finora does not support this purpose.",
+    "notFoundTitle": "Page not found",
+    "notFoundAction": "Go to the start page"
+  }
+}

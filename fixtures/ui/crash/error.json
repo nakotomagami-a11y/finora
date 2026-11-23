@@ -1,0 +1,406 @@
+{
+  "peakSince": "2025-01-01",
+  "tiles": [
+    {
+      "tileId": "M01",
+      "rows": [
+        {
+          "rowKey": "M01.X.01:us_equities",
+          "itemId": "M01.X.01",
+          "label": "crash.rows.us_equities",
+          "state": "ok",
+          "unit": "usd",
+          "value": 51000000000000,
+          "asOf": "2026-06-30",
+          "peak": {
+            "value": 55700000000000,
+            "date": "2025-12-31",
+            "basis": "since"
+          },
+          "drawdownPct": -8.4,
+          "valueLostUsd": 4700000000000,
+          "cadence": "quarterly",
+          "delayed": true,
+          "attribution": "Board of Governors of the Federal Reserve System, via FRED",
+          "sources": [
+            {
+              "sourceId": "us-fred-open",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-06-30",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        },
+        {
+          "rowKey": "M01.X.03:us_large",
+          "itemId": "M01.X.03",
+          "label": "crash.rows.us_large",
+          "state": "ok",
+          "unit": "index_points",
+          "value": 5000,
+          "asOf": "2026-11-18",
+          "peak": {
+            "value": 5540,
+            "date": "2026-06-12",
+            "basis": "since"
+          },
+          "drawdownPct": -9.7,
+          "cadence": "daily_exchange",
+          "delayed": true,
+          "attribution": "For personal use only. Example Index Owner's copyright, via FRED; 1-day lag",
+          "sources": [
+            {
+              "sourceId": "us-fred-cited",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-18",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        },
+        {
+          "rowKey": "M01.X.03:us_broad",
+          "itemId": "M01.X.03",
+          "label": "crash.rows.us_broad",
+          "state": "ok",
+          "unit": "index_points",
+          "value": 2500,
+          "asOf": "2026-11-18",
+          "peak": {
+            "value": 2784,
+            "date": "2026-06-12",
+            "basis": "since"
+          },
+          "drawdownPct": -10.2,
+          "cadence": "daily_exchange",
+          "delayed": true,
+          "attribution": "For personal use only. Example Index Owner's copyright, via FRED; 1-day lag",
+          "sources": [
+            {
+              "sourceId": "us-fred-cited",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-18",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        },
+        {
+          "rowKey": "M01.X.03:us_tech",
+          "itemId": "M01.X.03",
+          "label": "crash.rows.us_tech",
+          "state": "ok",
+          "unit": "index_points",
+          "value": 17000,
+          "asOf": "2026-11-18",
+          "peak": {
+            "value": 19560,
+            "date": "2026-06-12",
+            "basis": "since"
+          },
+          "drawdownPct": -13.1,
+          "cadence": "daily_exchange",
+          "delayed": true,
+          "attribution": "For personal use only. Example Index Owner's copyright, via FRED; 1-day lag",
+          "sources": [
+            {
+              "sourceId": "us-fred-cited",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-18",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tileId": "M03",
+      "rows": [
+        {
+          "rowKey": "M03.X.01:japan",
+          "itemId": "M03.X.01",
+          "label": "crash.rows.japan_index",
+          "state": "ok",
+          "unit": "index_points",
+          "value": 38000,
+          "asOf": "2026-11-19",
+          "peak": {
+            "value": 40470,
+            "date": "2026-07-09",
+            "basis": "since"
+          },
+          "drawdownPct": -6.1,
+          "cadence": "daily_exchange",
+          "delayed": true,
+          "attribution": "Citation required. Kept on this machine.",
+          "sources": [
+            {
+              "sourceId": "us-fred-cited",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-19",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        },
+        {
+          "rowKey": "M03.X.01:taiwan",
+          "itemId": "M03.X.01",
+          "label": "crash.rows.taiwan_index",
+          "state": "peak_unknown",
+          "unit": "index_points",
+          "asOf": "2026-11-19",
+          "trackingSince": "2026-11-16",
+          "cadence": "daily_exchange",
+          "delayed": true,
+          "attribution": "Taiwan exchange, official open data",
+          "sources": [
+            {
+              "sourceId": "e1-taiwan",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-19",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tileId": "M05",
+      "rows": [
+        {
+          "rowKey": "M05.X.01:gold_monthly",
+          "itemId": "M05.X.01",
+          "label": "crash.rows.gold_monthly",
+          "state": "ok",
+          "unit": "usd_per_oz",
+          "value": 2910,
+          "asOf": "2026-10-31",
+          "peak": {
+            "value": 3000,
+            "date": "2026-08-31",
+            "basis": "since"
+          },
+          "drawdownPct": -3,
+          "cadence": "monthly",
+          "delayed": true,
+          "attribution": "World Bank Commodity Price Data, CC BY 4.0",
+          "sources": [
+            {
+              "sourceId": "intl-worldbank-pinksheet",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-10-31",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tileId": "M06",
+      "rows": [
+        {
+          "rowKey": "M06.X.01b:bitcoin",
+          "itemId": "M06.X.01b",
+          "label": "crash.rows.bitcoin",
+          "state": "error",
+          "unit": "usd",
+          "asOf": "2026-11-22T08:20:00Z",
+          "cadence": "live",
+          "delayed": false,
+          "lastGood": {
+            "value": 70500,
+            "asOf": "2026-11-22T05:10:00Z"
+          },
+          "sources": [
+            {
+              "sourceId": "crypto-x4-ohlc",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-22",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        },
+        {
+          "rowKey": "M06.X.01b:ether",
+          "itemId": "M06.X.01b",
+          "label": "crash.rows.ether",
+          "state": "error",
+          "unit": "usd",
+          "asOf": "2026-11-22T08:20:00Z",
+          "cadence": "live",
+          "delayed": false,
+          "sources": [
+            {
+              "sourceId": "crypto-x4-ohlc",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-22",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        },
+        {
+          "rowKey": "M06.X.02:total_crypto",
+          "itemId": "M06.X.02",
+          "label": "crash.rows.total_crypto",
+          "state": "error",
+          "unit": "usd_cap",
+          "asOf": "2026-11-22T08:20:00Z",
+          "cadence": "live",
+          "delayed": false,
+          "attribution": "Crypto market data, provider C1. Values older than 24 hours are dropped.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "tileId": "M07",
+      "rows": [
+        {
+          "rowKey": "M07.X.01:brent",
+          "itemId": "M07.X.01",
+          "label": "crash.rows.brent",
+          "state": "ok",
+          "unit": "usd_per_bbl",
+          "value": 70,
+          "asOf": "2026-11-17",
+          "peak": {
+            "value": 79.5,
+            "date": "2025-04-14",
+            "basis": "since"
+          },
+          "drawdownPct": -12,
+          "cadence": "daily_exchange",
+          "delayed": true,
+          "attribution": "U.S. Energy Information Administration, via FRED",
+          "sources": [
+            {
+              "sourceId": "us-fred-open",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-17",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        },
+        {
+          "rowKey": "M07.X.01:wti",
+          "itemId": "M07.X.01",
+          "label": "crash.rows.wti",
+          "state": "ok",
+          "unit": "usd_per_bbl",
+          "value": 66,
+          "asOf": "2026-11-17",
+          "peak": {
+            "value": 76.2,
+            "date": "2025-04-14",
+            "basis": "since"
+          },
+          "drawdownPct": -13.4,
+          "cadence": "daily_exchange",
+          "delayed": true,
+          "attribution": "U.S. Energy Information Administration, via FRED",
+          "sources": [
+            {
+              "sourceId": "us-fred-open",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-17",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tileId": "M08",
+      "rows": [
+        {
+          "rowKey": "M08.X.01:us_debt",
+          "itemId": "M08.X.01",
+          "label": "crash.rows.us_debt",
+          "state": "ok",
+          "unit": "usd",
+          "value": 38610227451903,
+          "asOf": "2026-11-18",
+          "drawdownPct": -0.01,
+          "cadence": "daily_exchange",
+          "delayed": true,
+          "ticker": {
+            "total": 38610227451903,
+            "anchor": "2026-11-18T21:00:00Z",
+            "perSecond": 76000
+          },
+          "change30d": {
+            "valueUsd": 214000000000,
+            "from": "2026-10-18",
+            "to": "2026-11-18"
+          },
+          "attribution": "U.S. Treasury, Fiscal Data (Debt to the Penny)",
+          "sources": [
+            {
+              "sourceId": "us-treasury-debt",
+              "licenceId": "cc0-1.0",
+              "retrievedAt": "2026-11-22T08:00:00.000Z",
+              "asOf": "2026-11-18",
+              "asOfBasis": "in_file_field",
+              "checkedAt": "2026-11-22T08:00:00.000Z",
+              "accessTier": "open",
+              "derived": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "totalWiped": {
+    "valueUsd": 4700000000000,
+    "rowItemIds": [
+      "M01.X.01",
+      "M06.X.02"
+    ],
+    "excludedItemIds": [
+      "M06.X.02"
+    ],
+    "oldestAsOf": "2026-06-30"
+  }
+}

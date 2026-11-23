@@ -1,0 +1,225 @@
+{
+  "common": {
+    "appName": "Finora",
+    "skipToContent": "Pāriet uz saturu",
+    "loading": "Ielādē"
+  },
+  "shell": {
+    "railLabel": "Rīki",
+    "bottomBarLabel": "Rīki",
+    "tools": {
+      "explorer": "Meklēšana",
+      "library": "Izpēte",
+      "crash": "Tirgus kritumi",
+      "sources": "Avoti",
+      "settings": "Iestatījumi"
+    },
+    "theme": {
+      "label": "Tēma",
+      "system": "Sistēmas",
+      "dark": "Tumša",
+      "light": "Gaiša"
+    }
+  },
+  "footer": {
+    "label": "Vietnes informācija",
+    "sourceCode": "Pirmkods",
+    "terms": "Lietošanas noteikumi",
+    "licence": "Licence: AGPL-3.0-or-later",
+    "language": "Valoda"
+  },
+  "explorer": {
+    "title": "Ko mēs pārbaudām?",
+    "placeholder": "Uzņēmumu meklēšana šeit parādīsies nākamajā būves solī."
+  },
+  "crash": {
+    "title": "Tirgus kritumi",
+    "overline": "Tirgus kritumi",
+    "heading": "Cik tālu tirgi ir no saviem virsotnēm",
+    "updated": "Atjaunots {when}",
+    "waiting": "Gaidām pirmos skaitļus",
+    "cadenceNote": "kripto aptuveni ik pēc 15 minūtēm, dienas rindas reizi dienā, ceturkšņa rindas, kad tās publicētas",
+    "loading": "Ielādējam tirgus",
+    "tiles": {
+      "M01": "ASV akcijas",
+      "M03": "Āzija un Klusā okeāna reģions",
+      "M05": "Zelts",
+      "M06": "Kripto",
+      "M07": "Nafta",
+      "M08": "ASV valsts parāds"
+    },
+    "rows": {
+      "us_equities": "ASV akcijas, ceturksnis",
+      "us_large": "ASV lielie uzņēmumi, diena",
+      "us_broad": "ASV plašais tirgus, diena",
+      "us_tech": "ASV tehnoloģijas, diena",
+      "japan_index": "Japāna, plašais indekss",
+      "taiwan_index": "Taivāna",
+      "gold_monthly": "Zelts, mēneša vidējais",
+      "bitcoin": "Bitkoins",
+      "ether": "Ēteris",
+      "total_crypto": "Kopējais kripto tirgus",
+      "brent": "Brent",
+      "wti": "WTI",
+      "us_debt": "ASV valsts parāds"
+    },
+    "fromPeak": "{pct} no virsotnes",
+    "underTenth": "Mazāk nekā 0,1% no virsotnes",
+    "atPeak": "Virsotnē",
+    "asOf": {
+      "quarter": "Ceturksnis · uz {value}",
+      "month": "Mēnesis · uz {value}",
+      "day": "slēgums {value}",
+      "time": "uz {value}"
+    },
+    "peak": {
+      "since": "Virsotne {date}",
+      "allTime": "Visu laiku augstākais, {date}",
+      "seeded": "Virsotne ņemta no norādīta oficiāla skaitļa, {date}"
+    },
+    "peakUnknown": "Virsotne vēl nav zināma: sekojam kopš {date}",
+    "peakUnknownShort": "virsotne vēl nav zināma",
+    "lag": "Publicēts ar kavēšanos",
+    "lagLive": "Aizkave 15 min",
+    "stale": "uz {value}, vecāks nekā parasti",
+    "error": "Nav pārbaudīts: avots neatbildēja.",
+    "errorHidden": "Skaitlis netiek rādīts, nevis iespējami novecojis.",
+    "errorHiddenLastGood": "Nav pašreizējā skaitļa. Pēdējā derīgā vērtība tiek rādīta ar laiku, un tā netiek ieskaitīta nevienā kopsummā.",
+    "lastGood": "Pēdējā derīgā vērtība {value}, uz {when}, vecāka nekā parasti",
+    "retry": "Mēģināt vēlreiz",
+    "notConfiguredOne": "Nav iestatīts: pievienojiet pakalpojumu sniedzēju {codes} savā sniedzēju failā.",
+    "notConfiguredMany": "Nav iestatīts: pievienojiet pakalpojumu sniedzējus {codes} savā sniedzēju failā.",
+    "notConfiguredRow": "Nav iestatīts: pievienojiet {codes} savā sniedzēju failā",
+    "noNumber": "Līdz tam skaitlis netiek rādīts, nekad 0%.",
+    "howToSetUp": "Kā to iestatīt",
+    "setup": {
+      "title": "Sniedzēja iestatīšana",
+      "intro": "Daži tirgi nāk no sniedzējiem, kurus Finora savā kodā nenosauc. Katrs ir aprakstīts sniedzēju failā jūsu datu mapē.",
+      "step1": "Atveriet sniedzēju failu savā datu mapē (providers.json). Ja tā nav, izveidojiet to.",
+      "step2": "Pievienojiet ierakstu katram flīzē redzamajam sniedzēja kodam: {codes}.",
+      "step3": "Pārstartējiet Finoru un izvēlieties Pārbaudīt vēlreiz.",
+      "private": "Fails paliek šajā datorā. Tas netiek ne publicēts, ne kopīgots.",
+      "check": "Pārbaudīt vēlreiz",
+      "close": "Aizvērt"
+    },
+    "money": {
+      "trillion": "≈ ${amount} triljoni",
+      "billion": "≈ ${amount} miljardi",
+      "million": "≈ ${amount} miljoni"
+    },
+    "valueBelowPeak": "Vērtība zem virsotnes",
+    "wiped": {
+      "title": "Vērtība zem virsotnēm",
+      "sum": "Summē rindas, kuru avoti ļauj rādīt vērtību: {rows}. Virsotnes ir dažādos datumos; vecākais skaitlis ir no {oldest}.",
+      "cryptoNote": "Bitkoins un ēteris ir kripto kopsummas daļa un netiek pieskaitīti vēlreiz.",
+      "left": "Izlaists, jo nav vērtības: {rows}.",
+      "derived": "Finoras aprēķināts"
+    },
+    "strip": {
+      "title": "Attālums no virsotnes",
+      "basis": "Katras rindas virsotne ir augstākais dienas slēgums tās periodā; kopējam kripto tirgum — visu laiku augstākais · sakārtots pēc krituma",
+      "basisSince": "Katras rindas virsotne ir augstākais dienas slēgums kopš {since}, ja rinda nenorāda citādi · sakārtots pēc krituma",
+      "note": "Katra josla ir kritums no šī tirgus paša virsotnes; virsotnes ir dažādos datumos. Virzienu rāda bultiņas un zīmes, ne tikai krāsa.",
+      "alt": "{name}: {pct} no virsotnes, kas bija {date}",
+      "altUnknown": "{name}: virsotne vēl nav zināma",
+      "older": "vecāks nekā parasti",
+      "allTime": "visu laiku augstākais",
+      "seeded": "sākotnēji ievadīta virsotne",
+      "notChecked": "nav pārbaudīts",
+      "notConfigured": "nav iestatīts",
+      "loading": "ielādē",
+      "failedCheck": "Nav rādīts: neizturēja datu pārbaudi",
+      "table": "Attālums no virsotnes tabulā",
+      "col": {
+        "market": "Tirgus",
+        "drawdown": "No virsotnes",
+        "peakDate": "Virsotnes datums",
+        "peakValue": "Virsotnes vērtība",
+        "latest": "Pēdējā vērtība",
+        "asOf": "Uz"
+      }
+    },
+    "debt": {
+      "estimate": "aplēse",
+      "ticking": "skaita starp oficiālajiem skaitļiem",
+      "official": "Oficiāli, {date}",
+      "caveat": "Skaitītājs ir aplēse pēc pēdējo 30 dienu vidējām izmaiņām.",
+      "spoken": "Aplēse {estimate}. Oficiālais skaitlis {official}, uz {date}.",
+      "change": "Izmaiņas, {from} līdz {to}",
+      "delta": {
+        "trillion": "{sign}${amount} triljoni",
+        "billion": "{sign}${amount} miljardi",
+        "million": "{sign}${amount} miljoni"
+      }
+    },
+    "banner": {
+      "stale": "Dažas vērtības ir vecākas nekā parasti. Pārējās flīzes ir aktuālas.",
+      "failed": "Viens avots neizdevās. Tā rindas nerāda skaitli, nevis iespējami novecojušu. Pārējās flīzes ir aktuālas.",
+      "failedLastGood": "Viens avots neizdevās. Tā rindas nerāda pašreizējo skaitli; pēdējā derīgā vērtība tiek rādīta tikai ar laiku.",
+      "retry": "Mēģināt tūlīt",
+      "failedMany": "Vairāki avoti neizdevās. To rindas nerāda skaitli, nevis iespējami novecojušu. Pārējās flīzes ir aktuālas.",
+      "failedManyLastGood": "Vairāki avoti neizdevās. To rindas nerāda pašreizējo skaitli; pēdējā derīgā vērtība tiek rādīta tikai ar laiku."
+    },
+    "notCovered": "Nav aptverts 1. versijā: Eiropa, Amerikas ārpus ASV un Dienvidkoreja (nav bezmaksas avota).",
+    "personalUse": "Personiskai lietošanai paredzētās tirgus rindas paliek šajā datorā un netiek eksportētas vai kopīgotas.",
+    "how": {
+      "title": "Kā tas tiek aprēķināts",
+      "body": "Kritums = pēdējais slēgums ÷ augstākais dienas slēgums periodā − 1. Katru rindu šis dators ielādē bez atslēgas.",
+      "bodySince": "Kritums = pēdējais slēgums ÷ augstākais dienas slēgums kopš {since} − 1. Katru rindu šis dators ielādē bez atslēgas.",
+      "sources": "Avoti"
+    },
+    "fromPeakWord": "no virsotnes",
+    "belowPeak": "{money} zem virsotnes",
+    "chip": {
+      "label": "Avota informācija",
+      "licence": "Licence: {id}",
+      "open": "Atvērti dati",
+      "purpose": "Rādīts pēc norādīta mērķa",
+      "asOf": "Uz {date}",
+      "retrieved": "Iegūts {when}",
+      "checked": "Pārbaudīts {when}"
+    },
+    "sources": {
+      "us-fred-open": "FRED",
+      "us-fred-cited": "FRED, ar atsauci",
+      "e1-taiwan": "Birža E1",
+      "intl-worldbank-pinksheet": "Pasaules Banka",
+      "us-treasury-debt": "Fiscal Data",
+      "crypto-x4-ohlc": "Sniedzējs X4",
+      "crypto-c1": "Sniedzējs C1",
+      "crypto-o3-btc-height": "Sniedzējs O3",
+      "crypto-c3-global": "Sniedzējs C3"
+    }
+  },
+  "terms": {
+    "title": "Lietošanas noteikumi",
+    "intro": "Finora rāda to, ko publicē valsts reģistri un ko pētniecības aģenti atrod atklātajā tīmeklī, norādot katras vērtības avotu. Tas ir pētniecības rīks, nevis kredītu ziņojums.",
+    "blockedHeading": "Nav paredzēts šiem mērķiem",
+    "blockedCredit": "Lēmumi par kredītu par fizisku personu vai individuālo komersantu",
+    "blockedEmployment": "Lēmumi par pieņemšanu darbā par fizisku personu vai individuālo komersantu",
+    "blockedInsurance": "Lēmumi par apdrošināšanu par fizisku personu vai individuālo komersantu",
+    "blockedTenancy": "Lēmumi par īri par fizisku personu vai individuālo komersantu",
+    "blockedLicensing": "Lēmumi par licencēšanu par fizisku personu vai individuālo komersantu",
+    "blockedServicing": "Kredīta apkalpošana vai piedziņa par fizisku personu vai individuālo komersantu",
+    "purposeLine": "Pirms tiek rādīti dati par uzņēmuma cilvēkiem, tiek prasīts mērķis. Mērķis tiek reģistrēts katram atvērtajam uzņēmumam.",
+    "objectionLine": "Lai iebilstu pret ierakstu par jums vai lūgtu to labot vai dzēst, izmantojiet šīs lapas ziņošanas par problēmu veidlapu.",
+    "disclaimer": "Nav kredītu ziņojums. Nav paredzēts lēmumiem par kredītu, nodarbinātību, īri vai apdrošināšanu.",
+    "draft": "Šie noteikumi ir melnraksts, līdz tos pārskata jurists."
+  },
+  "errors": {
+    "agents_unavailable": "Izmeklēšanas šajā instalācijā pašlaik nav pieejamas.",
+    "bad_request": "Pieprasījums nav derīgs.",
+    "entity_not_found": "Ielādētajos reģistros nav uzņēmuma ar šo reģistrācijas numuru.",
+    "forbidden": "Pieprasījums tika noraidīts.",
+    "host_not_allowed": "Finora atbild tikai tajā datorā, kurā darbojas.",
+    "internal_error": "Mūsu pusē radās kļūda.",
+    "investigation_running": "Jau notiek cita izmeklēšana.",
+    "method_not_allowed": "Šāda veida pieprasījums šeit nav atļauts.",
+    "not_found": "Šajā adresē nekas netika atrasts.",
+    "not_implemented": "Šī Finora daļa vēl nav izveidota.",
+    "payload_too_large": "Pieprasījums ir pārāk liels.",
+    "purpose_blocked": "Finora neatbalsta šo mērķi.",
+    "notFoundTitle": "Lapa nav atrasta",
+    "notFoundAction": "Doties uz sākumlapu"
+  }
+}

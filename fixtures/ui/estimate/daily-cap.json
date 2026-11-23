@@ -1,0 +1,29 @@
+{
+  "low": 90000,
+  "typical": 150000,
+  "high": 310000,
+  "basis": "measured",
+  "drivers": [
+    "registry",
+    "web"
+  ],
+  "typicalSeconds": {
+    "registry": 40,
+    "web": 90
+  },
+  "cap": {
+    "unit": "st",
+    "used": 0,
+    "held": 0,
+    "cap": 500000,
+    "extensionGranted": false
+  },
+  "daily": {
+    "unit": "st",
+    "used": 3300000,
+    "held": 0,
+    "cap": 3300000,
+    "extensionGranted": false
+  },
+  "dailyResetsAt": "2026-11-23T00:00:00.000Z"
+}

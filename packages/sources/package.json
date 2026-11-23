@@ -1,0 +1,23 @@
+{
+  "name": "@finora/sources",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@finora/domain": "workspace:*",
+    "@finora/formats": "workspace:*"
+  },
+  "devDependencies": {
+    "@finora/tooling": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

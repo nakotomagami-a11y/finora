@@ -1,0 +1,22 @@
+# Supply chain (architecture §12). The cooldown matches pnpm's minimumReleaseAge (1 day).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 1
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 1
+    open-pull-requests-limit: 5
+    groups:
+      dev-tooling:
+        dependency-type: development

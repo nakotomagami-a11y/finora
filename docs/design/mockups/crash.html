@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Crash monitor · Finora mockup</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  // No keys in v1 (human ruling H5): every tile runs on a keyless source or is not drawn.
+  // Commercial sources appear under coded aliases (H4); their real names live in a local provider file.
+  const { esc, param, icon, sparkline } = Finora;
+  const state = param("state", "full");
+  const stale = state === "stale";
+  const taiwanSeeded = param("taiwan", "tracking") === "seeded";
+
+  const src = (name, short, licence, asOf, extra = {}) => ({ name, short, licence, asOf, ...extra });
+  const SRC = {
+    z1: src("Federal Reserve Z.1, via FRED", "FRED Z.1", "Public domain; cite the Board of Governors", "Q2 2026", { cadence: "quarterly" }),
+    usDaily: src("US index series F1-F3, via FRED (index owner named in your local provider file)", "FRED F1-F3", "Personal use only; the index owner's copyright; 1-day lag", "18 Nov", { cadence: "daily", tier: "fetched by this machine, kept on this machine only" }),
+    jp: src("Japan broad index, cited series F5, via FRED", "FRED F5", "Citation required; kept on this machine only", "19 Nov", { cadence: "daily", tier: "fetched by this machine, kept on this machine only" }),
+    tw: src("Taiwan exchange E1, official open data", "exchange E1", "Open Government Data Licence", "19 Nov", { cadence: "daily" }),
+    wb: src("World Bank Commodity Price Data (Pink Sheet)", "World Bank", "CC BY 4.0", "Oct 2026", { cadence: "monthly" }),
+    chain: src("Public node: block height and computed supply; exchange candles (X4)", "on-chain + X4", "Self-hosted, personal use", stale ? "07:40" : "09:55", { cadence: "5-minute" }),
+    agg: src("Crypto market data, provider C1 (keyless)", "C1", "Personal use; attribution; values older than 24 h are dropped", stale ? "07:40" : "09:55", { cadence: "15-minute" }),
+    eia: src("U.S. Energy Information Administration, via FRED", "EIA", "Public domain", "17 Nov", { cadence: "daily" }),
+    fd: src("U.S. Treasury, Fiscal Data, Debt to the Penny", "Fiscal Data", "Public domain", "18 Nov", { cadence: "daily" }),
+  };
+  const chipOf = (s, st) => Finora.chip(s, { stale: st });
+
+  function ddStrip() {
+    const rows = [
+      ["Crypto, total", 29.0, true], ["Oil, WTI", 13.4], ["Oil, Brent", 12.0], ["US large companies (daily)", 9.7], ["US stocks (quarterly)", 8.4], ["Japan", 6.1],
+      ...(taiwanSeeded ? [["Taiwan (seeded peak)", 5.2]] : []), ["Gold (monthly avg)", 3.0], ...(taiwanSeeded ? [] : [["Taiwan", "peak"]]),
+    ];
+    return `<section class="card" style="padding:20px;display:flex;flex-direction:column;gap:14px" aria-labelledby="dd-h">
+      <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+        <span class="label">Value below peaks</span>
+        <span class="tile-big num" style="color:var(--ink)">≈ $6.3 trillion</span>
+        <span class="small ink2">Sums the rows whose sources allow a value: US stocks (quarterly, Q2 2026) and the total crypto market (${stale ? "07:40" : "09:55"}). Bitcoin and ether are part of the crypto total, not added again. Peaks fall on different dates; the oldest figure is from Q2 2026.</span>
+        <span>${Finora.conf("derived")}</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><h2 id="dd-h" class="serif" style="font-size:26px">Distance from peak</h2><span class="small muted">peak = highest daily close since 1 Jan 2025 (crypto total: its all-time high) · sorted by drop</span></div>
+      <div class="dd-strip">${rows.map(([n, v, st]) => `<div class="dd-row"><span class="dd-name">${esc(n)}</span>
+        ${typeof v === "number" ? `<span class="dd-bar" aria-hidden="true"><i style="width:${Math.min(100, v * 2.5)}%"></i></span><span class="dd-val num delta-down">${icon("arrowDown", "icon icon-sm")}−${v.toFixed(1)}%${st && stale ? ' <span class="stale-date small">(2 h old)</span>' : ""}</span>`
+        : `<span class="dd-bar" aria-hidden="true"></span><span class="dd-val small muted">peak not known yet</span>`}</div>`).join("")}</div>
+      <p class="small muted">Each bar is a drop from that market's own peak; peaks fall on different dates. Arrows and signs carry the direction, not colour alone.</p>
+    </section>`;
+  }
+
+  const tile = ({ id, title, big, sub, rows = [], foot, caveat, empty, spark }) => `<section class="tile ${empty ? "empty" : ""}" aria-labelledby="${id}-h">
+      <div class="tile-head"><h2 id="${id}-h">${title}</h2><span class="mono muted" style="font-size:11px;margin-left:auto">${id}</span></div>
+      ${empty ? `<div class="tile-shape">${empty}</div>` : `<div style="display:flex;align-items:flex-end;gap:12px;justify-content:space-between"><span class="tile-big loss num">${big}</span>${spark ? `<span class="muted">${sparkline(spark, 110, 32)}</span>` : ""}</div>${sub ? `<span class="small ink2">${sub}</span>` : ""}`}
+      ${rows.length ? `<div class="tile-rows">${rows.map(([k, v]) => `<div class="tile-row"><span class="muted">${k}</span><span class="num">${v}</span></div>`).join("")}</div>` : ""}
+      ${caveat ? `<span class="caveat">${icon("info", "icon icon-sm")}<span>${caveat}</span></span>` : ""}
+      <div class="tile-foot">${foot}</div>
+    </section>`;
+
+  function tiles() {
+    if (state === "loading") return `<div class="tiles">${Array.from({ length: 5 }, () => `<section class="tile" aria-busy="true"><span class="sk" style="width:40%"></span><span class="sk" style="width:60%;height:34px;border-radius:8px"></span><span class="sk"></span><span class="sk" style="width:70%"></span></section>`).join("")}</div>`;
+    return `<div class="tiles">
+      ${tile({ id: "M01", title: "US stocks", big: "−8.4%", sub: "Total US equity value, quarterly · below its peak quarter (Q4 2025)", rows: [["Value below peak", "≈ $5.1 trillion"], ["US large companies, daily", "−9.7% · close 18 Nov"], ["US broad market, daily", "−10.2% · close 18 Nov"], ["US technology, daily", "−13.1% · close 18 Nov"]], caveat: "The quarterly row is official and includes non-listed equity. The daily rows are for personal use only: the index owner's copyright, via FRED, 1-day lag; drawdown only, the series stays on this machine.", foot: `${chipOf(SRC.z1)}${chipOf(SRC.usDaily)}`, spark: [100, 104, 108, 111, 103, 96, 92] })}
+      ${tile({ id: "M03", title: "Asia and Pacific", big: "−6.1%", sub: "Japan, broad index · close 19 Nov · peak 9 Jul 2026", rows: [["Taiwan", taiwanSeeded ? "−5.2% · peak seeded from the exchange's published record" : "Peak not known yet: tracking since 16 Nov 2026"]], caveat: "Japan: citation required, kept on this machine. Taiwan's peak is seeded once from a cited official figure when legal approves it; until then no percentage is shown, never 0%.", foot: `${chipOf(SRC.jp)}${chipOf(SRC.tw)}`, spark: [100, 102, 106, 103, 99, 95, 94] })}
+      ${tile({ id: "M05", title: "Gold", big: "−3.0%", sub: "October 2026 average · peak month Aug 2026", caveat: "Monthly average.", foot: chipOf(SRC.wb), spark: [90, 94, 99, 100, 98, 97] })}
+      ${state === "not-configured" ? tile({ id: "M06", title: "Crypto", empty: `<span style="display:flex;flex-direction:column;gap:8px;align-items:center">${icon("settings")}<span>Not configured: add providers C1 and X4 to your local provider file.</span><span class="small muted">No number is shown until then, never 0%.</span><a class="btn btn-sm" href="settings.html">How to set it up</a></span>`, foot: `<span>The provider file lives in your data folder and is never committed or shared.</span>` })
+        : state === "error" ? tile({ id: "M06", title: "Crypto", empty: `<span class="state-line error">${icon("warn", "icon icon-sm")}<span>Not checked: the public node and provider C1 did not answer. <button class="link-btn" type="button">Retry</button></span></span>`, foot: `<span>Last good value 07:40, hidden rather than shown as current</span>` })
+        : tile({ id: "M06", title: "Crypto", big: "−29.0%", sub: `Total market · ${stale ? '<span class="stale-date">as of 07:40, 2 h old</span>' : "as of 09:55"}`, rows: [["Total market below peak", "≈ $1.2 trillion"], ["Peak (total)", "all-time high, 6 Oct 2025"], ["Bitcoin", "−24.5% · ≈ $0.66 trillion below peak"], ["Ether", "−38.2% · ≈ $0.21 trillion below peak"]], caveat: "Self-hosted, personal use; attribution. Value below peak = drop in price × current supply (computed by Finora).", foot: `${chipOf(SRC.chain, stale)}${chipOf(SRC.agg, stale)}`, spark: [100, 92, 85, 80, 76, 72, 71] })}
+      ${tile({ id: "M07", title: "Oil", big: "−13.4%", sub: "WTI · close 17 Nov (2-day lag) · peak 14 Apr 2025", rows: [["Brent", "−12.0%"]], foot: chipOf(SRC.eia), spark: [100, 97, 92, 95, 90, 88, 87] })}
+    </div>
+    <p class="small muted" role="note">${icon("dash", "icon icon-sm")} Not covered in v1: Europe, the Americas outside the US and South Korea (no free source).</p>`;
+  }
+
+  function debt() {
+    return `<section class="card" style="padding:20px;display:flex;flex-direction:column;gap:8px;flex:1 1 320px;min-width:0" aria-labelledby="debt-h">
+      <div class="tile-head"><h2 id="debt-h">US national debt</h2><span class="mono muted" style="font-size:11px;margin-left:auto">M08</span></div>
+      <span class="debt num" aria-live="off">$38,612,904,${state === "loading" ? "…" : "117,220"}</span>
+      <span class="small ink2"><span class="tag tag-rule">estimate</span> ticking between official figures</span>
+      <div class="tile-rows"><div class="tile-row"><span class="muted">Official, 18 Nov 2026</span><span class="num">$38,610,227,451,903</span></div><div class="tile-row"><span class="muted">Change, 18 Oct to 18 Nov 2026</span><span class="num delta-down">${icon("arrowUp", "icon icon-sm")}+$214 billion</span></div></div>
+      <span class="caveat">${icon("info", "icon icon-sm")}<span>Ticker is an estimate from the last 30 days' average change.</span></span>
+      <div class="tile-foot">${chipOf(SRC.fd)}</div>
+    </section>`;
+  }
+
+  function render() {
+    const banner = stale ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Crypto values are 2 hours old.</strong> The public node hasn't answered since 07:40. Other tiles are current. <button class="link-btn" type="button">Retry now</button></span></div>`
+      : state === "error" ? `<div class="banner banner-bad" role="alert">${icon("warn")}<span><strong>One source failed.</strong> Crypto is not shown rather than shown out of date. Other tiles are current.</span></div>` : "";
+    return `<div class="page">
+      <div class="co-head"><span class="label">Crash monitor</span><h1 class="co-title">How far markets are from their peaks</h1>
+        <div class="co-meta"><span>Updated ${state === "loading" ? "…" : "2 min ago"}</span><span class="sep">/</span><span>crypto every 15 min, daily series once a day, quarterly series when published</span><span class="sep">/</span><span class="small muted">numbers on this page are fictional</span></div></div>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:8px">
+        ${banner}
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch"><div style="flex:2 1 520px;min-width:0">${state === "loading" ? `<section class="card" style="padding:20px"><span class="sk" style="width:30%;height:20px"></span>${Array.from({ length: 6 }, () => '<span class="sk" style="margin-top:14px"></span>').join("")}</section>` : ddStrip()}</div>${debt()}</div>
+        ${tiles()}
+        <section class="small muted" style="display:flex;flex-direction:column;gap:4px"><strong class="ink2">How it's calculated</strong><span>Drawdown = latest close ÷ highest daily close since 1 Jan 2025 − 1. Every series is fetched by this machine without a key; the personal-use series stay on this machine and are never exported or shared.</span><span>Sources: Board of Governors of the Federal Reserve System, via FRED · World Bank Commodity Price Data (CC BY 4.0) · U.S. Energy Information Administration · U.S. Treasury, Fiscal Data · exchange E1 open data (Taiwan) · providers C1 and X4 (named in your local provider file).</span></section>
+      </div>
+    </div>`;
+  }
+
+  Finora.mount("crash", render, [
+    { key: "state", label: "Data state", options: [["full", "Current"], ["loading", "Loading"], ["stale", "One source stale"], ["error", "One source failed"], ["not-configured", "Crypto provider not configured"]] },
+    { key: "taiwan", label: "Taiwan peak", options: [["tracking", "Not known yet: tracking"], ["seeded", "Seeded from a cited figure"]] },
+  ]);
+})();
+</script>
+</body>
+</html>

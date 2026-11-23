@@ -1,0 +1,488 @@
+{
+  "scenario": "limit",
+  "events": [
+    {
+      "id": 1,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "investigation.status",
+      "data": {
+        "status": "planning"
+      }
+    },
+    {
+      "id": 2,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "plan",
+      "data": {
+        "runs": [
+          {
+            "runId": "run-lead",
+            "role": "lead",
+            "dependsOn": []
+          },
+          {
+            "runId": "run-registry",
+            "role": "registry",
+            "dependsOn": []
+          },
+          {
+            "runId": "run-money",
+            "role": "money",
+            "dependsOn": []
+          },
+          {
+            "runId": "run-legal",
+            "role": "legal",
+            "dependsOn": []
+          },
+          {
+            "runId": "run-web",
+            "role": "web",
+            "dependsOn": []
+          },
+          {
+            "runId": "run-verdict",
+            "role": "verdict",
+            "dependsOn": []
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "investigation.status",
+      "data": {
+        "status": "running"
+      }
+    },
+    {
+      "id": 4,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.status",
+      "data": {
+        "runId": "run-lead",
+        "status": "running"
+      }
+    },
+    {
+      "id": 5,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.task",
+      "data": {
+        "runId": "run-lead",
+        "taskId": "t-lead-1",
+        "labelKey": "agents.tasks.resolve_company",
+        "params": {},
+        "status": "done",
+        "sourcesRead": 1
+      }
+    },
+    {
+      "id": 6,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.source",
+      "data": {
+        "runId": "run-lead",
+        "documentId": "doc-0",
+        "domain": "register.example",
+        "title": "Register entry",
+        "kind": "register",
+        "sourcesRead": 1
+      }
+    },
+    {
+      "id": 7,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.status",
+      "data": {
+        "runId": "run-lead",
+        "status": "done"
+      }
+    },
+    {
+      "id": 8,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.status",
+      "data": {
+        "runId": "run-registry",
+        "status": "running"
+      }
+    },
+    {
+      "id": 9,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.status",
+      "data": {
+        "runId": "run-money",
+        "status": "running"
+      }
+    },
+    {
+      "id": 10,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.status",
+      "data": {
+        "runId": "run-legal",
+        "status": "running"
+      }
+    },
+    {
+      "id": 11,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.status",
+      "data": {
+        "runId": "run-web",
+        "status": "running"
+      }
+    },
+    {
+      "id": 12,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.step",
+      "data": {
+        "runId": "run-registry",
+        "stepKey": "agents.steps.reading_register",
+        "params": {}
+      }
+    },
+    {
+      "id": 13,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.task",
+      "data": {
+        "runId": "run-registry",
+        "taskId": "t-reg-1",
+        "labelKey": "agents.tasks.read_register",
+        "params": {},
+        "status": "running",
+        "sourcesRead": 0
+      }
+    },
+    {
+      "id": 14,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.source",
+      "data": {
+        "runId": "run-registry",
+        "documentId": "doc-1",
+        "domain": "register.example",
+        "title": "Register entry",
+        "kind": "register",
+        "sourcesRead": 1
+      }
+    },
+    {
+      "id": 15,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.task",
+      "data": {
+        "runId": "run-registry",
+        "taskId": "t-reg-1",
+        "labelKey": "agents.tasks.read_register",
+        "params": {},
+        "status": "done",
+        "sourcesRead": 1
+      }
+    },
+    {
+      "id": 16,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "finding",
+      "data": {
+        "id": "f1",
+        "investigationId": "inv-fixture-1",
+        "runId": "run-registry",
+        "entityId": "lv-40003000018",
+        "checkId": 2,
+        "itemId": "S01.LV.01",
+        "kind": "signal",
+        "signalIds": [
+          "status_not_active"
+        ],
+        "severity": "point_to_check",
+        "statement": "The register lists the company as in liquidation.",
+        "citations": [
+          {
+            "kind": "statement",
+            "statementIds": [
+              "st-1"
+            ],
+            "snapshot": [
+              {
+                "itemId": "S01.LV.01",
+                "prop": "status",
+                "value": "liquidation",
+                "sourceId": "fx-lv-register",
+                "asOf": "2026-11-21"
+              }
+            ]
+          }
+        ],
+        "generatedBy": "ai"
+      }
+    },
+    {
+      "id": 17,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "usage",
+      "data": {
+        "runId": "run-registry",
+        "usage": {
+          "unit": "st",
+          "used": 60000,
+          "held": 20000,
+          "cap": 500000,
+          "extensionGranted": false
+        }
+      }
+    },
+    {
+      "id": 18,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "usage",
+      "data": {
+        "runId": null,
+        "usage": {
+          "unit": "st",
+          "used": 120000,
+          "held": 80000,
+          "cap": 500000,
+          "extensionGranted": false
+        }
+      }
+    },
+    {
+      "id": 19,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "run.status",
+      "data": {
+        "runId": "run-web",
+        "status": "waiting",
+        "waitingOn": "plan_limit"
+      }
+    },
+    {
+      "id": 20,
+      "at": "2026-11-22T08:00:00.000Z",
+      "investigationId": "inv-fixture-1",
+      "type": "investigation.status",
+      "data": {
+        "status": "paused",
+        "code": "plan_limit",
+        "resetsAt": "2026-11-22T14:00:00.000Z"
+      }
+    }
+  ],
+  "final": {
+    "id": "inv-fixture-1",
+    "subject": {
+      "eid": "lv-40003000018",
+      "country": "lv",
+      "caption": "Example Company 1 SIA"
+    },
+    "status": "paused",
+    "code": "plan_limit",
+    "resetsAt": "2026-11-22T14:00:00.000Z",
+    "plan": [
+      {
+        "runId": "run-lead",
+        "role": "lead",
+        "dependsOn": []
+      },
+      {
+        "runId": "run-registry",
+        "role": "registry",
+        "dependsOn": []
+      },
+      {
+        "runId": "run-money",
+        "role": "money",
+        "dependsOn": []
+      },
+      {
+        "runId": "run-legal",
+        "role": "legal",
+        "dependsOn": []
+      },
+      {
+        "runId": "run-web",
+        "role": "web",
+        "dependsOn": []
+      },
+      {
+        "runId": "run-verdict",
+        "role": "verdict",
+        "dependsOn": []
+      }
+    ],
+    "runs": [
+      {
+        "id": "run-lead",
+        "role": "lead",
+        "status": "done",
+        "usage": {
+          "unit": "st",
+          "used": 0,
+          "held": 0,
+          "cap": 0,
+          "extensionGranted": false
+        },
+        "startedAt": null,
+        "endedAt": null
+      },
+      {
+        "id": "run-registry",
+        "role": "registry",
+        "status": "running",
+        "usage": {
+          "unit": "st",
+          "used": 60000,
+          "held": 20000,
+          "cap": 500000,
+          "extensionGranted": false
+        },
+        "startedAt": null,
+        "endedAt": null
+      },
+      {
+        "id": "run-money",
+        "role": "money",
+        "status": "running",
+        "usage": {
+          "unit": "st",
+          "used": 0,
+          "held": 0,
+          "cap": 0,
+          "extensionGranted": false
+        },
+        "startedAt": null,
+        "endedAt": null
+      },
+      {
+        "id": "run-legal",
+        "role": "legal",
+        "status": "running",
+        "usage": {
+          "unit": "st",
+          "used": 0,
+          "held": 0,
+          "cap": 0,
+          "extensionGranted": false
+        },
+        "startedAt": null,
+        "endedAt": null
+      },
+      {
+        "id": "run-web",
+        "role": "web",
+        "status": "waiting",
+        "waitingOn": "plan_limit",
+        "usage": {
+          "unit": "st",
+          "used": 0,
+          "held": 0,
+          "cap": 0,
+          "extensionGranted": false
+        },
+        "startedAt": null,
+        "endedAt": null
+      },
+      {
+        "id": "run-verdict",
+        "role": "verdict",
+        "status": "queued",
+        "usage": {
+          "unit": "st",
+          "used": 0,
+          "held": 0,
+          "cap": 0,
+          "extensionGranted": false
+        },
+        "startedAt": null,
+        "endedAt": null
+      }
+    ],
+    "tasks": [
+      {
+        "runId": "run-lead",
+        "taskId": "t-lead-1",
+        "labelKey": "agents.tasks.resolve_company",
+        "params": {},
+        "status": "done",
+        "sourcesRead": 1
+      },
+      {
+        "runId": "run-registry",
+        "taskId": "t-reg-1",
+        "labelKey": "agents.tasks.read_register",
+        "params": {},
+        "status": "done",
+        "sourcesRead": 1
+      }
+    ],
+    "findings": [
+      {
+        "id": "f1",
+        "investigationId": "inv-fixture-1",
+        "runId": "run-registry",
+        "entityId": "lv-40003000018",
+        "checkId": 2,
+        "itemId": "S01.LV.01",
+        "kind": "signal",
+        "signalIds": [
+          "status_not_active"
+        ],
+        "severity": "point_to_check",
+        "statement": "The register lists the company as in liquidation.",
+        "citations": [
+          {
+            "kind": "statement",
+            "statementIds": [
+              "st-1"
+            ],
+            "snapshot": [
+              {
+                "itemId": "S01.LV.01",
+                "prop": "status",
+                "value": "liquidation",
+                "sourceId": "fx-lv-register",
+                "asOf": "2026-11-21"
+              }
+            ]
+          }
+        ],
+        "generatedBy": "ai"
+      }
+    ],
+    "questions": [],
+    "verdict": null,
+    "usage": {
+      "unit": "st",
+      "used": 120000,
+      "held": 80000,
+      "cap": 500000,
+      "extensionGranted": false
+    },
+    "lastEventId": 20
+  }
+}

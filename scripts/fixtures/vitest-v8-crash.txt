@@ -1,0 +1,56 @@
+ RUN  v5.1.1 <repo>
+
+
+
+#
+# Fatal error in , line 0
+# Check failed: jit_page_->allocations_.erase(addr) == 1.
+#
+#
+#
+#FailureMessage Object: 00000093E27FA900
+----- Native stack trace -----
+
+ 1: 00007FF67FBB852D node::MultiIsolatePlatform::DisposeIsolate+7741
+ 2: 00007FF67F011AAF V8_Fatal+287
+ 3: 00007FF67E7C04B6 v8::internal::ThreadIsolation::UnregisterWasmAllocation+198
+ 4: 00007FF67DE4D907 DSA_get0_engine+10663
+ 5: 00007FF67DDFD0B0 std::vector<v8::CpuProfileDeoptFrame,std::allocator<v8::CpuProfileDeoptFrame> >::~vector<v8::CpuProfileDeoptFrame,std::allocator<v8::CpuProfileDeoptFrame> >+7344
+ 6: 00007FF67DE1017A std::vector<v8::CpuProfileDeoptFrame,std::allocator<v8::CpuProfileDeoptFrame> >::~vector<v8::CpuProfileDeoptFrame,std::allocator<v8::CpuProfileDeoptFrame> >+85370
+ 7: 00007FF67DE0FF4A std::vector<v8::CpuProfileDeoptFrame,std::allocator<v8::CpuProfileDeoptFrame> >::~vector<v8::CpuProfileDeoptFrame,std::allocator<v8::CpuProfileDeoptFrame> >+84810
+ 8: 00007FF67DE4BE9A DSA_get0_engine+3898
+ 9: 00007FF67DE4EB97 DSA_get0_engine+15415
+10: 00007FF67DF779C7 std::vector<v8::CpuProfileDeoptInfo,std::allocator<v8::CpuProfileDeoptInfo> >::_Change_array+640295
+11: 00007FF67FE45DD0 node::AsyncResource::CallbackScope::CallbackScope+753568
+12: 00007FF67FE3B951 node::AsyncResource::CallbackScope::CallbackScope+711457
+13: 00000161DBF21917 
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/.pnpm/vitest@5.1.1_@types+node@24_97723f3d65169055f0658cf97d0a714e/node_modules/vitest/dist/chunks/index.ER9afepi.js:6031:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/.pnpm/vitest@5.1.1_@types+node@24_97723f3d65169055f0658cf97d0a714e/node_modules/vitest/dist/chunks/index.ER9afepi.js:5449:22
+ ❯ ChildProcess.emit node:events:526:24
+ ❯ ChildProcess._handle.onexit node:internal/child_process:295:12
+
+Caused by: Error: Worker exited unexpectedly with exit code 2147483651 during started state while running test file packages/ingest/src/concurrency.test.ts
+ ❯ ChildProcess.emitUnexpectedExit node_modules/.pnpm/vitest@5.1.1_@types+node@24_97723f3d65169055f0658cf97d0a714e/node_modules/vitest/dist/chunks/index.ER9afepi.js:5447:33
+ ❯ ChildProcess.emit node:events:526:24
+ ❯ ChildProcess._handle.onexit node:internal/child_process:295:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  136 passed (137)
+      Tests  1194 passed (1198)
+     Errors  1 error
+   Start at  00:47:39
+   Duration  23.18s (tests 48%, setup 30%, import 11%, environment 7%, transform 4%)
+
+    Isolate  137 workers spawned · ~562ms startup each (spawn + environment, per file)
+             at least ~4.57s faster with isolate: false — reuses workers across files instead of one per file
+

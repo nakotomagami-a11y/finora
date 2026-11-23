@@ -1,0 +1,225 @@
+{
+  "common": {
+    "appName": "Finora",
+    "skipToContent": "Mine sisu juurde",
+    "loading": "Laadin"
+  },
+  "shell": {
+    "railLabel": "Tööriistad",
+    "bottomBarLabel": "Tööriistad",
+    "tools": {
+      "explorer": "Otsing",
+      "library": "Uurimised",
+      "crash": "Turulangused",
+      "sources": "Allikad",
+      "settings": "Seaded"
+    },
+    "theme": {
+      "label": "Teema",
+      "system": "Süsteemi",
+      "dark": "Tume",
+      "light": "Hele"
+    }
+  },
+  "footer": {
+    "label": "Saidi teave",
+    "sourceCode": "Lähtekood",
+    "terms": "Kasutustingimused",
+    "licence": "Litsents: AGPL-3.0-or-later",
+    "language": "Keel"
+  },
+  "explorer": {
+    "title": "Keda me uurime?",
+    "placeholder": "Ettevõtete otsing avaneb siin järgmises ehitusetapis."
+  },
+  "crash": {
+    "title": "Turulangused",
+    "overline": "Turulangused",
+    "heading": "Kui kaugel turud oma tippudest on",
+    "updated": "Uuendatud {when}",
+    "waiting": "Ootame esimesi numbreid",
+    "cadenceNote": "krüpto umbes iga 15 minuti järel, päevased read kord päevas, kvartaliread nende avaldamisel",
+    "loading": "Laadime turge",
+    "tiles": {
+      "M01": "USA aktsiad",
+      "M03": "Aasia ja Vaikse ookeani piirkond",
+      "M05": "Kuld",
+      "M06": "Krüpto",
+      "M07": "Nafta",
+      "M08": "USA riigivõlg"
+    },
+    "rows": {
+      "us_equities": "USA aktsiad, kvartal",
+      "us_large": "USA suurettevõtted, päev",
+      "us_broad": "USA lai turg, päev",
+      "us_tech": "USA tehnoloogia, päev",
+      "japan_index": "Jaapan, lai indeks",
+      "taiwan_index": "Taiwan",
+      "gold_monthly": "Kuld, kuu keskmine",
+      "bitcoin": "Bitcoin",
+      "ether": "Ether",
+      "total_crypto": "Kogu krüptoturg",
+      "brent": "Brent",
+      "wti": "WTI",
+      "us_debt": "USA riigivõlg"
+    },
+    "fromPeak": "{pct} tipust",
+    "underTenth": "Alla 0,1% tipust",
+    "atPeak": "Tipus",
+    "asOf": {
+      "quarter": "Kvartal · seisuga {value}",
+      "month": "Kuu · seisuga {value}",
+      "day": "sulgemine {value}",
+      "time": "seisuga {value}"
+    },
+    "peak": {
+      "since": "Tipp {date}",
+      "allTime": "Kõigi aegade tipp, {date}",
+      "seeded": "Tipp võetud viidatud ametlikust arvust, {date}"
+    },
+    "peakUnknown": "Tipp pole veel teada: jälgime alates {date}",
+    "peakUnknownShort": "tipp pole veel teada",
+    "lag": "Avaldatud viivitusega",
+    "lagLive": "Viivitus 15 min",
+    "stale": "seisuga {value}, tavapärasest vanem",
+    "error": "Kontrollimata: allikas ei vastanud.",
+    "errorHidden": "Numbrit ei näidata, mitte võimalik aegunud numbrit.",
+    "errorHiddenLastGood": "Praegust numbrit pole. Viimane kehtiv väärtus näidatakse ajaga ja seda ei arvata ühtegi kogusummasse.",
+    "lastGood": "Viimane kehtiv väärtus {value}, seisuga {when}, tavapärasest vanem",
+    "retry": "Proovi uuesti",
+    "notConfiguredOne": "Seadistamata: lisage oma pakkujate faili pakkuja {codes}.",
+    "notConfiguredMany": "Seadistamata: lisage oma pakkujate faili pakkujad {codes}.",
+    "notConfiguredRow": "Seadistamata: lisage oma pakkujate faili {codes}",
+    "noNumber": "Seni numbrit ei näidata, mitte kunagi 0%.",
+    "howToSetUp": "Kuidas seadistada",
+    "setup": {
+      "title": "Pakkuja seadistamine",
+      "intro": "Mõned turud tulevad pakkujatelt, keda Finora oma koodis ei nimeta. Iga neist on kirjeldatud pakkujate failis teie andmekaustas.",
+      "step1": "Avage pakkujate fail oma andmekaustas (providers.json). Kui seda pole, looge see.",
+      "step2": "Lisage kirje iga plaadil näidatud pakkuja koodi kohta: {codes}.",
+      "step3": "Taaskäivitage Finora ja valige Kontrolli uuesti.",
+      "private": "Fail jääb sellesse arvutisse. Seda ei avaldata ega jagata.",
+      "check": "Kontrolli uuesti",
+      "close": "Sulge"
+    },
+    "money": {
+      "trillion": "≈ ${amount} triljonit",
+      "billion": "≈ ${amount} miljardit",
+      "million": "≈ ${amount} miljonit"
+    },
+    "valueBelowPeak": "Väärtus tipust allpool",
+    "wiped": {
+      "title": "Väärtus tippudest allpool",
+      "sum": "Liidab read, mille allikad lubavad väärtust näidata: {rows}. Tipud on eri kuupäevadel; vanim number on seisuga {oldest}.",
+      "cryptoNote": "Bitcoin ja ether kuuluvad krüpto kogusumma sisse ega lisandu uuesti.",
+      "left": "Välja jäetud väärtuse puudumise tõttu: {rows}.",
+      "derived": "Finora arvutatud"
+    },
+    "strip": {
+      "title": "Kaugus tipust",
+      "basis": "Iga rea tipp on kõrgeim päevane sulgemine selle perioodis; kogu krüptoturul kõigi aegade tipp · järjestatud languse järgi",
+      "basisSince": "Iga rea tipp on kõrgeim päevane sulgemine alates {since}, kui rida ei ütle teisiti · järjestatud languse järgi",
+      "note": "Iga riba on langus selle turu enda tipust; tipud on eri kuupäevadel. Suunda näitavad nooled ja märgid, mitte ainult värv.",
+      "alt": "{name}: {pct} tipust, mis oli {date}",
+      "altUnknown": "{name}: tipp pole veel teada",
+      "older": "tavapärasest vanem",
+      "allTime": "kõigi aegade tipp",
+      "seeded": "algselt sisestatud tipp",
+      "notChecked": "pole kontrollitud",
+      "notConfigured": "seadistamata",
+      "loading": "laadib",
+      "failedCheck": "Ei näidata: ei läbinud andmekontrolli",
+      "table": "Kaugus tipust tabelina",
+      "col": {
+        "market": "Turg",
+        "drawdown": "Tipust",
+        "peakDate": "Tipu kuupäev",
+        "peakValue": "Tipu väärtus",
+        "latest": "Viimane väärtus",
+        "asOf": "Seisuga"
+      }
+    },
+    "debt": {
+      "estimate": "hinnang",
+      "ticking": "tiksub ametlike numbrite vahel",
+      "official": "Ametlik, {date}",
+      "caveat": "Tikkur on hinnang viimase 30 päeva keskmise muutuse põhjal.",
+      "spoken": "Hinnang {estimate}. Ametlik number {official}, seisuga {date}.",
+      "change": "Muutus, {from} kuni {to}",
+      "delta": {
+        "trillion": "{sign}${amount} triljonit",
+        "billion": "{sign}${amount} miljardit",
+        "million": "{sign}${amount} miljonit"
+      }
+    },
+    "banner": {
+      "stale": "Mõned väärtused on tavapärasest vanemad. Teised plaadid on värsked.",
+      "failed": "Üks allikas ebaõnnestus. Selle read ei näita numbrit, mitte võimalikult aegunud numbrit. Teised plaadid on värsked.",
+      "failedLastGood": "Üks allikas ebaõnnestus. Selle read ei näita praegust numbrit; viimane kehtiv väärtus näidatakse ainult ajaga.",
+      "retry": "Proovi kohe",
+      "failedMany": "Mitu allikat ebaõnnestus. Nende read ei näita numbrit, mitte võimalikult aegunud numbrit. Teised plaadid on värsked.",
+      "failedManyLastGood": "Mitu allikat ebaõnnestus. Nende read ei näita praegust numbrit; viimane kehtiv väärtus näidatakse ainult ajaga."
+    },
+    "notCovered": "Ei kata 1. versioonis: Euroopa, USA-väline Ameerika ja Lõuna-Korea (tasuta allikat pole).",
+    "personalUse": "Isiklikuks kasutuseks mõeldud tururead jäävad sellesse arvutisse ning neid ei ekspordita ega jagata.",
+    "how": {
+      "title": "Kuidas see arvutatakse",
+      "body": "Langus = viimane sulgemine ÷ kõrgeim päevane sulgemine perioodis − 1. Iga rea laeb see arvuti alla ilma võtmeta.",
+      "bodySince": "Langus = viimane sulgemine ÷ kõrgeim päevane sulgemine alates {since} − 1. Iga rea laeb see arvuti alla ilma võtmeta.",
+      "sources": "Allikad"
+    },
+    "fromPeakWord": "tipust",
+    "belowPeak": "{money} tipust allpool",
+    "chip": {
+      "label": "Allika andmed",
+      "licence": "Litsents: {id}",
+      "open": "Avaandmed",
+      "purpose": "Näidatud pärast eesmärgi nimetamist",
+      "asOf": "Seisuga {date}",
+      "retrieved": "Saadud {when}",
+      "checked": "Kontrollitud {when}"
+    },
+    "sources": {
+      "us-fred-open": "FRED",
+      "us-fred-cited": "FRED, viitega",
+      "e1-taiwan": "Börs E1",
+      "intl-worldbank-pinksheet": "Maailmapank",
+      "us-treasury-debt": "Fiscal Data",
+      "crypto-x4-ohlc": "Pakkuja X4",
+      "crypto-c1": "Pakkuja C1",
+      "crypto-o3-btc-height": "Pakkuja O3",
+      "crypto-c3-global": "Pakkuja C3"
+    }
+  },
+  "terms": {
+    "title": "Kasutustingimused",
+    "intro": "Finora näitab, mida avalikud registrid avaldavad ja mida uurimisagendid avatud veebist leiavad, ning märgib iga väärtuse allika. See on uurimistööriist, mitte krediidiraport.",
+    "blockedHeading": "Ei sobi järgmiseks otstarbeks",
+    "blockedCredit": "Krediidiotsused füüsilise isiku või füüsilisest isikust ettevõtja kohta",
+    "blockedEmployment": "Töölevõtmise otsused füüsilise isiku või füüsilisest isikust ettevõtja kohta",
+    "blockedInsurance": "Kindlustusotsused füüsilise isiku või füüsilisest isikust ettevõtja kohta",
+    "blockedTenancy": "Üürimise otsused füüsilise isiku või füüsilisest isikust ettevõtja kohta",
+    "blockedLicensing": "Litsentsimise otsused füüsilise isiku või füüsilisest isikust ettevõtja kohta",
+    "blockedServicing": "Krediidi teenindamine või sissenõudmine füüsilise isiku või füüsilisest isikust ettevõtja kohta",
+    "purposeLine": "Enne ettevõtte inimeste andmete näitamist küsitakse eesmärki. Eesmärk logitakse iga avatud ettevõtte kohta.",
+    "objectionLine": "Et esitada vastuväide enda kohta käivale kirjele või paluda see parandada või kustutada, kasuta selle lehe veateate vormi.",
+    "disclaimer": "Ei ole krediidiraport. Ei sobi otsusteks laenu, töölevõtmise, üürimise ega kindlustuse kohta.",
+    "draft": "Need tingimused on mustand, kuni jurist on need üle vaadanud."
+  },
+  "errors": {
+    "agents_unavailable": "Uurimised ei ole selles paigalduses praegu saadaval.",
+    "bad_request": "Päring ei kehti.",
+    "entity_not_found": "Laaditud registrites ei ole selle registrikoodiga ettevõtet.",
+    "forbidden": "Päring lükati tagasi.",
+    "host_not_allowed": "Finora vastab ainult seal arvutis, kus ta töötab.",
+    "internal_error": "Meie poolel läks midagi valesti.",
+    "investigation_running": "Teine uurimine juba käib.",
+    "method_not_allowed": "Seda tüüpi päring ei ole siin lubatud.",
+    "not_found": "Sellel aadressil ei leitud midagi.",
+    "not_implemented": "See Finora osa ei ole veel valmis.",
+    "payload_too_large": "Päring on liiga suur.",
+    "purpose_blocked": "Finora ei toeta seda eesmärki.",
+    "notFoundTitle": "Lehte ei leitud",
+    "notFoundAction": "Mine avalehele"
+  }
+}

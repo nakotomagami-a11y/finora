@@ -1,0 +1,7 @@
+{
+  "backend": "cli",
+  "cli": "ready",
+  "overage": "permitted",
+  "running": null,
+  "cliVersion": "2.1.327"
+}

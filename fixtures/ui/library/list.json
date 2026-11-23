@@ -1,0 +1,43 @@
+{
+  "investigations": [
+    {
+      "id": "inv-fixture-1",
+      "subject": "Example Company 1 SIA",
+      "country": "lv",
+      "eid": "lv-40003000018",
+      "level": "points_to_check",
+      "coverage": {
+        "ran": 9,
+        "total": 11
+      },
+      "usage": {
+        "unit": "st",
+        "used": 190000,
+        "held": 0,
+        "cap": 500000,
+        "extensionGranted": false
+      },
+      "status": "done",
+      "startedAt": "2026-11-22T08:00:00.000Z",
+      "finishedAt": "2026-11-22T08:00:00.000Z"
+    },
+    {
+      "id": "inv-fixture-2",
+      "subject": "Placeholder Foods OÜ",
+      "country": "ee",
+      "eid": "ee-10000002",
+      "level": null,
+      "coverage": null,
+      "usage": {
+        "unit": "st",
+        "used": 40000,
+        "held": 0,
+        "cap": 500000,
+        "extensionGranted": false
+      },
+      "status": "stopped",
+      "startedAt": "2026-11-22T08:00:00.000Z",
+      "finishedAt": "2026-11-22T08:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "nodes": [
+    {
+      "eid": "lv-40003000018",
+      "name": "Example Company 1 SIA",
+      "code": "40003000018",
+      "status": "active",
+      "country": "lv"
+    }
+  ],
+  "edges": [],
+  "hubs": [],
+  "truncated": false
+}

@@ -1,0 +1,66 @@
+{
+  "nodes": [
+    {
+      "eid": "lv-40003000018",
+      "name": "Example Company 1 SIA",
+      "code": "40003000018",
+      "status": "active",
+      "country": "lv"
+    },
+    {
+      "eid": "lv-40003000215",
+      "name": "Example Company 2 SIA",
+      "code": "40003000215",
+      "status": "active",
+      "country": "lv"
+    },
+    {
+      "eid": "lv-40003000408",
+      "name": "Example Company 3 SIA",
+      "code": "40003000408",
+      "status": "active",
+      "country": "lv"
+    }
+  ],
+  "edges": [
+    {
+      "from": "lv-40003000018",
+      "to": "lv-40003000215",
+      "relation": "shared_address",
+      "source": {
+        "sourceId": "fx-lv-register",
+        "licenceId": "cc0-1.0",
+        "retrievedAt": "2026-11-22T08:00:00.000Z",
+        "asOf": "2026-11-21",
+        "asOfBasis": "in_file_field",
+        "checkedAt": "2026-11-22T08:00:00.000Z",
+        "accessTier": "open",
+        "derived": false
+      }
+    },
+    {
+      "from": "lv-40003000018",
+      "to": "lv-40003000408",
+      "relation": "corporate_member",
+      "source": {
+        "sourceId": "fx-lv-register",
+        "licenceId": "cc0-1.0",
+        "retrievedAt": "2026-11-22T08:00:00.000Z",
+        "asOf": "2026-11-21",
+        "asOfBasis": "in_file_field",
+        "checkedAt": "2026-11-22T08:00:00.000Z",
+        "accessTier": "open",
+        "derived": false
+      },
+      "share": 40
+    }
+  ],
+  "hubs": [
+    {
+      "addressKey": "addr-fixture-1",
+      "companyCount": 412,
+      "collapsed": true
+    }
+  ],
+  "truncated": true
+}

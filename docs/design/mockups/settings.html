@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Settings · Finora mockup</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  // H5: no API keys and no money. Agents run on the local Claude Code CLI under the user's own plan;
+  // usage is counted in standard tokens (st) against Finora's own caps.
+  const { esc, param, icon } = Finora;
+  const state = param("state", "full");
+  const overageEnabled = state === "overage-enabled";
+
+  const pill = (kind, text) => ({
+    good: `<span class="pill pill-good"><span class="dot"></span>${esc(text)}</span>`,
+    off: `<span class="pill"><span class="dot" style="color:var(--faint)"></span>${esc(text)}</span>`,
+    bad: `<span class="pill pill-warn">${icon("warn", "icon icon-sm")}${esc(text)}</span>`,
+  }[kind]);
+
+  function render() {
+    const cli = state === "cli-missing" ? "missing" : state === "cli-signed-out" ? "signed-out" : "ready";
+    const cliRow = `<div class="row"><span class="row-label">Claude Code on this machine</span><span class="row-value">
+        ${cli === "ready" ? `<span class="row-main">Found · signed in · version 9.4.0</span>${overageEnabled ? `<span class="caveat" style="color:var(--ink-2)">${icon("warn", "icon icon-sm")}<span>Paid extra usage is on in your Claude account; Finora will stop before using it.</span></span>` : ""}<span class="small muted">Runs the agents, the verdict write-up and follow-up questions under your own Claude plan. The agents get only Finora's own tools, no tools of Claude Code's own, and read web pages only through Finora's page filter, in a clean folder outside your files.</span>`
+        : cli === "missing" ? `<span class="row-main">Not found</span><span class="small muted">Install Claude Code, then run <span class="mono">claude</span> once in a terminal and sign in. Company profiles and Crash monitor work without it.</span>`
+        : `<span class="row-main">Found, not signed in</span><span class="small muted">Run <span class="mono">claude</span> in a terminal and sign in, then press Check again.</span>`}
+      </span><span class="row-end">${cli === "ready" ? pill("good", "Ready") : pill("bad", cli === "missing" ? "Not found" : "Not signed in")}<button class="btn btn-sm" type="button">Check again</button></span></div>`;
+    const backendRow = `<div class="row"><span class="row-label">Agent investigations</span><span class="row-value"><span class="row-main">${cli === "ready" ? "On" : "Off"} · <span class="mono">FINORA_AGENT_BACKEND=${cli === "ready" ? "cli" : "off"}</span></span><span class="small muted">Off by default. When off, company profiles, the official checks and Crash monitor still work; Investigate explains how to turn agents on.</span></span><span class="row-end">${cli === "ready" ? pill("good", "On") : pill("off", "Off")}</span></div>`;
+    const connections = `<section class="section" aria-labelledby="k-h"><div class="section-head"><h2 id="k-h">Connections</h2></div>
+      <p class="small muted" style="margin-bottom:8px">Finora needs no API keys. Everything below stays on this machine.</p>
+      <div class="rows">
+        ${backendRow}
+        ${cliRow}
+        <div class="row"><span class="row-label">SEC contact</span><span class="row-value"><span class="row-main mono">SEC_USER_AGENT</span><span class="small muted">A contact string the SEC asks every client to send. Optional; it unlocks US public companies: filings, officers, financials, insider trades.</span></span><span class="row-end">${state === "cli-missing" ? pill("off", "Not set") : pill("good", "Set")}</span></div>
+      </div></section>`;
+    const usage = `<section class="section" aria-labelledby="s-h"><div class="section-head"><h2 id="s-h">Usage</h2></div>
+      <div class="banner banner-info" role="note" style="margin-bottom:8px">${icon("info")}<span><strong>Keep paid extra usage off in your Claude account.</strong> Finora stops at its own daily cap. If paid extra usage is on in your Claude account, a run could draw on it. Keep it off to make sure Finora never costs money. Finora can't see your account's settings.</span></div>
+      <div class="rows">
+        <div class="row"><span class="row-label">Cap per investigation</span><span class="row-value"><span class="num">500k standard tokens</span><span class="small muted">One extension of up to a third more (170k) can be allowed once per investigation, from its question card, never past today's cap.</span></span><span class="row-end"><button class="btn btn-sm" type="button">Change</button></span></div>
+        <div class="row"><span class="row-label">Cap per follow-up question</span><span class="row-value num">85k standard tokens</span><span class="row-end"><button class="btn btn-sm" type="button">Change</button></span></div>
+        <div class="row"><span class="row-label">Daily cap</span><span class="row-value"><span class="num">Today: 18% used · 0.6M of 3.3M standard tokens</span><div class="meter" style="max-width:320px" role="progressbar" aria-label="Today's usage against the daily cap" aria-valuenow="18" aria-valuemin="0" aria-valuemax="100"><i style="width:18%"></i></div><span class="small muted">Resets at 00:00 local time. It can't be raised from inside a run.</span></span><span class="row-end"><button class="btn btn-sm" type="button">Change</button></span></div>
+        <div class="row"><span class="row-label">What a standard token is</span><span class="row-value small ink2">Standard tokens are Finora's measure of how much of your Claude plan a run uses. Your plan's own limits are set by your plan, and Finora can't see them.</span></div>
+      </div></section>`;
+    const purpose = `<section class="section" aria-labelledby="p-h"><div class="section-head"><h2 id="p-h">Purpose for people data</h2></div><div class="rows">
+      <div class="row"><span class="row-label">Current purpose</span><span class="row-value"><span>Checking a company I may do business with</span><span class="small muted">Stated 09:12 today; asked again after 12 hours or a restart. Every company whose people you open is logged with the purpose in force.</span></span><span class="row-end"><button class="btn btn-sm" type="button">Change</button><button class="btn btn-sm btn-quiet" type="button">View the log</button></span></div>
+      </div></section>`;
+    const data = `<section class="section" aria-labelledby="d-h"><div class="section-head"><h2 id="d-h">Data</h2></div>
+      ${state === "history-warning" ? `<div class="banner banner-warn" role="status" style="margin-bottom:8px">${icon("warn")}<span><strong>Change history is at 0.97 GB of its 1 GB limit.</strong> Nothing is deleted automatically, because deleted history would make “renamed recently” read as clean. Raise <span class="mono">HISTORY_MAX_GB</span> or free disk space.</span></div>` : ""}
+      <div class="rows">
+        ${[["Latvia", "19 Nov 06:10", "2.1 GB of 2.5 GB", "ok"], ["Estonia", "19 Nov 06:24", "2.8 GB of 3.25 GB", "ok"], ["Lithuania", "19 Nov 05:58", "1.6 GB of 2 GB", "ok"], ["Sanctions lists", "19 Nov 06:31", "50 MB", "ok"], ["Change history (our snapshots)", "since 16 Nov 2026", state === "history-warning" ? "0.97 GB of 1 GB" : "0.04 GB of 1 GB", state === "history-warning" ? "warn" : "ok"]].map(([n, w, sz, st]) => `<div class="row"><span class="row-label">${n}</span><span class="row-value"><span class="num">Last sync ${w}</span><span class="small muted num">${sz}</span></span><span class="row-end">${st === "warn" ? `<span class="pill pill-warn">${icon("warn", "icon icon-sm")}Near its limit</span>` : `<span class="pill"><span class="dot" style="color:var(--good)"></span>Current</span>`}</span></div>`).join("")}
+        <div class="row"><span class="row-label">Crash monitor peaks</span><span class="row-value"><span>Highest daily close since 1 Jan 2025</span><span class="small muted">Moving it earlier reloads each series&#39; history where its source keeps it. Taiwan&#39;s history only builds up from your first run.</span></span><span class="row-end"><button class="btn btn-sm" type="button">Change</button></span></div>
+        <div class="row"><span class="row-label">Start Finora at login</span><span class="row-value small muted">Off · starts the app quietly on this machine only (127.0.0.1); values show as stale until the catch-up refresh finishes.</span><span class="row-end"><button class="btn btn-sm" type="button">Turn on</button></span></div>
+      </div>
+      <p class="small muted" style="margin-top:8px">Share-alike data (Estonian tax data) lives in its own store and is left out of exports. Mode: <span class="mono">SHARE_ALIKE_MODE=store</span>. Personal-use market series stay on this machine and are never exported.</p></section>`;
+    const prefs = `<section class="section" aria-labelledby="pr-h"><div class="section-head"><h2 id="pr-h">Preferences</h2></div><div class="rows">
+      <div class="row"><span class="row-label">Theme</span><span class="row-value"><div class="seg" role="group" aria-label="Theme"><button type="button" aria-pressed="true">System</button><button type="button" aria-pressed="false">Dark</button><button type="button" aria-pressed="false">Light</button></div></span></div>
+      <div class="row"><span class="row-label">Language</span><span class="row-value"><div class="seg" role="group" aria-label="Language"><button type="button" aria-pressed="true">EN</button><button type="button" aria-pressed="false">LT</button><button type="button" aria-pressed="false">LV</button><button type="button" aria-pressed="false">ET</button></div></span></div>
+      </div></section>`;
+    const banner = cli === "missing" ? `<div class="banner banner-info" role="note">${icon("info")}<span><strong>Claude Code isn't installed on this machine.</strong> Company profiles and Crash monitor work now. Install it and sign in to run investigations.</span></div>`
+      : cli === "signed-out" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>Claude Code isn't signed in.</strong> Investigations can't start until it is. Profiles and Crash monitor still work.</span></div>` : "";
+    return `<div class="page" style="max-width:960px">
+      <div class="co-head"><span class="label">Settings</span><h1 class="co-title">Settings</h1></div>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:8px">${banner}${connections}${usage}${purpose}${data}${prefs}</div>
+    </div>`;
+  }
+
+  Finora.mount("settings", render, [
+    { key: "state", label: "Settings state", options: [["full", "Ready"], ["overage-enabled", "Ready, paid extra usage on: warning"], ["cli-missing", "Claude Code not installed"], ["cli-signed-out", "Claude Code not signed in"], ["history-warning", "History near its limit"]] },
+  ]);
+})();
+</script>
+</body>
+</html>

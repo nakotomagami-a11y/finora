@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Sources · Finora mockup</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/app.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+  const { esc, param, icon } = Finora;
+  const state = param("state", "full");
+  const country = param("country", "all");
+
+  const ROWS = [
+    ["LV", "Enterprise Register of Latvia", "Status, officers, company members, insolvency, securing measures", "CC0 1.0", "open data", "daily", "19 Nov 06:10", "Source: Register of Enterprises of the Republic of Latvia, data.gov.lv, CC0 1.0"],
+    ["LV", "State Revenue Service", "Taxes paid, employees, tax rating", "CC0 1.0", "open data", "quarterly", "3 Nov", "Source: State Revenue Service, data.gov.lv, CC0 1.0"],
+    ["EE", "e-Business Register (RIK)", "Status, officers, company members, annual report figures, pledges", "CC BY 4.0", "open data", "daily", "19 Nov 06:24", "Source: e-Business Register, CC BY 4.0"],
+    ["EE", "Tax and Customs Board", "Tax debtors, taxes paid, employees", "CC BY-SA 3.0", "share-alike store", "daily / quarterly", state === "stale" ? "12 Nov" : "19 Nov 06:31", "Source: Tax and Customs Board, CC BY-SA 3.0; left out of exports"],
+    ["LT", "Registrų centras, Register of Legal Entities", "Status, role facts, financial statements", "CC BY 4.0", "open data", "daily", "19 Nov 05:58", "Source: Registrų centras, Register of Legal Entities (open data), CC BY 4.0"],
+    ["LT", "State Tax Inspectorate (VMI)", "Taxes paid, tax arrears", "CC BY 4.0", "open data", "daily", "19 Nov 05:58", "Source: State Tax Inspectorate (VMI), CC BY 4.0"],
+    ["LT", "Sodra", "Insured counts, social-insurance debts", "No licence stated (public by law)", "open data", "daily", "19 Nov 05:58", "Source: Sodra, public insurer data"],
+    ["US", "SEC EDGAR", "Filers, filings, officers, insiders, financials", "Public domain", "open data, needs a contact string", "daily", "18 Nov", "Source: U.S. Securities and Exchange Commission"],
+    ["US", "State registers: NY, CO, CT, PA", "Registration, status, filing history", "Public domain / partly stated", "live query, cached 24 h", "on demand", "live", "Source: each state's register, named on every value"],
+    ["all", "EU, OFAC and UK sanctions lists", "Sanctions checks", "CC BY 4.0 / US government work / OGL v3.0", "open data", "daily", "19 Nov", "© European Union · Contains public sector information licensed under the Open Government Licence v3.0"],
+    ["all", "GLEIF", "LEI codes", "CC0 1.0", "open data", "3 times a day", "19 Nov 16:00", "Source: GLEIF golden copy, CC0"],
+  ];
+  const LATER = [
+    ["Group structure (S05)", "Parents show through company members for now", "a supplier-vetting template"],
+    ["Public money (S12)", "Contracts and EU funds", "a supplier-vetting template"],
+    ["Average salary (S07)", "Not in v1", "a hiring-check template"],
+    ["Florida and Oregon registers", "Licences not verified yet", "licence recorded and checked"],
+    ["Links between people (S17)", "Not shown in this version", "a lawyer approves person-to-person links"],
+    ["Domain registration records and web archives", "Terms not read yet", "terms read and approved by legal"],
+  ];
+
+  function render() {
+    const rows = ROWS.filter((r) => country === "all" || r[0] === country || r[0] === "all");
+    const body = state === "loading" ? `<div class="card" style="padding:16px" aria-busy="true">${Array.from({ length: 6 }, () => '<span class="sk" style="margin:12px 0"></span>').join("")}</div>`
+      : `<div class="card tbl-scroll" style="padding:4px 16px"><table class="tbl"><caption class="sr-only">Sources, licences and freshness</caption><thead><tr><th>Country</th><th>Source</th><th>Used for</th><th>Licence</th><th>Access</th><th>Refresh</th><th class="r">As of</th></tr></thead><tbody>
+        ${rows.map((r) => {
+          const st = state === "stale" && r[1].startsWith("Tax and Customs");
+          return `<tr><td><span class="cc">${r[0] === "all" ? "EU+" : r[0]}</span></td><td><strong style="font-weight:500">${esc(r[1])}</strong><div class="small muted">${esc(r[7])}</div></td><td class="small ink2">${esc(r[2])}</td><td class="small">${esc(r[3])}</td><td class="small muted">${esc(r[4])}</td><td class="small muted">${esc(r[5])}</td><td class="r small num ${st ? "stale-date" : ""}">${st ? icon("warn", "icon icon-sm") + " " : ""}${esc(r[6])}</td></tr>`;
+        }).join("")}
+      </tbody></table></div>`;
+    return `<div class="page" style="max-width:1180px">
+      <div class="co-head"><span class="label">Sources</span><h1 class="co-title">Where every value comes from</h1>
+        <p class="ink2">Every source chip in Finora links here. Each source keeps its own licence; share-alike data is kept separately and left out of exports.</p></div>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:8px">
+        ${state === "stale" ? `<div class="banner banner-warn" role="status">${icon("warn")}<span><strong>One source is older than its cycle.</strong> The Tax and Customs Board file was last loaded 12 Nov; values from it show an amber date until the next load.</span></div>` : ""}
+        <div class="filters" role="group" aria-label="Filter by country">${[["all", "All"], ["LV", "Latvia"], ["EE", "Estonia"], ["LT", "Lithuania"], ["US", "United States"]].map(([k, l]) => `<button class="fchip" type="button" aria-pressed="${country === k}" onclick="location.search='country=${k}'">${l}</button>`).join("")}</div>
+        ${body}
+        <section class="section" aria-labelledby="later-h"><div class="section-head"><h2 id="later-h">Not in this version</h2></div>
+          <p class="small muted" style="margin-bottom:8px">Each gap is named, with what would bring it in.</p>
+          <div class="rows">${LATER.map(([a, b, c]) => `<div class="row"><span class="row-label">${esc(a)}</span><span class="row-value"><span>${esc(b)}</span><span class="small muted">Comes in when: ${esc(c)}</span></span></div>`).join("")}</div>
+        </section>
+        <section class="section" aria-labelledby="ai-h"><div class="section-head"><h2 id="ai-h">How agent findings are labelled</h2></div>
+          <div class="rows">
+            <div class="row"><span class="row-label">Confidence</span><span class="row-value small ink2">${Finora.conf("official")} read from an official register · ${Finora.conf("corroborated")} two or more independent sources · ${Finora.conf("single")} one non-official source · ${Finora.conf("inferred")} concluded by an agent from other findings · ${Finora.conf("derived")} computed by Finora's own code</span></div>
+            <div class="row"><span class="row-label">Text</span><span class="row-value small ink2">${Finora.aiTag()} marks any text written by a model. ${Finora.ruleTag()} marks the verdict level, which fixed rules set.</span></div>
+          </div>
+        </section>
+      </div>
+    </div>`;
+  }
+
+  Finora.mount("sources", render, [
+    { key: "state", label: "Sources state", options: [["full", "All current"], ["stale", "One source stale"], ["loading", "Loading"]] },
+    { key: "country", label: "Country", options: [["all", "All"], ["LV", "Latvia"], ["EE", "Estonia"], ["LT", "Lithuania"], ["US", "United States"]] },
+  ]);
+})();
+</script>
+</body>
+</html>

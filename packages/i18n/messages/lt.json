@@ -1,0 +1,225 @@
+{
+  "common": {
+    "appName": "Finora",
+    "skipToContent": "Pereiti prie turinio",
+    "loading": "Kraunama"
+  },
+  "shell": {
+    "railLabel": "Įrankiai",
+    "bottomBarLabel": "Įrankiai",
+    "tools": {
+      "explorer": "Paieška",
+      "library": "Tyrimai",
+      "crash": "Rinkų kritimai",
+      "sources": "Šaltiniai",
+      "settings": "Nustatymai"
+    },
+    "theme": {
+      "label": "Tema",
+      "system": "Sistemos",
+      "dark": "Tamsi",
+      "light": "Šviesi"
+    }
+  },
+  "footer": {
+    "label": "Svetainės informacija",
+    "sourceCode": "Šaltinio kodas",
+    "terms": "Naudojimo sąlygos",
+    "licence": "Licencija: AGPL-3.0-or-later",
+    "language": "Kalba"
+  },
+  "explorer": {
+    "title": "Ką ketiname tikrinti?",
+    "placeholder": "Įmonių paieška čia atsiras kitame kūrimo žingsnyje."
+  },
+  "crash": {
+    "title": "Rinkos kritimai",
+    "overline": "Rinkos kritimai",
+    "heading": "Kiek rinkos nutolusios nuo savo viršūnių",
+    "updated": "Atnaujinta {when}",
+    "waiting": "Laukiame pirmųjų skaičių",
+    "cadenceNote": "kriptovaliutos maždaug kas 15 minučių, dienos eilutės kartą per dieną, ketvirčio eilutės, kai jos paskelbiamos",
+    "loading": "Įkeliame rinkas",
+    "tiles": {
+      "M01": "JAV akcijos",
+      "M03": "Azija ir Ramiojo vandenyno regionas",
+      "M05": "Auksas",
+      "M06": "Kriptovaliutos",
+      "M07": "Nafta",
+      "M08": "JAV valstybės skola"
+    },
+    "rows": {
+      "us_equities": "JAV akcijos, ketvirtis",
+      "us_large": "JAV didelės įmonės, diena",
+      "us_broad": "JAV plačioji rinka, diena",
+      "us_tech": "JAV technologijos, diena",
+      "japan_index": "Japonija, platusis indeksas",
+      "taiwan_index": "Taivanas",
+      "gold_monthly": "Auksas, mėnesio vidurkis",
+      "bitcoin": "Bitkoinas",
+      "ether": "Eteris",
+      "total_crypto": "Visa kriptovaliutų rinka",
+      "brent": "Brent",
+      "wti": "WTI",
+      "us_debt": "JAV valstybės skola"
+    },
+    "fromPeak": "{pct} nuo viršūnės",
+    "underTenth": "Mažiau nei 0,1% nuo viršūnės",
+    "atPeak": "Viršūnėje",
+    "asOf": {
+      "quarter": "Ketvirtis · {value}",
+      "month": "Mėnuo · {value}",
+      "day": "uždarymas {value}",
+      "time": "{value}"
+    },
+    "peak": {
+      "since": "Viršūnė {date}",
+      "allTime": "Visų laikų aukščiausia, {date}",
+      "seeded": "Viršūnė paimta iš nurodyto oficialaus skaičiaus, {date}"
+    },
+    "peakUnknown": "Viršūnė dar nežinoma: stebime nuo {date}",
+    "peakUnknownShort": "viršūnė dar nežinoma",
+    "lag": "Paskelbta su atsilikimu",
+    "lagLive": "Vėlavimas 15 min.",
+    "stale": "{value}, senesnis nei įprastai",
+    "error": "Nepatikrinta: šaltinis neatsakė.",
+    "errorHidden": "Skaičius nerodomas, kad nebūtų rodomas galbūt pasenęs.",
+    "errorHiddenLastGood": "Dabartinio skaičiaus nėra. Paskutinė tinkama vertė rodoma su laiku ir neįtraukiama į jokią sumą.",
+    "lastGood": "Paskutinė tinkama vertė {value}, {when}, senesnė nei įprastai",
+    "retry": "Bandyti dar kartą",
+    "notConfiguredOne": "Nenustatyta: pridėkite teikėją {codes} savo teikėjų faile.",
+    "notConfiguredMany": "Nenustatyta: pridėkite teikėjus {codes} savo teikėjų faile.",
+    "notConfiguredRow": "Nenustatyta: pridėkite {codes} savo teikėjų faile",
+    "noNumber": "Iki tol skaičius nerodomas, niekada 0%.",
+    "howToSetUp": "Kaip tai nustatyti",
+    "setup": {
+      "title": "Teikėjo nustatymas",
+      "intro": "Kai kurios rinkos gaunamos iš teikėjų, kurių Finora savo kode nevadina. Kiekvienas aprašytas teikėjų faile jūsų duomenų aplanke.",
+      "step1": "Atidarykite teikėjų failą savo duomenų aplanke (providers.json). Jei jo nėra, sukurkite.",
+      "step2": "Pridėkite įrašą kiekvienam plytelėje rodomam teikėjo kodui: {codes}.",
+      "step3": "Paleiskite Finorą iš naujo ir pasirinkite Patikrinti dar kartą.",
+      "private": "Failas lieka šiame kompiuteryje. Jis niekada neskelbiamas ir nesidalijama juo.",
+      "check": "Patikrinti dar kartą",
+      "close": "Uždaryti"
+    },
+    "money": {
+      "trillion": "≈ ${amount} trln.",
+      "billion": "≈ ${amount} mlrd.",
+      "million": "≈ ${amount} mln."
+    },
+    "valueBelowPeak": "Vertė žemiau viršūnės",
+    "wiped": {
+      "title": "Vertė žemiau viršūnių",
+      "sum": "Sumuoja eilutes, kurių šaltiniai leidžia rodyti vertę: {rows}. Viršūnės yra skirtingomis datomis; seniausias skaičius yra iš {oldest}.",
+      "cryptoNote": "Bitkoinas ir eteris yra kriptovaliutų sumos dalis ir nepridedami dar kartą.",
+      "left": "Praleista, nes nėra vertės: {rows}.",
+      "derived": "Finoros apskaičiuota"
+    },
+    "strip": {
+      "title": "Atstumas nuo viršūnės",
+      "basis": "Kiekvienos eilutės viršūnė yra aukščiausias dienos uždarymas jos laikotarpyje; visai kriptovaliutų rinkai — visų laikų aukščiausias · surikiuota pagal kritimą",
+      "basisSince": "Kiekvienos eilutės viršūnė yra aukščiausias dienos uždarymas nuo {since}, nebent eilutė nurodo kitaip · surikiuota pagal kritimą",
+      "note": "Kiekviena juosta yra kritimas nuo tos rinkos paties viršūnės; viršūnės yra skirtingomis datomis. Kryptį rodo rodyklės ir ženklai, ne vien spalva.",
+      "alt": "{name}: {pct} nuo viršūnės, buvusios {date}",
+      "altUnknown": "{name}: viršūnė dar nežinoma",
+      "older": "senesnis nei įprastai",
+      "allTime": "visų laikų aukščiausias",
+      "seeded": "pradinė viršūnė",
+      "notChecked": "netikrinta",
+      "notConfigured": "nenustatyta",
+      "loading": "kraunama",
+      "failedCheck": "Nerodoma: neatitiko duomenų patikros",
+      "table": "Atstumas nuo viršūnės lentele",
+      "col": {
+        "market": "Rinka",
+        "drawdown": "Nuo viršūnės",
+        "peakDate": "Viršūnės data",
+        "peakValue": "Viršūnės vertė",
+        "latest": "Paskutinė vertė",
+        "asOf": "Data"
+      }
+    },
+    "debt": {
+      "estimate": "įvertis",
+      "ticking": "skaičiuojama tarp oficialių skaičių",
+      "official": "Oficialiai, {date}",
+      "caveat": "Skaitiklis yra įvertis pagal paskutinių 30 dienų vidutinį pokytį.",
+      "spoken": "Įvertis {estimate}. Oficialus skaičius {official}, {date}.",
+      "change": "Pokytis, {from}–{to}",
+      "delta": {
+        "trillion": "{sign}${amount} trln.",
+        "billion": "{sign}${amount} mlrd.",
+        "million": "{sign}${amount} mln."
+      }
+    },
+    "banner": {
+      "stale": "Kai kurios vertės senesnės nei įprastai. Kitos plytelės yra naujausios.",
+      "failed": "Vienas šaltinis nepavyko. Jo eilutės nerodo skaičiaus, o ne galbūt pasenusio. Kitos plytelės yra naujausios.",
+      "failedLastGood": "Vienas šaltinis nepavyko. Jo eilutės nerodo dabartinio skaičiaus; paskutinė tinkama vertė rodoma tik su laiku.",
+      "retry": "Bandyti dabar",
+      "failedMany": "Keli šaltiniai nepavyko. Jų eilutės nerodo skaičiaus, o ne galbūt pasenusio. Kitos plytelės yra naujausios.",
+      "failedManyLastGood": "Keli šaltiniai nepavyko. Jų eilutės nerodo dabartinio skaičiaus; paskutinė tinkama vertė rodoma tik su laiku."
+    },
+    "notCovered": "Neapima 1 versija: Europa, Amerika už JAV ribų ir Pietų Korėja (nėra nemokamo šaltinio).",
+    "personalUse": "Asmeniniam naudojimui skirtos rinkos eilutės lieka šiame kompiuteryje ir neeksportuojamos bei nesidalijama jomis.",
+    "how": {
+      "title": "Kaip skaičiuojama",
+      "body": "Kritimas = paskutinis uždarymas ÷ aukščiausias dienos uždarymas laikotarpyje − 1. Kiekvieną eilutę šis kompiuteris atsisiunčia be rakto.",
+      "bodySince": "Kritimas = paskutinis uždarymas ÷ aukščiausias dienos uždarymas nuo {since} − 1. Kiekvieną eilutę šis kompiuteris atsisiunčia be rakto.",
+      "sources": "Šaltiniai"
+    },
+    "fromPeakWord": "nuo viršūnės",
+    "belowPeak": "{money} žemiau viršūnės",
+    "chip": {
+      "label": "Šaltinio duomenys",
+      "licence": "Licencija: {id}",
+      "open": "Atviri duomenys",
+      "purpose": "Rodoma nurodžius tikslą",
+      "asOf": "Data: {date}",
+      "retrieved": "Gauta {when}",
+      "checked": "Patikrinta {when}"
+    },
+    "sources": {
+      "us-fred-open": "FRED",
+      "us-fred-cited": "FRED, su nuoroda",
+      "e1-taiwan": "Birža E1",
+      "intl-worldbank-pinksheet": "Pasaulio bankas",
+      "us-treasury-debt": "Fiscal Data",
+      "crypto-x4-ohlc": "Teikėjas X4",
+      "crypto-c1": "Teikėjas C1",
+      "crypto-o3-btc-height": "Teikėjas O3",
+      "crypto-c3-global": "Teikėjas C3"
+    }
+  },
+  "terms": {
+    "title": "Naudojimo sąlygos",
+    "intro": "Finora rodo, ką skelbia viešieji registrai ir ką tyrimo agentai randa atviroje svetainių erdvėje, nurodydama kiekvienos reikšmės šaltinį. Tai tyrimo įrankis, o ne kredito ataskaita.",
+    "blockedHeading": "Netinka šiems tikslams",
+    "blockedCredit": "Sprendimai dėl kredito dėl fizinio asmens ar individualios veiklos vykdytojo",
+    "blockedEmployment": "Sprendimai dėl įdarbinimo dėl fizinio asmens ar individualios veiklos vykdytojo",
+    "blockedInsurance": "Sprendimai dėl draudimo dėl fizinio asmens ar individualios veiklos vykdytojo",
+    "blockedTenancy": "Sprendimai dėl nuomos dėl fizinio asmens ar individualios veiklos vykdytojo",
+    "blockedLicensing": "Sprendimai dėl licencijų dėl fizinio asmens ar individualios veiklos vykdytojo",
+    "blockedServicing": "Kredito aptarnavimas ar išieškojimas dėl fizinio asmens ar individualios veiklos vykdytojo",
+    "purposeLine": "Prieš rodant duomenis apie įmonės žmones, paprašoma nurodyti tikslą. Tikslas užfiksuojamas kiekvienai atidarytai įmonei.",
+    "objectionLine": "Jei norite nesutikti su įrašu apie jus arba prašyti jį ištaisyti ar pašalinti, naudokite to puslapio formą apie problemą.",
+    "disclaimer": "Ne kredito ataskaita. Netinka sprendimams dėl kredito, įdarbinimo, nuomos ar draudimo.",
+    "draft": "Šios sąlygos yra projektas, kol jų neperžiūrėjo teisininkas."
+  },
+  "errors": {
+    "agents_unavailable": "Tyrimai šioje įdiegtyje šiuo metu negalimi.",
+    "bad_request": "Užklausa neteisinga.",
+    "entity_not_found": "Įkeltuose registruose nėra įmonės su šiuo kodu.",
+    "forbidden": "Užklausa atmesta.",
+    "host_not_allowed": "Finora atsako tik tame kompiuteryje, kuriame veikia.",
+    "internal_error": "Mūsų pusėje įvyko klaida.",
+    "investigation_running": "Jau vyksta kitas tyrimas.",
+    "method_not_allowed": "Šio tipo užklausa čia neleidžiama.",
+    "not_found": "Šiuo adresu nieko nerasta.",
+    "not_implemented": "Ši Finora dalis dar nesukurta.",
+    "payload_too_large": "Užklausa per didelė.",
+    "purpose_blocked": "Finora nepalaiko šio tikslo.",
+    "notFoundTitle": "Puslapis nerastas",
+    "notFoundAction": "Eiti į pradžios puslapį"
+  }
+}
