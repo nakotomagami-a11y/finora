@@ -12,7 +12,7 @@ The single place to see where the mission stands. The coordinator keeps it curre
 | 2. Council session 1: data | **done** | 2026-11-20 | 2026-11-20 |
 | 3. The plan | **done** | 2026-11-20 | 2026-11-20 |
 | 4. Council session 2: plan approval | **done**: approved; the 16-item revision confirmed complete | 2026-11-20 | 2026-11-20 |
-| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i, S04b, S04u, S06 and S22 **accepted**, so every M1 slice is in. **M1 gates left:** the suite-steadiness gate is met (`82d370a`), so qa's fresh-clone demo (running) and council session 3a remain. S05 (Latvia, M2) is open: items 1-5 and K5 are accepted by qa. Next come qa's re-check of item 6 at `9502d0d`, the coordinator's security re-check, the quiet-window clean run, and the raw-download deletion (`reviews/slices/S05.md`). H6 = 1 (2026-11-23). Waiting on the human: C18 web tools, the mission file's 2 H4 hits, and confirmation of the seat-slot rule below | 2026-11-20 | |
+| 5. Build, slice by slice | **in progress**: S01, S02, S03, S04a, S04f, S04i, S04b, S04u, S06 and S22 **accepted**, so every M1 slice is in. **M1 passed** (council session 3a, `council/03-m1.md`). Fix slices: M1-F1 (the add-a-loader how-to and §4.3) gates the M2 demo, and M1-F2 (the prop-to-item check) gates S05. S05 (Latvia, M2) is open: items 1-5 and K5 are accepted by qa. Next come qa's re-check of item 6 at `9502d0d`, the coordinator's security re-check, the quiet-window clean run, and the raw-download deletion (`reviews/slices/S05.md`). H6 = 1 (2026-11-23). Waiting on the human: C18 web tools, the mission file's 2 H4 hits, and confirmation of the seat-slot rule below | 2026-11-20 | |
 | 6. Done | | | |
 
 No phase starts before the previous phase's exit criteria are met. No app code before phase 5.
@@ -168,6 +168,11 @@ Slots now: architect (S05 items 1-6), qa (S04u review), and one free slot, which
 - **Before S05's first real load** (architect): **done** (`0f20896`, `c82e87b`): the sync-worker heap cap at 768 MB (the crash guard; P10's RSS budget stays the real bound), an OOM inside an open transaction stores nothing of that batch (tested), and `SourceMeta.order` with `lanesOf()` puts each lane's register first (tested); S12 acceptance 10 uses the same lanes.
 - **Edge instrumentation warnings** (S22): `apps/web/src/instrumentation.ts` guards its server import with `NEXT_RUNTIME === "nodejs"`; frontend owns the file, the architect reviews the env-lint allowance.
 - **A steady test suite before M1** (qa 7091597736; owner: architect; an M1 gate). At `902fcd5`, qa ran the full suite 5 times on `dev-desktop-1`. 3 runs passed. 1 ended on the known V8 teardown fatal. 1 had 15 failures in `fixtures/load.test.ts`, `lv-byte-scan.test.ts` and others, cause unconfirmed; both files pass 10 of 10 alone. The mitigation must not hide real failures: run the worker-heavy files in their own forks pool, and retry only a fork that crashed, never a failed assertion. qa keeps every run's output until the 15-failure case repeats. The V8 decision itself is S12's. **Met (coordinator, 2026-11-23):**
+- **From cto's M1 health check** (`council/03-m1.md` step 4):
+  - the purge-guard thresholds are measured in M2's daily runs, and S12's data status shows a purge-guard partial as stale, loudly;
+  - **S12: one child process per lane, not a worker thread** (cto's technical call), so a V8 fatal stays in its lane;
+  - S12 measures a process-wide memory figure and the free-disk check against EE and GLEIF;
+  - `pnpm test` has a budget of 3 min (`benchmarks.md`).
   - The architect ran 6 full runs at the tip with logs kept: 6 of 6 passed, 1264 of 1264, with no fatal. qa's 3 of 3 at `62b9bb2` agree, and the 15-failure run has not repeated.
   - `82d370a`: `pnpm test` runs through `scripts/vitest-run.mjs`. It reruns a file once only when the known V8 teardown fatal killed its fork and no test failed. Any failed test, or any other fork death, still fails the run, which four tests in `scripts/vitest-run.test.mjs` cover. The rerun is noted in `docs/running.md`.
   - If the 15-failure case recurs with output, the architect takes it.

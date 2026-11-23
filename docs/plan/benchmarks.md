@@ -8,7 +8,7 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 
 | Profile | Hardware | OS | Node / SQLite |
 |---|---|---|---|
-| `dev-desktop-1` | 8 cores / 16 threads, 32 GB RAM, disk type not recorded | Windows 11 | Node 24.20, SQLite 3.53.4 (`node:sqlite`) |
+| `dev-desktop-1` | 8 cores / 16 threads, 32 GB RAM, disk type not recorded yet. Every checkpoint figure depends on it, so it is recorded with the S05 quiet-window run (cto, session 3a) | Windows 11 | Node 24.20, SQLite 3.53.4 (`node:sqlite`) |
 
 ## Budgets (P10)
 
@@ -23,6 +23,7 @@ Re-run with the probes in `research/probes/cto/` (see its README). Never record 
 | Memory | a sync worker's peak RSS ≤ 1 GB on `dev-desktop-1`; each loader slice records its peak (`finora-cli data sync <source>` prints it) |
 | During a sync | `/api/v1/health` p95 < 100 ms; SSE heartbeats < 1 s late (recorded here; CI asserts only a 3 s heartbeat bound) |
 | Per source | records, bytes per record, statements, facts and events reported by each loader slice |
+| Test suite | `pnpm test` ≤ 3 min on `dev-desktop-1`, recorded at each milestone (cto, council session 3a). M1: 118-132 s for 1,267 Vitest and 98 node tests (qa's fresh clone at `82d370a`). If the suite goes past 3 min, the worker-heavy files move to a separate project that CI runs and contributors run on demand |
 
 ## Recorded measurements
 
