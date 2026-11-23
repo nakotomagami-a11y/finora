@@ -92,4 +92,24 @@ describe("the LV short-form switch", () => {
     expect(await dataSync(io(), { profile: "fixtures", country: "lv" })).toBe(0);
     expect(membersVersions()).toEqual(["-sf1", "-sf0", "-sf1"]);
   }, 180_000);
+
+  it("still catches a killed run's trip after a backup holding a high cursor is restored onto a rebuilt store (qa on f1cea9f)", async () => {
+    dir = mkdtempSync(join(tmpdir(), "finora-cli-sf-"));
+    expect(await dataSync(io(), { profile: "fixtures", country: "lv" })).toBe(0);
+    const store = openStore({ dataDir: dir });
+    try {
+      // What a restored backup of an older store may bring back: a switch-on cursor far above this
+      // rebuilt store's sync ids. The cursor is read from main.store_meta only, so it is ignored.
+      store.db.prepare("INSERT INTO user.settings (key, value) VALUES ('lv_short_forms_on_after', '999999') ON CONFLICT (key) DO UPDATE SET value = excluded.value").run();
+      const id = beginSync(store.db, { sourceId: "lv-ur-officers", licenceId: "cc0-1.0", storage: "store", parserVersion: "killed", startedAt: "2026-11-21T11:00:00Z" });
+      finishSync(store.db, id, { kind: "content", finishedAt: "2026-11-21T11:01:00Z", report: { checks: { lv_person_names: 10, lv_person_names_short_form: 1 } } });
+    } finally {
+      store.close();
+    }
+    const next = io();
+    expect(await dataSync(next, { profile: "fixtures", country: "lv" })).toBe(0);
+    expect(next.lines[0]).toMatch(/^short-form rule: switched off/);
+    expect(membersVersions()).toEqual(["-sf1", "-sf0"]);
+  }, 180_000);
 });
+

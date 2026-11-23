@@ -437,6 +437,16 @@ export const MIGRATIONS: readonly Migration[] = [
       INSERT INTO user.settings (key, value) VALUES ('lv_short_forms_on_after', '0') ON CONFLICT (key) DO NOTHING;
     `,
   },
+  {
+    // qa on f1cea9f: the switch-on cursor is a main.syncs id, so it moved to main.store_meta. The key
+    // the previous migration put in user.settings would survive a restore onto a rebuilt store and
+    // hide every new officers report; it is removed.
+    target: "user",
+    name: "lv short-form cursor out of user",
+    sql: `
+      DELETE FROM user.settings WHERE key = 'lv_short_forms_on_after';
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */
