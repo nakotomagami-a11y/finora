@@ -311,28 +311,42 @@ export function lvShortFormsOff(db: DatabaseSync): boolean {
 }
 
 /**
- * Switches the rule off, or on. Switching it on records the newest sync id, so a tripping report
- * from before the manual re-count is never read as a new trip (U1). That cursor is a `main.syncs` id,
- * so it lives in `main.store_meta` beside the ids it counts: a rebuilt store resets both, the safe
- * side, where a cursor kept in a restored backup would hide every new report (qa on f1cea9f).
+ * Switches the rule off, or on. Switching it on records the newest finished sync id, so a tripping
+ * report from before the manual re-count is never read as a new trip (U1). A sync still running has
+ * no report yet: its id is never the cursor, so its counts are read once it finishes (V2). The cursor
+ * is a `main.syncs` id, so it lives in `main.store_meta` beside the ids it counts: a rebuilt store
+ * resets both, the safe side, where a cursor kept in a restored backup would hide every new report.
  */
 export function setLvShortFormsOff(db: DatabaseSync, off: boolean): void {
   const set = db.prepare("INSERT INTO user.settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
   set.run("lv_short_forms_off", off ? "1" : "0");
-  if (!off) db.prepare("DELETE FROM main.store_meta WHERE key = 'lv_short_forms_off'").run();
-  if (!off) {
-    const newest = (db.prepare("SELECT COALESCE(MAX(id), 0) AS n FROM main.syncs").get() as { n: number }).n;
-    db.prepare("INSERT INTO main.store_meta (key, value) VALUES ('lv_short_forms_on_after', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(String(newest));
-  }
+  if (off) return;
+  db.prepare("DELETE FROM main.store_meta WHERE key = 'lv_short_forms_off'").run();
+  const newest = (db.prepare("SELECT COALESCE(MAX(id), 0) AS n FROM main.syncs WHERE kind <> 'running'").get() as { n: number }).n;
+  db.prepare("INSERT INTO main.store_meta (key, value) VALUES ('lv_short_forms_on_after', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(String(newest));
 }
 
-/** The latest content sync of the LV officers whose report counted checks, newer than the last switch-on (U1). */
-export function lvOfficersChecksSinceOn(db: DatabaseSync): Record<string, number> | null {
-  const after = Number((db.prepare("SELECT value FROM main.store_meta WHERE key = 'lv_short_forms_on_after'").get() as { value: string } | undefined)?.value ?? 0);
-  const row = db
-    .prepare("SELECT report_json FROM main.syncs WHERE source_id = 'lv-ur-officers' AND kind = 'content' AND report_json IS NOT NULL AND id > ? ORDER BY id DESC LIMIT 1")
-    .get(Number.isFinite(after) ? after : 0) as { report_json: string } | undefined;
-  if (!row) return null;
-  const checks = (JSON.parse(row.report_json) as { checks?: Record<string, number> }).checks;
-  return checks && Object.keys(checks).length > 0 ? checks : null;
+export type LvOfficersChecks = { id: number; kind: string; checks: Record<string, number> };
+
+/**
+ * The LV officers syncs that ran the re-count check, newest first: content, partial and failed syncs
+ * alike, since a cut-off sync has committed batches under the rule and stored its counts (V1).
+ * `sinceOn` keeps only those newer than the last switch-on (U1).
+ */
+export function lvOfficersChecks(db: DatabaseSync, options: { sinceOn: boolean }): LvOfficersChecks[] {
+  const after = options.sinceOn ? Number((db.prepare("SELECT value FROM main.store_meta WHERE key = 'lv_short_forms_on_after'").get() as { value: string } | undefined)?.value ?? 0) : 0;
+  const rows = db
+    .prepare("SELECT id, kind, report_json FROM main.syncs WHERE source_id = 'lv-ur-officers' AND kind IN ('content', 'partial', 'failed') AND report_json IS NOT NULL AND id > ? ORDER BY id DESC")
+    .all(Number.isFinite(after) ? after : 0) as { id: number; kind: string; report_json: string }[];
+  const out: LvOfficersChecks[] = [];
+  for (const row of rows) {
+    const checks = (JSON.parse(row.report_json) as { checks?: Record<string, number> }).checks;
+    if (checks && Object.keys(checks).length > 0) out.push({ id: row.id, kind: row.kind, checks });
+  }
+  return out;
+}
+
+/** Whether a sync of this source holds a live lease now. */
+export function syncLeaseLive(db: DatabaseSync, sourceId: string, now: number): boolean {
+  return db.prepare("SELECT 1 FROM main.leases WHERE resource = ? AND expires_at > ?").get(`sync:${sourceId}`, now) !== undefined;
 }

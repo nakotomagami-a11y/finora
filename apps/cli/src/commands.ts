@@ -8,7 +8,7 @@ import { fixtureProfileFor } from "@finora/fixtures";
 import { CORE_SYNC_WORKER, lanesOf, runSyncsInWorker, sweepWorkDirs, type SyncReport } from "@finora/ingest";
 import { screenCompany, screenName, type ListState, type SanctionsHit } from "@finora/resolve";
 import { loadersFor, shortFormRuleTrips, type LoaderConfig } from "@finora/sources";
-import { companyValues, lvOfficersChecksSinceOn, lvShortFormsOff, openStore, rebuildSearch, runMaintenance, searchCompanies, setLvShortFormsOff, sourceRefForStatement, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
+import { companyValues, lvOfficersChecks, lvShortFormsOff, openStore, rebuildSearch, runMaintenance, searchCompanies, setLvShortFormsOff, sourceRefForStatement, syncLeaseLive, STORE_SCHEMAS, writeBackup, type Store } from "@finora/store";
 import type { CliEnv } from "./env.ts";
 
 export type Io = { env: CliEnv; out: (line: string) => void; now?: () => Date };
@@ -66,11 +66,7 @@ export async function dataSync(io: Io, args: { profile: string; source?: string;
   withStore(io, (store) => {
     // U1: a trip the last run measured but died before recording is re-derived from the officers
     // sync that measured it (newer than the last manual switch-on), before any job is built.
-    const measured = lvOfficersChecksSinceOn(store.db);
-    if (measured && !lvShortFormsOff(store.db) && shortFormRuleTrips(measured)) {
-      setLvShortFormsOff(store.db, true);
-      io.out(`short-form rule: switched off (${shortFormCause(measured)}); re-run the count on fresh files, then \`finora-cli data short-forms on\``);
-    }
+    recordUnrecordedTrip(io, store.db);
     shortFormsOff = lvShortFormsOff(store.db);
     sweepWorkDirs(store.db, join(io.env.dataDir, "work"));
     rebuildSearch(store.db);
@@ -152,10 +148,43 @@ export function tripShortForms(io: Io, config: LoaderConfig, officers: SyncRepor
   return true;
 }
 
-/** `data short-forms on`: the manual step after a re-count on fresh files (legal 7096149394). */
+/**
+ * U1, V1: a trip measured by any officers sync since the last switch-on (content, partial or failed)
+ * but never recorded, because its run died first, is recorded now. Returns whether it recorded one.
+ */
+function recordUnrecordedTrip(io: Io, db: Store["db"]): boolean {
+  if (lvShortFormsOff(db)) return false;
+  const tripping = lvOfficersChecks(db, { sinceOn: true }).find((c) => shortFormRuleTrips(c.checks));
+  if (!tripping) return false;
+  setLvShortFormsOff(db, true);
+  io.out(`short-form rule: switched off (${shortFormCause(tripping.checks)}); re-run the count on fresh files, then \`finora-cli data short-forms on\``);
+  return true;
+}
+
+/**
+ * `data short-forms on`: the manual step after a re-count on fresh files (legal 7096149394). Guarded
+ * (V2): an unrecorded trip is recorded first; it refuses while an officers sync runs; and it switches
+ * on only when the newest officers sync that ran the check is a complete one that does not trip.
+ */
 export function shortFormsOn(io: Io): number {
   return withStore(io, (store) => {
-    setLvShortFormsOff(store.db, false);
+    const db = store.db;
+    if (syncLeaseLive(db, "lv-ur-officers", (io.now?.() ?? new Date()).getTime())) {
+      io.out("short-form rule: not switched on: an lv-ur-officers sync is running; run this again after it ends");
+      return 2;
+    }
+    recordUnrecordedTrip(io, db);
+    if (!lvShortFormsOff(db)) {
+      io.out("short-form rule: on");
+      return 0;
+    }
+    const newest = lvOfficersChecks(db, { sinceOn: false })[0];
+    if (!newest || newest.kind !== "content" || shortFormRuleTrips(newest.checks)) {
+      const why = !newest ? "no lv-ur-officers sync has run the check yet" : newest.kind !== "content" ? `the newest one ended ${newest.kind}` : `the newest one trips it (${shortFormCause(newest.checks)})`;
+      io.out(`short-form rule: still off: it needs a complete lv-ur-officers sync of fresh files, with LV_PERSON_ROWS=names_no_id, whose check does not trip; ${why}`);
+      return 2;
+    }
+    setLvShortFormsOff(db, false);
     io.out("short-form rule: on");
     return 0;
   });
