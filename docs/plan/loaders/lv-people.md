@@ -99,7 +99,7 @@ Header: `id;uri;at_legal_entity_registration_number;entity_type;name;latvian_ide
 | `id` | int | line identity inside the diff only; input to the foreign holder's `org-` id | S04.LV.01 (R) | no | 12 duplicate ids in the 2026-11-19 file: lines stay distinct by position, counted `duplicate_key` |
 | `at_legal_entity_registration_number` | text | the set's company; `Ownership.asset` | S04.LV.01 (R) | no | check digit; must be in the register |
 | `legal_entity_registration_number` | text | `Ownership.owner` → `lv-<code>` (`LEGAL_ENTITY`) | S04.LV.01, S17.LV.01 (R) | no | must resolve to a non-NP register entity (party gate) |
-| `name` | text | `Organization.name` of a `FOREIGN_ENTITY` holder | S04.LV.01 | no (gate passed) | trim; not read for `LEGAL_ENTITY` |
+| `name` | text | `Organization.name` of a `FOREIGN_ENTITY` holder, and `Ownership.owner` → its `org-` row | S04.LV.01 | no (gate passed) | trim; not read for `LEGAL_ENTITY`. The owner link is S04, not S17: an `org-` row is scoped to one company and never merged, so it cannot join two companies in the S17 network, which links register entities only |
 | `number_of_shares` | decimal | `Ownership.sharesCount` | S04.LV.01 | no | - |
 | `share_nominal_value` | decimal | `Ownership.sharesValue` | S04.LV.01 | no | - |
 | `share_currency` | `EUR` / `LVL` | `Ownership.sharesCurrency` | S04.LV.01 | no | LVL kept. Any other value must be an ISO 4217 code; otherwise the share value is not stored, counted `unknown_enum` |
