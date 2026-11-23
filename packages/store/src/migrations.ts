@@ -416,6 +416,16 @@ export const MIGRATIONS: readonly Migration[] = [
       INSERT INTO main.maintenance_due (kind, gen) VALUES ('wal_truncate', 1) ON CONFLICT (kind) DO UPDATE SET gen = gen + 1;
     `,
   },
+  {
+    // T1 on S05 (security re-check): a run records the generation it finished instead of deleting
+    // the row, so a generation never repeats and a slow runner can't clear a fresh mark. Every row
+    // an older store holds is owed (the old rule: a row meant owed), so done starts at 0.
+    target: "main",
+    name: "maintenance done generation",
+    sql: `
+      ALTER TABLE main.maintenance_due ADD COLUMN done INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];
 
 /** The identifier props and their fixed ids, seeded by the first main migration. */

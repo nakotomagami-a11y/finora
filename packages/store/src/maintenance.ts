@@ -17,25 +17,29 @@ export type MaintenanceStep = { kind: MaintenanceKind; ms: number; steps: number
 export const FTS_MERGE_PAGES = 2000;
 const SEARCH_TABLES = ["entities_fts", "entities_trigram"] as const;
 
+// A kind's row is never deleted, so its generation never repeats (T1 on S05: with a deleted row the
+// generation restarted at 1, and a slow runner's unmark of "gen 1" could clear a fresh mark). Every
+// mark moves `gen`; a run records the generation it finished as `done`, and only ever raises it. The
+// kind is owed while gen > done.
+
 /** Records that a write left this maintenance owed; done in the writer's own transaction. */
 export function markMaintenance(db: DatabaseSync, kind: MaintenanceKind): void {
-  // Every mark moves the kind's generation, so a mark set while maintenance runs survives it (R1).
-  prepared(db, "INSERT INTO main.maintenance_due (kind, gen) VALUES (?, 1) ON CONFLICT (kind) DO UPDATE SET gen = gen + 1").run(kind);
+  prepared(db, "INSERT INTO main.maintenance_due (kind, gen, done) VALUES (?, 1, 0) ON CONFLICT (kind) DO UPDATE SET gen = gen + 1").run(kind);
 }
 
 /** The kind's generation now, or null when it is not owed. */
 function generation(db: DatabaseSync, kind: MaintenanceKind): number | null {
-  const row = prepared(db, "SELECT gen FROM main.maintenance_due WHERE kind = ?").get(kind) as { gen: number } | undefined;
+  const row = prepared(db, "SELECT gen FROM main.maintenance_due WHERE kind = ? AND gen > done").get(kind) as { gen: number } | undefined;
   return row?.gen ?? null;
 }
 
-/** Deletes the mark only if no one marked it again since `gen` was read (R1). */
+/** Records that every mark up to `gen` is done. A mark set since stays owed, and `done` never goes back (R1, T1). */
 function unmark(db: DatabaseSync, kind: MaintenanceKind, gen: number): void {
-  prepared(db, "DELETE FROM main.maintenance_due WHERE kind = ? AND gen = ?").run(kind, gen);
+  prepared(db, "UPDATE main.maintenance_due SET done = ? WHERE kind = ? AND done < ?").run(gen, kind, gen);
 }
 
 export function maintenanceDue(db: DatabaseSync): MaintenanceKind[] {
-  return (prepared(db, "SELECT kind FROM main.maintenance_due ORDER BY kind").all() as { kind: MaintenanceKind }[]).map((r) => r.kind);
+  return (prepared(db, "SELECT kind FROM main.maintenance_due WHERE gen > done ORDER BY kind").all() as { kind: MaintenanceKind }[]).map((r) => r.kind);
 }
 
 /**
