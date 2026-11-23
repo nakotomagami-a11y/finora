@@ -477,7 +477,7 @@
       <p class="small" style="padding:8px 10px;border-radius:8px;background:var(--surface-2)"><strong>No verdict yet.</strong> These checks use official data only; the rest run when you investigate. Missing does not mean clean.</p>
       <p class="small muted">The instant profile runs checks 1 to 9 from loaded registers. Agents run check 11${subj.cc === "US" ? " and check 10" : ""}; ${subj.cc === "US" ? "" : "court cases are a manual check in this country, so check 10 is not possible."}</p>
       ${checksList(subj.checks, { instant: true })}
-      <a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate · about 150k standard tokens</a>
+      <a class="btn btn-primary" href="?${qs({ state: "estimate" })}">${icon("play", "icon icon-sm")} Investigate · about 160k standard tokens</a>
     </section>`;
   }
 
@@ -545,11 +545,11 @@
       <div class="kv">
       </div>
       <div class="usage-est" style="display:flex;flex-direction:column;gap:8px">
-        <span><strong>Estimated usage.</strong> About 150k standard tokens of your subscription, up to about 310k. Cap 500k. Today: 2.9M of 3.3M left.</span>
+        <span><strong>Estimated usage.</strong> About 160k standard tokens of your subscription, up to about 310k. Cap 500k. Today: 2.9M of 3.3M left.</span>
         ${overageEnabled ? `<span class="caveat" style="color:var(--ink-2)">${icon("warn", "icon icon-sm")}<span>Paid extra usage is on in your Claude account; Finora will stop before using it.</span></span>` : ""}
         ${param("window", "") === "high" ? `<span class="caveat" style="color:var(--ink-2)">${icon("clock", "icon icon-sm")}<span>Claude reports your 5-hour window at 92%; this investigation may pause. (Claude's own figure; Finora's cap above is separate.)</span></span>` : ""}
-        <div class="meter" style="position:relative" role="img" aria-label="Typically about 30% of this investigation's cap, at most about 62%"><i style="width:30%"></i><b style="position:absolute;left:30%;width:32%;top:0;bottom:0;background:color-mix(in srgb, var(--accent) 35%, transparent);border-radius:2px"></b></div>
-        <span class="small muted">Typically about 30% of this investigation's cap, at most about 62% ·
+        <div class="meter" style="position:relative" role="img" aria-label="Typically about 31% of this investigation's cap, at most about 62%"><i style="width:30.6%"></i><b style="position:absolute;left:30.6%;width:30.8%;top:0;bottom:0;background:color-mix(in srgb, var(--accent) 35%, transparent);border-radius:2px"></b></div>
+        <span class="small muted">Typically about 31% of this investigation's cap, at most about 62% ·
           <span class="chip-wrap"><button type="button" class="link-btn" data-chip aria-controls="st-info" aria-expanded="false">What is a standard token?</button><span class="pop" id="st-info" role="dialog" aria-label="What is a standard token" hidden>Standard tokens are Finora's measure of how much of your Claude plan a run uses. Your plan's own limits are set by your plan, and Finora can't see them.</span></span></span>
       </div>
       <div class="kv">
