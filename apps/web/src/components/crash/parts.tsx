@@ -1,10 +1,10 @@
 "use client";
 
-import { Button, Dialog, Icon, Skeleton } from "@finora/ui";
-import type { Locale } from "@finora/i18n";
+import { Badge, Button, Chip, Dialog, Icon, Popover, Skeleton } from "@finora/ui";
+import { formatDateTime, type Locale } from "@finora/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
-import { asOfText, formatDrawdown, formatMoneyAmount, type RowView } from "./model.ts";
+import { asOfText, formatAsOfDate, formatDrawdown, formatMoneyAmount, type RowView, type SourceView } from "./model.ts";
 
 /** The current time, refreshed every `everyMs`: for "Updated N min ago" and the debt estimate. Starts as null on the server. */
 export function useNow(everyMs: number): Date | null {
@@ -128,5 +128,56 @@ export function Caveat({ children }: { children: ReactNode }) {
       <Icon name="info" className="mt-0.5 size-3.5" />
       <span>{children}</span>
     </span>
+  );
+}
+
+/** The sources behind a set of rows, once each (the latest figure of each), for the chips in a tile footer. */
+function distinctSources(rows: RowView[]): SourceView[] {
+  const byId = new Map<string, SourceView>();
+  for (const source of rows.flatMap((row) => row.sources)) {
+    const known = byId.get(source.sourceId);
+    if (!known || (source.asOf ?? "") > (known.asOf ?? "")) byId.set(source.sourceId, source);
+  }
+  return [...byId.values()];
+}
+
+/**
+ * Source chips (DESIGN.md section 6.1): mono, "source, as-of date", each opening a popover with the licence, the access
+ * tier and the times. They sit above the attribution lines, which stay exactly as the provider file words them.
+ */
+export function SourceChips({ rows }: { rows: RowView[] }) {
+  const t = useTranslations("crash");
+  const locale = useLocaleId();
+  const sources = distinctSources(rows);
+  if (sources.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {sources.map((source) => (
+        <Popover
+          key={source.sourceId}
+          label={t("chip.label")}
+          trigger={
+            <Chip aria-haspopup="dialog">
+              {source.sourceId}
+              {source.asOf ? ` · ${formatAsOfDate(locale, source.asOf)}` : ""}
+            </Chip>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <p className="m-0 font-mono text-mono font-medium text-ink">{source.sourceId}</p>
+            <p className="m-0 text-small text-ink-2">{t("chip.licence", { id: source.licenceId })}</p>
+            <p className="m-0 text-small text-ink-2">{t(source.accessTier === "open" ? "chip.open" : "chip.purpose")}</p>
+            {source.asOf ? <p className="m-0 text-small text-ink-2">{t("chip.asOf", { date: formatAsOfDate(locale, source.asOf) })}</p> : null}
+            <p className="m-0 text-small text-ink-2">{t("chip.retrieved", { when: formatDateTime(locale, source.retrievedAt) })}</p>
+            {source.checkedAt ? <p className="m-0 text-small text-ink-2">{t("chip.checked", { when: formatDateTime(locale, source.checkedAt) })}</p> : null}
+            {source.derived ? (
+              <span>
+                <Badge tone="info">{t("wiped.derived")}</Badge>
+              </span>
+            ) : null}
+          </div>
+        </Popover>
+      ))}
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import { Icon } from "@finora/ui";
 import { useTranslations } from "next-intl";
 import { formatDate } from "@finora/i18n";
 import { type RowView, type TileView } from "./model.ts";
-import { AsOf, Caveat, Drawdown, RetryButton, RowSkeleton, SetupHelp, useLocaleId, useMoney } from "./parts.tsx";
+import { AsOf, Caveat, Drawdown, RetryButton, RowSkeleton, SetupHelp, SourceChips, useLocaleId, useMoney } from "./parts.tsx";
 
 type TileProps = { tile: TileView; now: Date; onRetry: () => void };
 
@@ -101,35 +101,45 @@ function RowLine({ row, now, onRetry }: { row: RowView; now: Date; onRetry: () =
   if (row.state === "loading") body = <RowSkeleton />;
   else if (row.state === "not_configured") {
     body = (
-      <span className="flex flex-col items-end gap-0.5 text-right">
+      <span className="flex max-w-[15rem] flex-col items-start gap-0.5 text-left @[20rem]:items-end @[20rem]:text-right">
         <span className="text-muted">{t("notConfiguredRow", { codes: row.providerCode ?? "" })}</span>
         <SetupHelp codes={row.providerCode ? [row.providerCode] : []} onCheck={onRetry} />
       </span>
     );
   } else if (row.state === "error") {
     body = (
-      <span className="flex flex-col items-end gap-0.5 text-right">
-        <span className="text-muted">{t("error")}</span>
+      <span className="flex max-w-[15rem] flex-col items-start gap-0.5 text-left @[20rem]:items-end @[20rem]:text-right">
+        <span className="text-muted">{row.invalid ? t("strip.failedCheck") : t("error")}</span>
         <RetryButton onRetry={onRetry} />
       </span>
     );
   } else if (row.state === "peak_unknown") {
-    body = <span className="text-right text-muted">{row.trackingSince ? t("peakUnknown", { date: formatDate(locale, row.trackingSince) }) : t("peakUnknownShort")}</span>;
+    body = <span className="max-w-[15rem] text-left text-muted @[20rem]:text-right">{row.trackingSince ? t("peakUnknown", { date: formatDate(locale, row.trackingSince) }) : t("peakUnknownShort")}</span>;
   } else {
+    const stale = row.state === "stale";
     body = (
       <span className="flex flex-col items-end text-right">
-        <span className="flex flex-wrap items-baseline justify-end gap-x-1.5">
+        <span className="flex items-baseline gap-1.5 whitespace-nowrap">
           {row.drawdownPct !== undefined ? <Drawdown pct={row.drawdownPct} /> : null}
-          <span className="text-muted">
+          {stale ? null : (
+            <span className="text-muted">
+              <AsOf row={row} now={now} />
+            </span>
+          )}
+        </span>
+        {stale ? (
+          <span className="max-w-[15rem]">
             <AsOf row={row} now={now} />
           </span>
-        </span>
-        {row.valueLostUsd !== undefined ? <span className="text-muted">{t("belowPeak", { money: money(row.valueLostUsd) })}</span> : null}
+        ) : null}
+        {row.valueLostUsd !== undefined ? <span className="whitespace-nowrap text-muted">{t("belowPeak", { money: money(row.valueLostUsd) })}</span> : null}
       </span>
     );
   }
+  // The label is the only part that wraps: the figure and its date sit in a right column that does not shrink.
+  const figure = row.state === "ok" || row.state === "stale";
   return (
-    <div className="flex items-start justify-between gap-3 border-t border-line py-1.5 text-small first:border-t-0">
+    <div className={`grid items-start gap-x-3 gap-y-0.5 border-t border-line py-1.5 text-small first:border-t-0 ${figure ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1 @[20rem]:grid-cols-[minmax(0,1fr)_auto]"}`}>
       <span className="text-muted">{t(`rows.${row.labelId}`)}</span>
       {body}
     </div>
@@ -141,7 +151,7 @@ export function CrashTile({ tile, now, onRetry }: TileProps) {
   const t = useTranslations("crash");
   const headingId = `tile-${tile.id}`;
   return (
-    <section aria-labelledby={headingId} className="flex min-h-[240px] min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-5">
+    <section aria-labelledby={headingId} className="@container flex min-h-[240px] min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-card border border-line bg-surface p-5">
       <div className="flex items-baseline gap-2">
         <h2 id={headingId} className="font-sans text-h3 font-semibold text-ink">
           {t(`tiles.${tile.id}`)}
@@ -157,6 +167,7 @@ export function CrashTile({ tile, now, onRetry }: TileProps) {
         </div>
       ) : null}
       <div className="mt-auto flex flex-col gap-1.5">
+        <SourceChips rows={tile.all} />
         {tile.attributions.map((line) => (
           <Caveat key={line}>{line}</Caveat>
         ))}
@@ -168,7 +179,7 @@ export function CrashTile({ tile, now, onRetry }: TileProps) {
 /** The skeleton of a tile, the size of the real one, so the first fill causes no layout shift. */
 export function CrashTileSkeleton() {
   return (
-    <section aria-busy="true" className="flex min-h-[240px] min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-5">
+    <section aria-busy="true" className="flex min-h-[240px] min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-card border border-line bg-surface p-5">
       <RowSkeleton className="h-5 w-2/5" />
       <RowSkeleton className="h-10 w-3/5" />
       <RowSkeleton className="h-3.5 w-4/5" />

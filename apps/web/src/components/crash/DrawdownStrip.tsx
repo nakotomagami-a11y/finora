@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Table, Td, Th } from "@finora/ui";
+import { Badge, Icon, Table, Td, Th } from "@finora/ui";
 import { formatDate } from "@finora/i18n";
 import { useTranslations } from "next-intl";
 import { formatAsOfDate, formatDrawdown, formatMarketValue, type PageView, type RowView, type StripRow } from "./model.ts";
@@ -23,6 +23,7 @@ function WipedSummary({ wiped, rows }: { wiped: NonNullable<PageView["wiped"]>; 
       <span className="text-[34px] leading-10 font-semibold tracking-[-0.01em] text-ink tabular-nums">{money(wiped.valueUsd)}</span>
       <span className="text-small text-ink-2">
         {t("wiped.sum", { rows: list.format(wiped.counted.map((c) => name(c.labelId, c.asOf))), oldest: formatAsOfDate(locale, wiped.oldestAsOf) })}
+        {wiped.includesCrypto ? ` ${t("wiped.cryptoNote")}` : ""}
       </span>
       {wiped.excluded.length > 0 ? <span className="text-small text-warn">{t("wiped.left", { rows: list.format(wiped.excluded.map((id) => t(`rows.${id}`))) })}</span> : null}
       <span>
@@ -55,7 +56,12 @@ function Bars({ strip }: { strip: StripRow[] }) {
                 {row.stale ? <span className="text-warn">{t("strip.older")}</span> : null}
               </span>
             ) : row.kind === "error" ? (
-              <span className="text-muted">{t("strip.notChecked")}</span>
+              <span className="inline-flex items-start justify-end gap-1 text-warn">
+                <Icon name="warn" className="mt-0.5 size-3.5 flex-none" />
+                <span>{row.invalid ? t("strip.failedCheck") : t("strip.notChecked")}</span>
+              </span>
+            ) : row.kind === "not_configured" ? (
+              <span className="text-ink-2">{t("strip.notConfigured")}</span>
             ) : (
               <span className="text-muted">{t("peakUnknownShort")}</span>
             )}
@@ -90,7 +96,7 @@ function StripTable({ rows, strip }: { rows: RowView[]; strip: StripRow[] }) {
             return (
               <tr key={s.rowKey}>
                 <Td>{t(`rows.${s.labelId}`)}</Td>
-                <Td>{s.kind === "drop" ? t("fromPeak", { pct: formatDrawdown(locale, s.drawdownPct).text || t("underTenth") }) : s.kind === "at_peak" ? t("atPeak") : s.kind === "error" ? t("strip.notChecked") : t("peakUnknownShort")}</Td>
+                <Td>{s.kind === "drop" ? t("fromPeak", { pct: formatDrawdown(locale, s.drawdownPct).text || t("underTenth") }) : s.kind === "at_peak" ? t("atPeak") : s.kind === "error" ? (s.invalid ? t("strip.failedCheck") : t("strip.notChecked")) : s.kind === "not_configured" ? t("strip.notConfigured") : t("peakUnknownShort")}</Td>
                 <Td>{row.peak ? formatDate(locale, row.peak.date) : "–"}</Td>
                 <Td>{formatMarketValue(locale, row.unit, row.peak?.value) ?? "–"}</Td>
                 <Td>{formatMarketValue(locale, row.unit, row.value) ?? "–"}</Td>

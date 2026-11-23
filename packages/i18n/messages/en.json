@@ -108,7 +108,8 @@
     "valueBelowPeak": "Value below peak",
     "wiped": {
       "title": "Value below peaks",
-      "sum": "Sums the rows whose sources allow a value: {rows}. Bitcoin and ether are part of the crypto total, not added again. Peaks fall on different dates; the oldest figure is from {oldest}.",
+      "sum": "Sums the rows whose sources allow a value: {rows}. Peaks fall on different dates; the oldest figure is from {oldest}.",
+      "cryptoNote": "Bitcoin and ether are part of the crypto total, not added again.",
       "left": "Left out for lack of a value: {rows}.",
       "derived": "Derived by Finora"
     },
@@ -120,6 +121,8 @@
       "altUnknown": "{name}: peak not known yet",
       "older": "older than usual",
       "notChecked": "not checked",
+      "notConfigured": "not configured",
+      "failedCheck": "Not shown: failed a data check",
       "table": "Distance from peak, as a table",
       "col": {
         "market": "Market",
@@ -150,7 +153,16 @@
       "sources": "Sources"
     },
     "fromPeakWord": "from peak",
-    "belowPeak": "{money} below peak"
+    "belowPeak": "{money} below peak",
+    "chip": {
+      "label": "Source details",
+      "licence": "Licence: {id}",
+      "open": "Open data",
+      "purpose": "Shown after a stated purpose",
+      "asOf": "As of {date}",
+      "retrieved": "Retrieved {when}",
+      "checked": "Checked {when}"
+    }
   },
   "terms": {
     "title": "Terms of use",

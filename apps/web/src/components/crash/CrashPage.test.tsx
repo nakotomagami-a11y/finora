@@ -106,19 +106,50 @@ describe("the crash page, by state", () => {
 });
 
 describe("the distance strip, at its edges", () => {
-  it("lists a market at its peak and a row that was not checked, each with its words", () => {
+  it("lists a market at its peak and a row that failed a data check, each with its words", () => {
     const body = structuredClone(FIXTURES.live!);
     const rows = body.tiles.flatMap((t) => t.rows);
     Object.assign(rows.find((r) => r.rowKey.endsWith("us_tech"))!, { drawdownPct: 0, valueLostUsd: undefined });
-    // Above zero is bad data: the contract refuses it on the wire, and the page still shows it as not checked if it ever arrives.
+    // Above zero is bad data: the contract refuses it on the wire, and the page still shows it as failed a data check if it ever arrives.
     Object.assign(rows.find((r) => r.rowKey.endsWith("brent"))!, { drawdownPct: 2.5 });
     mount({ fixture: body });
     const table = screen.getByRole("table", { name: "Distance from peak" });
     const tech = within(table).getByRole("row", { name: /US technology, daily/u });
     expect(within(tech).getByText("At its peak")).toBeInTheDocument();
     const brent = within(table).getByRole("row", { name: /Brent/u });
-    expect(within(brent).getByText("not checked")).toBeInTheDocument();
+    expect(within(brent).getByText("Not shown: failed a data check")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("One source failed");
+  });
+
+  it("lists a provider that is not configured, so the strip never shrinks without saying so", () => {
+    mount({ fixture: fixture("not-configured") });
+    const table = screen.getByRole("table", { name: "Distance from peak" });
+    expect(within(table).getAllByText("not configured").length).toBe(8);
+  });
+
+  it("shows the total over the one row that has a value, naming only that row", () => {
+    mount({ fixture: fixture("not-configured") });
+    const summary = screen.getByText("Value below peaks").parentElement!;
+    expect(within(summary).getByText(/US stocks, quarterly \(30 Jun 2026\)/u)).toBeInTheDocument();
+    expect(summary.textContent).not.toContain("Bitcoin and ether");
+  });
+});
+
+describe("source chips", () => {
+  it("puts a chip in a tile footer and opens its popover with the licence and the times", async () => {
+    const user = userEvent.setup();
+    mount({ fixture: fixture("live") });
+    const tile = screen.getByRole("region", { name: "Oil" });
+    const chip = within(tile).getAllByRole("button").find((b) => b.getAttribute("aria-haspopup") === "dialog")!;
+    expect(chip.textContent).toMatch(/^[a-z-]+ · \d{1,2} \w{3} 2026$/u);
+    await user.click(chip);
+    const popover = screen.getByRole("dialog", { name: "Source details" });
+    expect(within(popover).getByText(/^Licence: /u)).toBeInTheDocument();
+    expect(within(popover).getByText("Open data")).toBeInTheDocument();
+    expect(within(popover).getByText(/^Retrieved /u)).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Source details" })).toBeNull();
+    expect(chip).toHaveFocus();
   });
 });
 

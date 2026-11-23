@@ -60,14 +60,20 @@ describe("buildPageView", () => {
     expect(fixture("mixed").stale).toBe(true);
   });
 
-  it("shows the value-below-peaks summary only for two or more counted rows, and names what was left out", () => {
+  it("shows the value-below-peaks summary over the rows it has, and names what was left out", () => {
     const live = fixture("live").wiped;
     expect(live?.counted.map((c) => c.labelId)).toEqual(["us_equities", "total_crypto"]);
+    expect(live?.includesCrypto).toBe(true);
     expect(live?.excluded).toEqual([]);
+    // A row left out for lack of a value is named as left out, never as counted.
     const error = fixture("error").wiped;
+    expect(error?.counted.map((c) => c.labelId)).toEqual(["us_equities"]);
+    expect(error?.includesCrypto).toBe(false);
     expect(error?.excluded).toEqual(["total_crypto"]);
-    // One counted row is not a sum of anything.
-    expect(fixture("not-configured").wiped).toBeUndefined();
+    // Crypto is not configured, but the quarterly US row still allows a value: the total shows, over that one row.
+    const notConfigured = fixture("not-configured").wiped;
+    expect(notConfigured?.valueUsd).toBe(4_700_000_000_000);
+    expect(notConfigured?.counted.map((c) => c.labelId)).toEqual(["us_equities"]);
   });
 
   it("finds the latest time any row was refreshed", () => {
@@ -194,11 +200,19 @@ describe("the strip, at its edges", () => {
     expect(page.failed).toBe(true);
   });
 
-  it("lists a row that failed to load as not checked, after the peaks not known yet", () => {
-    const page = fixture("error");
-    const kinds = page.strip.map((r) => r.kind);
+  it("lists a row that failed to load as failed, last, and a provider not configured before it", () => {
+    const kinds = fixture("error").strip.map((r) => r.kind);
     expect(kinds).toContain("error");
     expect(kinds.indexOf("error")).toBeGreaterThan(kinds.lastIndexOf("drop"));
+    const mixed = fixture("not-configured").strip.map((r) => r.kind);
+    expect(mixed.filter((k) => k === "not_configured")).toHaveLength(8); // three daily US rows, Japan, Taiwan, bitcoin, ether, total crypto
+    expect(mixed.indexOf("not_configured")).toBeGreaterThan(mixed.lastIndexOf("drop"));
+  });
+
+  it("marks a drawdown above zero as failed because of a data check, not because the source did not answer", () => {
+    const page = withRow("brent", { drawdownPct: 3.2 });
+    expect(page.strip.find((r) => r.labelId === "brent")).toMatchObject({ kind: "error", invalid: true });
+    expect(fixture("error").strip.find((r) => r.kind === "error")).toMatchObject({ invalid: false });
   });
 
   it("leaves out a market size that would read '0 million'", () => {

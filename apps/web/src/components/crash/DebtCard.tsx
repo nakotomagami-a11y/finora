@@ -4,7 +4,7 @@ import { Badge } from "@finora/ui";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { formatAsOfDate, formatDollars, tickerValue, type RowView } from "./model.ts";
-import { Caveat, RowSkeleton, useLocaleId } from "./parts.tsx";
+import { Caveat, RowSkeleton, SourceChips, useLocaleId } from "./parts.tsx";
 
 /**
  * The US national debt (M08): a ticking estimate between official figures, beside the official figure and its date.
@@ -64,7 +64,10 @@ export function DebtCard({ row, now }: { row: RowView | undefined; now: Date }) 
           {estimate ? <Caveat>{t("debt.caveat")}</Caveat> : null}
         </>
       )}
-      <div className="mt-auto flex flex-col gap-1.5">{row?.attribution ? <Caveat>{row.attribution}</Caveat> : null}</div>
+      <div className="mt-auto flex flex-col gap-1.5">
+        {row ? <SourceChips rows={[row]} /> : null}
+        {row?.attribution ? <Caveat>{row.attribution}</Caveat> : null}
+      </div>
     </section>
   );
 }

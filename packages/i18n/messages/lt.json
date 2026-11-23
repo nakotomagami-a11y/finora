@@ -108,7 +108,8 @@
     "valueBelowPeak": "Vertė žemiau viršūnės",
     "wiped": {
       "title": "Vertė žemiau viršūnių",
-      "sum": "Sumuoja eilutes, kurių šaltiniai leidžia rodyti vertę: {rows}. Bitkoinas ir eteris yra kriptovaliutų sumos dalis ir nepridedami dar kartą. Viršūnės yra skirtingomis datomis; seniausias skaičius yra iš {oldest}.",
+      "sum": "Sumuoja eilutes, kurių šaltiniai leidžia rodyti vertę: {rows}. Viršūnės yra skirtingomis datomis; seniausias skaičius yra iš {oldest}.",
+      "cryptoNote": "Bitkoinas ir eteris yra kriptovaliutų sumos dalis ir nepridedami dar kartą.",
       "left": "Praleista, nes nėra vertės: {rows}.",
       "derived": "Finoros apskaičiuota"
     },
@@ -120,6 +121,8 @@
       "altUnknown": "{name}: viršūnė dar nežinoma",
       "older": "senesnis nei įprastai",
       "notChecked": "netikrinta",
+      "notConfigured": "nenustatyta",
+      "failedCheck": "Nerodoma: neatitiko duomenų patikros",
       "table": "Atstumas nuo viršūnės lentele",
       "col": {
         "market": "Rinka",
@@ -150,7 +153,16 @@
       "sources": "Šaltiniai"
     },
     "fromPeakWord": "nuo viršūnės",
-    "belowPeak": "{money} žemiau viršūnės"
+    "belowPeak": "{money} žemiau viršūnės",
+    "chip": {
+      "label": "Šaltinio duomenys",
+      "licence": "Licencija: {id}",
+      "open": "Atviri duomenys",
+      "purpose": "Rodoma nurodžius tikslą",
+      "asOf": "Data: {date}",
+      "retrieved": "Gauta {when}",
+      "checked": "Patikrinta {when}"
+    }
   },
   "terms": {
     "title": "Naudojimo sąlygos",

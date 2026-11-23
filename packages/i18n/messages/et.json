@@ -108,7 +108,8 @@
     "valueBelowPeak": "Väärtus tipust allpool",
     "wiped": {
       "title": "Väärtus tippudest allpool",
-      "sum": "Liidab read, mille allikad lubavad väärtust näidata: {rows}. Bitcoin ja ether kuuluvad krüpto kogusumma sisse ega lisandu uuesti. Tipud on eri kuupäevadel; vanim number on seisuga {oldest}.",
+      "sum": "Liidab read, mille allikad lubavad väärtust näidata: {rows}. Tipud on eri kuupäevadel; vanim number on seisuga {oldest}.",
+      "cryptoNote": "Bitcoin ja ether kuuluvad krüpto kogusumma sisse ega lisandu uuesti.",
       "left": "Välja jäetud väärtuse puudumise tõttu: {rows}.",
       "derived": "Finora arvutatud"
     },
@@ -120,6 +121,8 @@
       "altUnknown": "{name}: tipp pole veel teada",
       "older": "tavapärasest vanem",
       "notChecked": "pole kontrollitud",
+      "notConfigured": "seadistamata",
+      "failedCheck": "Ei näidata: ei läbinud andmekontrolli",
       "table": "Kaugus tipust tabelina",
       "col": {
         "market": "Turg",
@@ -150,7 +153,16 @@
       "sources": "Allikad"
     },
     "fromPeakWord": "tipust",
-    "belowPeak": "{money} tipust allpool"
+    "belowPeak": "{money} tipust allpool",
+    "chip": {
+      "label": "Allika andmed",
+      "licence": "Litsents: {id}",
+      "open": "Avaandmed",
+      "purpose": "Näidatud pärast eesmärgi nimetamist",
+      "asOf": "Seisuga {date}",
+      "retrieved": "Saadud {when}",
+      "checked": "Kontrollitud {when}"
+    }
   },
   "terms": {
     "title": "Kasutustingimused",

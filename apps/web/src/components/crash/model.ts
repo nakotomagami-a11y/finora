@@ -58,14 +58,21 @@ export type RowView = {
   providerCode: string | undefined;
   /** The latest time any of its sources was checked or retrieved, for "updated" lines. */
   checkedAt: string | undefined;
+  /** The sources behind the figure, for the tile's source chips and their popovers. */
+  sources: SourceView[];
+  /** The row came with a drawdown above zero, which cannot be true: it is shown as failed, never as a number. */
+  invalid: boolean;
 };
+
+export type SourceView = { sourceId: string; licenceId: string; asOf: string | undefined; retrievedAt: string; checkedAt: string | undefined; accessTier: "open" | "purpose"; derived: boolean };
 
 /** A market size under this reads "0 million" when rounded, so the page leaves it out. */
 export const MIN_MONEY_USD = 500_000;
 
 export function toRowView(source: MarketRow): RowView {
   // A drawdown above zero cannot happen (the peak is the highest close): it is bad data, shown as a row that was not checked.
-  const row: MarketRow = (source.state === "ok" || source.state === "stale") && source.drawdownPct !== undefined && source.drawdownPct > 0 ? { ...source, state: "error", drawdownPct: undefined, valueLostUsd: undefined } : source;
+  const invalid = (source.state === "ok" || source.state === "stale") && source.drawdownPct !== undefined && source.drawdownPct > 0;
+  const row: MarketRow = invalid ? { ...source, state: "error", drawdownPct: undefined, valueLostUsd: undefined } : source;
   const hidden = row.unit === "index_points"; // a cited index series: drawdown only, never the raw series
   const times = row.sources.flatMap((s) => [s.checkedAt, s.retrievedAt]).filter((t): t is string => typeof t === "string");
   return {
@@ -86,6 +93,8 @@ export function toRowView(source: MarketRow): RowView {
     ticker: row.ticker,
     providerCode: PROVIDER_CODE[row.rowKey],
     checkedAt: times.sort().at(-1),
+    sources: row.sources.map((src) => ({ sourceId: src.sourceId, licenceId: src.licenceId, asOf: src.asOf ?? undefined, retrievedAt: src.retrievedAt, checkedAt: src.checkedAt ?? undefined, accessTier: src.accessTier, derived: src.derived })),
+    invalid,
   };
 }
 
@@ -105,17 +114,20 @@ export type TileView = {
   attributions: string[];
 };
 
-/** A row of the distance strip: a drop, a market at its peak, a peak not known yet, or a row that was not checked. */
+/** A row of the distance strip: a drop, a market at its peak, a peak not known yet, a provider not configured, or a row that failed. */
 export type StripRow =
   | { rowKey: string; labelId: string; kind: "drop"; drawdownPct: number; stale: boolean }
   | { rowKey: string; labelId: string; kind: "at_peak"; stale: boolean }
   | { rowKey: string; labelId: string; kind: "peak_unknown" }
-  | { rowKey: string; labelId: string; kind: "error" };
+  | { rowKey: string; labelId: string; kind: "not_configured" }
+  | { rowKey: string; labelId: string; kind: "error"; invalid: boolean };
 
 export type WipedView = {
   valueUsd: number;
   /** The rows the sum counts, in the order the server lists them. */
   counted: { labelId: string; asOf: string | undefined }[];
+  /** The total crypto market is among them, so the page says bitcoin and ether are part of it and not added again. */
+  includesCrypto: boolean;
   /** Counted rows the server had to leave out for lack of a value. */
   excluded: string[];
   oldestAsOf: string;
@@ -157,8 +169,9 @@ export function buildPageView(response: CrashResponse): PageView {
     };
   });
 
-  // Drops first, the biggest on top; then markets at their peak, peaks not known yet, and rows not checked.
-  const rank = (row: StripRow): number => (row.kind === "drop" ? 0 : row.kind === "at_peak" ? 1 : row.kind === "peak_unknown" ? 2 : 3);
+  // Drops first, the biggest on top; then markets at their peak, peaks not known yet, providers not configured, and rows that failed. The strip never shrinks silently.
+  const RANK = { drop: 0, at_peak: 1, peak_unknown: 2, not_configured: 3, error: 4 } as const;
+  const rank = (row: StripRow): number => RANK[row.kind];
   const strip: StripRow[] = all
     .filter((r) => r.itemId !== "M08.X.01")
     .flatMap<StripRow>((r) => {
@@ -167,22 +180,29 @@ export function buildPageView(response: CrashResponse): PageView {
         return [r.drawdownPct < 0 ? { rowKey: r.rowKey, labelId: r.labelId, kind: "drop", drawdownPct: r.drawdownPct, stale } : { rowKey: r.rowKey, labelId: r.labelId, kind: "at_peak", stale }];
       }
       if (r.state === "peak_unknown") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "peak_unknown" }];
-      if (r.state === "error") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "error" }];
+      if (r.state === "not_configured") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "not_configured" }];
+      if (r.state === "error") return [{ rowKey: r.rowKey, labelId: r.labelId, kind: "error", invalid: r.invalid }];
       return [];
     })
     .sort((a, b) => rank(a) - rank(b) || (a.kind === "drop" && b.kind === "drop" ? a.drawdownPct - b.drawdownPct : 0));
 
   const labelOf = (itemId: string) => all.find((r) => r.itemId === itemId);
   const w = response.totalWiped;
-  // The summary needs at least two counted rows to be a sum of anything (docs/plan/ui-build-plan.md §5.9).
+  // The total shows over the rows it has, even when only one allows a value (designer, 7096062152): the sentence names exactly those rows.
+  // A row the server left out for lack of a value is named in the "left out" line, never in the sum's own sentence.
+  const counted =
+    w?.rowItemIds
+      .filter((itemId) => !w.excludedItemIds.includes(itemId))
+      .flatMap((itemId) => {
+        const row = labelOf(itemId);
+        return row ? [{ labelId: row.labelId, asOf: row.asOf }] : [];
+      }) ?? [];
   const wiped: WipedView | undefined =
-    w && w.rowItemIds.length >= 2 && w.valueUsd >= MIN_MONEY_USD
+    w && counted.length >= 1 && w.valueUsd >= MIN_MONEY_USD
       ? {
           valueUsd: w.valueUsd,
-          counted: w.rowItemIds.flatMap((itemId) => {
-            const row = labelOf(itemId);
-            return row ? [{ labelId: row.labelId, asOf: row.asOf }] : [];
-          }),
+          counted,
+          includesCrypto: counted.some((c) => c.labelId === "total_crypto"),
           excluded: w.excludedItemIds.flatMap((itemId) => {
             const row = labelOf(itemId);
             return row ? [row.labelId] : [];

@@ -106,7 +106,7 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
 
       {ready && page ? (
         <>
-          <div className="flex flex-wrap items-start gap-4">
+          <div className="flex flex-wrap items-stretch gap-4">
             <div className="flex min-w-0 flex-[2_1_520px] [&>section]:flex-1">
               <DrawdownStrip page={page} rows={rows} />
             </div>
@@ -114,7 +114,7 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
               <DebtCard row={page.debt} now={clock} />
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="flex flex-wrap gap-4">
             {page.tiles.map((tile) => (
               <CrashTile key={tile.id} tile={tile} now={clock} onRetry={refetch} />
             ))}
@@ -122,7 +122,7 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
         </>
       ) : (
         <div aria-busy="true" aria-label={t("loading")} className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-start gap-4">
+          <div className="flex flex-wrap items-stretch gap-4">
             <div className="flex min-w-0 flex-[2_1_520px] [&>section]:flex-1">
               <DrawdownStripSkeleton />
             </div>
@@ -130,7 +130,7 @@ export function CrashPage({ fixture, loading = false }: CrashPageProps) {
               <DebtCard row={undefined} now={clock} />
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="flex flex-wrap gap-4">
             {TILES.map((tile) => (
               <CrashTileSkeleton key={tile.id} />
             ))}

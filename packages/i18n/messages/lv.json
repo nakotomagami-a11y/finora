@@ -108,7 +108,8 @@
     "valueBelowPeak": "Vērtība zem virsotnes",
     "wiped": {
       "title": "Vērtība zem virsotnēm",
-      "sum": "Summē rindas, kuru avoti ļauj rādīt vērtību: {rows}. Bitkoins un ēteris ir kripto kopsummas daļa un netiek pieskaitīti vēlreiz. Virsotnes ir dažādos datumos; vecākais skaitlis ir no {oldest}.",
+      "sum": "Summē rindas, kuru avoti ļauj rādīt vērtību: {rows}. Virsotnes ir dažādos datumos; vecākais skaitlis ir no {oldest}.",
+      "cryptoNote": "Bitkoins un ēteris ir kripto kopsummas daļa un netiek pieskaitīti vēlreiz.",
       "left": "Izlaists, jo nav vērtības: {rows}.",
       "derived": "Finoras aprēķināts"
     },
@@ -120,6 +121,8 @@
       "altUnknown": "{name}: virsotne vēl nav zināma",
       "older": "vecāks nekā parasti",
       "notChecked": "nav pārbaudīts",
+      "notConfigured": "nav iestatīts",
+      "failedCheck": "Nav rādīts: neizturēja datu pārbaudi",
       "table": "Attālums no virsotnes tabulā",
       "col": {
         "market": "Tirgus",
@@ -150,7 +153,16 @@
       "sources": "Avoti"
     },
     "fromPeakWord": "no virsotnes",
-    "belowPeak": "{money} zem virsotnes"
+    "belowPeak": "{money} zem virsotnes",
+    "chip": {
+      "label": "Avota informācija",
+      "licence": "Licence: {id}",
+      "open": "Atvērti dati",
+      "purpose": "Rādīts pēc norādīta mērķa",
+      "asOf": "Uz {date}",
+      "retrieved": "Iegūts {when}",
+      "checked": "Pārbaudīts {when}"
+    }
   },
   "terms": {
     "title": "Lietošanas noteikumi",
